@@ -419,6 +419,14 @@ internal class LauncherViewModel(
             isTelemetryConsentPending = TELEMETRY_REQUIRES_CONSENT &&
                 !dockSettingsStore.isTelemetryChoiceAnswered,
             isCalendarSearchEnabled = dockSettingsStore.isCalendarSearchEnabled,
+            // Unsettled from the start whenever a content source is enabled: the
+            // index load doesn't begin until home-ready (which can wait ~1.5s for
+            // the IME), so the no-match store action must stay hidden until that
+            // load runs and clears this — not just from when it starts. The
+            // home-ready load clears it, and the "no source enabled" early-return
+            // in refreshContentSearchIndices clears it if a source is then off.
+            isLoadingSearchContent = dockSettingsStore.isContactSearchEnabled ||
+                dockSettingsStore.isCalendarSearchEnabled,
             themeMode = dockSettingsStore.themeMode,
             iconShape = dockSettingsStore.iconShape,
             callMethod = dockSettingsStore.callMethod,
@@ -691,20 +699,25 @@ internal class LauncherViewModel(
                 val workDockedIds = workDockedAppIdsForState(state)
                 val visibleApps = visibleInstalledApps()
                 val newRecentApps = visibleApps.filterRecent(appLaunchStatsStore.recentAppIds).markVisibility()
+                // Trimmed to match every steady-state refresh (refreshLists /
+                // refreshFilteredApps): this publish can land mid-typing, and
+                // filtering the raw string would silently change the visible
+                // results for a whitespace-padded query — a lone " " stops
+                // meaning "show all", and "maps " stops matching Maps.
+                val freshQuery = state.query.trim()
+                val filtered = visibleApps.filterByName(
+                    query = freshQuery,
+                    appLaunchStatsStore = appLaunchStatsStore,
+                    excludedAppIds = excludedFromAppList(state, dockedIds),
+                    dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
+                    sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
+                ).markVisibility()
                 state.copy(
-                    filteredApps = visibleApps.filterByName(
-                        // Trimmed to match every steady-state refresh
-                        // (refreshLists / refreshFilteredApps): this publish
-                        // can land mid-typing, and filtering the raw string
-                        // would silently change the visible results for a
-                        // whitespace-padded query — a lone " " stops meaning
-                        // "show all", and "maps " stops matching Maps.
-                        query = state.query.trim(),
-                        appLaunchStatsStore = appLaunchStatsStore,
-                        excludedAppIds = excludedFromAppList(state, dockedIds),
-                        dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
-                        sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
-                    ).markVisibility(),
+                    filteredApps = filtered,
+                    // This publish flips isFreshAppLoadComplete true, so the
+                    // store-search gate starts trusting the match — recompute it
+                    // against the freshly-loaded full inventory here too.
+                    queryMatchesInstalledApp = filtered.isNotEmpty() || queryMatchesAnyInstalledApp(freshQuery),
                     dockedApps = visibleApps
                         .filterDocked(dockedIds)
                         .markVisibility(),
@@ -4176,6 +4189,56 @@ internal class LauncherViewModel(
         }
     }
 
+    /**
+     * Open the app store to search for [query] — the "No matches" action when a
+     * typed name is not an installed app. Tries the Play Store app first, falls
+     * back to its web listing, and toasts only when neither a store nor a
+     * browser can take it. The query is the user's typed search text, so it is
+     * privacy-sensitive: log its length, never its content (see the Privacy
+     * rule in AGENTS.md).
+     */
+    fun searchAppStore(query: String) {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return
+        // A fixed breadcrumb only. The query is the user's search text, so
+        // nothing derived from it — not the text, not even its length — is
+        // logged, matching the filter-timing telemetry that excludes both
+        // (Privacy rule; off-device sinks mirror numeric values too).
+        LauncherDebugLog.event("searchAppStore invoked")
+        // Store app first, then the web listing, then a toast. Failures log a
+        // reason and the exception *type* only — never the throwable itself:
+        // ActivityNotFoundException.getMessage() embeds the whole intent
+        // including its `market://search?q=<query>` data URI, so recording it
+        // would carry the user's typed query into the retained log and
+        // Crashlytics (Privacy rule).
+        if (launchAppStoreSearch(playStoreSearchIntent(trimmed), "market")) return
+        if (launchAppStoreSearch(playStoreSearchWebIntent(trimmed), "web fallback")) return
+        // No store app *and* no browser, or device policy denies both
+        // (stripped-down OEM / kiosk / managed builds). Nothing left to try, so
+        // tell the user rather than failing silently.
+        Toast.makeText(app, R.string.app_store_search_unavailable, Toast.LENGTH_SHORT).show()
+    }
+
+    /**
+     * Start one app-store-search [intent], returning whether it launched.
+     * Catches both the "no handler" ([ActivityNotFoundException]) and the
+     * "policy-denied" ([SecurityException]) cases a managed device can raise, so
+     * a denied store launch falls through to the web fallback and a denied
+     * fallback reaches the toast instead of crashing. [reason] labels the
+     * attempt in the log; neither branch logs the throwable (see [searchAppStore]).
+     */
+    private fun launchAppStoreSearch(intent: Intent, reason: String): Boolean =
+        try {
+            startActivity(intent)
+            true
+        } catch (exception: ActivityNotFoundException) {
+            LauncherDebugLog.event("searchAppStore %s unavailable: %s", reason, exception.javaClass.simpleName)
+            false
+        } catch (exception: SecurityException) {
+            LauncherDebugLog.event("searchAppStore %s denied: %s", reason, exception.javaClass.simpleName)
+            false
+        }
+
     fun setDockEnabled(isEnabled: Boolean) {
         dockSettingsStore.isDockEnabled = isEnabled
         _uiState.update { it.copy(isDockEnabled = isEnabled) }
@@ -4319,8 +4382,20 @@ internal class LauncherViewModel(
         val state = _uiState.value
         val wantContacts = state.isContactSearchEnabled
         val wantEvents = state.isCalendarSearchEnabled
-        if (!wantContacts && !wantEvents) return
+        if (!wantContacts && !wantEvents) {
+            // Nothing to load, so nothing to wait on — clear the gate the
+            // store-search action reads (a prior enabled load may have set it).
+            if (_uiState.value.isLoadingSearchContent) {
+                _uiState.update { it.copy(isLoadingSearchContent = false) }
+            }
+            return
+        }
         val requestVersion = ++contentSearchVersion
+        // Mark the enabled indices as loading so the no-match store action stays
+        // hidden until they settle; the winning request clears it on completion
+        // (a superseded one returns early, and the newer request that superseded
+        // it owns the clear).
+        _uiState.update { it.copy(isLoadingSearchContent = true) }
         viewModelScope.launch {
             // Each IO stage re-checks the version before touching its provider:
             // a disable that lands while this load is queued must not *query*
@@ -4373,6 +4448,7 @@ internal class LauncherViewModel(
                 contacts.size,
                 events.size,
             )
+            _uiState.update { it.copy(isLoadingSearchContent = false) }
             if (_uiState.value.query.isNotBlank()) refreshFilteredApps()
         }
     }
@@ -4486,14 +4562,16 @@ internal class LauncherViewModel(
             // which is a snapshot from before this update and may not include
             // a launch that just landed via `recordLaunch` → `refreshLists`.
             val newRecentApps = visibleApps.filterRecent(appLaunchStatsStore.recentAppIds).markVisibility()
+            val filtered = visibleApps.filterByName(
+                query = query,
+                appLaunchStatsStore = appLaunchStatsStore,
+                excludedAppIds = excludedFromAppList(state, dockedIds),
+                dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
+                sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
+            ).markVisibility()
             state.copy(
-                filteredApps = visibleApps.filterByName(
-                    query = query,
-                    appLaunchStatsStore = appLaunchStatsStore,
-                    excludedAppIds = excludedFromAppList(state, dockedIds),
-                    dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
-                    sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
-                ).markVisibility(),
+                filteredApps = filtered,
+                queryMatchesInstalledApp = filtered.isNotEmpty() || queryMatchesAnyInstalledApp(query),
                 dockedApps = visibleApps.filterDocked(dockedIds).markVisibility(),
                 dockPositions = dockedAppStore.dockedAppPositions,
                 dockFolders = resolvedDockFolders(visibleApps, dockedAppStore),
@@ -4546,20 +4624,38 @@ internal class LauncherViewModel(
         }
     }
 
+    /**
+     * Whether [query] matches any app in the *full* installed set — including
+     * the hidden and quiet-mode work apps that [visibleInstalledApps] keeps out
+     * of the results. Reuses the launcher matcher over the list the launcher
+     * already holds (no extra inventory load), and callers only consult it when
+     * the visible result list is empty, so this second match runs solely on a
+     * no-match query. Gates the store-search action so it never offers to search
+     * for something that is actually installed, just not shown. It cannot see a
+     * profile a degraded enumeration failed to read — that edge stays accepted
+     * (see TODO.md).
+     */
+    private fun queryMatchesAnyInstalledApp(query: String): Boolean =
+        query.isNotBlank() && installedApps.anyMatchesName(query)
+
     private fun refreshFilteredApps() {
         val query = _uiState.value.query.trim()
         val startedAtNanos = SystemClock.elapsedRealtimeNanos()
         _uiState.update { state ->
             val dockedIds = dockedAppIdsForState(state)
             val workDockedIds = workDockedAppIdsForState(state)
+            val filtered = visibleInstalledApps().filterByName(
+                query = query,
+                appLaunchStatsStore = appLaunchStatsStore,
+                excludedAppIds = excludedFromAppList(state, dockedIds),
+                dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
+                sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
+            ).markVisibility()
             state.copy(
-                filteredApps = visibleInstalledApps().filterByName(
-                    query = query,
-                    appLaunchStatsStore = appLaunchStatsStore,
-                    excludedAppIds = excludedFromAppList(state, dockedIds),
-                    dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
-                    sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
-                ).markVisibility(),
+                filteredApps = filtered,
+                // Only run the full-inventory match when nothing is visibly
+                // matching — that's the sole moment the store action is offered.
+                queryMatchesInstalledApp = filtered.isNotEmpty() || queryMatchesAnyInstalledApp(query),
                 contactResults = contactResultsFor(state, query),
                 eventResults = eventResultsFor(state, query),
             )

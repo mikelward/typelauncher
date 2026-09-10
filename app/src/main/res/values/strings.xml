@@ -114,6 +114,10 @@
     <string name="dock_subtitle">Up to %1$d apps fit here</string>
     <string name="home_empty_title">No matches</string>
     <string name="home_empty_body">Try a shorter app name or clear the search.</string>
+    <!-- TODO: translate -->
+    <string name="home_search_play_store" tools:ignore="MissingTranslation">Search Play Store</string>
+    <!-- TODO: translate -->
+    <string name="app_store_search_unavailable" tools:ignore="MissingTranslation">No app store available</string>
     <string name="agenda_permission_title">Show calendar events</string>
     <string name="navigate_home_description">Return to launcher search</string>
     <string name="app_actions_description">App actions</string>

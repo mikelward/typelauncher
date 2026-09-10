@@ -200,6 +200,7 @@ internal fun HomeScreen(
     onClearQuery: () -> Unit,
     onLaunchActiveApp: () -> Unit,
     onLaunchApp: (InstalledApp) -> Unit,
+    onSearchAppStore: (String) -> Unit = {},
     onOpenAppInfo: (InstalledApp) -> Unit,
     onToggleDock: (InstalledApp, Int) -> Unit,
     onToggleWorkDock: (InstalledApp, Int) -> Unit = onToggleDock,
@@ -1052,6 +1053,16 @@ internal fun HomeScreen(
                     layout = state.appListLayout,
                     iconSizeDp = dockIconSizeDp,
                     highlightFirst = state.query.isNotBlank(),
+                    query = state.query,
+                    // Definitive no-match only: the fresh app inventory and any
+                    // enabled content indexes have finished loading, and the
+                    // query matches nothing in the full installed set (hidden /
+                    // quiet-mode apps included), so we never offer to search the
+                    // store for something already installed.
+                    storeSearchReady = state.isFreshAppLoadComplete &&
+                        !state.isLoadingSearchContent &&
+                        !state.queryMatchesInstalledApp,
+                    onSearchAppStore = onSearchAppStore,
                     reverseLayout = effectiveAppListSortOrder(state.appListSortOrder, landscapeTier).isReversed,
                     contactResults = state.contactResults,
                     eventResults = state.eventResults,
@@ -4033,6 +4044,16 @@ internal fun AppsCard(
     layout: AppListLayout,
     iconSizeDp: Int,
     highlightFirst: Boolean,
+    // The current search query. Empty except while typing; used only to offer
+    // an app-store search when a typed name matched nothing (see the empty
+    // branch below).
+    query: String = "",
+    // Whether the no-match is definitive: every enabled search source (the fresh
+    // app inventory and any content indexes) has finished loading. Gates the
+    // store-search action so a still-loading index can't flash an offer to
+    // search for something that is actually installed or about to match.
+    storeSearchReady: Boolean = false,
+    onSearchAppStore: (String) -> Unit = {},
     reverseLayout: Boolean = false,
     // The typed-search content sections, appended after the apps in data order
     // (contacts, then events) so reverseLayout keeps them beyond the apps in
@@ -4121,12 +4142,38 @@ internal fun AppsCard(
                 CircularProgressIndicator()
             }
         } else if (apps.isEmpty() && contactResults.isEmpty() && eventResults.isEmpty()) {
-            EmptyState(
-                icon = LauncherIcons.Search,
-                title = stringResource(R.string.home_empty_title),
-                body = stringResource(R.string.home_empty_body),
-                modifier = Modifier.fillMaxWidth(),
-            )
+            // The apps card is measured to a fixed height (the Home layout's
+            // `appHeight`), which in short landscape with the keyboard up can be
+            // only a row or two — shorter than the empty state. Scroll rather
+            // than clip, so the store action below the message stays reachable.
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                EmptyState(
+                    icon = LauncherIcons.Search,
+                    title = stringResource(R.string.home_empty_title),
+                    body = stringResource(R.string.home_empty_body),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                // Nothing installed matched what was typed — offer to search the
+                // app store for it. Only while a query is present (a blank-query
+                // empty state means the device has no apps to list, not a failed
+                // search) and only once every enabled search source has settled,
+                // so a still-loading index can't offer to search for an app that
+                // is actually installed or about to match.
+                if (query.isNotBlank() && storeSearchReady) {
+                    TextButton(
+                        onClick = { onSearchAppStore(query) },
+                        modifier = Modifier.testTag(HOME_SEARCH_APP_STORE_TAG),
+                    ) {
+                        Text(stringResource(R.string.home_search_play_store))
+                    }
+                }
+            }
         } else {
             val chevronDescription = stringResource(R.string.apps_list_scroll_more_hint)
             if (isGrid) {

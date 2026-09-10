@@ -209,6 +209,27 @@ internal fun List<InstalledApp>.filterByName(
 }
 
 /**
+ * True when any app in the receiver matches [query] by the same per-app tier
+ * logic [filterByName] uses, without any of its ordering work. [filterByName]
+ * copies the launch-count map, builds a collator, sorts, and allocates a pair
+ * per match to produce a ranked list; a caller that only needs "does anything
+ * match?" pays none of that. It backs the store-search gate, which runs solely
+ * on a query the visible list already failed to match, so it must stay off the
+ * per-keystroke frame budget. The digit spellings are computed once for the
+ * whole scan, as in [filterByName], so a numeric query doesn't re-allocate them
+ * per app. An empty query returns false rather than matching everything.
+ */
+internal fun List<InstalledApp>.anyMatchesName(query: String): Boolean {
+    if (query.isEmpty()) return false
+    val digitSpellings = DigitSpeller.expansions(query)
+    return any { app ->
+        app.displayName.launcherMatchTier(query, digitSpellings) != null ||
+            app.workPrefixStrippedSearchName?.launcherMatchTier(query, digitSpellings) != null ||
+            app.packageName.packageBrandMatchTier(query) != null
+    }
+}
+
+/**
  * Returns recently-launched apps in display order — oldest first, most recent
  * last — so the recents row renders the freshest entry on the right (next to
  * the keyboard / typing area). Storage in [AppLaunchStatsStore.recentAppIds] is

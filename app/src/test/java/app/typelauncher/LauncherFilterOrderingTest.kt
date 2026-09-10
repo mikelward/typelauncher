@@ -8,6 +8,7 @@ import androidx.test.core.app.ApplicationProvider
 import java.util.Locale
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -698,6 +699,38 @@ class LauncherFilterOrderingTest {
         assertEquals(listOf("Work Email", "Email"), filtered.map { it.name })
         assertEquals(true, filtered[0].isWorkApp)
         assertEquals(false, filtered[1].isWorkApp)
+    }
+
+    @Test
+    fun anyMatchesNameAgreesWithFilterByNameEmptiness() {
+        val apps = listOf(
+            installedApp("Mail"),
+            installedApp("Slack"),
+            workInstalledApp("Calendar"),
+        )
+        // Parity across a title match, a work-prefix-stripped match, a package
+        // brand match, and a genuine miss — anyMatchesName is the cheap Boolean
+        // twin of filterByName, so it must agree on every non-blank query the
+        // gate can see (the VM guards the blank case with isNotBlank()).
+        for (query in listOf("mail", "cal", "slack", "zzz")) {
+            assertEquals(
+                "anyMatchesName disagreed with filterByName for query \"$query\"",
+                apps.filterByName(query, store, excludedAppIds = emptySet()).isNotEmpty(),
+                apps.anyMatchesName(query),
+            )
+        }
+        // The one intentional divergence: an empty query matches everything in
+        // filterByName's ranked path but nothing here, so anyMatchesName never
+        // reports a whole-inventory "match" the gate would misread as installed.
+        assertFalse(apps.anyMatchesName(""))
+    }
+
+    @Test
+    fun anyMatchesNameFindsAWorkProfileClone() {
+        // The gate's whole reason to scan the full set: a work "Calendar" the
+        // visible list excluded must still count as installed.
+        val apps = listOf(installedApp("Slack"), workInstalledApp("Calendar"))
+        assertTrue(apps.anyMatchesName("calendar"))
     }
 
     private fun installedApp(
