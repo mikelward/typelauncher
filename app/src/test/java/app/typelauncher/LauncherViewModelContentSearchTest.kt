@@ -909,6 +909,113 @@ class LauncherViewModelContentSearchTest {
     }
 
     @Test
+    fun contentSearchLoadSettlesTheStoreSearchGate() {
+        // The no-match store action is gated on isLoadingSearchContent so it
+        // can't offer a search while a contact/event index is still loading.
+        // Once the enabled indices finish at home-ready, the flag must clear —
+        // a stuck-true would suppress the action forever (Codex on PR #739).
+        seedApp("Mail", "com.example.mail")
+        grantPermissions()
+        enableBothSources()
+        registerContactsProvider(listOf(FakeContact(1, "Maria Lopez")))
+        registerCalendarProvider(listOf(FakeEvent(10, "Marathon training")))
+        val viewModel = newViewModel()
+        idle()
+        assertTrue(
+            "A persisted-enabled source starts unsettled, before the home-ready load runs",
+            viewModel.uiState.value.isLoadingSearchContent,
+        )
+
+        viewModel.onHomeReady()
+        idle()
+        assertFalse(
+            "Content indices have loaded, so the store-search gate must be settled",
+            viewModel.uiState.value.isLoadingSearchContent,
+        )
+    }
+
+    @Test
+    fun queryMatchingHiddenAppKeepsStoreSearchGated() {
+        // A hidden app is filtered out of the visible results, so a query for it
+        // shows "No matches" — but it IS installed, so the authoritative
+        // full-inventory match must flag it and keep the store-search action
+        // gated rather than offering to install something already present
+        // (Codex on PR #739).
+        seedApp("Zombiegame", "com.example.zombiegame")
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+        val app = viewModel.uiState.value.filteredApps.first { it.displayName == "Zombiegame" }
+        viewModel.hideApp(app)
+        idle()
+
+        viewModel.setQuery("zombiegame")
+        idle()
+
+        assertTrue(
+            "The hidden app is filtered out of the visible results",
+            viewModel.uiState.value.filteredApps.none { it.displayName == "Zombiegame" },
+        )
+        assertTrue(
+            "But it is installed, so the store-search gate stays closed",
+            viewModel.uiState.value.queryMatchesInstalledApp,
+        )
+    }
+
+    @Test
+    fun queryMatchingNoInstalledAppLeavesStoreSearchOpen() {
+        // The counterpart: a query that matches nothing installed leaves the gate
+        // open so the store-search action can show.
+        seedApp("Maps", "com.example.maps")
+        val viewModel = newViewModel()
+        idle()
+        viewModel.onHomeReady()
+        idle()
+
+        viewModel.setQuery("notaninstalledapp")
+        idle()
+
+        assertTrue(
+            "No installed app matches, so the visible results are empty",
+            viewModel.uiState.value.filteredApps.isEmpty(),
+        )
+        assertFalse(
+            "and nothing installed matches, so the store-search gate is open",
+            viewModel.uiState.value.queryMatchesInstalledApp,
+        )
+    }
+
+    @Test
+    fun appStoreSearchFailureNeverLogsTheQuery() {
+        // Privacy regression (Codex on PR #739): when neither a store app nor a
+        // browser handles the search intent, ActivityNotFoundException.getMessage()
+        // carries the whole intent — including its `q=<query>` data URI. Logging
+        // the throwable would push the user's typed search text into the retained
+        // log and Crashlytics, so the failure path must record a reason + type
+        // only. A distinctive token stands in for the query so the assertion
+        // can't accidentally pass on a redaction of common words.
+        LauncherDebugLog.resetForTest()
+        val viewModel = newViewModel()
+        idle()
+        // No handler registered for market:// or https://, so both attempts throw.
+        shadowOf(context as android.app.Application).checkActivities(true)
+
+        viewModel.searchAppStore("zqxjvkqfoo")
+        idle()
+
+        val log = LauncherDebugLog.entriesForTest()
+        assertTrue(
+            "The typed query must never reach the log: $log",
+            log.none { it.contains("zqxjvkqfoo") },
+        )
+        assertTrue(
+            "The failure should still be recorded by reason + type: $log",
+            log.any { it.contains("searchAppStore") && it.contains("ActivityNotFoundException") },
+        )
+    }
+
+    @Test
     fun contactProviderFailureDegradesToEmptyIndex() {
         // Regression: a provider-side RuntimeException (disabled/corrupt OEM
         // contacts provider) must degrade to an empty section, not escape the

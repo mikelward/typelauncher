@@ -787,6 +787,19 @@ internal data class LauncherUiState(
     // (the deferred agenda load) waits on this flag instead of `isLoadingApps`
     // so it doesn't race the fresh app load.
     val isFreshAppLoadComplete: Boolean = false,
+    // True while an enabled content-search index (contacts / calendar) is doing
+    // its initial off-main-thread load, so a query matching only a contact or
+    // event doesn't read as a definitive no-match yet. Gates the "No matches"
+    // store-search action alongside `isFreshAppLoadComplete` — the action is
+    // offered only once every enabled search source has settled.
+    val isLoadingSearchContent: Boolean = false,
+    // True when the typed query matches an app in the FULL installed set —
+    // hidden and quiet-mode work apps included, which the visible results
+    // filter out. Gates the "No matches" store-search action so it never offers
+    // to search the store for something that is actually installed, just not
+    // shown. Only meaningful while a query is typed and the visible results are
+    // empty; false otherwise.
+    val queryMatchesInstalledApp: Boolean = false,
     // Latched true the first time the UI signals "home ready" via
     // `LauncherViewModel.onHomeReady`. Gates cold-start IO that the agenda load
     // and `AppWidgetHost.startListening` would otherwise contend with.

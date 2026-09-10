@@ -106,6 +106,48 @@ class ContentSearchScreenshotTest {
     }
 
     @Test
+    fun noMatches_showsAppStoreSearchAction() {
+        // Zero apps and zero content results with a query typed: the empty state
+        // renders its "Search Play Store" action so a name that isn't installed
+        // is still a lead somewhere.
+        composeRule.setContent {
+            TypeLauncherTheme {
+                Box(
+                    modifier = Modifier
+                        .width(320.dp)
+                        .height(480.dp)
+                        .background(Color(0xFFEFEFEF)),
+                ) {
+                    AppsCard(
+                        apps = emptyList(),
+                        dockLimit = Int.MAX_VALUE,
+                        layout = AppListLayout.NameBeside,
+                        iconSizeDp = 43,
+                        highlightFirst = true,
+                        query = "notanapp",
+                        storeSearchReady = true,
+                        onSearchAppStore = {},
+                        contactResults = emptyList(),
+                        eventResults = emptyList(),
+                        onLaunchApp = {},
+                        onOpenAppInfo = {},
+                        onToggleDock = { _, _ -> },
+                        onResetRank = {},
+                        onRenameApp = { _, _ -> },
+                        onHideApp = {},
+                        onUninstallApp = {},
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(HOME_SEARCH_APP_STORE_TAG, useUnmergedTree = true).assertExists()
+
+        capture("compose_no_matches_app_store_search_robolectric.png")
+    }
+
+    @Test
     fun contactRows_renderPhotoThumbnailWithMonogramFallback() {
         // One contact with a photo (decoded async from the shadow resolver's
         // registered stream — the capture helper waits for the swap-in), one
