@@ -8,6 +8,7 @@ import android.content.Context
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Process
+import android.os.UserHandle
 import android.widget.FrameLayout
 import android.view.View
 import android.widget.RemoteViews
@@ -62,6 +63,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -253,9 +255,31 @@ private fun WidgetPickerCard(
             val trimmedQuery = filterQuery.trim()
             // Group key includes the work-profile flag so the personal and work
             // copies of the same package render as distinct sections and bind
-            // against the correct profile.
+            // against the correct profile. A work group is titled the way the
+            // app list titles a work app — "Work <name>", collapsing a label
+            // that already leads with the locale's work token — so the two
+            // sections are told apart by name, not just by their badge.
+            // LocalResources rather than LocalContext.current.getString: the
+            // former tracks configuration changes (locale), the latter can
+            // hand back a stale value.
+            val resources = LocalResources.current
+            val workPrefixWord = stringResource(R.string.app_label_with_work_prefix, "").trimEnd()
+            val personalUser = remember { Process.myUserHandle() }
             val filteredGroups = availableWidgets
-                .groupBy { provider -> WidgetGroupKey(provider.appName, provider.isWorkProvider) }
+                .groupBy { provider ->
+                    WidgetGroupKey(
+                        appName = provider.appName,
+                        isWorkProvider = provider.isWorkProvider,
+                        profileId = if (provider.profile == personalUser) 0 else provider.profile.hashCode(),
+                        displayName = if (provider.isWorkProvider) {
+                            applyWorkPrefix(provider.appName, workPrefixWord) { stripped ->
+                                resources.getString(R.string.app_label_with_work_prefix, stripped)
+                            }
+                        } else {
+                            provider.appName
+                        },
+                    )
+                }
                 .let { groups ->
                     if (trimmedQuery.isEmpty()) {
                         groups
@@ -269,7 +293,16 @@ private fun WidgetPickerCard(
                                 // in which case only the matching widgets are kept
                                 // so an "agenda" search finds the Calendar app's
                                 // Agenda widget without the app name mentioning it.
-                                val appTier = entry.key.appName.launcherMatchTier(trimmedQuery)
+                                // A work group matches on its raw app name as well
+                                // as its "Work <name>" title, so "cal" still hits
+                                // "Work Calendar" at prefix tier alongside the
+                                // personal group, while "work" finds the work
+                                // sections themselves.
+                                val appTier = listOfNotNull(
+                                    entry.key.appName.launcherMatchTier(trimmedQuery),
+                                    entry.key.displayName.takeIf { it != entry.key.appName }
+                                        ?.launcherMatchTier(trimmedQuery),
+                                ).minByOrNull { it.ordinal }
                                 val labelMatches = entry.value.mapNotNull { provider ->
                                     provider.label.launcherMatchTier(trimmedQuery)
                                         ?.let { tier -> provider to tier }
@@ -378,13 +411,15 @@ private fun WidgetAppSection(
             ) {
                 WidgetAppIcon(
                     appIcon = providers.firstOrNull()?.appIcon,
+                    profile = providers.firstOrNull()?.profile,
+                    isWorkProvider = groupKey.isWorkProvider,
                 )
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     Text(
-                        text = groupKey.appName,
+                        text = groupKey.displayName,
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -568,9 +603,14 @@ private fun WidgetPreview(
 }
 
 @Composable
-private fun WidgetAppIcon(appIcon: Drawable?) {
+private fun WidgetAppIcon(
+    appIcon: Drawable?,
+    profile: UserHandle?,
+    isWorkProvider: Boolean,
+) {
     val bitmap = remember(appIcon) { appIcon?.toBitmap()?.asImageBitmap() }
-    Box(modifier = Modifier.size(36.dp)) {
+    val iconSize = 36.dp
+    Box(modifier = Modifier.size(iconSize)) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
@@ -588,6 +628,22 @@ private fun WidgetAppIcon(appIcon: Drawable?) {
                     contentDescription = null,
                     modifier = Modifier.size(28.dp),
                     tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+        // The platform's own work badge (the briefcase the app list draws on a
+        // work app's icon), overlaid the same way so a work group reads as
+        // work at a glance. Loaded per profile through the shared badge cache;
+        // null for a personal group, and until the badge resolves.
+        if (profile != null) {
+            rememberWorkBadgeOverlay(user = profile, isWorkUser = isWorkProvider, sizeDp = iconSize)?.let { workBadge ->
+                Image(
+                    bitmap = workBadge,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag(WIDGET_WORK_BADGE_TAG),
+                    contentScale = ContentScale.Fit,
                 )
             }
         }
@@ -1114,15 +1170,28 @@ private data class WidgetPreviewValue(
 internal data class WidgetGroupKey(
     val appName: String,
     val isWorkProvider: Boolean,
+    // Identifies the provider's profile (0 for the personal user) so every
+    // profile — personal, work, a private space — gets a section of its own
+    // rather than sharing one by app name.
+    val profileId: Int = 0,
+    // The section title: `appName` for a personal group, the locale's
+    // "Work <appName>" for a work group. Carried on the key (rather than
+    // derived at render time) so the filter can match on it too.
+    val displayName: String = appName,
 ) {
     /**
      * Suffix used in compose test tags. Plain `appName` for personal-profile
-     * groups (so existing tests continue matching `widget_app_row:Calendar`)
-     * and `appName|work` for work-profile groups so the same display name in a
-     * different profile is targetable.
+     * groups (so existing tests continue matching `widget_app_row:Calendar`),
+     * `appName|work` for work-profile groups, and `appName|profile<id>` for
+     * any other profile's, so the same display name in a different profile is
+     * targetable.
      */
     val tagSuffix: String
-        get() = if (isWorkProvider) "$appName|work" else appName
+        get() = when {
+            isWorkProvider -> "$appName|work"
+            profileId != 0 -> "$appName|profile$profileId"
+            else -> appName
+        }
 }
 
 /**

@@ -52,6 +52,20 @@ class WidgetProviderWorkProfileNameTest {
     }
 
     @Test
+    fun providerInANonManagedProfileIsNotAWorkProvider() {
+        // A private space or clone profile is neither personal nor work: no
+        // "Work" prefix, no badge.
+        val provider = workOnlyProviderInfo().toWidgetProvider(
+            context,
+            personalUser,
+            resolveProfileApp = { _, _ -> null },
+            isManagedProfile = { false },
+        )
+
+        assertEquals(false, provider.isWorkProvider)
+    }
+
+    @Test
     fun unresolvableWorkOnlyProviderKeepsPackageNameFallback() {
         val provider = workOnlyProviderInfo().toWidgetProvider(context, personalUser) { _, _ -> null }
 

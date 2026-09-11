@@ -20,16 +20,20 @@ import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.performClick
@@ -57,6 +61,7 @@ import org.junit.Assert.assertTrue
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import org.junit.rules.RuleChain
 import org.junit.rules.TestRule
@@ -70,6 +75,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowRoleManager
 import org.robolectric.shadows.ShadowToast
+import kotlin.math.roundToInt
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.coroutines.CoroutineContext
@@ -890,7 +896,8 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun screenshot_widgetPicker_workProfileGroupHasNoCustomBadge() {
+    @Config(shadows = [AppIconLoaderWorkBadgeTest.BadgingShadowPackageManager::class])
+    fun screenshot_widgetPicker_workProfileGroupShowsWorkPrefixAndBadge() {
         val personal = fakeWidgetProvider(appName = "Calendar", label = "Calendar month")
         val work = fakeWidgetProvider(
             appName = "Calendar",
@@ -899,6 +906,11 @@ class MainActivityRobolectricScreenshotTest {
             profile = workUserHandle(),
             isWorkProvider = true,
         )
+        // Pre-warm the badge at the group icon's size (36dp) so it is on
+        // screen for the capture instead of racing an async load.
+        val context = composeRule.activity
+        val badgeSizePx = (36 * context.resources.displayMetrics.density).roundToInt()
+        runBlocking { AppIconLoader.loadWorkBadge(context, workUserHandle(), badgeSizePx) }
         composeRule.activity.viewModel.showWidgetPickerForTest(listOf(personal, work))
         composeRule.waitForIdle()
 
@@ -908,10 +920,15 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar|work")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onNodeWithTag(WIDGET_WORK_BADGE_TAG, useUnmergedTree = true)
-            .assertDoesNotExist()
+        // Read off the row card (which merges its children's semantics) rather
+        // than by text alone: the seeded app list behind the picker carries a
+        // work Calendar of its own with the same title.
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar|work").assert(hasText("Work Calendar"))
+        composeRule.onAllNodesWithTag(WIDGET_WORK_BADGE_TAG, useUnmergedTree = true)
+            .assertCountEquals(1)
 
-        saveScreenshot("compose_widget_picker_work_profile_no_badge_robolectric.png")
+        saveScreenshot("compose_widget_picker_work_profile_prefix_and_badge_robolectric.png")
+        AppIconLoader.evictAll()
     }
 
     @Test
