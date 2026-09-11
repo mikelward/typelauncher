@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -99,6 +100,47 @@ class HostedWidgetCardAsyncResolveTest {
                 )
             }
         }
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(WIDGET_ID), boundIds)
+    }
+
+    @Test
+    fun withdrawnRestoreOfferReResolvesAndBindsTheHostView() {
+        // A card offered restore (stranded) while its binding resolved to
+        // nothing caches that null; when the offer is withdrawn because the
+        // binding now resolves, the card must look again and bind, not show
+        // "Widget unavailable" until the next resume.
+        val host = LauncherAppWidgetHost(context, /* hostId = */ 0)
+        val boundIds = mutableListOf<Int>()
+        var resolvable = false
+        var restoreLabel by mutableStateOf<String?>("Calendar")
+        composeRule.setContent {
+            TypeLauncherTheme {
+                HostedWidgetCard(
+                    widgetId = WIDGET_ID,
+                    appWidgetHost = host,
+                    appWidgetManager = AppWidgetManager.getInstance(context),
+                    customHeightDp = null,
+                    canMoveUp = false,
+                    canMoveDown = false,
+                    restoreLabel = restoreLabel,
+                    onRemoveWidget = {},
+                    onResizeWidget = {},
+                    onMoveWidget = { _, _ -> },
+                    resolveProviderInfo = { if (resolvable) fakeProviderInfo() else null },
+                    createWidgetView = { viewContext, _ ->
+                        RecordingHostView(viewContext, host) { id -> boundIds += id }
+                    },
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Tap to restore Calendar widget").assertIsDisplayed()
+        assertEquals(emptyList<Int>(), boundIds)
+
+        resolvable = true
+        restoreLabel = null
         composeRule.waitForIdle()
 
         assertEquals(listOf(WIDGET_ID), boundIds)

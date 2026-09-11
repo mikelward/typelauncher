@@ -3739,10 +3739,20 @@ internal class LauncherViewModel(
             val record = withContext(ioDispatcher) {
                 val info = runCatching { AppWidgetManager.getInstance(app).getAppWidgetInfo(appWidgetId) }.getOrNull()
                 val component = info?.provider ?: return@withContext null
-                val profile = info.profile ?: Process.myUserHandle()
+                val personalUser = Process.myUserHandle()
+                val profile = info.profile ?: personalUser
                 val serial = app.getSystemService<UserManager>()?.getSerialNumberForUser(profile) ?: 0L
                 val label = info.loadLabel(app.packageManager)?.takeIf { it.isNotBlank() } ?: component.packageName
-                WidgetProviderRecord(component, serial, label)
+                // The same classification the sweep reads a live binding
+                // back as (widgetProfileKind), so the two always agree. A
+                // kind that can't be read now is recorded as unknown, like a
+                // legacy record: nothing is ever inferred from it, which
+                // beats persisting a wrong kind the sweep would later act on.
+                val kind = launcherAppsService.widgetProfileKind(profile, personalUser)
+                if (kind == null) {
+                    LauncherDebugLog.warning("rememberWidgetProvider: profile kind unknown id=%s", appWidgetId)
+                }
+                WidgetProviderRecord(component, serial, label, profileKind = kind)
             } ?: return@launch
             // The widget may have been removed while the lookup ran; don't
             // resurrect a provider entry for an ID that's no longer tracked.
@@ -3875,6 +3885,29 @@ internal class LauncherViewModel(
     fun setStrandedWidgetIds(ids: Set<Int>) {
         LauncherDebugLog.event("setStrandedWidgetIds %s ids=%s", ids.size, ids)
         _uiState.update { it.copy(strandedWidgetIds = ids) }
+    }
+
+    /**
+     * Adds [ids] to the stranded set: widgets whose binding the misbound sweep
+     * just released (see `misboundRestoredWidgetIds`), which from here on
+     * render as restore placeholders like any other stranded widget.
+     */
+    fun addStrandedWidgetIds(ids: Set<Int>) {
+        if (ids.isEmpty()) return
+        LauncherDebugLog.event("addStrandedWidgetIds %s ids=%s", ids.size, ids)
+        _uiState.update { it.copy(strandedWidgetIds = it.strandedWidgetIds + ids) }
+    }
+
+    /**
+     * Withdraws a restore offer: [ids] were stranded by `restoreOfferChanges`
+     * for a binding that resolved to nothing, and it has since resolved after
+     * all (its work profile came back), so their cards return to the live
+     * widget.
+     */
+    fun removeStrandedWidgetIds(ids: Set<Int>) {
+        if (ids.isEmpty()) return
+        LauncherDebugLog.event("removeStrandedWidgetIds %s ids=%s", ids.size, ids)
+        _uiState.update { it.copy(strandedWidgetIds = it.strandedWidgetIds - ids) }
     }
 
     fun openSettings() {
@@ -5664,8 +5697,15 @@ internal class LauncherViewModel(
         // access to. Falling back to `Process.myUserHandle()` keeps the picker
         // populated when LauncherApps is unavailable (test / non-launcher
         // contexts).
-        val allProfiles = launcherAppsService?.profiles?.takeIf { it.isNotEmpty() }
-            ?: listOf(personalUser)
+        val allProfiles = try {
+            launcherAppsService?.profiles?.takeIf { it.isNotEmpty() }
+        } catch (exception: RuntimeException) {
+            // A profile mid-removal can make LauncherApps reject the call (the
+            // same guard loadInstalledApps carries); the picker then shows the
+            // personal user's providers rather than crashing the launcher.
+            LauncherDebugLog.failure(exception, "loadAvailableWidgets: profiles unavailable")
+            null
+        } ?: listOf(personalUser)
         // Mirror `loadInstalledApps`: drop work-profile providers whose
         // profile is currently in quiet mode so the picker hides them
         // alongside the launcher icons. Also mirror its SecurityException
@@ -5684,17 +5724,36 @@ internal class LauncherViewModel(
         }
         return profiles
             .flatMap { profile ->
-                val providers = widgetManager.getInstalledProvidersForProfile(profile)
+                val providers = try {
+                    widgetManager.getInstalledProvidersForProfile(profile)
+                } catch (exception: RuntimeException) {
+                    // Same window as above, one call later: the profile's
+                    // providers are simply left out of this load.
+                    LauncherDebugLog.failure(exception, "loadAvailableWidgets: providers unavailable profile=%s", profile.hashCode())
+                    emptyList()
+                }
                 LauncherDebugLog.event(
                     "loadAvailableWidgets profile=%s providers=%s",
                     profile.hashCode(),
                     providers.size,
                 )
+                // One kind lookup (a Binder call) per profile, not per
+                // provider: the answer is the profile's, and reading it once
+                // also keeps a profile's providers together under one group
+                // should the lookup fail partway.
+                val isManagedProfile = profile != personalUser && launcherAppsService.isManagedProfile(profile) == true
                 providers
                     .filter { info ->
                         info.widgetFeatures and AppWidgetProviderInfo.WIDGET_FEATURE_HIDE_FROM_PICKER == 0
                     }
-                    .map { info -> info.toWidgetProvider(app, personalUser, ::resolveProfileApplicationInfo) }
+                    .map { info ->
+                        info.toWidgetProvider(
+                            app,
+                            personalUser,
+                            isManagedProfile = { isManagedProfile },
+                            resolveProfileApp = ::resolveProfileApplicationInfo,
+                        )
+                    }
             }
             .distinctBy { provider -> provider.id }
             .sortedWith(
@@ -5895,6 +5954,13 @@ internal fun AppWidgetProviderInfo.toWidgetProvider(
     // below can't see packages installed only in a work profile, and without
     // this fallback their picker sections render the raw package name with no
     // app icon.
+    // Whether a non-personal profile is a managed (work) profile — only those
+    // are labeled and badged as work; a private space or clone profile is a
+    // section of its own without the work dressing, as is a profile whose
+    // kind can't be read (the dressing is cosmetic, so unknown reads as
+    // plain). Ahead of the resolver so callers can keep passing that as a
+    // trailing lambda.
+    isManagedProfile: (UserHandle) -> Boolean = { true },
     resolveProfileApp: (packageName: String, profile: UserHandle) -> ApplicationInfo?,
 ): WidgetProvider {
     val packageManager = context.packageManager
@@ -5919,7 +5985,7 @@ internal fun AppWidgetProviderInfo.toWidgetProvider(
         targetCellWidth = targetCellWidth.takeIf { it > 0 } ?: estimateCellSpan(minWidth),
         targetCellHeight = targetCellHeight.takeIf { it > 0 } ?: estimateCellSpan(minHeight),
         previewImage = loadPreviewImage(context, 0),
-        isWorkProvider = profile != personalUser,
+        isWorkProvider = profile != personalUser && isManagedProfile(profile),
     )
 }
 

@@ -99,6 +99,8 @@
     <string name="widgets_picker_unavailable">Widget picker unavailable</string>
     <string name="widgets_unavailable">Widget unavailable</string>
     <string name="widgets_restore_action">Tap to restore %1$s widget</string>
+    <!-- TODO: translate -->
+    <string name="widgets_restore_work_profile_unavailable" tools:ignore="MissingTranslation">Work profile unavailable</string>
     <string name="widget_menu_resize">Resize</string>
     <string name="widget_menu_move_up">Move up</string>
     <string name="widget_menu_move_down">Move down</string>

@@ -7,7 +7,9 @@ import android.os.Bundle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
 import androidx.test.core.app.ApplicationProvider
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -120,6 +122,51 @@ class HostedWidgetCardReuseTest {
         // Without key(widgetId) the factory never re-runs, so the second id is
         // never bound and both cards keep showing the first widget.
         assertEquals(listOf(FIRST_ID, SECOND_ID), boundIds)
+    }
+
+    @Test
+    fun strandedWidget_showsRestorePlaceholderEvenAfterItsBindingResolved() {
+        // The startup sweep can strand a widget *after* its card resolved a
+        // binding: a work-profile widget the platform's restore had re-bound
+        // into the personal profile renders as that (wrong) widget until the
+        // sweep releases the binding and publishes the id as stranded. The
+        // card must then fall to the restore placeholder rather than keep the
+        // cached binding on screen.
+        val host = LauncherAppWidgetHost(context, /* hostId = */ 0)
+        val providerInfo = AppWidgetProviderInfo().apply {
+            provider = ComponentName("app.typelauncher.fakewidget", "FakeProvider")
+            minWidth = 200
+            minHeight = 200
+            targetCellWidth = 2
+            targetCellHeight = 1
+        }
+        var restoreLabel by mutableStateOf<String?>(null)
+
+        composeRule.setContent {
+            TypeLauncherTheme {
+                HostedWidgetCard(
+                    widgetId = FIRST_ID,
+                    appWidgetHost = host,
+                    appWidgetManager = null,
+                    customHeightDp = null,
+                    canMoveUp = false,
+                    canMoveDown = false,
+                    restoreLabel = restoreLabel,
+                    onRemoveWidget = {},
+                    onResizeWidget = {},
+                    onMoveWidget = { _, _ -> },
+                    providerInfoOverride = providerInfo,
+                    createWidgetView = { viewContext, _ -> RecordingHostView(viewContext, host) {} },
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Tap to restore Calendar widget").assertDoesNotExist()
+
+        restoreLabel = "Calendar"
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Tap to restore Calendar widget").assertIsDisplayed()
     }
 
     private companion object {
