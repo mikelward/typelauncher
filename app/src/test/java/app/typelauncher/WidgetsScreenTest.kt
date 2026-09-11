@@ -1,22 +1,31 @@
 package app.typelauncher
 
 import android.content.ComponentName
+import android.content.Context
 import android.os.Process
 import android.os.UserHandle
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -24,6 +33,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+import kotlin.math.roundToInt
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
@@ -476,7 +487,11 @@ class WidgetsScreenTest {
     }
 
     @Test
-    fun widgetPicker_keepsWorkProfileProviderGroupSeparateWithoutCustomBadge() {
+    @Config(shadows = [AppIconLoaderWorkBadgeTest.BadgingShadowPackageManager::class])
+    // Native graphics: under legacy graphics the shadow's badge disc draws
+    // nothing, the tile stays transparent, and no badge is produced.
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun widgetPicker_titlesWorkProfileGroupWithWorkPrefixAndPlatformBadge() {
         val personal = fakeWidgetProvider(appName = "Calendar", label = "Calendar month")
         val work = fakeWidgetProvider(
             appName = "Calendar",
@@ -485,6 +500,7 @@ class WidgetsScreenTest {
             profile = workUserHandle(),
             isWorkProvider = true,
         )
+        warmWorkBadge(workUserHandle())
 
         composeRule.setContent {
             TypeLauncherTheme {
@@ -502,17 +518,73 @@ class WidgetsScreenTest {
                 )
             }
         }
+        composeRule.waitForIdle()
 
-        // Personal and work groups for the same display name still render as
-        // separate sections so binds use the provider's original profile.
+        // Personal and work groups for the same package render as separate
+        // sections so binds use the provider's original profile — and the work
+        // one says so: "Work Calendar" in the title, the platform's work badge
+        // on its icon, neither on the personal section.
         composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar")
             .performScrollTo()
             .assertIsDisplayed()
         composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar|work")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onNodeWithTag(WIDGET_WORK_BADGE_TAG, useUnmergedTree = true)
-            .assertDoesNotExist()
+        // The row card merges its children's semantics, so the title reads
+        // off the row node itself.
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar|work").assert(hasText("Work Calendar"))
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar").assert(hasText("Calendar"))
+        composeRule.onAllNodesWithTag(WIDGET_WORK_BADGE_TAG, useUnmergedTree = true)
+            .assertCountEquals(1)
+        composeRule.onNode(
+            hasTestTag(WIDGET_WORK_BADGE_TAG) and hasAnyAncestor(hasTestTag("$WIDGET_APP_ROW_TAG:Calendar|work")),
+            useUnmergedTree = true,
+        ).assertExists()
+    }
+
+    @Test
+    fun widgetPicker_filterMatchesWorkGroupsByPrefixAndByAppName() {
+        val personal = fakeWidgetProvider(appName = "Calendar", label = "Calendar month")
+        val work = fakeWidgetProvider(
+            appName = "Calendar",
+            label = "Calendar work month",
+            packageName = "app.typelauncher.fakewidget.work",
+            profile = workUserHandle(),
+            isWorkProvider = true,
+        )
+        val clock = fakeWidgetProvider(appName = "Clock", label = "Analog clock")
+
+        composeRule.setContent {
+            TypeLauncherTheme {
+                WidgetsScreen(
+                    widgetIds = emptyList(),
+                    availableWidgets = listOf(personal, work, clock),
+                    isAddingWidget = true,
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    innerPadding = PaddingValues(),
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                )
+            }
+        }
+
+        // "work" finds the work section through its visible "Work Calendar"
+        // title; the personal Calendar and Clock have no such token.
+        composeRule.onNodeWithTag(WIDGET_PICKER_FILTER_TAG).performTextInput("work")
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar|work").assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar").assertDoesNotExist()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Clock").assertDoesNotExist()
+
+        // "cal" still reaches the work section through its raw app name, at
+        // the same tier as the personal one, rather than only mid-string on
+        // the prefixed title.
+        composeRule.onNodeWithTag(WIDGET_PICKER_FILTER_TAG).performTextReplacement("cal")
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar").assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Calendar|work").assertIsDisplayed()
+        composeRule.onNodeWithTag("$WIDGET_APP_ROW_TAG:Clock").assertDoesNotExist()
     }
 
     @Test
@@ -572,6 +644,24 @@ class WidgetsScreenTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("$WIDGET_CARD_TAG:1").assertIsDisplayed()
         composeRule.onNodeWithTag("$WIDGET_CARD_TAG:30").assertDoesNotExist()
+    }
+
+    @After
+    fun clearBadgeCache() {
+        // The badge cache is process-wide and keyed by user, so a badge warmed
+        // here would otherwise leak into any later test rendering user 10.
+        AppIconLoader.evictAll()
+    }
+
+    /**
+     * Pre-warms the shared badge cache at the exact pixel size the picker's
+     * group icon requests (36dp), so the overlay is on screen from the first
+     * frame rather than racing an async load through the assertions.
+     */
+    private fun warmWorkBadge(user: UserHandle) {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val sizePx = (36 * context.resources.displayMetrics.density).roundToInt()
+        runBlocking { AppIconLoader.loadWorkBadge(context, user, sizePx) }
     }
 
     private fun fakeWidgetProvider(

@@ -963,18 +963,32 @@ internal fun rememberAppIconBitmap(app: InstalledApp, sizeDp: Dp): ImageBitmap? 
  * badge resource only became ready after first paint.
  */
 @Composable
-internal fun rememberWorkBadgeOverlay(app: InstalledApp, sizeDp: Dp): ImageBitmap? {
+internal fun rememberWorkBadgeOverlay(app: InstalledApp, sizeDp: Dp): ImageBitmap? =
+    rememberWorkBadgeOverlay(user = app.user, isWorkUser = app.isWorkApp, sizeDp = sizeDp, cacheKey = app.iconCacheId)
+
+/**
+ * The [rememberWorkBadgeOverlay] core for any icon that stands for a
+ * profile's package rather than an [InstalledApp] — the widget picker's app
+ * groups, keyed by their provider's `UserHandle`. [cacheKey] is whatever
+ * identity should restart the load when it changes (an app's `iconCacheId`,
+ * or just the user); the cache generation is folded in regardless, for the
+ * post-boot retry described above.
+ */
+@Composable
+internal fun rememberWorkBadgeOverlay(
+    user: UserHandle,
+    isWorkUser: Boolean,
+    sizeDp: Dp,
+    cacheKey: Any = user,
+): ImageBitmap? {
     val context = LocalContext.current.applicationContext
     val sizePx = with(LocalDensity.current) { sizeDp.roundToPx() }.coerceAtLeast(1)
-    val cacheId = app.iconCacheId
-    val isWorkApp = app.isWorkApp
-    val user = app.user
     val generation = AppIconLoader.cacheGenerationValue
-    var bitmap by remember(cacheId, sizePx, generation) {
-        mutableStateOf(if (isWorkApp) AppIconLoader.cachedWorkBadge(user, sizePx) else null)
+    var bitmap by remember(cacheKey, sizePx, generation) {
+        mutableStateOf(if (isWorkUser) AppIconLoader.cachedWorkBadge(user, sizePx) else null)
     }
-    LaunchedEffect(cacheId, sizePx, generation) {
-        if (isWorkApp && bitmap == null) {
+    LaunchedEffect(cacheKey, sizePx, generation) {
+        if (isWorkUser && bitmap == null) {
             bitmap = AppIconLoader.loadWorkBadge(context, user, sizePx)
         }
     }
