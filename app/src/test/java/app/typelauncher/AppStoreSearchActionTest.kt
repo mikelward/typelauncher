@@ -5,12 +5,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -19,9 +23,12 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * The "No matches" app-store search action: it appears only when a non-blank
- * query matched nothing, and firing it hands the trimmed query to the store
- * search callback.
+ * The app-store search action. It has two homes, and firing either hands the
+ * query to the store-search callback: the lowest-ranked row of the apps
+ * section whenever results render for a typed query, and the "No matches"
+ * empty state's action when nothing matched at all. Blank queries offer
+ * neither — the browse list is not a search — and the empty state additionally
+ * waits for every search source to settle before claiming a no-match.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -101,22 +108,67 @@ class AppStoreSearchActionTest {
     }
 
     @Test
-    fun resultsPresent_hideStoreAction() {
-        // The action belongs to the empty state only; with any match the list
-        // renders instead.
+    fun resultsPresent_showsStoreRowBelowEveryAppResult() {
+        // The store search is the lowest-ranked app result, not a no-match
+        // fallback: with matches present it still renders, under all of them,
+        // so an app the user already has always wins the row above it.
         var searched: String? = null
+        composeAppsCard(apps = listOf(installedApp("Maps"), installedApp("Market")), query = "ma") {
+            searched = it
+        }
+
+        val lastAppTop = composeRule.onNodeWithTag("$APP_ROW_TAG:Market")
+            .fetchSemanticsNode().positionInRoot.y
+        val storeRowTop = composeRule.onNodeWithTag(HOME_SEARCH_APP_STORE_TAG)
+            .fetchSemanticsNode().positionInRoot.y
+        assertTrue(
+            "Store row at $storeRowTop must rank below the last app row at $lastAppTop",
+            storeRowTop > lastAppTop,
+        )
+
+        composeRule.onNodeWithTag(HOME_SEARCH_APP_STORE_TAG).performClick()
+        assertEquals("ma", searched)
+    }
+
+    @Test
+    fun resultsPresent_storeRowNeverTakesTheEnterHighlight() {
+        // `highlightFirst` marks the Enter target, and that stays the first
+        // *installed* match — a row that opens the store is never what Enter
+        // fires.
+        composeAppsCard(apps = listOf(installedApp("Maps")), query = "ma") {}
+
+        composeRule.onNodeWithTag(HOME_SEARCH_APP_STORE_TAG)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Selected, true).not())
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Maps")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Selected, true))
+    }
+
+    @Test
+    fun blankQueryWithResults_hidesStoreRow() {
+        // The blank-query list is the browse list, not a search: there is
+        // nothing to search the store for, so the row stays out of it.
+        composeAppsCard(apps = listOf(installedApp("Maps")), query = "") {}
+
+        composeRule.onNodeWithTag(HOME_SEARCH_APP_STORE_TAG).assertDoesNotExist()
+    }
+
+    private fun composeAppsCard(
+        apps: List<InstalledApp>,
+        query: String,
+        onSearchAppStore: (String) -> Unit,
+    ) {
         composeRule.setContent {
             TypeLauncherTheme {
                 Box(modifier = Modifier.width(320.dp).height(480.dp)) {
                     AppsCard(
-                        apps = listOf(installedApp("Maps")),
+                        apps = apps,
                         dockLimit = Int.MAX_VALUE,
                         layout = AppListLayout.NameBeside,
                         iconSizeDp = 43,
-                        highlightFirst = true,
-                        query = "ma",
+                        highlightFirst = query.isNotBlank(),
+                        query = query,
                         storeSearchReady = true,
-                        onSearchAppStore = { searched = it },
+                        onSearchAppStore = onSearchAppStore,
                         onLaunchApp = {},
                         onOpenAppInfo = {},
                         onToggleDock = { _, _ -> },
@@ -129,9 +181,6 @@ class AppStoreSearchActionTest {
             }
         }
         composeRule.waitForIdle()
-
-        composeRule.onNodeWithTag(HOME_SEARCH_APP_STORE_TAG).assertDoesNotExist()
-        assertEquals(null, searched)
     }
 
     private fun composeEmptyAppsCard(

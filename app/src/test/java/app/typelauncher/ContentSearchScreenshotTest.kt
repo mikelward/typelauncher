@@ -35,8 +35,11 @@ import org.robolectric.annotation.GraphicsMode
  * `roborazzi-screenshots` artifact captures the mixed list. Also covers the
  * reversed sort (sections render visually above the apps, which stay anchored
  * to the bottom), the zero-app-match state (first content row takes the
- * active-row highlight as the Enter target, with no leading divider), and the
- * contact-photo row (thumbnail circle beside a monogram fallback row).
+ * active-row highlight as the Enter target, with no leading divider), the
+ * contact-photo row (thumbnail circle beside a monogram fallback row), and the
+ * app-store search — the apps section's lowest-ranked entry while a query is
+ * typed, sitting under the app results and above the contacts divider, as a
+ * row in the name-beside list and as a plain tile in either grid.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -221,6 +224,65 @@ class ContentSearchScreenshotTest {
     }
 
     @Test
+    fun storeSearchRow_ranksUnderAppResultsAndAboveContent() {
+        // The app-store search as the apps section's lowest-ranked entry: under
+        // every installed match, above the contacts divider, and carrying no
+        // divider of its own — it is an app result, not a section.
+        composeContent(reverseLayout = false, apps = apps, query = "ma")
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(HOME_SEARCH_APP_STORE_TAG, useUnmergedTree = true).assertExists()
+
+        capture("compose_store_search_row_robolectric.png")
+    }
+
+    @Test
+    fun storeSearchTile_joinsTheIconOnlyGridAsATile() {
+        // Regression: the store search first shipped as a full-span text row
+        // here, which put a full-width line of text under a row of
+        // deliberately unlabeled icons, taller than the grid row itself. In a
+        // grid of tiles it is a tile — one cell wide, no label.
+        composeContent(
+            reverseLayout = false,
+            apps = apps,
+            layout = AppListLayout.IconOnly,
+            query = "ma",
+        )
+        composeRule.waitForIdle()
+
+        val card = composeRule.onNodeWithTag(APPS_CARD_TAG, useUnmergedTree = true)
+            .fetchSemanticsNode().size.width
+        val tile = composeRule.onNodeWithTag(HOME_SEARCH_APP_STORE_TAG, useUnmergedTree = true)
+            .fetchSemanticsNode().size.width
+        org.junit.Assert.assertTrue(
+            "Store tile ($tile px) must be a grid cell, not a full-span row ($card px)",
+            tile < card / 2,
+        )
+
+        capture("compose_store_search_row_icon_only_grid_robolectric.png")
+    }
+
+    @Test
+    fun storeSearchTile_carriesNoLabelUnderTheNameBelowGrid() {
+        // Even where tiles are labeled, the store tile is not: at roughly one
+        // icon wide its label would ellipsize to a few letters, which says
+        // less than the magnifier does. The full string stays on the tile's
+        // content description.
+        composeContent(
+            reverseLayout = false,
+            apps = apps,
+            layout = AppListLayout.NameBelow,
+            query = "ma",
+        )
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(HOME_SEARCH_APP_STORE_TAG, useUnmergedTree = true).assertExists()
+        composeRule.onNodeWithText("Search Play Store", useUnmergedTree = true).assertDoesNotExist()
+
+        capture("compose_store_search_tile_name_below_grid_robolectric.png")
+    }
+
+    @Test
     fun contentSections_renderAsRowsUnderIconOnlyGrid() {
         // The app grid honors the "Icon only" style; the content sections stay
         // full-span name-beside rows below it (events have no tile form, and
@@ -296,6 +358,9 @@ class ContentSearchScreenshotTest {
         apps: List<InstalledApp>,
         layout: AppListLayout = AppListLayout.NameBeside,
         contacts: List<ContactResult> = this.contacts,
+        // Blank by default so the existing section captures keep their shape:
+        // the store-search row only joins the list once a query is typed.
+        query: String = "",
     ) {
         composeRule.setContent {
             TypeLauncherTheme {
@@ -311,6 +376,8 @@ class ContentSearchScreenshotTest {
                         layout = layout,
                         iconSizeDp = 43,
                         highlightFirst = true,
+                        query = query,
+                        onSearchAppStore = {},
                         reverseLayout = reverseLayout,
                         contactResults = contacts,
                         eventResults = events,

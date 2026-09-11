@@ -4044,14 +4044,19 @@ internal fun AppsCard(
     layout: AppListLayout,
     iconSizeDp: Int,
     highlightFirst: Boolean,
-    // The current search query. Empty except while typing; used only to offer
-    // an app-store search when a typed name matched nothing (see the empty
-    // branch below).
+    // The current search query. Empty except while typing, which is exactly
+    // when the app-store search is offered: as the lowest-ranked row of the
+    // apps section whenever results render (see `storeSearchItem`), and as the
+    // "No matches" empty state's action when nothing matched at all.
     query: String = "",
     // Whether the no-match is definitive: every enabled search source (the fresh
-    // app inventory and any content indexes) has finished loading. Gates the
-    // store-search action so a still-loading index can't flash an offer to
-    // search for something that is actually installed or about to match.
+    // app inventory and any content indexes) has finished loading, and nothing
+    // in the full installed set matches. Gates the *empty state's* store-search
+    // action only, so a still-loading index can't flash a "nothing matched, try
+    // the store" offer for something that is actually installed or about to
+    // match. The in-list row below the results needs no such gate: it claims
+    // nothing about absence — it is the last result, under whatever did
+    // match — so it rides on a non-blank query alone.
     storeSearchReady: Boolean = false,
     onSearchAppStore: (String) -> Unit = {},
     reverseLayout: Boolean = false,
@@ -4110,12 +4115,19 @@ internal fun AppsCard(
     // NameBelow and IconOnly both render the grid; only NameBeside renders rows.
     val isGrid = layout != AppListLayout.NameBeside
     val showLabels = layout == AppListLayout.NameBelow
-    val chevronLayoutKey = remember(apps, contactResults, eventResults, layout, reverseLayout) {
+    // The app-store search row is the apps section's last entry whenever a
+    // query is typed — ranked under every installed match, so the store is what
+    // you reach after the real results rather than instead of them.
+    val showStoreSearchRow = query.isNotBlank()
+    val chevronLayoutKey = remember(apps, contactResults, eventResults, layout, reverseLayout, showStoreSearchRow) {
         AppListChevronLayoutKey(
             // Content sections change the scrollable extent just like apps do,
             // so their keys join the measured-layout fingerprint the chevrons
             // wait on.
             appIds = apps.map { it.id } +
+                // The store row changes the scrollable extent exactly like an
+                // app does, so it joins the measured-layout fingerprint too.
+                (if (showStoreSearchRow) listOf(STORE_SEARCH_ROW_KEY) else emptyList()) +
                 contactResults.map { "contact:${it.contactId}" } +
                 eventResults.map { "event:${it.eventId}:${it.beginMillis}" },
             layout = layout,
@@ -4217,6 +4229,8 @@ internal fun AppsCard(
                         showLabel = showLabels,
                         highlightFirst = highlightFirst,
                         reverseLayout = reverseLayout,
+                        query = query,
+                        onSearchAppStore = onSearchAppStore,
                         contactResults = contactResults,
                         eventResults = eventResults,
                         onOpenContact = onOpenContact,
@@ -4302,9 +4316,13 @@ internal fun AppsCard(
                                 isDragged = appDrag != null && app.id == draggedAppId,
                             )
                         }
+                        if (showStoreSearchRow) {
+                            storeSearchItem(query = query, onSearchAppStore = onSearchAppStore)
+                        }
                         contentSearchSectionItems(
                             contactResults = contactResults,
                             eventResults = eventResults,
+                            hasItemsAbove = apps.isNotEmpty() || showStoreSearchRow,
                             appsEmpty = apps.isEmpty(),
                             highlightFirst = highlightFirst,
                             onOpenContact = onOpenContact,
@@ -4355,6 +4373,11 @@ internal fun IconOnlyAppGrid(
     state: LazyGridState,
     showLabel: Boolean = false,
     reverseLayout: Boolean = false,
+    // The search query, and the app-store search it offers: the apps section's
+    // lowest-ranked entry, hosted full-span below the icon tiles for the same
+    // reason the content rows are — a store search has no tile form.
+    query: String = "",
+    onSearchAppStore: (String) -> Unit = {},
     // Content sections hosted as full-span name-beside rows below the icon
     // tiles — see `contentSearchSectionItems` for why grids don't tile them.
     contactResults: List<ContactResult> = emptyList(),
@@ -4419,9 +4442,18 @@ internal fun IconOnlyAppGrid(
                 isDragged = appDrag != null && app.id == draggedAppId,
             )
         }
+        val showStoreSearchRow = query.isNotBlank()
+        if (showStoreSearchRow) {
+            storeSearchItem(
+                query = query,
+                iconSizeDp = iconSizeDp,
+                onSearchAppStore = onSearchAppStore,
+            )
+        }
         contentSearchSectionItems(
             contactResults = contactResults,
             eventResults = eventResults,
+            hasItemsAbove = apps.isNotEmpty() || showStoreSearchRow,
             appsEmpty = apps.isEmpty(),
             highlightFirst = highlightFirst,
             onOpenContact = onOpenContact,
@@ -4445,6 +4477,12 @@ internal fun IconOnlyAppGrid(
 private fun LazyListScope.contentSearchSectionItems(
     contactResults: List<ContactResult>,
     eventResults: List<AgendaEvent>,
+    // Whether the apps section rendered anything — app rows or the store-search
+    // row — so the contacts section knows whether it opens the card (no leading
+    // divider) or follows something (divider). Distinct from [appsEmpty], which
+    // stays keyed to *installed* app matches because it decides the Enter
+    // target: the store-search row is never one.
+    hasItemsAbove: Boolean,
     appsEmpty: Boolean,
     highlightFirst: Boolean,
     onOpenContact: (ContactResult) -> Unit,
@@ -4453,7 +4491,7 @@ private fun LazyListScope.contentSearchSectionItems(
     onOpenEvent: (AgendaEvent) -> Unit,
 ) {
     if (contactResults.isNotEmpty()) {
-        if (!appsEmpty) {
+        if (hasItemsAbove) {
             item(key = CONTACTS_SECTION_DIVIDER_KEY) { ContentSectionDivider() }
         }
         itemsIndexed(contactResults, key = { _, contact -> "contact:${contact.contactId}" }) { index, contact ->
@@ -4469,7 +4507,7 @@ private fun LazyListScope.contentSearchSectionItems(
         }
     }
     if (eventResults.isNotEmpty()) {
-        if (!appsEmpty || contactResults.isNotEmpty()) {
+        if (hasItemsAbove || contactResults.isNotEmpty()) {
             item(key = EVENTS_SECTION_DIVIDER_KEY) { ContentSectionDivider() }
         }
         itemsIndexed(
@@ -4491,6 +4529,12 @@ private fun LazyListScope.contentSearchSectionItems(
 private fun LazyGridScope.contentSearchSectionItems(
     contactResults: List<ContactResult>,
     eventResults: List<AgendaEvent>,
+    // Whether the apps section rendered anything — app rows or the store-search
+    // row — so the contacts section knows whether it opens the card (no leading
+    // divider) or follows something (divider). Distinct from [appsEmpty], which
+    // stays keyed to *installed* app matches because it decides the Enter
+    // target: the store-search row is never one.
+    hasItemsAbove: Boolean,
     appsEmpty: Boolean,
     highlightFirst: Boolean,
     onOpenContact: (ContactResult) -> Unit,
@@ -4499,7 +4543,7 @@ private fun LazyGridScope.contentSearchSectionItems(
     onOpenEvent: (AgendaEvent) -> Unit,
 ) {
     if (contactResults.isNotEmpty()) {
-        if (!appsEmpty) {
+        if (hasItemsAbove) {
             item(key = CONTACTS_SECTION_DIVIDER_KEY, span = { GridItemSpan(maxLineSpan) }) {
                 ContentSectionDivider()
             }
@@ -4519,7 +4563,7 @@ private fun LazyGridScope.contentSearchSectionItems(
         }
     }
     if (eventResults.isNotEmpty()) {
-        if (!appsEmpty || contactResults.isNotEmpty()) {
+        if (hasItemsAbove || contactResults.isNotEmpty()) {
             item(key = EVENTS_SECTION_DIVIDER_KEY, span = { GridItemSpan(maxLineSpan) }) {
                 ContentSectionDivider()
             }
@@ -4538,6 +4582,129 @@ private fun LazyGridScope.contentSearchSectionItems(
     }
 }
 
+/**
+ * The app-store search row: the lowest-ranked entry in the apps section, shown
+ * for the whole time a query is typed rather than only when nothing matched.
+ * It ranks below every installed app that matched, so an app the user has
+ * always wins the row above it — the store is the fallback you scroll past the
+ * real results to reach, and the Enter target stays the first *installed*
+ * match ([AppsCard]'s `highlightFirst`), never this row.
+ *
+ * No divider separates it from the app rows above: it is an app result, not a
+ * section of its own. The content sections below it do take their usual
+ * leading divider, since this row counts as something rendered above them.
+ *
+ * This is the name-beside list's form; the grid layouts render
+ * [StoreSearchTile] in the grid flow instead.
+ */
+private fun LazyListScope.storeSearchItem(query: String, onSearchAppStore: (String) -> Unit) {
+    item(key = STORE_SEARCH_ROW_KEY) { StoreSearchRow(query = query, onSearchAppStore = onSearchAppStore) }
+}
+
+/**
+ * Grid twin of the [LazyListScope] version — a tile in the grid flow, not the
+ * full-span row. The content sections below are hosted full-span because a
+ * contact needs its name and an event has no tile form at all; a store search
+ * has neither problem, and taking their treatment put a full-width line of
+ * text under a row of deliberately unlabeled icons, taller than the grid row
+ * itself. In a grid of tiles the lowest-ranked app result is a tile.
+ */
+private fun LazyGridScope.storeSearchItem(
+    query: String,
+    iconSizeDp: Int,
+    onSearchAppStore: (String) -> Unit,
+) {
+    item(key = STORE_SEARCH_ROW_KEY) {
+        StoreSearchTile(query = query, iconSizeDp = iconSizeDp, onSearchAppStore = onSearchAppStore)
+    }
+}
+
+/**
+ * Mirrors [ContactResultRow]'s geometry (40dp leading circle, 12dp gap, 4/8dp
+ * padding) so the row lines up with the results above it, and takes the
+ * contact row's circle rather than the app rows' tile because it is an action
+ * rather than an installed app — a magnifier on a secondary-container plate
+ * reads as "search somewhere else", not as an app whose icon failed to load.
+ * It never paints the active-row highlight: only an installed app (or, with no
+ * app matches, the first content row) is the Enter target.
+ */
+@Composable
+private fun StoreSearchRow(query: String, onSearchAppStore: (String) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onSearchAppStore(query) }
+            .padding(horizontal = 4.dp, vertical = 8.dp)
+            .testTag(HOME_SEARCH_APP_STORE_TAG),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = LauncherIcons.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Text(
+            stringResource(R.string.home_search_play_store),
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+    }
+}
+
+/**
+ * The grid form of [StoreSearchRow]: [IconOnlyAppButton]'s geometry (a tile of
+ * the user's icon size, 4dp tile padding) with a magnifier on a
+ * secondary-container plate, clipped to whichever icon shape the user chose so
+ * it sits in the grid as one more tile.
+ *
+ * It carries no label even under "Name below". The tile is roughly one icon
+ * wide, and the grid ellipsizes a label to a single line — so "Search Play
+ * Store" would render as a few letters and an ellipsis, strictly less
+ * informative than the magnifier itself. The full string rides on the tile's
+ * content description instead, so the accessible name is unaffected.
+ */
+@Composable
+private fun StoreSearchTile(query: String, iconSizeDp: Int, onSearchAppStore: (String) -> Unit) {
+    val label = stringResource(R.string.home_search_play_store)
+    Column(
+        modifier = Modifier
+            .clickable(role = Role.Button) { onSearchAppStore(query) }
+            .padding(4.dp)
+            .semantics { contentDescription = label }
+            .testTag(HOME_SEARCH_APP_STORE_TAG),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Surface(
+            modifier = Modifier.size(iconSizeDp.dp),
+            shape = LocalAppIconShape.current.toComposeShape(),
+            color = MaterialTheme.colorScheme.secondaryContainer,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = LauncherIcons.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    // Proportional to the tile rather than a fixed step: the
+                    // tile itself is user-sized (32..72dp), so a constant glyph
+                    // would swim in a large tile and crowd a small one.
+                    modifier = Modifier.size(iconSizeDp.dp * 0.5f),
+                )
+            }
+        }
+    }
+}
+
+private const val STORE_SEARCH_ROW_KEY = "store_search_row"
 private const val CONTACTS_SECTION_DIVIDER_KEY = "contacts_section_divider"
 private const val EVENTS_SECTION_DIVIDER_KEY = "events_section_divider"
 
