@@ -380,4 +380,69 @@ class WidgetStoreTest {
 
         assertEquals(listOf(listOf(10)), store.widgetPages)
     }
+
+    @Test
+    fun providerRecordRoundTripsTheWorkProfileFlag() {
+        val store = WidgetStore(context)
+        store.add(1)
+        store.add(2)
+        val work = WidgetProviderRecord(
+            component = ComponentName("com.example", "com.example.CalendarWidget"),
+            profileSerial = 10L,
+            label = "Schedule",
+            profileKind = WidgetProfileKind.WORK,
+        )
+        // A personal record with a nonzero serial (a headless-system-user
+        // device, or simply an explicit flag) must not be read back as work.
+        val personal = WidgetProviderRecord(
+            component = ComponentName("com.example", "com.example.CalendarWidget"),
+            profileSerial = 10L,
+            label = "Schedule",
+            profileKind = WidgetProfileKind.PERSONAL,
+        )
+
+        val other = WidgetProviderRecord(
+            component = ComponentName("com.example", "com.example.CalendarWidget"),
+            profileSerial = 12L,
+            label = "Schedule",
+            profileKind = WidgetProfileKind.OTHER,
+        )
+        val nonPersonal = WidgetProviderRecord(
+            component = ComponentName("com.example", "com.example.CalendarWidget"),
+            profileSerial = 13L,
+            label = "Schedule",
+            profileKind = WidgetProfileKind.NON_PERSONAL,
+        )
+        store.add(3)
+        store.add(4)
+
+        store.setProvider(1, work)
+        store.setProvider(2, personal)
+        store.setProvider(3, other)
+        store.setProvider(4, nonPersonal)
+
+        assertEquals(work, WidgetStore(context).providerRecord(1))
+        assertEquals(personal, WidgetStore(context).providerRecord(2))
+        assertEquals(other, WidgetStore(context).providerRecord(3))
+        assertEquals(nonPersonal, WidgetStore(context).providerRecord(4))
+    }
+
+    @Test
+    fun providerRecordParsesTheFormatWrittenBeforeTheWorkProfileFlag() {
+        // "<serial>|<component>|<label>", as every record persisted before the
+        // flag was written — including one whose label carries the separator.
+        assertEquals(
+            WidgetProviderRecord(ComponentName("p", "p.W"), 0L, "A | B", profileKind = null),
+            WidgetProviderRecord.parse("0|p/p.W|A | B"),
+        )
+        // A legacy record carries no flag: nothing is inferred from its serial,
+        // which came from whichever device wrote it.
+        val legacy = WidgetProviderRecord.parse("11|p/p.W|work")
+        assertEquals(WidgetProviderRecord(ComponentName("p", "p.W"), 11L, "work", profileKind = null), legacy)
+        // Re-saving a legacy record keeps the legacy layout rather than
+        // inventing a kind.
+        assertEquals("11|p/.W|work", legacy!!.serialize())
+        assertEquals(null, WidgetProviderRecord.parse("0|work|notacomponent"))
+        assertEquals(null, WidgetProviderRecord.parse("x|personal|p/p.W|L"))
+    }
 }

@@ -726,8 +726,23 @@ internal fun HostedWidgetCard(
             }
         }
     }
+    // A restore offer withdrawn (stranded → not stranded, see
+    // `restoreOfferChanges`) means the binding that resolved to nothing now
+    // resolves; the null cached for it while it was offered is stale, so drop
+    // it and let the lookup above re-run rather than show "unavailable" until
+    // the next resume.
+    var wasStranded by remember(widgetId) { mutableStateOf(restoreLabel != null) }
+    LaunchedEffect(widgetId, restoreLabel) {
+        if (wasStranded && restoreLabel == null) resolvedProviderInfos.remove(widgetId)
+        wasStranded = restoreLabel != null
+    }
     val resolvedProviderInfo = resolvedProviderInfos[widgetId]
-    val providerInfo = providerInfoOverride ?: resolvedProviderInfo
+    // A stranded widget has no usable binding by definition — the restore
+    // never brought one back, the sweep released one the platform had put in
+    // the wrong profile, or one that resolves to nothing has been offered for
+    // restore. An info resolved before that would otherwise keep the card
+    // rendering the wrong widget, so stranded wins over whatever was cached.
+    val providerInfo = if (restoreLabel != null) null else providerInfoOverride ?: resolvedProviderInfo
     // A provider can be unresolvable when the card first composes (its app was
     // uninstalled, or its work profile is locked) and become resolvable later
     // (reinstall, profile unlock) without the widget set changing — which means

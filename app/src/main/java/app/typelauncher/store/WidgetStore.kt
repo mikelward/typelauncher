@@ -6,31 +6,113 @@ import android.content.Context
 
 internal enum class WidgetMoveDirection { UP, DOWN }
 
+/** Which kind of profile a hosted widget's provider lives in; see [WidgetProviderRecord.profileKind]. */
+internal enum class WidgetProfileKind(val token: String) {
+    /** The user the launcher runs as. */
+    PERSONAL("personal"),
+
+    /** A managed (work) profile, on a device that could tell — see `widgetProfileKind`. */
+    WORK("work"),
+
+    /**
+     * A non-personal profile recorded before API 35, where no public API
+     * tells a managed profile from a clone profile: certainly not the
+     * personal user's widget, and probably a work one, but the record can't
+     * say. See [conflictsWith] and `resolveRestoreProfile` for what that
+     * leaves certain.
+     */
+    NON_PERSONAL("nonpersonal"),
+
+    /**
+     * Some other profile the launcher can see — a private space or clone
+     * profile. Such a widget re-binds only where a profile of this kind still
+     * carries its serial; which of several it was is never guessed.
+     */
+    OTHER("other"),
+    ;
+
+    /**
+     * Whether a widget recorded as this kind is certainly *not* in a profile
+     * of [other]'s kind — the judgement the misbound sweep may release a
+     * binding on. Only the personal / non-personal line is certain: a
+     * [NON_PERSONAL] record can't say which non-personal profile it meant,
+     * and the platform's restore mistake — the one this exists to catch — is
+     * always a non-personal widget bound to the personal user, never one
+     * non-personal profile swapped for another. So personal against anything
+     * else conflicts, and nothing else does.
+     */
+    fun conflictsWith(other: WidgetProfileKind): Boolean = (this == PERSONAL) != (other == PERSONAL)
+
+    companion object {
+        fun fromToken(token: String): WidgetProfileKind? = entries.firstOrNull { kind -> kind.token == token }
+    }
+}
+
 /**
  * The identity of the widget provider behind a hosted widget, remembered at add
  * time so a widget whose binding is lost in a backup restore can be re-bound to
  * the same provider later instead of dropped. [component] and [profileSerial]
  * (the [android.os.UserManager] serial for the widget's user, used because a
  * raw `UserHandle` can't be persisted and rebuilt) together locate the provider
- * for a fresh bind; [label] is the human name shown on the restore placeholder.
+ * for a fresh bind on the device that recorded them; [label] is the human name
+ * shown on the restore placeholder.
+ *
+ * [profileKind] is the half of the identity that survives a device change.
+ * User serials are per-device — the work profile a cross-device restore
+ * recreates gets whatever serial that device hands out next, and it is created
+ * only at the end of setup, after the launcher's data has already landed — so
+ * a serial alone can't say which profile the widget belonged to. The kind can:
+ * a [WidgetProfileKind.PERSONAL] widget re-binds to the personal user, a
+ * [WidgetProfileKind.WORK] widget waits for a managed profile to exist and
+ * re-binds into it (see `resolveRestoreProfile`; a
+ * [WidgetProfileKind.NON_PERSONAL] one, recorded before the platform could
+ * tell work from a clone profile, only when the choice is unambiguous), and a restored binding whose
+ * profile disagrees with the kind is recognized as the platform's mistake
+ * rather than the user's widget (see `misboundRestoredWidgetIds`) — for
+ * every kind, so a [WidgetProfileKind.OTHER] widget (a private space or
+ * clone profile) that came back bound to the personal user is caught too.
+ * What an OTHER record can't do is name a home: it re-binds only into a
+ * profile of that same kind whose serial still matches, never a work
+ * profile a reused serial happens to name. It is `null` for a record written
+ * before the kind existed, or whose profile couldn't be classified when the
+ * widget was added; its only profile evidence is then the serial, and
+ * nothing is inferred from it.
  */
 internal data class WidgetProviderRecord(
     val component: ComponentName,
     val profileSerial: Long,
     val label: String,
+    val profileKind: WidgetProfileKind? = null,
 ) {
-    // "<serial>|<component>|<label>" — serial is numeric and a flattened
-    // ComponentName never contains '|', so a limit-3 split recovers the label
-    // verbatim even if it (the only free-form field) contains a '|'.
-    fun serialize(): String = "$profileSerial|${component.flattenToShortString()}|$label"
+    // "<serial>|<profile kind>|<component>|<label>" — serial is numeric, the
+    // kind is one of a few fixed words, and a flattened ComponentName never
+    // contains '|', so a limit-4 split recovers the label verbatim even if it
+    // (the only free-form field) contains a '|'. A record without a kind
+    // keeps the pre-kind "<serial>|<component>|<label>" layout, so re-saving
+    // it never invents one.
+    fun serialize(): String = when (profileKind) {
+        null -> "$profileSerial|${component.flattenToShortString()}|$label"
+        else -> "$profileSerial|${profileKind.token}|${component.flattenToShortString()}|$label"
+    }
 
     companion object {
         fun parse(value: String): WidgetProviderRecord? {
-            val parts = value.split('|', limit = 3)
-            if (parts.size != 3) return null
+            val parts = value.split('|', limit = 4)
+            if (parts.size < 3) return null
             val serial = parts[0].toLongOrNull() ?: return null
-            val component = ComponentName.unflattenFromString(parts[1]) ?: return null
-            return WidgetProviderRecord(component, serial, parts[2])
+            // The pre-kind format was "<serial>|<component>|<label>". A
+            // component always contains '/', the kind words never do, so the
+            // second field tells the two layouts apart; a legacy record's label
+            // is everything after the component, '|' included.
+            val kind = WidgetProfileKind.fromToken(parts[1])
+            if (kind == null) {
+                val legacyParts = value.split('|', limit = 3)
+                val component = ComponentName.unflattenFromString(legacyParts[1]) ?: return null
+                return WidgetProviderRecord(component, serial, legacyParts[2])
+            }
+            if (parts.size != 4) return null
+            val component = ComponentName.unflattenFromString(parts[2]) ?: return null
+            return WidgetProviderRecord(component, serial, parts[3], profileKind = kind)
         }
     }
 }

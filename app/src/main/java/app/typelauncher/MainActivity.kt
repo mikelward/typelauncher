@@ -10,12 +10,14 @@ import android.content.ComponentCallbacks2
 import android.content.ComponentName
 import android.content.Intent
 import android.content.IntentSender
+import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.os.Process
 import android.os.UserHandle
 import android.os.UserManager
 import android.provider.Settings
@@ -44,7 +46,9 @@ import com.mikelward.androidlog.safe
 import com.mikelward.androidlog.sensitive
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -295,7 +299,25 @@ class MainActivity : ComponentActivity() {
             restoreTargetWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
             when {
                 restoreTarget == AppWidgetManager.INVALID_APPWIDGET_ID -> viewModel.addWidget(appWidgetId)
-                restoreTarget in viewModel.uiState.value.widgetIds -> viewModel.replaceWidget(restoreTarget, appWidgetId)
+                restoreTarget in viewModel.uiState.value.widgetIds -> {
+                    viewModel.replaceWidget(restoreTarget, appWidgetId)
+                    // A restore offered on a still-allocated binding (a work
+                    // widget the platform bound to a provider that never
+                    // resolves — see restoreOfferChanges) retires that binding
+                    // only now, on the user's say-so: the fresh bind has taken
+                    // its slot, so the old ID is an orphan the host should
+                    // release. A host-freed placeholder has nothing to delete;
+                    // the IPC is harmless on an unallocated ID. A failed delete
+                    // is the same case as removeWidget's: the ID is already
+                    // untracked, so the next start's orphan sweep releases it.
+                    lifecycleScope.launch(ioDispatcher) {
+                        runCatching { appWidgetHost.deleteAppWidgetId(restoreTarget) }
+                            .onFailure { exception ->
+                                LauncherDebugLog.failure(exception, "restore: failed to release old id=%s", restoreTarget)
+                            }
+                        withContext(Dispatchers.Main) { appWidgetHost.forgetWidgetSize(restoreTarget) }
+                    }
+                }
                 else -> {
                     // The user removed the placeholder while its bind/configure
                     // was still on screen. The in-place swap can't land (the slot
@@ -390,6 +412,9 @@ class MainActivity : ComponentActivity() {
         androidTrace("launcher.appwidget_init") {
             appWidgetHost = LauncherAppWidgetHost(applicationContext, APP_WIDGET_HOST_ID)
             appWidgetManager = AppWidgetManager.getInstance(this)
+            // A provider that was still reinstalling when the startup sweep ran
+            // can only be checked for a wrong-profile binding once it is back.
+            appWidgetHost.onProvidersChangedListener = { reconcileMisboundWidgets() }
         }
         // Bridge the ViewModel's "ask for CALL_PHONE" effect to this Activity's
         // permission launcher — the ViewModel has no Activity to prompt from.
@@ -492,6 +517,7 @@ class MainActivity : ComponentActivity() {
         appliedWallpaperShown = viewModel.uiState.value.isWallpaperShown
         observeWallpaperShownPreference()
         observeHomeReady()
+        observeWorkProfileAvailability()
         checkPlayUpdate()
         LauncherDebugLog.event("setContent begin")
         androidTrace("launcher.set_content") {
@@ -830,6 +856,12 @@ class MainActivity : ComponentActivity() {
         } catch (exception: RuntimeException) {
             LauncherDebugLog.failure(exception, "AppWidgetHost.startListening failed")
         }
+        // A provider that reinstalled while the launcher was stopped changed
+        // with nobody listening — the providers-changed callback only reaches
+        // a listening host — so judge the bindings again now. Coalesced and
+        // gated like every other request, so at cold start this folds into
+        // the startup sweep's own run.
+        reconcileMisboundWidgets()
     }
 
     private fun observeKeyboardAutoShownPreference() {
@@ -1122,6 +1154,23 @@ class MainActivity : ComponentActivity() {
         LauncherDebugLog.event("applyKeyboardAutoShownPreference autoShown=%s mode=0x%s", autoShown, mode.toString(16))
     }
 
+    /**
+     * A work profile coming back (unpaused, or unlocked after boot) is what
+     * lets the misbound sweep judge a work widget whose binding resolved to
+     * nothing while the profile was away — the ViewModel's managed-profile
+     * receiver bumps the refresh token on exactly those events, so a sweep is
+     * requested on each bump (the initial value is not an event).
+     */
+    private fun observeWorkProfileAvailability() {
+        lifecycleScope.launch {
+            viewModel.uiState
+                .map { it.workProfileWidgetRefreshToken }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect { reconcileMisboundWidgets() }
+        }
+    }
+
     private fun observeHomeReady() {
         lifecycleScope.launch {
             viewModel.uiState.map { it.isHomeReady }.first { ready -> ready }
@@ -1170,6 +1219,13 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch(ioDispatcher) {
             val allocatedIds = runCatching { appWidgetHost.appWidgetIds }.getOrElse { exception ->
                 LauncherDebugLog.failure(exception, "widget reconciliation: failed to read allocated ids")
+                // Nothing to publish, but the misbound sweep waits on this
+                // sweep having had its say — let it through, and ask for its
+                // first run just as the success path does.
+                withContext(Dispatchers.Main) {
+                    reconcileMisboundWidgets()
+                    openMisboundSweepGate()
+                }
                 return@launch
             }
             val knownWidgetIds = viewModel.uiState.value.widgetIds
@@ -1214,6 +1270,164 @@ class MainActivity : ComponentActivity() {
             withContext(Dispatchers.Main) {
                 orphans.forEach { id -> appWidgetHost.forgetWidgetSize(id) }
                 viewModel.setStrandedWidgetIds(stranded)
+                // Request first, then open: the request queues behind the
+                // closed gate and opening it starts exactly one run, however
+                // many requests (this one, onStart's) queued meanwhile.
+                reconcileMisboundWidgets()
+                openMisboundSweepGate()
+            }
+        }
+    }
+
+    // Serializes misbound sweeps behind the startup sweep and behind each
+    // other, keeping any request that arrives meanwhile for the next run.
+    private val misboundSweepGate = CoalescingSweepGate()
+
+    private fun openMisboundSweepGate() {
+        if (misboundSweepGate.open()) runMisboundSweep()
+    }
+
+    /**
+     * The one binding the launcher does release on its own: a restored widget
+     * the platform re-bound into the wrong profile — a work-profile widget that
+     * came back as the personal copy of its provider (see
+     * [misboundRestoredWidgetIds]). The remembered record is the only evidence,
+     * and the user's widget is the work one, so the wrong binding is dropped
+     * and the ID joins the stranded set to render as the re-bindable
+     * placeholder — the same state a restore that brought no binding at all
+     * would have left it in.
+     *
+     * Runs after the startup sweep, and again whenever the host reports its
+     * providers changed: a provider still reinstalling at startup resolves to
+     * nothing and can only be judged once it is back — and the unavailable
+     * card would by then have resolved and shown the wrong widget. Every call
+     * is a Binder IPC per tracked widget, so it runs off the main thread; only
+     * an ID whose binding was actually released is stranded (a failed delete
+     * leaves the widget as it is, logged, for the next run). Only a record
+     * that says outright which kind of profile the widget lived in — work,
+     * personal, or some other profile such as a private space — can convict
+     * a binding, and only across the personal line (see
+     * `WidgetProfileKind.conflictsWith`): a record written before the kind existed carries a serial from
+     * whichever device wrote it, which can't be told from this device's own
+     * after a cross-device restore, so it is never released on inference —
+     * removing and re-adding such a widget writes a record with the flag.
+     *
+     * Requests are coalesced through [misboundSweepGate]: one runs at a time,
+     * only after the startup sweep has published, and one that arrives
+     * meanwhile runs next rather than being dropped.
+     */
+    private fun reconcileMisboundWidgets() {
+        if (!::appWidgetHost.isInitialized) return
+        if (misboundSweepGate.request()) runMisboundSweep()
+    }
+
+    private fun runMisboundSweep() {
+        lifecycleScope.launch(ioDispatcher) {
+            try {
+                val state = viewModel.uiState.value
+                val personalUser = Process.myUserHandle()
+                val launcherApps = getSystemService<LauncherApps>()
+                val candidates = state.widgetIds.filter { id ->
+                    id != AppWidgetManager.INVALID_APPWIDGET_ID &&
+                        id != widgetAddFlow.pendingWidgetId &&
+                        id != bindingWidgetId
+                }
+                // Explicit kind only — null for a legacy record, which is then
+                // skipped (see the KDocs).
+                val recordProfileKind: (Int) -> WidgetProfileKind? = { id -> viewModel.widgetProviderRecord(id)?.profileKind }
+                // Classified by the same rule the record was written with
+                // (widgetProfileKind), so a private-space binding compares
+                // equal to the record a private-space widget was written with
+                // and unequal to a personal one.
+                val boundProfileKind: (Int) -> WidgetProfileKind? = { id ->
+                    try {
+                        appWidgetManager.getAppWidgetInfo(id)?.profile
+                            ?.let { profile -> launcherApps.widgetProfileKind(profile, personalUser) }
+                    } catch (exception: RuntimeException) {
+                        // A Binder or profile transition mid-query; unknown for
+                        // this run, re-checked on the next.
+                        LauncherDebugLog.failure(exception, "misbound sweep: getAppWidgetInfo failed id=%s", id)
+                        null
+                    }
+                }
+                // The non-destructive half (restoreOfferChanges) offers a work
+                // record whose binding resolves to nothing restore while its
+                // provider is installed in an available work profile, and
+                // withdraws the offer once the binding resolves. Providers
+                // installed in the non-personal profiles count only while
+                // *every* such profile is unlocked and unpaused: a valid work
+                // binding resolves to nothing while its own profile is away,
+                // and the record doesn't say which profile that is. Read once
+                // per sweep, lazily, so a sweep with no unresolved work record
+                // queries no profile at all; a wrong offer costs nothing but a
+                // placeholder that the next sweep reclaims.
+                val userManager = getSystemService<UserManager>()
+                val workProviders: Set<ComponentName> by lazy(LazyThreadSafetyMode.NONE) {
+                    val profiles = try {
+                        launcherApps?.profiles.orEmpty()
+                    } catch (exception: RuntimeException) {
+                        LauncherDebugLog.failure(exception, "misbound sweep: profiles unavailable")
+                        emptyList()
+                    }.filter { profile -> profile != personalUser && launcherApps.isManagedProfile(profile) == true }
+                    val allAvailable = profiles.all { profile ->
+                        try {
+                            userManager != null && userManager.isUserUnlocked(profile) && !userManager.isQuietModeEnabled(profile)
+                        } catch (exception: RuntimeException) {
+                            LauncherDebugLog.failure(exception, "misbound sweep: profile state unavailable for profile=%s", profile.hashCode())
+                            false
+                        }
+                    }
+                    if (!allAvailable) return@lazy emptySet()
+                    profiles
+                        .flatMap { profile ->
+                            try {
+                                appWidgetManager.getInstalledProvidersForProfile(profile).map { info -> info.provider }
+                            } catch (exception: RuntimeException) {
+                                LauncherDebugLog.failure(exception, "misbound sweep: providers unavailable for profile=%s", profile.hashCode())
+                                emptyList()
+                            }
+                        }
+                        .toHashSet()
+                }
+                // Both halves judge one snapshot of each binding (see
+                // sweepDecisions): the destructive one — a binding that
+                // resolves in the wrong profile is certain, and released — and
+                // the offers.
+                val decisions = sweepDecisions(
+                    candidates = candidates,
+                    strandedWidgetIds = state.strandedWidgetIds,
+                    recordProfileKind = recordProfileKind,
+                    boundProfileKind = boundProfileKind,
+                    workProviderHasReturned = { id ->
+                        viewModel.widgetProviderRecord(id)?.component?.let { component -> component in workProviders } ?: false
+                    },
+                )
+                val released = decisions.release.filterTo(mutableSetOf()) { id ->
+                    runCatching { appWidgetHost.deleteAppWidgetId(id) }
+                        .onFailure { exception ->
+                            LauncherDebugLog.failure(exception, "misbound sweep: failed to release id=%s", id)
+                        }
+                        .isSuccess
+                }
+                if (decisions.release.isNotEmpty()) {
+                    LauncherDebugLog.event("misbound sweep released %s of %s ids=%s", released.size, decisions.release.size, decisions.release)
+                }
+                if (decisions.offer.isNotEmpty()) {
+                    LauncherDebugLog.event("misbound sweep offering restore ids=%s", decisions.offer)
+                }
+                if (decisions.reclaim.isNotEmpty()) {
+                    LauncherDebugLog.event("misbound sweep reclaiming ids=%s", decisions.reclaim)
+                }
+                if (released.isEmpty() && decisions.offer.isEmpty() && decisions.reclaim.isEmpty()) return@launch
+                withContext(Dispatchers.Main) {
+                    released.forEach { id -> appWidgetHost.forgetWidgetSize(id) }
+                    viewModel.addStrandedWidgetIds(released + decisions.offer)
+                    viewModel.removeStrandedWidgetIds(decisions.reclaim.toSet())
+                }
+            } finally {
+                withContext(NonCancellable + Dispatchers.Main) {
+                    if (misboundSweepGate.finish()) runMisboundSweep()
+                }
             }
         }
     }
@@ -1363,9 +1577,13 @@ class MainActivity : ComponentActivity() {
      * Re-binds a stranded restore placeholder ([widgetId]) to the provider it
      * was remembered with, swapping the fresh ID into its slot on success (see
      * the [widgetAddFlow] `addWidget` callback and [LauncherViewModel.replaceWidget]).
-     * Best effort: a missing record or an unresolvable user (a work profile that
-     * didn't survive a cross-device restore) surfaces a toast and leaves the
-     * placeholder in place.
+     * The target profile comes from [resolveRestoreProfile]: the personal user
+     * for a personal record, and for a work record whichever profile now has
+     * the provider — a cross-device restore recreates the work profile with a
+     * new serial, and only at the end of setup, so the record's serial is a
+     * preference rather than a lookup key. Best effort: a missing record, or a
+     * work record with no work profile to bind into yet, surfaces a toast and
+     * leaves the placeholder in place for a later tap.
      */
     private fun onRestoreWidget(widgetId: Int) {
         val record = viewModel.widgetProviderRecord(widgetId)
@@ -1373,18 +1591,76 @@ class MainActivity : ComponentActivity() {
             LauncherDebugLog.warning("onRestoreWidget: no provider record for id=%s", widgetId)
             return
         }
-        val profile = getSystemService<UserManager>()?.getUserForSerialNumber(record.profileSerial)
-        if (profile == null) {
-            LauncherDebugLog.warning(
-                "onRestoreWidget: unresolved profile serial=%s id=%s",
-                record.profileSerial,
+        lifecycleScope.launch {
+            // Profile enumeration, serial lookups and the per-profile provider
+            // list are all Binder IPCs — resolve off the main thread.
+            val (profile, isWork) = withContext(ioDispatcher) {
+                val personalUser = Process.myUserHandle()
+                val userManager = getSystemService<UserManager>()
+                val profiles = try {
+                    getSystemService<LauncherApps>()?.profiles?.takeIf { it.isNotEmpty() }
+                } catch (exception: RuntimeException) {
+                    // LauncherApps can reject the call mid profile transition
+                    // (same guard as loadInstalledApps); with no profile list a
+                    // work record resolves to nothing and the toast says so.
+                    LauncherDebugLog.failure(exception, "onRestoreWidget: profiles unavailable id=%s", widgetId)
+                    null
+                } ?: listOf(personalUser)
+                val serialOf: (UserHandle) -> Long? = { profile ->
+                    try {
+                        userManager?.getSerialNumberForUser(profile)
+                    } catch (exception: RuntimeException) {
+                        // A profile removed between enumeration and lookup;
+                        // unknown serial, so it can't be a serial match.
+                        LauncherDebugLog.failure(exception, "onRestoreWidget: serial unavailable for profile=%s", profile.hashCode())
+                        null
+                    }
+                }
+                val isWork = record.profileKind == WidgetProfileKind.WORK || record.profileKind == WidgetProfileKind.NON_PERSONAL
+                val profile = resolveRestoreProfile(
+                    record = record,
+                    personalUser = personalUser,
+                    profiles = profiles,
+                    serialOf = serialOf,
+                    profileKindOf = { profile -> getSystemService<LauncherApps>().widgetProfileKind(profile, personalUser) },
+                    hasProvider = { profile ->
+                        runCatching {
+                            appWidgetManager.getInstalledProvidersForProfile(profile)
+                                .any { info -> info.provider == record.component }
+                        }.getOrElse { exception ->
+                            // A profile mid-removal can drop out of the caller's
+                            // profile group between the enumeration and this
+                            // call; treat it as having nothing to offer.
+                            LauncherDebugLog.failure(exception, "onRestoreWidget: providers unavailable for profile=%s", profile.hashCode())
+                            false
+                        }
+                    },
+                )
+                profile to isWork
+            }
+            if (profile == null) {
+                LauncherDebugLog.warning(
+                    "onRestoreWidget: no profile for id=%s work=%s serial=%s",
+                    widgetId,
+                    isWork,
+                    record.profileSerial,
+                )
+                val message = if (isWork) {
+                    R.string.widgets_restore_work_profile_unavailable
+                } else {
+                    R.string.widgets_picker_unavailable
+                }
+                Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            LauncherDebugLog.event(
+                "onRestoreWidget id=%s component=%s work=%s",
                 widgetId,
+                record.component.flattenToShortString(),
+                isWork,
             )
-            Toast.makeText(this, R.string.widgets_picker_unavailable, Toast.LENGTH_SHORT).show()
-            return
+            startWidgetBind(record.component, profile, restoreTargetId = widgetId)
         }
-        LauncherDebugLog.event("onRestoreWidget id=%s component=%s", widgetId, record.component.flattenToShortString())
-        startWidgetBind(record.component, profile, restoreTargetId = widgetId)
     }
 
     /**

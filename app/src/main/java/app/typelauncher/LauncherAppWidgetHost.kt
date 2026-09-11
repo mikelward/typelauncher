@@ -55,6 +55,20 @@ internal class LauncherAppWidgetHost(
     // Main-thread confined (apply / forget / the posted merge below).
     private val cachedSizes: MutableMap<Int, IntPairDp> = mutableMapOf()
 
+    /**
+     * Invoked on the main thread whenever AppWidgetService reports that the
+     * providers behind this host's widgets changed — a provider app installed,
+     * updated or removed. MainActivity re-runs its misbound-widget check here,
+     * because a restored widget whose provider hadn't reinstalled at startup
+     * can only be checked once it is back. Only delivered while listening.
+     */
+    var onProvidersChangedListener: (() -> Unit)? = null
+
+    public override fun onProvidersChanged() {
+        super.onProvidersChanged()
+        onProvidersChangedListener?.invoke()
+    }
+
     // Widget ids forgotten before the async disk load landed: their persisted
     // entry was already removed, so the merge must not resurrect them.
     private val forgottenBeforeLoad = mutableSetOf<Int>()
