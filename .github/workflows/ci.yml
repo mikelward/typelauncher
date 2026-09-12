@@ -384,8 +384,9 @@ jobs:
       - name: Test the release-notes deduplication
         # Same reason as the step above: the "Build release notes" step is
         # `deploy`-only, so a regression in it would first surface on `main`
-        # as a wrong Play "What's new" card. Extracts the `add_subject` helper
-        # from this file and drives it, so it tests the text that ships rather
+        # as a wrong Play "What's new" card. Extracts the whole
+        # subject-collection block from this file and runs it against a
+        # throwaway git repository, so it tests the text that ships rather
         # than a copy that could drift.
         run: python3 scripts/release_notes_dedup_test.py
 
@@ -1505,7 +1506,7 @@ jobs:
           # reversing the commits already chosen), so a pre-walk cap
           # would keep the newest N and silently drop the oldest — the
           # exact commits the oldest-first notes must preserve. The cap
-          # lives on qualifying subjects inside the filter loop below
+          # lives on distinct subjects inside the filter loop below
           # instead; the per-commit diff-tree cost on a pathologically
           # long range (release outage) is the accepted trade.
           # A later push already published everything this run would ship,
@@ -1565,16 +1566,30 @@ jobs:
           # oldest-first and the cap below drops from the tail, so a repeat
           # must never displace the head or spend the character budget.
           subjects=()
-          # Counts commits that QUALIFY, which is what the cap below actually
-          # bounds: the per-commit `git diff-tree` this loop runs. Before
-          # dedup that was the same number as the subjects collected, so the
-          # cap could read the array; a range of repeated subjects would now
-          # leave the array at one entry and let a pathologically long range
-          # (a release outage) walk every commit in it.
-          qualifying=0
+          # ONE bound, on the card: at most 50 DISTINCT subjects. Counting
+          # commits instead lets 50 repeats eat the budget and silently drop
+          # the distinct subject behind them, with the card holding one
+          # bullet and nowhere near the 500-char cap.
+          #
+          # There is deliberately no separate bound on the walk. Repeats no
+          # longer grow the array, so the budget stops bounding the loop —
+          # but the range is bounded by the release cadence, each commit
+          # costs one `git diff-tree`, and such a bound has to answer two
+          # questions this one does not: what marks the notes truncated, and
+          # what a capped scan that collected nothing means. Getting the
+          # second wrong sets RELEASE_NOTES_SKIP, which never advances the
+          # base, so every later push rescans the same prefix and can never
+          # publish again.
+          MAX_SUBJECTS=50
+          truncated=false
+          # Returns non-zero only when the budget is spent AND this subject
+          # would have taken a slot — so the caller stops, and `truncated`
+          # means something really was cut. Checking the budget before that
+          # point claims omission over a tail of duplicates and housekeeping
+          # that would have added nothing, publishing a complete list with a
+          # "…" on the end.
           add_subject() {
             local s="$1" i
-            qualifying=$((qualifying + 1))
             # Indexed rather than "${subjects[@]}": the count is always
             # safe to read under `set -u`, an empty array included.
             for (( i = 0; i < ${#subjects[@]}; i++ )); do
@@ -1583,19 +1598,16 @@ jobs:
                 return 0
               fi
             done
+            if [ "${#subjects[@]}" -ge "$MAX_SUBJECTS" ]; then
+              echo "Reached $MAX_SUBJECTS distinct subjects; ignoring the rest of the range."
+              truncated=true
+              return 1
+            fi
             subjects+=("$s")
           }
 
           while IFS= read -r sha; do
             [ -z "$sha" ] && continue
-            # Safety net for unusually long ranges, applied AFTER
-            # oldest-first ordering so the head of the list is never
-            # dropped; in practice the 500-char Play cap truncates far
-            # sooner.
-            if [ "$qualifying" -ge 50 ]; then
-              echo "Reached 50 qualifying commits; ignoring the rest of the range."
-              break
-            fi
             s=$(git log -1 --format=%s "$sha")
             case "$s" in
               ci:*)       continue ;;
@@ -1621,7 +1633,7 @@ jobs:
             if [ "$relevant" = "false" ]; then
               continue
             fi
-            add_subject "$s"
+            add_subject "$s" || break
           done <<< "$shas"
 
           if [ "${#subjects[@]}" -eq 0 ]; then
@@ -1680,7 +1692,6 @@ jobs:
           # very first subject is 499-500 chars formatted and cannot
           # coexist with the marker, hard-truncate it.
           kept=()
-          truncated=false
           for s in "${subjects[@]}"; do
             candidate=$(format_notes "${kept[@]}" "$s")
             if [ "$(char_len "$candidate")" -gt "$MAX" ]; then
