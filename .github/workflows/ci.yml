@@ -381,6 +381,14 @@ jobs:
         # nothing but the checkout.
         run: python3 scripts/publish_github_release_test.py
 
+      - name: Test the release-notes deduplication
+        # Same reason as the step above: the "Build release notes" step is
+        # `deploy`-only, so a regression in it would first surface on `main`
+        # as a wrong Play "What's new" card. Extracts the `add_subject` helper
+        # from this file and drives it, so it tests the text that ships rather
+        # than a copy that could drift.
+        run: python3 scripts/release_notes_dedup_test.py
+
       - name: Build release APK (runs the full R8 pipeline)
         # The only step in this lane that exercises R8 shrinking, optimization
         # and obfuscation together -- which is what the Play build ships.
@@ -1547,15 +1555,45 @@ jobs:
             shas=$(git log -1 --format=%H "$AFTER_SHA")
           fi
 
+          # Collapse repeated subjects, keeping the first occurrence. Two
+          # dependency batches can land in one release window — the range
+          # base is the last run that actually published, so a red or
+          # secret-skipped deploy queues its commits into the next real
+          # release — and their subjects are identical, so the card would
+          # carry the same bullet twice. Keeping the FIRST occurrence is
+          # what the rest of this step already assumes: the list is
+          # oldest-first and the cap below drops from the tail, so a repeat
+          # must never displace the head or spend the character budget.
           subjects=()
+          # Counts commits that QUALIFY, which is what the cap below actually
+          # bounds: the per-commit `git diff-tree` this loop runs. Before
+          # dedup that was the same number as the subjects collected, so the
+          # cap could read the array; a range of repeated subjects would now
+          # leave the array at one entry and let a pathologically long range
+          # (a release outage) walk every commit in it.
+          qualifying=0
+          add_subject() {
+            local s="$1" i
+            qualifying=$((qualifying + 1))
+            # Indexed rather than "${subjects[@]}": the count is always
+            # safe to read under `set -u`, an empty array included.
+            for (( i = 0; i < ${#subjects[@]}; i++ )); do
+              if [ "${subjects[$i]}" = "$s" ]; then
+                echo "Subject already collected, not repeating it: $s"
+                return 0
+              fi
+            done
+            subjects+=("$s")
+          }
+
           while IFS= read -r sha; do
             [ -z "$sha" ] && continue
             # Safety net for unusually long ranges, applied AFTER
             # oldest-first ordering so the head of the list is never
             # dropped; in practice the 500-char Play cap truncates far
             # sooner.
-            if [ "${#subjects[@]}" -ge 50 ]; then
-              echo "Reached 50 qualifying subjects; ignoring the rest of the range."
+            if [ "$qualifying" -ge 50 ]; then
+              echo "Reached 50 qualifying commits; ignoring the rest of the range."
               break
             fi
             s=$(git log -1 --format=%s "$sha")
@@ -1583,7 +1621,7 @@ jobs:
             if [ "$relevant" = "false" ]; then
               continue
             fi
-            subjects+=("$s")
+            add_subject "$s"
           done <<< "$shas"
 
           if [ "${#subjects[@]}" -eq 0 ]; then
