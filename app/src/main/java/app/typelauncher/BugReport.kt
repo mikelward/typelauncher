@@ -7,30 +7,22 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.ApplicationInfo
-import android.graphics.Bitmap
-import android.graphics.Rect
 import android.net.Uri
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
-import android.view.PixelCopy
-import android.view.View
-import android.view.Window
 import android.widget.Toast
 import androidx.core.content.FileProvider
+import com.mikelward.androidlog.DebugLog
 import com.mikelward.androidlog.android.DebugFileSink
 import com.mikelward.androidlog.android.PreviousRun
+import com.mikelward.androidlog.android.ReportScreenshot
 import com.mikelward.androidlog.boundedLogTail
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
 import java.time.ZoneId
 import java.util.Locale
-import kotlin.coroutines.resume
 
 private const val FILE_PROVIDER_AUTHORITY_SUFFIX = ".fileprovider"
 private const val SCREENSHOT_DIR_NAME = "bug-reports"
@@ -103,11 +95,13 @@ internal object BugReport {
             CollectedReport(buildFallbackPayload(t), previousRun = null)
         }
         val text = collected.text
-        // The screenshot capture draws the live Compose window via PixelCopy, and
-        // the clipboard/chooser handoff touches the Activity — all must run on the
-        // main thread. Pin them there explicitly: the payload build above hops to
-        // IO, and its continuation must not leave this on a worker thread (that
-        // raced Compose's single-threaded draw and flaked CI).
+        // The clipboard and chooser hand-off touch the Activity, so pin them to
+        // the main thread: the payload build above hops to IO, and its
+        // continuation must not leave this on a worker thread. The screenshot
+        // capture runs off the main thread itself (inside ReportScreenshot,
+        // which hops to the main thread only to read the window geometry), so
+        // calling it from here suspends this block to IO and resumes on the main
+        // thread for the hand-off.
         val clipboardOk = withContext(mainDispatcher) {
             val screenshotUri: Uri? = if (includeScreenshot) screenshotCapture(activity) else null
             // Guarded like the chooser below: both are injectable seams, and
@@ -242,111 +236,52 @@ internal object BugReport {
         // The share runs on the application scope, so it can outlive the screen
         // that started it (a rotation, or the activity being torn down while the
         // payload is still building). A destroyed window has nothing worth
-        // capturing and PixelCopy against its stale token fails anyway — go
-        // straight to a text-only report instead of spending a 10-30 MB buffer
-        // finding that out.
+        // capturing, so go straight to a text-only report instead of spending a
+        // 10-30 MB buffer finding that out.
         if (activity.isFinishing || activity.isDestroyed) return null
-        val bitmap = try {
-            captureWindow(activity)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (t: Throwable) {
-            LauncherDebugLog.failure(t, "BugReport.captureWindow failed")
-            null
-        } ?: return null
-        // Compressing a full-window PNG and pruning previous files would block the main
-        // thread long enough to jank the share-sheet open, so persist on Dispatchers.IO.
-        return try {
-            withContext(Dispatchers.IO) {
-                try {
-                    val dir = File(activity.cacheDir, SCREENSHOT_DIR_NAME).apply { mkdirs() }
-                    // Prune old captures but keep the most recent couple: a
-                    // FileProvider URI from an earlier share may still be held by
-                    // its target (an unsent email draft, a messaging app that
-                    // reads attachments lazily), and deleting every file here
-                    // retroactively broke that grant — the attachment failed with
-                    // FileNotFoundException when the target finally read it.
-                    prunePersistedScreenshots(dir, keepNewest = SCREENSHOT_KEEP_PREVIOUS)
-                    val file = File(dir, "screenshot-${System.currentTimeMillis()}.png")
-                    FileOutputStream(file).use { out -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, out) }
-                    FileProvider.getUriForFile(
-                        activity,
-                        activity.packageName + FILE_PROVIDER_AUTHORITY_SUFFIX,
-                        file,
-                    )
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (t: Throwable) {
-                    LauncherDebugLog.failure(t, "BugReport.persistScreenshot failed")
-                    null
-                }
+        // ReportScreenshot.capture is the shared, hardened capture (window
+        // PixelCopy, off-main buffer, age-based prune, recycle). It blocks, so
+        // run it off the main thread; it returns the persisted PNG, or null on
+        // any failure — a text-only report, never a crash.
+        return withContext(Dispatchers.IO) {
+            val file = ReportScreenshot.capture(
+                activity,
+                File(activity.cacheDir, SCREENSHOT_DIR_NAME),
+                LauncherDebugLog,
+            ) ?: return@withContext null
+            // The FileProvider, its authority, and @xml/file_paths stay app-side
+            // — a screenshot is the app's content, the same split DebugReport
+            // already follows.
+            bugReportScreenshotUri(file, LauncherDebugLog) {
+                FileProvider.getUriForFile(
+                    activity,
+                    activity.packageName + FILE_PROVIDER_AUTHORITY_SUFFIX,
+                    it,
+                )
             }
-        } finally {
-            // Only the PNG on disk outlives this call; free the full-window
-            // ARGB_8888 buffer (10-30 MB) now instead of waiting for GC. Safe
-            // even on cancellation: withContext waits for its block, so the
-            // compress has finished with the bitmap by the time we get here.
-            bitmap.recycle()
         }
-    }
-
-    private suspend fun captureWindow(activity: Activity): Bitmap? {
-        val window = activity.window ?: return null
-        val view: View = window.decorView
-        if (view.width <= 0 || view.height <= 0) return null
-        val location = IntArray(2)
-        view.getLocationInWindow(location)
-        val rect = Rect(
-            location[0],
-            location[1],
-            location[0] + view.width,
-            location[1] + view.height,
-        )
-        val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
-        return awaitPixelCopyInto(bitmap) { onResult -> requestPixelCopy(window, rect, bitmap, onResult) }
     }
 
     /**
-     * Suspends until [request] reports whether the copy into [bitmap] landed,
-     * returning the bitmap on success and null on failure. The bitmap is a
-     * full-window ARGB_8888 buffer (10-30 MB on current phones), so every path
-     * that does not hand it to the caller recycles it: a failed copy, a
-     * synchronous throw from [request], and a caller cancelled before the
-     * result arrived. In the cancelled case the recycle happens in the (now
-     * ignored) result callback rather than eagerly at cancellation time,
-     * because PixelCopy may still be writing into the buffer until then.
+     * Mints the shareable `content://` URI from a captured PNG, guarded. A
+     * `FileProvider` misconfiguration (a path outside `@xml/file_paths`) throws
+     * `IllegalArgumentException`, and this share runs in the application scope
+     * where an escaping throwable would take the launcher down — the one thing a
+     * bug-report path must never do. On failure it degrades to a text-only
+     * report (null) and drops the now-unshareable PNG; [CancellationException]
+     * propagates. The mint is injected so a plain-JVM test can drive both paths
+     * without a device (`BugReportScreenshotUriTest`).
      */
-    internal suspend fun awaitPixelCopyInto(
-        bitmap: Bitmap,
-        request: (onResult: (Boolean) -> Unit) -> Unit,
-    ): Bitmap? = suspendCancellableCoroutine { cont ->
+    internal fun bugReportScreenshotUri(file: File, log: DebugLog, mint: (File) -> Uri): Uri? =
         try {
-            request { ok ->
-                if (ok) {
-                    cont.resume(bitmap) { _, _, _ -> bitmap.recycle() }
-                } else {
-                    bitmap.recycle()
-                    cont.resume(null)
-                }
-            }
-        } catch (t: Throwable) {
-            LauncherDebugLog.failure(t, "BugReport.PixelCopy.request threw")
-            bitmap.recycle()
-            cont.resume(null)
+            mint(file)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log.failure(e, "bug report: screenshot URI could not be built")
+            file.delete()
+            null
         }
-    }
-
-    private fun requestPixelCopy(
-        window: Window,
-        rect: Rect,
-        bitmap: Bitmap,
-        onResult: (Boolean) -> Unit,
-    ) {
-        val handler = Handler(Looper.getMainLooper())
-        PixelCopy.request(window, rect, bitmap, { result ->
-            onResult(result == PixelCopy.SUCCESS)
-        }, handler)
-    }
 
     private fun startShare(activity: Activity, text: String, screenshotUri: Uri?): Boolean {
         val send = Intent(Intent.ACTION_SEND).apply {
@@ -391,33 +326,7 @@ internal object BugReport {
             true
         }.onFailure { LauncherDebugLog.failure(it, "BugReport.clipboard copy failed") }
             .getOrDefault(false)
-
-    /**
-     * Deletes all but the [keepNewest] most recent `screenshot-*.png` captures
-     * in [dir], newest judged by the millis embedded in the filename (falling
-     * back to `lastModified` for a name that doesn't parse). Called before each
-     * new capture is written, so the directory holds at most [keepNewest] + 1
-     * files — bounded growth without invalidating the URI a previous share
-     * target may still hold.
-     */
-    internal fun prunePersistedScreenshots(dir: File, keepNewest: Int) {
-        val captures = dir.listFiles { file ->
-            file.isFile && file.name.startsWith("screenshot-") && file.name.endsWith(".png")
-        } ?: return
-        captures
-            .sortedByDescending { file ->
-                file.name.removePrefix("screenshot-").removeSuffix(".png").toLongOrNull()
-                    ?: file.lastModified()
-            }
-            .drop(keepNewest)
-            .forEach { it.delete() }
-    }
 }
-
-// How many previous captures survive a new one. Two covers the realistic
-// window (the share the user just sent plus one before it) at ~a few MB of
-// cache; anything older has no live URI grant worth preserving.
-private const val SCREENSHOT_KEEP_PREVIOUS = 2
 
 /** Walks the [ContextWrapper] chain to find the host [Activity], or returns null. */
 internal fun Context.findActivity(): Activity? {
