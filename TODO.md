@@ -891,7 +891,9 @@ Not blocking the PR: nothing in it changes what is transmitted.
       ported from here into clothescast, Snoozemo and Simmo as a deliberate
       copy — same file name, function names, log-line format and field names —
       so the four logs read identically and a future unification is a
-      lift-and-share rather than a reconciliation. The loggers underneath
+      lift-and-share rather than a reconciliation. *That lift-and-share has
+      happened for the exit record itself: it is androidlog's `ProcessExits`
+      (2.3.72), and this repo, Snoozemo and StopDash call it.* The loggers underneath
       them are what differ, and the divergence is real. The other three repos
       each carry this same inventory; this is the copy for the repo the others
       treat as the reference.

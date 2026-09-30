@@ -169,12 +169,7 @@ internal object BugReport {
         // The pinned lines come with it, in the same read: this path runs only
         // when collection already failed, and how the run started is the context
         // least likely to still be in the ring buffer.
-        val logs = runCatching {
-            LauncherDebugLog.boundedSnapshot(
-                pinnedBudgetChars = MAX_PINNED_PAYLOAD_CHARS,
-                recentBudgetChars = MAX_LOG_PAYLOAD_CHARS,
-            )
-        }.getOrDefault(emptyList())
+        val logs = runCatching { reportLogLines() }.getOrDefault(emptyList())
         append(renderLog(logs, MAX_LOG_PAYLOAD_CHARS + MAX_PINNED_PAYLOAD_CHARS))
     }
 
@@ -193,10 +188,7 @@ internal object BugReport {
         // with the pinned lines it no longer holds prepended. Reading the two
         // buffers separately is what let a line land in between and be filed as
         // older than lines it was newer than (Codex on PR #689).
-        val log = LauncherDebugLog.boundedSnapshot(
-            pinnedBudgetChars = MAX_PINNED_PAYLOAD_CHARS,
-            recentBudgetChars = MAX_LOG_PAYLOAD_CHARS,
-        )
+        val log = reportLogLines()
         val dockSettings = DockSettingsStore(context)
         val dockedApps = DockedAppStore(context).dockedAppIds
         val widgetStore = WidgetStore(context)
@@ -496,11 +488,19 @@ private const val MAX_LOG_PAYLOAD_CHARS = 60_000
  *
  * Small because they are: a couple of dozen short lines written once each at
  * startup, a few hundred characters in total in practice. It is capped anyway
- * rather than left to the entry count alone, so that one pathological line — a
- * platform-composed [android.app.ApplicationExitInfo] description runs to the
- * log's per-entry ceiling — cannot put the whole report over the share ceiling.
+ * rather than left to the entry count alone, so the section can't put the whole
+ * report over the share ceiling. It must hold a whole process-exit batch
+ * (`ProcessExits.maxBatchChars()`, about 2,850) with room left for the
+ * launcher's own pinned home-resolution lines: the section is trimmed from its
+ * head, so a smaller budget would drop the oldest exits.
  */
 private const val MAX_PINNED_PAYLOAD_CHARS = 8_000
+
+/** This run's log as both report paths read it: the kept tail, preceded by the pinned lines it evicted. */
+internal fun reportLogLines(): List<String> = LauncherDebugLog.boundedSnapshot(
+    pinnedBudgetChars = MAX_PINNED_PAYLOAD_CHARS,
+    recentBudgetChars = MAX_LOG_PAYLOAD_CHARS,
+)
 
 /**
  * Ceiling for the previous-run section (it is already capped when written to

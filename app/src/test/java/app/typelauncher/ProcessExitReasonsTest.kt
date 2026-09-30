@@ -3,9 +3,8 @@ package app.typelauncher
 import android.app.ActivityManager
 import android.app.ApplicationExitInfo
 import androidx.test.core.app.ApplicationProvider
-import com.mikelward.androidlog.formatLogMessage
-import com.mikelward.androidlog.safe
-import com.mikelward.androidlog.sensitive
+import com.mikelward.androidlog.DebugLog
+import com.mikelward.androidlog.android.ProcessExits
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -18,10 +17,10 @@ import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowActivityManager
 
 /**
- * The exit reason is the whole diagnostic value of [logRecentProcessExits]: it
- * is what separates a crash of ours from the system killing us, so a mapping
- * that silently mislabels one as the other would make the log confidently
- * wrong rather than merely unhelpful.
+ * The launcher's wiring of androidlog's shared `ProcessExits`, driven through
+ * the real platform queries (Robolectric's `ActivityManager`). The reason and
+ * importance names, the order and the description bound are the library's,
+ * and `ProcessExitsTest` there covers them.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
@@ -54,7 +53,7 @@ class ProcessExitReasonsTest {
 
     @Test
     fun recordsEachRecentExitWithItsReasonNamed() {
-        // The mapping tests below prove the names are right; this proves the
+        // The library's tests prove the names are right; this proves the
         // query actually runs and its answers reach the log. Without it the
         // suite stays green if the collection is deleted, asks for the wrong
         // package, or drops its results on the floor — which is the whole
@@ -80,8 +79,8 @@ class ProcessExitReasonsTest {
         )
         // The platform's own account of the death rides along, and the
         // on-device log carries it in full — that is what the report is read
-        // for. (It is withheld from the Crashlytics mirror; see LogValueTest
-        // for the type rule that does it.)
+        // for. (It is withheld from the Crashlytics mirror; the mirror test
+        // below drives that.)
         assertTrue(
             exitLines.toString(),
             exitLines.all { it.contains("description=stopped by the installer") },
@@ -95,11 +94,9 @@ class ProcessExitReasonsTest {
     @Test
     fun recordsTheExitsEvenWhenThePackageLookupCannotRun() {
         // The package timestamps are the optional half; the exit records are
-        // the point. Ordering them last is what stops a failure in the former
-        // discarding the latter — the records are already fetched by then, so
-        // losing them would lose exactly the evidence this is read for. The
-        // package name is forced to one that does not resolve, which is what a
-        // failing lookup looks like from here.
+        // the point, so a failed lookup must not cost them. The package name is
+        // forced to one that does not resolve, which is what a failing lookup
+        // looks like from here.
         seedExit(ApplicationExitInfo.REASON_LOW_MEMORY)
 
         logRecentProcessExits(NonResolvingPackageContext(context))
@@ -148,6 +145,30 @@ class ProcessExitReasonsTest {
     }
 
     @Test
+    fun aFullBatchOfLongExitsReachesTheReportAfterTheRingHasDroppedIt() {
+        // What the report's pinned budget has to hold: every record the
+        // collector keeps, each with a description far past its bound, pushed
+        // out of the ring by a busy run before anyone shares a report.
+        repeat(ProcessExits.DEFAULT_MAX_RECORDS) {
+            seedExit(ApplicationExitInfo.REASON_ANR, description = "Input dispatching timed out ".repeat(100))
+        }
+        logRecentProcessExits(context)
+        repeat(DebugLog.DEFAULT_MAX_ENTRIES + 50) { LauncherDebugLog.event("busy %s", it) }
+        // Only the pinned copy can carry them now.
+        assertTrue(LauncherDebugLog.snapshot().none { it.contains("processExit ") })
+
+        val report = reportLogLines()
+
+        assertEquals(
+            report.take(10).toString(),
+            ProcessExits.DEFAULT_MAX_RECORDS,
+            report.count { it.contains("processExit reason=anr") },
+        )
+        assertTrue(report.any { it.contains("ownPackage lastUpdateTime=") })
+        assertTrue(report.last().endsWith("busy ${DebugLog.DEFAULT_MAX_ENTRIES + 49}"))
+    }
+
+    @Test
     fun saysSoWhenThePlatformHasNoExitRecords() {
         // A fresh install, or a device that has pruned its records. The line
         // matters because its absence would otherwise be ambiguous with the
@@ -158,81 +179,26 @@ class ProcessExitReasonsTest {
         assertFalse(loggedLines().any { it.contains("processExit reason=") })
     }
 
-    // The correlation these lines exist for — an exit whose time matches the
-    // package's update time is the installer swapping the APK, not a bug — is
-    // only makeable if both times reach the mirror. Wrapping any of the three
-    // in `sensitive(...)` would render them as the placeholder there and take the
-    // correlation with them, which is what this asserts against. Written
-    // against `formatLogMessage` with the arguments the call sites pass, the
-    // same shape as the mirror assertions in LauncherDebugLogTest: the
-    // mirrored rendering is only observable through the telemetry object,
-    // which has no test seam.
+    // The correlation these lines exist for (an exit whose time matches the
+    // package's update time is the installer swapping the APK, not a bug) is
+    // only makeable if both times reach the mirror. Driven through a fresh log
+    // with an off-device sink, so this asserts what the mirror is actually
+    // handed rather than how a format string would render.
     @Test
-    fun theProcessAndPackageTimesReachTheCrashlyticsMirror() {
-        val exitLine = formatLogMessage(
-            "processExit reason=%s timestamp=%s",
-            arrayOf<Any?>(safe("REASON_USER_REQUESTED"), 1_700_000_000_000L),
-            leavingDevice = true,
-        )
-        val packageLine = formatLogMessage(
-            "ownPackage lastUpdateTime=%s firstInstallTime=%s",
-            arrayOf<Any?>(1_700_000_000_000L, 1_600_000_000_000L),
-            leavingDevice = true,
-        )
+    fun theProcessAndPackageTimesReachTheCrashlyticsMirrorButTheDescriptionDoesNot() {
+        seedExit(ApplicationExitInfo.REASON_CRASH)
+        val offDevice = mutableListOf<String>()
+        val log = DebugLog().apply { addSink({ offDevice += it }, DebugLog.Destination.OFF_DEVICE) }
 
-        assertTrue("the exit time is the half a report is read for", exitLine.contains("1700000000000"))
-        assertTrue("the update time is the other half", packageLine.contains("1700000000000"))
-        assertTrue("the install time rides with it", packageLine.contains("1600000000000"))
-    }
+        logRecentProcessExits(context, log)
 
-    @Test
-    fun namesTheReasonsThatSeparateOurFailuresFromThePlatformKillingUs() {
-        // Ours to fix.
-        assertEquals("crash", exitReasonName(ApplicationExitInfo.REASON_CRASH))
-        assertEquals("crashNative", exitReasonName(ApplicationExitInfo.REASON_CRASH_NATIVE))
-        assertEquals("anr", exitReasonName(ApplicationExitInfo.REASON_ANR))
-        // Not ours — the system reclaiming or replacing the process. These are
-        // the ones no in-process signal can see, which is why this exists.
-        assertEquals("lowMemory", exitReasonName(ApplicationExitInfo.REASON_LOW_MEMORY))
-        assertEquals("packageUpdated", exitReasonName(ApplicationExitInfo.REASON_PACKAGE_UPDATED))
-        assertEquals(
-            "packageStateChange",
-            exitReasonName(ApplicationExitInfo.REASON_PACKAGE_STATE_CHANGE),
-        )
-        assertEquals("userRequested", exitReasonName(ApplicationExitInfo.REASON_USER_REQUESTED))
-    }
-
-    @Test
-    fun keepsTheNumberOfAReasonItDoesNotRecognize() {
-        // A platform addition should degrade to something still diagnosable
-        // rather than collapsing into an indistinguishable "unknown" — which
-        // the platform already uses for a reason of its own.
-        assertEquals("unrecognized(9999)", exitReasonName(9999))
-        assertEquals("unknown", exitReasonName(ApplicationExitInfo.REASON_UNKNOWN))
-    }
-
-    @Test
-    fun namesThePriorityAndroidAssignedTheProcess() {
-        // A background process being reclaimed is routine — the launcher lives
-        // there all day. Foreground importance means the system was not
-        // treating it as idle, which is the distinction the record exists to
-        // make. It is not proof an Activity was on screen.
-        assertEquals(
-            "foreground",
-            processImportanceName(ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND),
-        )
-        assertEquals(
-            "visible",
-            processImportanceName(ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE),
-        )
-        assertEquals(
-            "cached",
-            processImportanceName(ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED),
-        )
-        assertEquals(
-            "gone",
-            processImportanceName(ActivityManager.RunningAppProcessInfo.IMPORTANCE_GONE),
-        )
-        assertEquals("unrecognized(7)", processImportanceName(7))
+        val exitLine = offDevice.single { it.contains("processExit ") }
+        assertTrue(exitLine, exitLine.contains("reason=crash"))
+        assertTrue(exitLine, exitLine.contains("timestamp=2023-Nov-14T22:13:20Z"))
+        // The platform's own text can name another package, so it stays on the device.
+        assertFalse(exitLine, exitLine.contains("stopped by the installer"))
+        val packageLine = offDevice.single { it.contains("ownPackage ") }
+        assertTrue(packageLine, packageLine.contains("lastUpdateTime="))
+        assertFalse(packageLine, packageLine.contains("•••"))
     }
 }
