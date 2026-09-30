@@ -13,6 +13,7 @@ import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.mikelward.androidlog.DebugLog
 import com.mikelward.androidlog.android.DebugFileSink
+import com.mikelward.androidlog.android.DebugReport
 import com.mikelward.androidlog.android.PreviousRun
 import com.mikelward.androidlog.android.ReportScreenshot
 import com.mikelward.androidlog.boundedLogTail
@@ -196,7 +197,7 @@ internal object BugReport {
         // or a silent kill). Read here (on Dispatchers.IO via share()) and
         // carried out with the text; share() consumes it only after the
         // hand-off, so a cancellation can't lose the run.
-        val previousRun = fileSink?.readPreviousRun()
+        val previousRun = fileSink?.let(::readPreviousRunForReport)
         val text = buildBugReportPayload(
             nowMillis = System.currentTimeMillis(),
             versionName = BuildConfig.VERSION_NAME,
@@ -474,14 +475,20 @@ private fun renderLog(log: List<String>, budgetChars: Int): String = buildString
  * `TransactionTooLargeException` at both ends, and since both are best-effort the
  * tap did nothing whatsoever — no chooser, nothing on the clipboard.
  *
- * The section budgets below add up to 156,000; the slack covers the section
+ * The chooser is the tighter of the two routes: starting it copies a text-only
+ * share's `EXTRA_TEXT` into the intent's `ClipData`, so the text rides in one
+ * transaction twice, four bytes a character. This is the fleet's one report
+ * ceiling, androidlog's [DebugReport.MAX_REPORT_CHARS] — about 240 KB there,
+ * where a report of 160,000 characters (this app's old ceiling) is 640 KB.
+ *
+ * The section budgets below add up to 58,000; the slack covers the section
  * headers and the one over-budget line each section may keep (a single line is
  * itself capped by the log's own per-entry ceiling).
  */
-internal const val MAX_SHARE_PAYLOAD_CHARS = 160_000
+internal const val MAX_SHARE_PAYLOAD_CHARS = DebugReport.MAX_REPORT_CHARS
 
-/** Ceiling for the current run's log — ~120 KB of UTF-16 on the wire. */
-private const val MAX_LOG_PAYLOAD_CHARS = 60_000
+/** Ceiling for the current run's log — ~40 KB of UTF-16 on the wire. */
+private const val MAX_LOG_PAYLOAD_CHARS = 20_000
 
 /**
  * Ceiling for the pinned lines the log restores ahead of its kept tail.
@@ -494,7 +501,7 @@ private const val MAX_LOG_PAYLOAD_CHARS = 60_000
  * launcher's own pinned home-resolution lines: the section is trimmed from its
  * head, so a smaller budget would drop the oldest exits.
  */
-private const val MAX_PINNED_PAYLOAD_CHARS = 8_000
+private const val MAX_PINNED_PAYLOAD_CHARS = 4_000
 
 /** This run's log as both report paths read it: the kept tail, preceded by the pinned lines it evicted. */
 internal fun reportLogLines(): List<String> = LauncherDebugLog.boundedSnapshot(
@@ -503,11 +510,27 @@ internal fun reportLogLines(): List<String> = LauncherDebugLog.boundedSnapshot(
 )
 
 /**
- * Ceiling for the previous-run section (it is already capped when written to
- * disk); bounded again here so the three sections together — structured head,
- * crash, current log — stay inside [MAX_SHARE_PAYLOAD_CHARS].
+ * Ceiling for the previous-run section, the same share androidlog gives the
+ * earlier runs in a report it builds itself. Bounded again when the report is
+ * put together, so the sections together — structured head, crash, current
+ * log — stay inside [MAX_SHARE_PAYLOAD_CHARS] whatever text they are handed.
  */
-private const val MAX_CRASH_PAYLOAD_CHARS = 50_000
+private const val MAX_CRASH_PAYLOAD_CHARS = DebugReport.MAX_EARLIER_RUNS_CHARS
+
+/**
+ * The earlier runs for a report, read at [MAX_CRASH_PAYLOAD_CHARS].
+ *
+ * Bounded in the read, not only when the section is rendered: the handle
+ * names the files its text carries, and [DebugFileSink.clearPreviousRun]
+ * deletes exactly those. Read whole and trimmed afterwards, the handle still
+ * named every run the trim cut away, and sharing the report deleted them
+ * unsent.
+ */
+internal fun readPreviousRunForReport(sink: DebugFileSink): PreviousRun? =
+    // One under the section's bound: the section's own trim charges each line
+    // a newline, the last included, and a text read to the full bound could
+    // lose its oldest line there after its file was already consumed.
+    sink.readPreviousRun(MAX_CRASH_PAYLOAD_CHARS - 1)
 
 /** Cap for an exception message quoted into the collection-failure fallback. */
 private const val MAX_FAILURE_MESSAGE_CHARS = 300
@@ -518,4 +541,4 @@ private const val MAX_FAILURE_MESSAGE_CHARS = 300
  * out. The smallest of the three: it is the section that degrades most gracefully
  * — a settings dump reads fine truncated, a truncated log tail loses events.
  */
-private const val MAX_STRUCTURED_CHARS = 38_000
+private const val MAX_STRUCTURED_CHARS = 14_000
