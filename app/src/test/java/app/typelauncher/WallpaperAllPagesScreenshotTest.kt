@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -258,6 +259,48 @@ class WallpaperAllPagesScreenshotTest {
         composeRule.onNodeWithTag(EDIT_HOME_WIDGETS_BUTTON_TAG).assertExists()
 
         capture("compose_home_widgets_settings_light_robolectric.png", heightPx = 400)
+    }
+
+    @Test
+    fun homeWidgetsSettingsPreviewSketch_light() {
+        captureSketch(
+            widgetIds = listOf(1, 2, 3),
+            heights = mapOf(1 to 160, 3 to 96),
+            spans = mapOf(1 to 2, 2 to 2),
+        )
+        composeRule.onNodeWithTag("$SETTINGS_PREVIEW_HOME_WIDGET_SKETCH_TAG:3").assertExists()
+
+        capture("compose_home_widgets_settings_preview_sketch_robolectric.png", heightPx = 400)
+    }
+
+    @Test
+    fun homeWidgetsSettingsPreviewSketch_empty() {
+        captureSketch(widgetIds = emptyList(), heights = emptyMap(), spans = emptyMap())
+        composeRule.onNodeWithText("Add widget").assertExists()
+
+        capture("compose_home_widgets_settings_preview_sketch_empty_robolectric.png", heightPx = 400)
+    }
+
+    /**
+     * The Settings preview's widget sketch in a slot the size Settings gives
+     * the app list (about two bars), over the gradient wallpaper stand-in.
+     */
+    private fun captureSketch(widgetIds: List<Int>, heights: Map<Int, Int>, spans: Map<Int, Int>) {
+        composeRule.setContent {
+            TypeLauncherTheme(themeMode = ThemeMode.Light, dynamicColor = false) {
+                GradientWallpaperStandIn {
+                    Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                        HomeWidgetsSketch(
+                            widgetIds = widgetIds,
+                            widgetHeights = heights,
+                            widgetSpans = spans,
+                            modifier = Modifier.height(136.dp),
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
     }
 
     /**

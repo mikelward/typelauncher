@@ -7819,7 +7819,17 @@ private fun SettingsPreview(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(SETTINGS_PREVIEW_SPACING_DP.dp),
         ) {
-            if (state.isWallpaperShown) {
+            if (state.isHomeWidgetsShown) {
+                // Home's widgets win the slot over the wallpaper, as on Home.
+                // A sketch of their grid rather than hosted widgets: see
+                // HomeWidgetsSketch.
+                HomeWidgetsSketch(
+                    widgetIds = state.homeWidgetIds,
+                    widgetHeights = state.widgetHeights,
+                    widgetSpans = state.widgetSpans,
+                    modifier = Modifier.height(appListHeight),
+                )
+            } else if (state.isWallpaperShown) {
                 // Mirror Home's empty-query state exactly: with "Show
                 // wallpaper" on, Home replaces the app list with a
                 // transparent wallpaper slot, so the preview does the same —

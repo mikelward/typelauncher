@@ -104,7 +104,6 @@
      The right answer probably combines (4) for known-unreachable cases with (1) or (2) as the safety net for genuinely unexpected races.
 
 - **Home widgets follow-ups.** Shipped without these:
-  - The Settings preview still shows the app list (or the wallpaper slot) rather than Home's widgets.
   - The keyboard is left as it is in edit mode rather than hidden, to keep the Home keyboard / layout machinery untouched; the edit area sits above the reserved keyboard space either way. Revisit if editing feels cramped on device.
 
 ### Decisions needing review
