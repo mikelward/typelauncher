@@ -164,6 +164,10 @@
     <string name="settings_wallpaper_title">Ταπετσαρία</string>
     <string name="settings_change_wallpaper_button">Αλλαγή</string>
     <string name="settings_change_wallpaper_button_description">Αλλαγή ταπετσαρίας</string>
+    <string name="settings_home_widgets_title">Γραφικά στοιχεία στην αρχική οθόνη</string>
+    <string name="settings_home_widgets_edit_title">Γραφικά στοιχεία αρχικής οθόνης</string>
+    <string name="settings_home_widgets_edit_button">Επεξεργασία</string>
+    <string name="settings_home_widgets_edit_button_description">Επεξεργασία γραφικών στοιχείων αρχικής οθόνης</string>
     <string name="settings_wallpaper_picker_unavailable">Η επιλογή ταπετσαρίας δεν είναι διαθέσιμη</string>
     <string name="play_update_banner_restart_failed">Δεν ήταν δυνατή η επανεκκίνηση για εγκατάσταση</string>
     <string name="scroll_up_for_more_hint">Κάντε κύλιση προς τα πάνω για περισσότερα</string>

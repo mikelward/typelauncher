@@ -166,6 +166,10 @@
     <string name="settings_wallpaper_title">Обои</string>
     <string name="settings_change_wallpaper_button">Изменить</string>
     <string name="settings_change_wallpaper_button_description">Изменить обои</string>
+    <string name="settings_home_widgets_title">Виджеты на главном экране</string>
+    <string name="settings_home_widgets_edit_title">Виджеты главного экрана</string>
+    <string name="settings_home_widgets_edit_button">Изменить</string>
+    <string name="settings_home_widgets_edit_button_description">Изменить виджеты главного экрана</string>
     <string name="settings_wallpaper_picker_unavailable">Приложение для обоев недоступно</string>
     <string name="play_update_banner_restart_failed">Не удалось перезапустить для установки</string>
     <string name="scroll_up_for_more_hint">Прокрутите вверх, чтобы увидеть больше</string>

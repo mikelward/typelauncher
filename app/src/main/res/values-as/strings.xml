@@ -164,6 +164,10 @@
     <string name="settings_wallpaper_title">ৱালপেপাৰ</string>
     <string name="settings_change_wallpaper_button">সলনি কৰক</string>
     <string name="settings_change_wallpaper_button_description">ৱালপেপাৰ সলনি কৰক</string>
+    <string name="settings_home_widgets_title">হোম স্ক্ৰীনত উইজেট</string>
+    <string name="settings_home_widgets_edit_title">হোম উইজেট</string>
+    <string name="settings_home_widgets_edit_button">সম্পাদনা কৰক</string>
+    <string name="settings_home_widgets_edit_button_description">হোম উইজেট সম্পাদনা কৰক</string>
     <string name="settings_wallpaper_picker_unavailable">ৱালপেপাৰ বাছনিকৰ্তা উপলব্ধ নহয়</string>
     <string name="play_update_banner_restart_failed">ইনষ্টল কৰিবলৈ ৰিষ্টাৰ্ট কৰিব পৰা নগ’ল</string>
     <string name="scroll_up_for_more_hint">অধিক চাবলৈ ওপৰলৈ স্ক্ৰল কৰক</string>

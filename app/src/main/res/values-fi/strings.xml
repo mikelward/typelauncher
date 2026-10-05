@@ -164,6 +164,10 @@
     <string name="settings_wallpaper_title">Taustakuva</string>
     <string name="settings_change_wallpaper_button">Vaihda</string>
     <string name="settings_change_wallpaper_button_description">Vaihda taustakuva</string>
+    <string name="settings_home_widgets_title">Widgetit aloitusnäytöllä</string>
+    <string name="settings_home_widgets_edit_title">Aloitusnäytön widgetit</string>
+    <string name="settings_home_widgets_edit_button">Muokkaa</string>
+    <string name="settings_home_widgets_edit_button_description">Muokkaa aloitusnäytön widgetejä</string>
     <string name="settings_wallpaper_picker_unavailable">Taustakuvan valitsin ei ole käytettävissä</string>
     <string name="play_update_banner_restart_failed">Uudelleenkäynnistys asennusta varten epäonnistui</string>
     <string name="scroll_up_for_more_hint">Vieritä ylös nähdäksesi lisää</string>

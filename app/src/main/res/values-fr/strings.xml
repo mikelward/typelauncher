@@ -165,6 +165,10 @@
     <string name="settings_wallpaper_title">Fond d\'écran</string>
     <string name="settings_change_wallpaper_button">Modifier</string>
     <string name="settings_change_wallpaper_button_description">Modifier le fond d\'écran</string>
+    <string name="settings_home_widgets_title">Widgets sur l\'écran d\'accueil</string>
+    <string name="settings_home_widgets_edit_title">Widgets d\'accueil</string>
+    <string name="settings_home_widgets_edit_button">Modifier</string>
+    <string name="settings_home_widgets_edit_button_description">Modifier les widgets d\'accueil</string>
     <string name="settings_wallpaper_picker_unavailable">Sélecteur de fond d\'écran indisponible</string>
     <string name="play_update_banner_restart_failed">Impossible de redémarrer pour installer</string>
     <string name="scroll_up_for_more_hint">Faites défiler vers le haut pour en voir plus</string>

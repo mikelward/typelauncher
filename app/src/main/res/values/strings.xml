@@ -145,14 +145,10 @@
     <string name="settings_wallpaper_title">Wallpaper</string>
     <string name="settings_change_wallpaper_button">Change</string>
     <string name="settings_change_wallpaper_button_description">Change wallpaper</string>
-    <!-- TODO: translate -->
-    <string name="settings_home_widgets_title" tools:ignore="MissingTranslation">Widgets on home screen</string>
-    <!-- TODO: translate -->
-    <string name="settings_home_widgets_edit_title" tools:ignore="MissingTranslation">Home widgets</string>
-    <!-- TODO: translate -->
-    <string name="settings_home_widgets_edit_button" tools:ignore="MissingTranslation">Edit</string>
-    <!-- TODO: translate -->
-    <string name="settings_home_widgets_edit_button_description" tools:ignore="MissingTranslation">Edit home widgets</string>
+    <string name="settings_home_widgets_title">Widgets on home screen</string>
+    <string name="settings_home_widgets_edit_title">Home widgets</string>
+    <string name="settings_home_widgets_edit_button">Edit</string>
+    <string name="settings_home_widgets_edit_button_description">Edit home widgets</string>
     <string name="settings_wallpaper_picker_unavailable">Wallpaper picker unavailable</string>
     <string name="settings_show_agenda_title">Show agenda</string>
     <string name="settings_search_contacts_title">Search contacts</string>

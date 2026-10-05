@@ -165,6 +165,10 @@
     <string name="settings_wallpaper_title">Imagine de fundal</string>
     <string name="settings_change_wallpaper_button">Schimbă</string>
     <string name="settings_change_wallpaper_button_description">Schimbă imaginea de fundal</string>
+    <string name="settings_home_widgets_title">Widgeturi pe ecranul principal</string>
+    <string name="settings_home_widgets_edit_title">Widgeturi pe ecranul principal</string>
+    <string name="settings_home_widgets_edit_button">Editează</string>
+    <string name="settings_home_widgets_edit_button_description">Editează widgeturile de pe ecranul principal</string>
     <string name="settings_wallpaper_picker_unavailable">Selectorul de imagini de fundal nu este disponibil</string>
     <string name="play_update_banner_restart_failed">Nu s-a putut reporni pentru instalare</string>
     <string name="scroll_up_for_more_hint">Derulează în sus pentru mai multe</string>

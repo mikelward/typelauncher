@@ -164,6 +164,10 @@
     <string name="settings_wallpaper_title">వాల్‌పేపర్</string>
     <string name="settings_change_wallpaper_button">మార్చు</string>
     <string name="settings_change_wallpaper_button_description">వాల్‌పేపర్‌ను మార్చు</string>
+    <string name="settings_home_widgets_title">హోమ్ స్క్రీన్‌లో విడ్జెట్‌లు</string>
+    <string name="settings_home_widgets_edit_title">హోమ్ విడ్జెట్‌లు</string>
+    <string name="settings_home_widgets_edit_button">సవరించు</string>
+    <string name="settings_home_widgets_edit_button_description">హోమ్ విడ్జెట్‌లను సవరించు</string>
     <string name="settings_wallpaper_picker_unavailable">వాల్‌పేపర్ ఎంపిక సాధనం అందుబాటులో లేదు</string>
     <string name="play_update_banner_restart_failed">ఇన్‌స్టాల్ చేయడానికి రీస్టార్ట్ చేయడం సాధ్యపడలేదు</string>
     <string name="scroll_up_for_more_hint">మరిన్నింటి కోసం పైకి స్క్రోల్ చేయండి</string>

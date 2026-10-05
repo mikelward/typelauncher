@@ -163,6 +163,10 @@
     <string name="settings_wallpaper_title">วอลเปเปอร์</string>
     <string name="settings_change_wallpaper_button">เปลี่ยน</string>
     <string name="settings_change_wallpaper_button_description">เปลี่ยนวอลเปเปอร์</string>
+    <string name="settings_home_widgets_title">วิดเจ็ตบนหน้าจอหลัก</string>
+    <string name="settings_home_widgets_edit_title">วิดเจ็ตหน้าจอหลัก</string>
+    <string name="settings_home_widgets_edit_button">แก้ไข</string>
+    <string name="settings_home_widgets_edit_button_description">แก้ไขวิดเจ็ตหน้าจอหลัก</string>
     <string name="settings_wallpaper_picker_unavailable">ไม่มีแอปเลือกวอลเปเปอร์</string>
     <string name="play_update_banner_restart_failed">รีสตาร์ทเพื่อติดตั้งไม่ได้</string>
     <string name="scroll_up_for_more_hint">เลื่อนขึ้นเพื่อดูเพิ่มเติม</string>

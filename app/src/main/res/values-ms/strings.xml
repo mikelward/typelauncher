@@ -163,6 +163,10 @@
     <string name="settings_wallpaper_title">Kertas dinding</string>
     <string name="settings_change_wallpaper_button">Tukar</string>
     <string name="settings_change_wallpaper_button_description">Tukar kertas dinding</string>
+    <string name="settings_home_widgets_title">Widget pada skrin utama</string>
+    <string name="settings_home_widgets_edit_title">Widget skrin utama</string>
+    <string name="settings_home_widgets_edit_button">Edit</string>
+    <string name="settings_home_widgets_edit_button_description">Edit widget skrin utama</string>
     <string name="settings_wallpaper_picker_unavailable">Pemilih kertas dinding tidak tersedia</string>
     <string name="play_update_banner_restart_failed">Tidak dapat dimulakan semula untuk memasang</string>
     <string name="scroll_up_for_more_hint">Tatal ke atas untuk lihat lagi</string>

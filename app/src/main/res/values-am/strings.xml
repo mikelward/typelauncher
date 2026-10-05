@@ -164,6 +164,10 @@
     <string name="settings_wallpaper_title">ልጣፍ</string>
     <string name="settings_change_wallpaper_button">ቀይር</string>
     <string name="settings_change_wallpaper_button_description">ልጣፍ ቀይር</string>
+    <string name="settings_home_widgets_title">በመነሻ ስክሪን ላይ ዊጅቶች</string>
+    <string name="settings_home_widgets_edit_title">የመነሻ ስክሪን ዊጅቶች</string>
+    <string name="settings_home_widgets_edit_button">አስተካክል</string>
+    <string name="settings_home_widgets_edit_button_description">የመነሻ ስክሪን ዊጅቶችን አስተካክል</string>
     <string name="settings_wallpaper_picker_unavailable">የልጣፍ መምረጫ አይገኝም</string>
     <string name="play_update_banner_restart_failed">ለመጫን ዳግም ማስጀመር አልተቻለም</string>
     <string name="scroll_up_for_more_hint">ተጨማሪ ለማየት ወደ ላይ ይሸብልሉ</string>

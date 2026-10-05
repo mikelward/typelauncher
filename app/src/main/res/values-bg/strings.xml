@@ -164,6 +164,10 @@
     <string name="settings_wallpaper_title">Тапет</string>
     <string name="settings_change_wallpaper_button">Промяна</string>
     <string name="settings_change_wallpaper_button_description">Промяна на тапета</string>
+    <string name="settings_home_widgets_title">Джаджи на началния екран</string>
+    <string name="settings_home_widgets_edit_title">Джаджи на началния екран</string>
+    <string name="settings_home_widgets_edit_button">Редактирай</string>
+    <string name="settings_home_widgets_edit_button_description">Редактирай джаджите на началния екран</string>
     <string name="settings_wallpaper_picker_unavailable">Няма приложение за тапети</string>
     <string name="play_update_banner_restart_failed">Рестартирането за инсталиране не бе успешно</string>
     <string name="scroll_up_for_more_hint">Превъртете нагоре за още</string>

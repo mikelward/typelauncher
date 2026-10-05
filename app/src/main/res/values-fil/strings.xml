@@ -164,6 +164,10 @@
     <string name="settings_wallpaper_title">Wallpaper</string>
     <string name="settings_change_wallpaper_button">Palitan</string>
     <string name="settings_change_wallpaper_button_description">Palitan ang wallpaper</string>
+    <string name="settings_home_widgets_title">Mga widget sa home screen</string>
+    <string name="settings_home_widgets_edit_title">Mga widget sa home</string>
+    <string name="settings_home_widgets_edit_button">I-edit</string>
+    <string name="settings_home_widgets_edit_button_description">I-edit ang mga widget sa home</string>
     <string name="settings_wallpaper_picker_unavailable">Walang wallpaper picker</string>
     <string name="play_update_banner_restart_failed">Hindi ma-restart para mag-install</string>
     <string name="scroll_up_for_more_hint">Mag-scroll pataas para sa iba pa</string>

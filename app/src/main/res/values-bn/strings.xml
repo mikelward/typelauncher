@@ -164,6 +164,10 @@
     <string name="settings_wallpaper_title">ওয়ালপেপার</string>
     <string name="settings_change_wallpaper_button">পরিবর্তন করুন</string>
     <string name="settings_change_wallpaper_button_description">ওয়ালপেপার পরিবর্তন করুন</string>
+    <string name="settings_home_widgets_title">হোম স্ক্রিনে উইজেট</string>
+    <string name="settings_home_widgets_edit_title">হোম উইজেট</string>
+    <string name="settings_home_widgets_edit_button">সম্পাদনা করুন</string>
+    <string name="settings_home_widgets_edit_button_description">হোম উইজেট সম্পাদনা করুন</string>
     <string name="settings_wallpaper_picker_unavailable">ওয়ালপেপার পিকার উপলব্ধ নেই</string>
     <string name="play_update_banner_restart_failed">ইনস্টল করার জন্য রিস্টার্ট করা যায়নি</string>
     <string name="scroll_up_for_more_hint">আরও দেখতে উপরে স্ক্রল করুন</string>

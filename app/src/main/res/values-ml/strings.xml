@@ -164,6 +164,10 @@
     <string name="settings_wallpaper_title">വാൾപേപ്പർ</string>
     <string name="settings_change_wallpaper_button">മാറ്റുക</string>
     <string name="settings_change_wallpaper_button_description">വാൾപേപ്പർ മാറ്റുക</string>
+    <string name="settings_home_widgets_title">ഹോം സ്‌ക്രീനിൽ വിജറ്റുകൾ</string>
+    <string name="settings_home_widgets_edit_title">ഹോം വിജറ്റുകൾ</string>
+    <string name="settings_home_widgets_edit_button">എഡിറ്റ് ചെയ്യുക</string>
+    <string name="settings_home_widgets_edit_button_description">ഹോം വിജറ്റുകൾ എഡിറ്റ് ചെയ്യുക</string>
     <string name="settings_wallpaper_picker_unavailable">വാൾപേപ്പർ പിക്കർ ലഭ്യമല്ല</string>
     <string name="play_update_banner_restart_failed">ഇൻസ്റ്റാൾ ചെയ്യാൻ റീസ്റ്റാർട്ട് ചെയ്യാനായില്ല</string>
     <string name="scroll_up_for_more_hint">കൂടുതലിന് മുകളിലേക്ക് സ്ക്രോൾ ചെയ്യുക</string>

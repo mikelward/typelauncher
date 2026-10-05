@@ -164,6 +164,10 @@
     <string name="settings_wallpaper_title">ವಾಲ್‌ಪೇಪರ್</string>
     <string name="settings_change_wallpaper_button">ಬದಲಾಯಿಸಿ</string>
     <string name="settings_change_wallpaper_button_description">ವಾಲ್‌ಪೇಪರ್ ಬದಲಾಯಿಸಿ</string>
+    <string name="settings_home_widgets_title">ಮುಖಪುಟ ಪರದೆಯಲ್ಲಿ ವಿಜೆಟ್‌ಗಳು</string>
+    <string name="settings_home_widgets_edit_title">ಮುಖಪುಟ ವಿಜೆಟ್‌ಗಳು</string>
+    <string name="settings_home_widgets_edit_button">ಸಂಪಾದಿಸಿ</string>
+    <string name="settings_home_widgets_edit_button_description">ಮುಖಪುಟ ವಿಜೆಟ್‌ಗಳನ್ನು ಸಂಪಾದಿಸಿ</string>
     <string name="settings_wallpaper_picker_unavailable">ವಾಲ್‌ಪೇಪರ್ ಆಯ್ಕೆಗಾರ ಲಭ್ಯವಿಲ್ಲ</string>
     <string name="play_update_banner_restart_failed">ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲು ಮರುಪ್ರಾರಂಭಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ</string>
     <string name="scroll_up_for_more_hint">ಇನ್ನಷ್ಟಕ್ಕಾಗಿ ಮೇಲಕ್ಕೆ ಸ್ಕ್ರಾಲ್ ಮಾಡಿ</string>

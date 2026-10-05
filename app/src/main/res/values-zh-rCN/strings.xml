@@ -163,6 +163,10 @@
     <string name="settings_wallpaper_title">壁纸</string>
     <string name="settings_change_wallpaper_button">更改</string>
     <string name="settings_change_wallpaper_button_description">更改壁纸</string>
+    <string name="settings_home_widgets_title">在主屏幕上显示小部件</string>
+    <string name="settings_home_widgets_edit_title">主屏幕小部件</string>
+    <string name="settings_home_widgets_edit_button">编辑</string>
+    <string name="settings_home_widgets_edit_button_description">编辑主屏幕小部件</string>
     <string name="settings_wallpaper_picker_unavailable">壁纸选择器不可用</string>
     <string name="play_update_banner_restart_failed">无法重启以安装</string>
     <string name="scroll_up_for_more_hint">向上滑动查看更多</string>

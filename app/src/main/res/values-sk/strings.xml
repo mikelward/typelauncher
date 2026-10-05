@@ -166,6 +166,10 @@
     <string name="settings_wallpaper_title">Tapeta</string>
     <string name="settings_change_wallpaper_button">Zmeniť</string>
     <string name="settings_change_wallpaper_button_description">Zmeniť tapetu</string>
+    <string name="settings_home_widgets_title">Widgety na domovskej obrazovke</string>
+    <string name="settings_home_widgets_edit_title">Widgety domovskej obrazovky</string>
+    <string name="settings_home_widgets_edit_button">Upraviť</string>
+    <string name="settings_home_widgets_edit_button_description">Upraviť widgety domovskej obrazovky</string>
     <string name="settings_wallpaper_picker_unavailable">Výber tapety nie je k dispozícii</string>
     <string name="play_update_banner_restart_failed">Reštart na inštaláciu sa nepodaril</string>
     <string name="scroll_up_for_more_hint">Posunutím nahor zobrazíte viac</string>

@@ -164,6 +164,10 @@
     <string name="settings_wallpaper_title">वालपेपर</string>
     <string name="settings_change_wallpaper_button">परिवर्तन गर्नुहोस्</string>
     <string name="settings_change_wallpaper_button_description">वालपेपर परिवर्तन गर्नुहोस्</string>
+    <string name="settings_home_widgets_title">होम स्क्रिनमा विजेटहरू</string>
+    <string name="settings_home_widgets_edit_title">होम विजेटहरू</string>
+    <string name="settings_home_widgets_edit_button">सम्पादन गर्नुहोस्</string>
+    <string name="settings_home_widgets_edit_button_description">होम विजेटहरू सम्पादन गर्नुहोस्</string>
     <string name="settings_wallpaper_picker_unavailable">वालपेपर छनोटकर्ता उपलब्ध छैन</string>
     <string name="play_update_banner_restart_failed">इन्स्टल गर्न रिस्टार्ट गर्न सकिएन</string>
     <string name="scroll_up_for_more_hint">थप हेर्न माथि स्क्रोल गर्नुहोस्</string>

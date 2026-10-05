@@ -164,6 +164,10 @@
     <string name="settings_wallpaper_title">وال پیپر</string>
     <string name="settings_change_wallpaper_button">تبدیل کریں</string>
     <string name="settings_change_wallpaper_button_description">وال پیپر تبدیل کریں</string>
+    <string name="settings_home_widgets_title">ہوم اسکرین پر ویجٹس</string>
+    <string name="settings_home_widgets_edit_title">ہوم ویجٹس</string>
+    <string name="settings_home_widgets_edit_button">ترمیم</string>
+    <string name="settings_home_widgets_edit_button_description">ہوم ویجٹس میں ترمیم کریں</string>
     <string name="settings_wallpaper_picker_unavailable">وال پیپر منتخب کنندہ دستیاب نہیں</string>
     <string name="play_update_banner_restart_failed">انسٹال کرنے کے لیے دوبارہ شروع نہیں کیا جا سکا</string>
     <string name="scroll_up_for_more_hint">مزید کے لیے اوپر اسکرول کریں</string>

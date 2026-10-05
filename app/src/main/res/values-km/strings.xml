@@ -163,6 +163,10 @@
     <string name="settings_wallpaper_title">ផ្ទាំងខាងក្រោយ</string>
     <string name="settings_change_wallpaper_button">ផ្លាស់ប្តូរ</string>
     <string name="settings_change_wallpaper_button_description">ផ្លាស់ប្តូរផ្ទាំងខាងក្រោយ</string>
+    <string name="settings_home_widgets_title">វិដជិតនៅលើអេក្រង់ដើម</string>
+    <string name="settings_home_widgets_edit_title">វិដជិតអេក្រង់ដើម</string>
+    <string name="settings_home_widgets_edit_button">កែសម្រួល</string>
+    <string name="settings_home_widgets_edit_button_description">កែសម្រួលវិដជិតអេក្រង់ដើម</string>
     <string name="settings_wallpaper_picker_unavailable">មិនមានកម្មវិធីជ្រើសរើសផ្ទាំងខាងក្រោយ</string>
     <string name="play_update_banner_restart_failed">មិនអាចចាប់ផ្ដើមឡើងវិញដើម្បីដំឡើងបានទេ</string>
     <string name="scroll_up_for_more_hint">រំកិលឡើងលើដើម្បីមើលបន្ថែម</string>
