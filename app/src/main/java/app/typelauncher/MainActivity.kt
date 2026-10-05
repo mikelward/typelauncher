@@ -79,6 +79,11 @@ private const val KEY_PENDING_WIDGET_ID = "app.typelauncher.PENDING_WIDGET_ID"
 // an in-place swap survives a configuration change during the provider's
 // configure activity (mirrors KEY_PENDING_WIDGET_ID).
 private const val KEY_RESTORE_TARGET_WIDGET_ID = "app.typelauncher.RESTORE_TARGET_WIDGET_ID"
+// Persists whether the in-flight add targets Home's own widget set rather
+// than a widget page. That target lives in the ViewModel, which a process
+// death discards while the saved bundle (when the system keeps it) survives,
+// so without this a Home add resumed after a kill would land on a page.
+private const val KEY_PENDING_WIDGET_FOR_HOME = "app.typelauncher.PENDING_WIDGET_FOR_HOME"
 
 /**
  * The `SendIntentException` AndroidX redelivers through an activity result when an
@@ -467,6 +472,11 @@ class MainActivity : ComponentActivity() {
                     workPackages = testWorkPackages(intent),
                 ),
             )[LauncherViewModel::class.java]
+        }
+        // Re-seed a Home add's target lost with the old process; see
+        // KEY_PENDING_WIDGET_FOR_HOME.
+        if (savedInstanceState?.getBoolean(KEY_PENDING_WIDGET_FOR_HOME, false) == true) {
+            viewModel.restoreHomeWidgetPlacement()
         }
         // A download that fails or is canceled without the user ever
         // leaving this screen is heard only through this listener, with no
@@ -1437,6 +1447,7 @@ class MainActivity : ComponentActivity() {
         // Carry the in-flight add ID across recreation; see KEY_PENDING_WIDGET_ID.
         outState.putInt(KEY_PENDING_WIDGET_ID, widgetAddFlow.pendingWidgetId)
         outState.putInt(KEY_RESTORE_TARGET_WIDGET_ID, restoreTargetWidgetId)
+        outState.putBoolean(KEY_PENDING_WIDGET_FOR_HOME, viewModel.isPendingWidgetForHome)
         super.onSaveInstanceState(outState)
         LauncherDebugLog.event("MainActivity.onSaveInstanceState afterSuper outState=%s", outState.debugSummary())
     }

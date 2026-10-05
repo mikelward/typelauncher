@@ -105,7 +105,6 @@
 
 - **Home widgets follow-ups.** Shipped without these:
   - The Settings preview still shows the app list (or the wallpaper slot) rather than Home's widgets.
-  - A Home add interrupted by process death (bind / configure activity in front) lands on a widget page: the Home-vs-page target lives only in ViewModel memory, like the page index already does.
   - The keyboard is left as it is in edit mode rather than hidden, to keep the Home keyboard / layout machinery untouched; the edit area sits above the reserved keyboard space either way. Revisit if editing feels cramped on device.
 - **Widget widths other than full width.** Hosted widgets are always full page width today. Support narrower widgets (provider min/target width, cell-based) laid out side by side — a grid or `FlowRow` — with horizontal resize alongside the existing vertical handle, on both widget pages and Home widgets.
 
