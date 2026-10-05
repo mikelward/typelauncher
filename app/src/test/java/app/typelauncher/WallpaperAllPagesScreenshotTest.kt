@@ -191,6 +191,35 @@ class WallpaperAllPagesScreenshotTest {
     }
 
     @Test
+    fun homeWidgets_mixedWidths_overWallpaper() {
+        val host = LauncherAppWidgetHost(composeRule.activity, /* hostId = */ 0)
+        val providerInfo = AppWidgetProviderInfo().apply {
+            provider = ComponentName("com.example.widget", "SampleProvider")
+            minWidth = 100
+            minHeight = 100
+            targetCellWidth = 2
+            targetCellHeight = 2
+        }
+        composeRule.setContent {
+            TypeLauncherTheme(themeMode = ThemeMode.Light, dynamicColor = false) {
+                GradientWallpaperStandIn {
+                    // Two half-row widgets side by side, then a full-row one.
+                    HomeWidgetsForCapture(
+                        widgetIds = listOf(1, 2, 3),
+                        isEditing = false,
+                        host = host,
+                        providerInfo = providerInfo,
+                        spans = mapOf(1 to 2, 2 to 2),
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        capture("compose_home_widgets_mixed_widths_robolectric.png")
+    }
+
+    @Test
     fun homeWidgets_empty_overWallpaper() {
         composeRule.setContent {
             TypeLauncherTheme(themeMode = ThemeMode.Light, dynamicColor = false) {
@@ -243,6 +272,7 @@ class WallpaperAllPagesScreenshotTest {
         isEditing: Boolean,
         host: LauncherAppWidgetHost? = null,
         providerInfo: AppWidgetProviderInfo? = null,
+        spans: Map<Int, Int> = emptyMap(),
     ) {
         HomeWidgets(
             widgetIds = widgetIds,
@@ -252,7 +282,8 @@ class WallpaperAllPagesScreenshotTest {
             availableWidgets = emptyList(),
             appWidgetHost = host,
             appWidgetManager = null,
-            widgetHeights = mapOf(1 to 160, 2 to 120),
+            widgetHeights = mapOf(1 to 160, 2 to 120, 3 to 120),
+            widgetSpans = spans,
             widgetProviderLabels = emptyMap(),
             strandedWidgetIds = emptySet(),
             workProfileWidgetRefreshToken = 0,
@@ -267,6 +298,7 @@ class WallpaperAllPagesScreenshotTest {
             onRestoreWidget = {},
             onResizeWidget = { _, _ -> },
             onMoveWidget = { _, _ -> },
+            onResizeWidgetSpan = { _, _ -> },
             modifier = Modifier
                 .fillMaxSize()
                 // Home's content inset around the app-list slot.
@@ -290,7 +322,13 @@ class WallpaperAllPagesScreenshotTest {
                     textSize = 18f
                     gravity = Gravity.CENTER
                     setTextColor(android.graphics.Color.WHITE)
-                    setBackgroundColor(if (widgetId == 1) 0xFF3949AB.toInt() else 0xFF00897B.toInt())
+                    setBackgroundColor(
+                        when (widgetId) {
+                            1 -> 0xFF3949AB.toInt()
+                            2 -> 0xFF00897B.toInt()
+                            else -> 0xFF8E24AA.toInt()
+                        },
+                    )
                 },
                 FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
             )

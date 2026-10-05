@@ -211,6 +211,7 @@ internal fun HomeScreen(
     onRestoreWidget: (Int) -> Unit = {},
     onResizeWidget: (widgetId: Int, heightDp: Int) -> Unit = { _, _ -> },
     onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit = { _, _ -> },
+    onResizeWidgetSpan: (widgetId: Int, span: Int) -> Unit = { _, _ -> },
     onQueryChanged: (String) -> Unit,
     onClearQuery: () -> Unit,
     onLaunchActiveApp: () -> Unit,
@@ -1125,6 +1126,7 @@ internal fun HomeScreen(
                             appWidgetHost = appWidgetHost,
                             appWidgetManager = appWidgetManager,
                             widgetHeights = state.widgetHeights,
+                            widgetSpans = state.widgetSpans,
                             widgetProviderLabels = state.widgetProviderLabels,
                             strandedWidgetIds = state.strandedWidgetIds,
                             workProfileWidgetRefreshToken = state.workProfileWidgetRefreshToken,
@@ -1139,6 +1141,7 @@ internal fun HomeScreen(
                             onRestoreWidget = onRestoreWidget,
                             onResizeWidget = onResizeWidget,
                             onMoveWidget = onMoveWidget,
+                            onResizeWidgetSpan = onResizeWidgetSpan,
                             modifier = Modifier
                                 .fillMaxSize()
                                 .then(if (showHomeWidgets) Modifier else Modifier.hiddenUnderAppsCard()),

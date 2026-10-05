@@ -626,6 +626,9 @@ internal data class LauncherUiState(
     // Home's own widget set, top to bottom (also counted in [widgetIds]).
     val homeWidgetIds: List<Int> = emptyList(),
     val widgetHeights: Map<Int, Int> = emptyMap(),
+    // Column spans for widgets narrower than a full grid row (see
+    // WidgetStore.customSpans); a widget absent here spans the whole row.
+    val widgetSpans: Map<Int, Int> = emptyMap(),
     // The provider label remembered for each widget, shown on the restore
     // placeholder. Empty for widgets added before provider capture existed.
     val widgetProviderLabels: Map<Int, String> = emptyMap(),
