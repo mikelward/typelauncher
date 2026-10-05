@@ -103,6 +103,15 @@
 
      The right answer probably combines (4) for known-unreachable cases with (1) or (2) as the safety net for genuinely unexpected races.
 
+- **Widgets on home screen.** A `Widgets on home screen` setting that, like `Show wallpaper`, gives the empty-query app-list slot to something else — here, hosted widgets. Typing brings the filtered app list back on top, exactly as with the wallpaper. Decided:
+  - **Own widget set.** Home widgets are a separate persisted list, not a mirror of widget page 1 — hosting one widget ID in two places is wasteful and makes move/remove ambiguous.
+  - **Display is fixed; editing is a mode.** Normal Home never scrolls the widget area (so pull-up / pull-down launcher gestures and drag-to-undock keep working over it); widgets stack from the top and anything past the slot's bottom is clipped, the same as the keyboard covering it. No peeking add card on Home.
+  - **Edit mode.** Entered from an `Edit widgets` row under the setting in Settings (which lands on Home already in edit mode) or by long-pressing the widget area. In edit mode the keyboard is hidden, every widget shows its Move / Resize / Remove controls inline, the area scrolls, an add button sits at the end, and Done / Back exits. Leaving edit mode restores normal keyboard behavior.
+  - **Empty state.** With the setting on and no widgets, the slot shows a single Add widget button that opens the picker directly, so the setting never looks broken.
+  - **Loading.** Home widgets are a second pass: the search box, dock, and recents render first; widgets show a placeholder and bind only after home-ready (the existing `startListening` deferral). They stay composed but hidden while the user types, so typing never re-binds or re-applies them.
+  - **Unchanged.** Keyboard auto-show and the Home layout are not touched. Hidden wherever the search box is hidden (cramped landscape), like the wallpaper. With `Show wallpaper` also on, widgets float on the wallpaper.
+- **Widget widths other than full width.** Hosted widgets are always full page width today. Support narrower widgets (provider min/target width, cell-based) laid out side by side — a grid or `FlowRow` — with horizontal resize alongside the existing vertical handle, on both widget pages and Home widgets.
+
 ### Decisions needing review
 
 - [ ] **Kept Material Icons in the Licenses page after vendoring them**
