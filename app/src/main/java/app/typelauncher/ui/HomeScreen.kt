@@ -1,5 +1,7 @@
 package app.typelauncher
 
+import android.appwidget.AppWidgetHost
+import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -196,6 +198,19 @@ internal fun HomeScreen(
     dockSuppressedByKeyboard: Boolean = false,
     searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
     keyboardShowRequests: SharedFlow<Unit> = MutableSharedFlow(),
+    // "Widgets on home screen" (see `homeWidgetsActive`). Defaulted so direct
+    // callers that never turn the setting on need none of them.
+    appWidgetHost: AppWidgetHost? = null,
+    appWidgetManager: AppWidgetManager? = null,
+    onStartEditingHomeWidgets: () -> Unit = {},
+    onStopEditingHomeWidgets: () -> Unit = {},
+    onAddHomeWidget: () -> Unit = {},
+    onDismissWidgetPicker: () -> Unit = {},
+    onSelectWidget: (WidgetProvider) -> Unit = {},
+    onRemoveWidget: (Int) -> Unit = {},
+    onRestoreWidget: (Int) -> Unit = {},
+    onResizeWidget: (widgetId: Int, heightDp: Int) -> Unit = { _, _ -> },
+    onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit = { _, _ -> },
     onQueryChanged: (String) -> Unit,
     onClearQuery: () -> Unit,
     onLaunchActiveApp: () -> Unit,
@@ -733,6 +748,20 @@ internal fun HomeScreen(
     // query but renders its own (opaque, SectionCard-wrapped) card there, so the
     // wallpaper slot is not what's showing.
     val showWallpaperSlot = wallpaperActive && state.query.isBlank() && state.contactActionsMode == null
+    // "Widgets on home screen": Home's own widget set takes the app-list slot,
+    // gated on the search box like the wallpaper (where the box is hidden the
+    // list is the only launch surface). Deliberately not keyed on the query or
+    // on `isVisibleHomePage`: the widgets stay composed while the user types
+    // and while Home is off-screen, so neither ever re-binds them —
+    // `showHomeWidgets` only decides whether they or the typed app list show.
+    val homeWidgetsActive = state.isHomeWidgetsShown && showSearchCard
+    val showHomeWidgets = homeWidgetsActive && state.query.isBlank() && state.contactActionsMode == null
+    // Home widget edit mode ends when Home stops being the destination
+    // (a swipe to Widgets, launching Settings from the carousel, …), so it is
+    // never found still open on return.
+    LaunchedEffect(isHome) {
+        if (!isHome && state.isEditingHomeWidgets) onStopEditingHomeWidgets()
+    }
     // In the empty-query slot the transparent [HomeWallpaper] replaces
     // `AppsCard`, which then leaves composition
     // without emitting a final `onAppListBoundsChanged(null)` (its clear-on-
@@ -747,8 +776,10 @@ internal fun HomeScreen(
     // drag-to-undock drop target, and the wallpaper slot republishes its own
     // bounds into them below so dragging a docked app onto the wallpaper still
     // undocks it.
-    LaunchedEffect(showWallpaperSlot) {
-        if (showWallpaperSlot) {
+    // Home widgets in the slot are the same case: no scrollable list there.
+    val appListSlotHasNoList = showWallpaperSlot || showHomeWidgets
+    LaunchedEffect(appListSlotHasNoList) {
+        if (appListSlotHasNoList) {
             onAppListBoundsChanged(null)
         }
     }
@@ -996,46 +1027,7 @@ internal fun HomeScreen(
             // composition; the holdback is a cold-start optimisation, not
             // a per-mount one. See the comment on `homeBodyReady` in
             // TypeLauncherApp for the why.
-            val contactActionsMode = state.contactActionsMode
-            if (bodyReady && contactActionsMode != null) {
-                // A contact is open: the app-list slot renders the contact's
-                // channels/actions in place of the apps (same slot, so the search
-                // box and dock don't reflow), filterable by the live query and
-                // Enter-launchable exactly like the app list. Wrapped in the same
-                // SectionCard the apps use so it sits on the opaque/faded card
-                // surface (and honors the wallpaper card-opacity treatment) rather
-                // than floating unreadable directly over the wallpaper.
-                SectionCard(
-                    Modifier
-                        .fillMaxSize()
-                        .onGloballyPositioned { coords ->
-                            appListBoundsInRoot = Rect(coords.positionInRoot(), coords.size.toSize())
-                        },
-                ) {
-                    ContactActionsCard(
-                        actions = contactActionsMode.actions,
-                        selectedChannelId = contactActionsMode.selectedChannelId,
-                        query = state.query,
-                        onRowSelected = onContactRowSelected,
-                        onSetNumberDefault = onSetNumberDefault,
-                        onBack = onContactActionsBack,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            } else if (bodyReady && showWallpaperSlot) {
-                // Same slot as the apps card (index 1, measured to `appHeight`),
-                // so swapping wallpaper ↔ list when the query flips never
-                // reflows the search box or dock above/below it. The slot
-                // publishes its bounds into `appListBoundsInRoot` (the same
-                // drag-to-undock drop target the apps card feeds), so dragging a
-                // docked app up onto the wallpaper still undocks it, and the
-                // target tracks the slot as the layout shifts (e.g. recents
-                // opening) instead of relying on the apps card's last value.
-                HomeWallpaper(
-                    modifier = Modifier.fillMaxSize(),
-                    onBoundsChanged = { bounds -> appListBoundsInRoot = bounds },
-                )
-            } else if (bodyReady) {
+            val appsCard: @Composable () -> Unit = {
                 AppsCard(
                     apps = state.filteredApps,
                     isLoading = state.isLoadingApps,
@@ -1088,6 +1080,108 @@ internal fun HomeScreen(
                     appDrag = appListDragHandlers,
                     draggedAppId = draggingListAppId,
                 )
+            }
+            val contactActionsMode = state.contactActionsMode
+            if (bodyReady && contactActionsMode != null) {
+                // A contact is open: the app-list slot renders the contact's
+                // channels/actions in place of the apps (same slot, so the search
+                // box and dock don't reflow), filterable by the live query and
+                // Enter-launchable exactly like the app list. Wrapped in the same
+                // SectionCard the apps use so it sits on the opaque/faded card
+                // surface (and honors the wallpaper card-opacity treatment) rather
+                // than floating unreadable directly over the wallpaper.
+                SectionCard(
+                    Modifier
+                        .fillMaxSize()
+                        .onGloballyPositioned { coords ->
+                            appListBoundsInRoot = Rect(coords.positionInRoot(), coords.size.toSize())
+                        },
+                ) {
+                    ContactActionsCard(
+                        actions = contactActionsMode.actions,
+                        selectedChannelId = contactActionsMode.selectedChannelId,
+                        query = state.query,
+                        onRowSelected = onContactRowSelected,
+                        onSetNumberDefault = onSetNumberDefault,
+                        onBack = onContactActionsBack,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            } else if (bodyReady && homeWidgetsActive) {
+                // Same slot as the apps card, like the wallpaper slot below.
+                // The widgets stay composed while the user types — the apps
+                // card is laid over them instead of swapping them out — so a
+                // keystroke never disposes, re-inflates, or re-applies a
+                // hosted widget. Their bounds feed the drag-to-undock target
+                // while they show, as the wallpaper slot's do.
+                Box(modifier = Modifier.fillMaxSize()) {
+                    if (state.isHomeReady) {
+                        HomeWidgets(
+                            widgetIds = state.homeWidgetIds,
+                            isEditing = state.isEditingHomeWidgets,
+                            isAddingWidget = state.isAddingWidget && isHome,
+                            isLoadingAvailableWidgets = state.isLoadingAvailableWidgets,
+                            availableWidgets = state.availableWidgets,
+                            appWidgetHost = appWidgetHost,
+                            appWidgetManager = appWidgetManager,
+                            widgetHeights = state.widgetHeights,
+                            widgetProviderLabels = state.widgetProviderLabels,
+                            strandedWidgetIds = state.strandedWidgetIds,
+                            workProfileWidgetRefreshToken = state.workProfileWidgetRefreshToken,
+                            isCurrentPage = isHome,
+                            onBoundsChanged = { bounds -> if (showHomeWidgets) appListBoundsInRoot = bounds },
+                            onStartEditing = onStartEditingHomeWidgets,
+                            onStopEditing = onStopEditingHomeWidgets,
+                            onAddWidget = onAddHomeWidget,
+                            onDismissWidgetPicker = onDismissWidgetPicker,
+                            onSelectWidget = onSelectWidget,
+                            onRemoveWidget = onRemoveWidget,
+                            onRestoreWidget = onRestoreWidget,
+                            onResizeWidget = onResizeWidget,
+                            onMoveWidget = onMoveWidget,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(if (showHomeWidgets) Modifier else Modifier.hiddenUnderAppsCard()),
+                        )
+                    } else {
+                        // Before Home is ready the slot stays empty rather than
+                        // flashing the app list: the widgets are a second pass,
+                        // bound only once the search box, dock and app load
+                        // have had the first frames (the same home-ready signal
+                        // that starts the widget host listening).
+                        HomeWallpaper(
+                            modifier = Modifier.fillMaxSize(),
+                            onBoundsChanged = { bounds -> if (showHomeWidgets) appListBoundsInRoot = bounds },
+                        )
+                    }
+                    if (!showHomeWidgets) {
+                        // Hit-testing stops at the first sibling that takes
+                        // pointer input, so this keeps touches on the apps
+                        // card's empty areas from reaching the hidden widgets.
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } },
+                        ) {
+                            appsCard()
+                        }
+                    }
+                }
+            } else if (bodyReady && showWallpaperSlot) {
+                // Same slot as the apps card (index 1, measured to `appHeight`),
+                // so swapping wallpaper ↔ list when the query flips never
+                // reflows the search box or dock above/below it. The slot
+                // publishes its bounds into `appListBoundsInRoot` (the same
+                // drag-to-undock drop target the apps card feeds), so dragging a
+                // docked app up onto the wallpaper still undocks it, and the
+                // target tracks the slot as the layout shifts (e.g. recents
+                // opening) instead of relying on the apps card's last value.
+                HomeWallpaper(
+                    modifier = Modifier.fillMaxSize(),
+                    onBoundsChanged = { bounds -> appListBoundsInRoot = bounds },
+                )
+            } else if (bodyReady) {
+                appsCard()
             } else {
                 Spacer(modifier = Modifier.fillMaxSize())
             }
@@ -1301,6 +1395,16 @@ private fun HomeWallpaper(
             },
     )
 }
+
+/**
+ * Keeps Home's widgets composed but invisible and out of the accessibility
+ * tree while the typed app list covers them (see `homeWidgetsActive`). A
+ * zero-alpha layer is skipped at draw time, so the hidden widgets cost no
+ * rendering, yet their host views stay bound for the moment the query clears.
+ */
+private fun Modifier.hiddenUnderAppsCard(): Modifier =
+    // The tag survives the clear so a test can tell "hidden" from "disposed".
+    alpha(0f).clearAndSetSemantics { testTag = HOME_WIDGETS_HIDDEN_TAG }
 
 /**
  * The height (dp) the home layout reserves for the apps list: one
@@ -6160,6 +6264,62 @@ internal fun WallpaperSettingsRows(
     }
 }
 
+/**
+ * The "Widgets on home screen" switch and, while it is on, the row whose
+ * `Edit` action jumps to Home with its widget area already in edit mode —
+ * the discoverable way in, alongside a long-press on the widget area.
+ * Modeled on [WallpaperSettingsRows] (row label + trailing `TextButton`).
+ */
+@Composable
+internal fun HomeWidgetsSettingsRows(
+    isHomeWidgetsShown: Boolean,
+    onHomeWidgetsShownChanged: (Boolean) -> Unit,
+    onEditHomeWidgets: () -> Unit,
+) {
+    val editDescription = stringResource(R.string.settings_home_widgets_edit_button_description)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.settings_home_widgets_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+        Switch(
+            checked = isHomeWidgetsShown,
+            onCheckedChange = onHomeWidgetsShownChanged,
+            modifier = Modifier.testTag(HOME_WIDGETS_SHOWN_SWITCH_TAG),
+        )
+    }
+    if (isHomeWidgetsShown) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.settings_home_widgets_edit_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+            // As with Wallpaper's "Change": the row label supplies the noun
+            // visually, the content description carries it for screen readers.
+            TextButton(
+                onClick = onEditHomeWidgets,
+                modifier = Modifier
+                    .testTag(EDIT_HOME_WIDGETS_BUTTON_TAG)
+                    .semantics { contentDescription = editDescription },
+            ) {
+                Text(stringResource(R.string.settings_home_widgets_edit_button))
+            }
+        }
+    }
+}
+
 @Composable
 internal fun SettingsScreen(
     state: LauncherUiState,
@@ -6175,6 +6335,8 @@ internal fun SettingsScreen(
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onWallpaperShownChanged: (Boolean) -> Unit = {},
     onChangeWallpaper: () -> Unit = {},
+    onHomeWidgetsShownChanged: (Boolean) -> Unit = {},
+    onEditHomeWidgets: () -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     // "Search contacts" / "Search calendar events". Enabling routes through
     // MainActivity's permission request first; the persisted flag (and this
@@ -6534,6 +6696,11 @@ internal fun SettingsScreen(
                     isWallpaperShown = state.isWallpaperShown,
                     onWallpaperShownChanged = onWallpaperShownChanged,
                     onChangeWallpaper = onChangeWallpaper,
+                )
+                HomeWidgetsSettingsRows(
+                    isHomeWidgetsShown = state.isHomeWidgetsShown,
+                    onHomeWidgetsShownChanged = onHomeWidgetsShownChanged,
+                    onEditHomeWidgets = onEditHomeWidgets,
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),

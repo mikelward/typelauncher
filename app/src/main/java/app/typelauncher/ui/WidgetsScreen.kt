@@ -42,6 +42,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -53,6 +54,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
@@ -199,7 +201,7 @@ internal fun WidgetsScreen(
 }
 
 @Composable
-private fun WidgetPickerCard(
+internal fun WidgetPickerCard(
     availableWidgets: List<WidgetProvider>,
     isLoading: Boolean,
     appWidgetManager: AppWidgetManager?,
@@ -759,7 +761,18 @@ internal fun HostedWidgetCard(
     // activity recreation the cards just re-resolve asynchronously. The
     // default gives standalone (test/preview) callers a private cache.
     resolvedProviderInfos: SnapshotStateMap<Int, AppWidgetProviderInfo?> = remember { mutableStateMapOf() },
+    // Replaces the long-press actions menu: Home's widget slot routes a
+    // long-press to entering edit mode (or to nothing while already editing,
+    // where the inline actions below stand in for the menu). Null keeps the
+    // widget pages' menu.
+    onLongPressOverride: (() -> Unit)? = null,
+    // Shows Move / Resize / Remove as an always-visible row under the widget
+    // instead of behind a long-press (Home's widget edit mode). The widget
+    // box keeps its composition slot either way, so toggling this never
+    // recreates the hosted view.
+    showInlineActions: Boolean = false,
 ) {
+    val currentLongPressOverride by rememberUpdatedState(onLongPressOverride)
     // Resolved asynchronously: `AppWidgetManager.getAppWidgetInfo` is a Binder
     // IPC, and this card first composes mid carousel drag (widget pages are
     // warmed the moment the gesture is claimed, precisely to spread the heavy
@@ -854,40 +867,54 @@ internal fun HostedWidgetCard(
     LaunchedEffect(isCurrentPage) {
         if (!isCurrentPage) menuExpanded = false
     }
+    val onWidgetLongPress = { currentLongPressOverride?.invoke() ?: run { menuExpanded = true } }
     if (appWidgetHost == null || providerInfo == null) {
-        Box {
-            SectionCard(
-                Modifier
-                    .combinedClickable(
-                        // A stranded widget's card re-binds its provider on tap;
-                        // an ordinary unavailable card has no tap action.
-                        onClick = { if (restoreLabel != null) onRestoreWidget(widgetId) },
-                        onLongClick = { menuExpanded = true },
+        Column {
+            Box {
+                SectionCard(
+                    Modifier
+                        .combinedClickable(
+                            // A stranded widget's card re-binds its provider on tap;
+                            // an ordinary unavailable card has no tap action.
+                            onClick = { if (restoreLabel != null) onRestoreWidget(widgetId) },
+                            onLongClick = onWidgetLongPress,
+                        )
+                        .testTag("$WIDGET_CARD_TAG:$widgetId"),
+                ) {
+                    Text(
+                        text = if (restoreLabel != null) {
+                            stringResource(R.string.widgets_restore_action, restoreLabel)
+                        } else {
+                            stringResource(R.string.widgets_unavailable)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    .testTag("$WIDGET_CARD_TAG:$widgetId"),
-            ) {
-                Text(
-                    text = if (restoreLabel != null) {
-                        stringResource(R.string.widgets_restore_action, restoreLabel)
-                    } else {
-                        stringResource(R.string.widgets_unavailable)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                }
+                WidgetActionsMenu(
+                    expanded = menuExpanded,
+                    widgetId = widgetId,
+                    showResize = false,
+                    canMoveUp = canMoveUp,
+                    canMoveDown = canMoveDown,
+                    onDismiss = { menuExpanded = false },
+                    onRemoveWidget = onRemoveWidget,
+                    onStartResize = {},
+                    onMoveWidget = onMoveWidget,
                 )
             }
-            WidgetActionsMenu(
-                expanded = menuExpanded,
-                widgetId = widgetId,
-                showResize = false,
-                canMoveUp = canMoveUp,
-                canMoveDown = canMoveDown,
-                onDismiss = { menuExpanded = false },
-                onRemoveWidget = onRemoveWidget,
-                onStartResize = {},
-                onMoveWidget = onMoveWidget,
-            )
+            if (showInlineActions) {
+                WidgetInlineActions(
+                    widgetId = widgetId,
+                    canMoveUp = canMoveUp,
+                    canMoveDown = canMoveDown,
+                    showResize = false,
+                    onRemoveWidget = onRemoveWidget,
+                    onStartResize = {},
+                    onMoveWidget = onMoveWidget,
+                )
+            }
         }
         return
     }
@@ -914,146 +941,244 @@ internal fun HostedWidgetCard(
     val density = LocalDensity.current
     val defaultHeightDp = widgetCardHeight(providerInfo.minHeight, providerInfo.targetCellHeightCompat, density)
     var isResizing by remember { mutableStateOf(initiallyResizing) }
+    // Leaving Home's widget edit mode (Done, Back, HOME) hides an open
+    // resize handle along with the other inline actions. Nothing is lost: a
+    // finished drag has already committed its height via onResizeWidget.
+    // Keyed on the inline flag's on → off edge, so the widget pages, which
+    // never show inline actions, keep their menu-driven resize untouched.
+    var wasShowingInlineActions by remember { mutableStateOf(showInlineActions) }
+    LaunchedEffect(showInlineActions) {
+        if (wasShowingInlineActions && !showInlineActions) isResizing = false
+        wasShowingInlineActions = showInlineActions
+    }
     var resizeHeightDp by remember(customHeightDp, defaultHeightDp) {
         mutableFloatStateOf((customHeightDp?.toFloat() ?: defaultHeightDp.value))
     }
     val effectiveHeightDp = if (isResizing) resizeHeightDp.dp else (customHeightDp?.dp ?: defaultHeightDp)
     var measuredSize by remember(widgetId) { mutableStateOf(IntSize.Zero) }
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(effectiveHeightDp)
-            .onSizeChanged { measuredSize = it }
-            .testTag("$WIDGET_CARD_TAG:$widgetId"),
-    ) {
-        // Widget rendering jank during a Home -> Widgets swipe was traced to
-        // three causes; the remaining open item is hardware-layer promotion.
-        // (1) First-time AppWidgetHostView inflation + initial RemoteViews
-        // apply on first reveal — addressed by SwipeNavigationBox's
-        // `widgetsWarmed` gate (composes widget pages only after the
-        // carousel claims a horizontal gesture toward Widgets) plus
-        // LauncherAppWidgetHost.deferRemoteViewsApply, which parks the
-        // UI-thread RemoteViews.apply() while the carousel is in motion
-        // and flushes on settle. The provider's background data fetch
-        // still runs during the drag (host stays listening), so by the
-        // time the deferral lifts the latest RemoteViews are ready and
-        // paint in one pass after settle. (2) Provider self-invalidations
-        // (clock ticks, calendar refreshes, weather updates) landing during
-        // the swipe — same defer-apply pipe handles them: queued in the
-        // host, flushed on settle. Velocity tracker bias from any single
-        // stalled drag frame is additionally mitigated by feeding
-        // change.historical samples into the tracker. (3) Open: RemoteViews
-        // layouts don't promote to a hardware layer, so the graphicsLayer
-        // translation can't cheaply re-translate a cached RenderNode.
-        // Worth trying: wrap each hosted widget in
-        // `Modifier.graphicsLayer { compositingStrategy =
-        // CompositingStrategy.Offscreen }` so the carousel translation
-        // re-blits a cached RenderNode at the cost of width × height × 4 B
-        // of extra GPU memory per widget.
-        // Key the host view on widgetId so two widgets from the same provider
-        // never share one AppWidgetHostView instance. Without the key, when a
-        // LazyColumn slot is recycled (scroll, reorder) the AndroidView's
-        // factory — the only place the host view is bound to an appWidgetId —
-        // is not re-run, so a recycled view keeps the previous widget's binding
-        // and both cards end up showing the same widget. The key forces the old
-        // AndroidView to be disposed and a fresh one created for the new id.
-        key(widgetId, hostViewRefreshKey) {
-            AndroidView(
-                factory = { context ->
-                    val hostView = createWidgetView?.invoke(context, widgetId)
-                        ?: appWidgetHost.createView(context, widgetId, providerInfo)
-                    hostView.apply {
-                        setAppWidget(widgetId, providerInfo)
-                        if (this is LauncherAppWidgetHostView) {
-                            setOnWidgetLongPressListener { menuExpanded = true }
+    val startResize = {
+        resizeHeightDp = effectiveHeightDp.value
+        isResizing = true
+    }
+    Column {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(effectiveHeightDp)
+                .onSizeChanged { measuredSize = it }
+                .testTag("$WIDGET_CARD_TAG:$widgetId"),
+        ) {
+            // Widget rendering jank during a Home -> Widgets swipe was traced to
+            // three causes; the remaining open item is hardware-layer promotion.
+            // (1) First-time AppWidgetHostView inflation + initial RemoteViews
+            // apply on first reveal — addressed by SwipeNavigationBox's
+            // `widgetsWarmed` gate (composes widget pages only after the
+            // carousel claims a horizontal gesture toward Widgets) plus
+            // LauncherAppWidgetHost.deferRemoteViewsApply, which parks the
+            // UI-thread RemoteViews.apply() while the carousel is in motion
+            // and flushes on settle. The provider's background data fetch
+            // still runs during the drag (host stays listening), so by the
+            // time the deferral lifts the latest RemoteViews are ready and
+            // paint in one pass after settle. (2) Provider self-invalidations
+            // (clock ticks, calendar refreshes, weather updates) landing during
+            // the swipe — same defer-apply pipe handles them: queued in the
+            // host, flushed on settle. Velocity tracker bias from any single
+            // stalled drag frame is additionally mitigated by feeding
+            // change.historical samples into the tracker. (3) Open: RemoteViews
+            // layouts don't promote to a hardware layer, so the graphicsLayer
+            // translation can't cheaply re-translate a cached RenderNode.
+            // Worth trying: wrap each hosted widget in
+            // `Modifier.graphicsLayer { compositingStrategy =
+            // CompositingStrategy.Offscreen }` so the carousel translation
+            // re-blits a cached RenderNode at the cost of width × height × 4 B
+            // of extra GPU memory per widget.
+            // Key the host view on widgetId so two widgets from the same provider
+            // never share one AppWidgetHostView instance. Without the key, when a
+            // LazyColumn slot is recycled (scroll, reorder) the AndroidView's
+            // factory — the only place the host view is bound to an appWidgetId —
+            // is not re-run, so a recycled view keeps the previous widget's binding
+            // and both cards end up showing the same widget. The key forces the old
+            // AndroidView to be disposed and a fresh one created for the new id.
+            key(widgetId, hostViewRefreshKey) {
+                AndroidView(
+                    factory = { context ->
+                        val hostView = createWidgetView?.invoke(context, widgetId)
+                            ?: appWidgetHost.createView(context, widgetId, providerInfo)
+                        hostView.apply {
+                            setAppWidget(widgetId, providerInfo)
+                            if (this is LauncherAppWidgetHostView) {
+                                setOnWidgetLongPressListener { onWidgetLongPress() }
+                            } else {
+                                setOnLongClickListener {
+                                    onWidgetLongPress()
+                                    true
+                                }
+                            }
+                        }
+                    },
+                    update = { view ->
+                        // Push the host view's measured size to the provider via
+                        // AppWidgetManager options. Adaptive widgets — Google Clock's
+                        // world clocks, calendar agendas, and other layouts that scale
+                        // their content to the available space — read these options
+                        // from getAppWidgetOptions() to decide what to render. Without
+                        // them the options bundle stays empty and providers fall back
+                        // to their zero/empty layout, which appears as a blank widget
+                        // card even though the host view occupies the full height.
+                        //
+                        // Withheld while a resize drag is active: every drag frame
+                        // changes the box height by >= 1 dp, so pushing per-frame
+                        // defeated the applyAppWidgetSizeIfChanged cache and paid
+                        // one binder IPC + provider onAppWidgetOptionsChanged wake
+                        // + one persisted-cache prefs write per frame on the
+                        // gesture's hot path. The final size lands when the drag
+                        // ends — isResizing flips false, which re-runs this update
+                        // block with the settled measurement.
+                        if (!isResizing) {
+                            widgetSizeHintDp(measuredSize, density)?.let { (widthDp, heightDp) ->
+                                // Routes through `applyAppWidgetSizeIfChanged` so a
+                                // layout pass that produces the same dimensions as
+                                // last time (the typical case — same device, same
+                                // persisted widget height) skips the binder IPC and
+                                // avoids waking the provider via
+                                // `onAppWidgetOptionsChanged`. Cache is persisted, so
+                                // the first layout pass after a cold start short-
+                                // circuits too whenever the size is unchanged.
+                                val launcherHost = appWidgetHost as? LauncherAppWidgetHost
+                                if (launcherHost != null) {
+                                    launcherHost.applyAppWidgetSizeIfChanged(view, widgetId, widthDp, heightDp)
+                                } else {
+                                    // Deprecated in favor of the List<SizeF> overload it
+                                    // delegates to, but kept as the size-hint seam the
+                                    // widget tests intercept; suppressed rather than switched.
+                                    @Suppress("DEPRECATION")
+                                    view.updateAppWidgetSize(null, widthDp, heightDp, widthDp, heightDp)
+                                }
+                            }
+                        }
+                        if (view is LauncherAppWidgetHostView) {
+                            view.setOnWidgetLongPressListener { if (!isResizing) onWidgetLongPress() }
                         } else {
-                            setOnLongClickListener {
-                                menuExpanded = true
+                            view.setOnLongClickListener {
+                                if (!isResizing) onWidgetLongPress()
                                 true
                             }
                         }
-                    }
-                },
-                update = { view ->
-                    // Push the host view's measured size to the provider via
-                    // AppWidgetManager options. Adaptive widgets — Google Clock's
-                    // world clocks, calendar agendas, and other layouts that scale
-                    // their content to the available space — read these options
-                    // from getAppWidgetOptions() to decide what to render. Without
-                    // them the options bundle stays empty and providers fall back
-                    // to their zero/empty layout, which appears as a blank widget
-                    // card even though the host view occupies the full height.
-                    //
-                    // Withheld while a resize drag is active: every drag frame
-                    // changes the box height by >= 1 dp, so pushing per-frame
-                    // defeated the applyAppWidgetSizeIfChanged cache and paid
-                    // one binder IPC + provider onAppWidgetOptionsChanged wake
-                    // + one persisted-cache prefs write per frame on the
-                    // gesture's hot path. The final size lands when the drag
-                    // ends — isResizing flips false, which re-runs this update
-                    // block with the settled measurement.
-                    if (!isResizing) {
-                        widgetSizeHintDp(measuredSize, density)?.let { (widthDp, heightDp) ->
-                            // Routes through `applyAppWidgetSizeIfChanged` so a
-                            // layout pass that produces the same dimensions as
-                            // last time (the typical case — same device, same
-                            // persisted widget height) skips the binder IPC and
-                            // avoids waking the provider via
-                            // `onAppWidgetOptionsChanged`. Cache is persisted, so
-                            // the first layout pass after a cold start short-
-                            // circuits too whenever the size is unchanged.
-                            val launcherHost = appWidgetHost as? LauncherAppWidgetHost
-                            if (launcherHost != null) {
-                                launcherHost.applyAppWidgetSizeIfChanged(view, widgetId, widthDp, heightDp)
-                            } else {
-                                // Deprecated in favor of the List<SizeF> overload it
-                                // delegates to, but kept as the size-hint seam the
-                                // widget tests intercept; suppressed rather than switched.
-                                @Suppress("DEPRECATION")
-                                view.updateAppWidgetSize(null, widthDp, heightDp, widthDp, heightDp)
-                            }
-                        }
-                    }
-                    if (view is LauncherAppWidgetHostView) {
-                        view.setOnWidgetLongPressListener { if (!isResizing) menuExpanded = true }
-                    } else {
-                        view.setOnLongClickListener {
-                            if (!isResizing) menuExpanded = true
-                            true
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxSize(),
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            WidgetActionsMenu(
+                expanded = menuExpanded,
+                widgetId = widgetId,
+                canMoveUp = canMoveUp,
+                canMoveDown = canMoveDown,
+                onDismiss = { menuExpanded = false },
+                onRemoveWidget = onRemoveWidget,
+                onStartResize = startResize,
+                onMoveWidget = onMoveWidget,
             )
+            if (isResizing) {
+                WidgetResizeHandle(
+                    onDrag = { deltaPx ->
+                        val deltaDp = with(density) { deltaPx.toDp().value }
+                        resizeHeightDp = (resizeHeightDp + deltaDp).coerceAtLeast(WIDGET_MIN_HEIGHT_DP.toFloat())
+                    },
+                    onDragEnd = {
+                        onResizeWidget(resizeHeightDp.roundToInt())
+                        isResizing = false
+                    },
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+            }
         }
-        WidgetActionsMenu(
-            expanded = menuExpanded,
-            widgetId = widgetId,
-            canMoveUp = canMoveUp,
-            canMoveDown = canMoveDown,
-            onDismiss = { menuExpanded = false },
-            onRemoveWidget = onRemoveWidget,
-            onStartResize = {
-                resizeHeightDp = effectiveHeightDp.value
-                isResizing = true
-            },
-            onMoveWidget = onMoveWidget,
-        )
-        if (isResizing) {
-            WidgetResizeHandle(
-                onDrag = { deltaPx ->
-                    val deltaDp = with(density) { deltaPx.toDp().value }
-                    resizeHeightDp = (resizeHeightDp + deltaDp).coerceAtLeast(WIDGET_MIN_HEIGHT_DP.toFloat())
-                },
-                onDragEnd = {
-                    onResizeWidget(resizeHeightDp.roundToInt())
-                    isResizing = false
-                },
-                modifier = Modifier.align(Alignment.BottomCenter),
+        if (showInlineActions) {
+            WidgetInlineActions(
+                widgetId = widgetId,
+                canMoveUp = canMoveUp,
+                canMoveDown = canMoveDown,
+                showResize = !isResizing,
+                onRemoveWidget = onRemoveWidget,
+                onStartResize = startResize,
+                onMoveWidget = onMoveWidget,
             )
         }
     }
 }
+
+/**
+ * The widget actions menu's items as an always-visible row under a widget —
+ * Home's widget edit mode shows these instead of hiding them behind a
+ * long-press. Move up / down are hidden at the list edges, as in the menu.
+ */
+@Composable
+private fun WidgetInlineActions(
+    widgetId: Int,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    showResize: Boolean,
+    onRemoveWidget: (Int) -> Unit,
+    onStartResize: () -> Unit,
+    onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit,
+) {
+    // On the launcher's opaque card surface, so the actions stay legible over
+    // any wallpaper (Home's slot is transparent while the wallpaper shows).
+    SectionCard(
+        // 4dp under the widget: close enough to read as the widget's own
+        // bar, against the 8dp gap that separates one widget from the next.
+        modifier = Modifier
+            .padding(top = 4.dp)
+            .testTag("$WIDGET_INLINE_ACTIONS_TAG:$widgetId"),
+        contentPadding = WIDGET_ACTION_BAR_PADDING,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (canMoveUp) {
+                IconButton(
+                    onClick = { onMoveWidget(widgetId, WidgetMoveDirection.UP) },
+                    modifier = Modifier.testTag("$MOVE_UP_WIDGET_ACTION_TAG:$widgetId"),
+                ) {
+                    Icon(
+                        LauncherIcons.KeyboardArrowUp,
+                        contentDescription = stringResource(R.string.widget_menu_move_up),
+                    )
+                }
+            }
+            if (canMoveDown) {
+                IconButton(
+                    onClick = { onMoveWidget(widgetId, WidgetMoveDirection.DOWN) },
+                    modifier = Modifier.testTag("$MOVE_DOWN_WIDGET_ACTION_TAG:$widgetId"),
+                ) {
+                    Icon(
+                        LauncherIcons.KeyboardArrowDown,
+                        contentDescription = stringResource(R.string.widget_menu_move_down),
+                    )
+                }
+            }
+            if (showResize) {
+                TextButton(
+                    onClick = onStartResize,
+                    modifier = Modifier.testTag("$RESIZE_WIDGET_ACTION_TAG:$widgetId"),
+                ) {
+                    Text(stringResource(R.string.widget_menu_resize))
+                }
+            }
+            TextButton(
+                onClick = { onRemoveWidget(widgetId) },
+                modifier = Modifier.testTag("$REMOVE_WIDGET_ACTION_TAG:$widgetId"),
+            ) {
+                Text(stringResource(R.string.widget_menu_remove))
+            }
+        }
+    }
+}
+
+// A compact card around a row of 48dp buttons: the shared 16dp card sides,
+// 4dp top and bottom so the bar stays one button tall plus a hairline frame.
+internal val WIDGET_ACTION_BAR_PADDING = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
 
 @Composable
 private fun WidgetResizeHandle(

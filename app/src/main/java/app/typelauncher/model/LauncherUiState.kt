@@ -623,6 +623,8 @@ internal data class LauncherUiState(
     val homeReturnToken: Int = 0,
     val widgetIds: List<Int> = emptyList(),
     val widgetPages: List<List<Int>> = listOf(emptyList()),
+    // Home's own widget set, top to bottom (also counted in [widgetIds]).
+    val homeWidgetIds: List<Int> = emptyList(),
     val widgetHeights: Map<Int, Int> = emptyMap(),
     // The provider label remembered for each widget, shown on the restore
     // placeholder. Empty for widgets added before provider capture existed.
@@ -706,6 +708,15 @@ internal data class LauncherUiState(
     // backs every page. Defaults off. See the `showWallpaper` gate in
     // `HomeScreen`.
     val isWallpaperShown: Boolean = false,
+    // When true ("Widgets on home screen"), the empty-query Home shows
+    // [homeWidgetIds] in the app-list slot instead of the browse list, only
+    // where the search box is visible. Defaults off. See `homeWidgetsActive`
+    // in `HomeScreen`.
+    val isHomeWidgetsShown: Boolean = false,
+    // True while Home's widget slot is in edit mode: the slot scrolls, every
+    // widget shows inline Move / Resize / Remove controls, and an Add / Done
+    // bar sits under the list. Transient — never persisted.
+    val isEditingHomeWidgets: Boolean = false,
     // Last keyboard bottom inset observed while the IME was opening, paired
     // with the configuration it was measured under and the source that
     // produced it. Home uses [KeyboardReservation.bottomPx] as a pre-show

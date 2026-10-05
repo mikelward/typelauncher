@@ -1,7 +1,14 @@
 package app.typelauncher
 
+import android.appwidget.AppWidgetProviderInfo
+import android.content.ComponentName
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.os.Bundle
+import android.view.Gravity
+import android.widget.FrameLayout
+import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -47,6 +54,10 @@ import java.time.ZoneId
  * `pull_request_target` — so the allow-list that runs is `main`'s, and a
  * brand-new screenshot class records nothing on the PR that introduces it.
  * Every wallpaper-facing surface in one already-listed class avoids that.
+ *
+ * "Widgets on home screen" shares the app-list slot the wallpaper reveals, so
+ * its captures — the widget area in display, edit, and empty states over the
+ * same gradient, and its settings rows — live here for the same reason.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -121,6 +132,179 @@ class WallpaperAllPagesScreenshotTest {
         composeRule.onNodeWithTag(WIDGETS_SCREEN_TAG).assertExists()
 
         capture("compose_wallpaper_all_pages_widgets_robolectric.png")
+    }
+
+    @Test
+    fun homeWidgets_editing_overWallpaper() {
+        val host = LauncherAppWidgetHost(composeRule.activity, /* hostId = */ 0)
+        val providerInfo = AppWidgetProviderInfo().apply {
+            provider = ComponentName("com.example.widget", "SampleProvider")
+            minWidth = 200
+            minHeight = 300
+            targetCellWidth = 4
+            targetCellHeight = 2
+        }
+        composeRule.setContent {
+            TypeLauncherTheme(themeMode = ThemeMode.Light, dynamicColor = false) {
+                GradientWallpaperStandIn {
+                    HomeWidgetsForCapture(
+                        widgetIds = listOf(1, 2),
+                        isEditing = true,
+                        host = host,
+                        providerInfo = providerInfo,
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(HOME_WIDGETS_DONE_TAG).assertExists()
+
+        capture("compose_home_widgets_editing_robolectric.png")
+    }
+
+    @Test
+    fun homeWidgets_display_overWallpaper() {
+        val host = LauncherAppWidgetHost(composeRule.activity, /* hostId = */ 0)
+        val providerInfo = AppWidgetProviderInfo().apply {
+            provider = ComponentName("com.example.widget", "SampleProvider")
+            minWidth = 200
+            minHeight = 300
+            targetCellWidth = 4
+            targetCellHeight = 2
+        }
+        composeRule.setContent {
+            TypeLauncherTheme(themeMode = ThemeMode.Light, dynamicColor = false) {
+                GradientWallpaperStandIn {
+                    HomeWidgetsForCapture(
+                        widgetIds = listOf(1, 2),
+                        isEditing = false,
+                        host = host,
+                        providerInfo = providerInfo,
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(HOME_WIDGETS_DONE_TAG).assertDoesNotExist()
+
+        capture("compose_home_widgets_display_robolectric.png")
+    }
+
+    @Test
+    fun homeWidgets_empty_overWallpaper() {
+        composeRule.setContent {
+            TypeLauncherTheme(themeMode = ThemeMode.Light, dynamicColor = false) {
+                GradientWallpaperStandIn {
+                    HomeWidgetsForCapture(widgetIds = emptyList(), isEditing = false)
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(HOME_WIDGETS_EMPTY_ADD_TAG).assertExists()
+
+        capture("compose_home_widgets_empty_robolectric.png")
+    }
+
+    @Test
+    fun homeWidgetsSettingsRows_light() {
+        composeRule.setContent {
+            TypeLauncherTheme(themeMode = ThemeMode.Light, dynamicColor = false) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    SectionCard(modifier = Modifier.padding(16.dp)) {
+                        HomeWidgetsSettingsRows(
+                            isHomeWidgetsShown = true,
+                            onHomeWidgetsShownChanged = {},
+                            onEditHomeWidgets = {},
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(EDIT_HOME_WIDGETS_BUTTON_TAG).assertExists()
+
+        capture("compose_home_widgets_settings_light_robolectric.png", heightPx = 400)
+    }
+
+    /**
+     * Home's widget area on its own, framed with Home's content inset so the
+     * capture reads like the app-list slot it occupies. The stand-in host
+     * view paints a labeled color block in place of a real provider's
+     * RemoteViews, which Robolectric can't bind.
+     */
+    @Composable
+    private fun HomeWidgetsForCapture(
+        widgetIds: List<Int>,
+        isEditing: Boolean,
+        host: LauncherAppWidgetHost? = null,
+        providerInfo: AppWidgetProviderInfo? = null,
+    ) {
+        HomeWidgets(
+            widgetIds = widgetIds,
+            isEditing = isEditing,
+            isAddingWidget = false,
+            isLoadingAvailableWidgets = false,
+            availableWidgets = emptyList(),
+            appWidgetHost = host,
+            appWidgetManager = null,
+            widgetHeights = mapOf(1 to 160, 2 to 120),
+            widgetProviderLabels = emptyMap(),
+            strandedWidgetIds = emptySet(),
+            workProfileWidgetRefreshToken = 0,
+            isCurrentPage = true,
+            onBoundsChanged = {},
+            onStartEditing = {},
+            onStopEditing = {},
+            onAddWidget = {},
+            onDismissWidgetPicker = {},
+            onSelectWidget = {},
+            onRemoveWidget = {},
+            onRestoreWidget = {},
+            onResizeWidget = { _, _ -> },
+            onMoveWidget = { _, _ -> },
+            modifier = Modifier
+                .fillMaxSize()
+                // Home's content inset around the app-list slot.
+                .padding(8.dp),
+            providerInfoOverride = providerInfo?.let { info -> { info } },
+            createWidgetView = host?.let { widgetHost ->
+                { viewContext, widgetId -> StandInWidgetView(viewContext, widgetHost, widgetId) }
+            },
+        )
+    }
+
+    private class StandInWidgetView(
+        context: Context,
+        host: LauncherAppWidgetHost,
+        widgetId: Int,
+    ) : LauncherAppWidgetHostView(context, host) {
+        init {
+            addView(
+                TextView(context).apply {
+                    text = "Widget $widgetId"
+                    textSize = 18f
+                    gravity = Gravity.CENTER
+                    setTextColor(android.graphics.Color.WHITE)
+                    setBackgroundColor(if (widgetId == 1) 0xFF3949AB.toInt() else 0xFF00897B.toInt())
+                },
+                FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
+            )
+        }
+
+        override fun setAppWidget(appWidgetId: Int, info: AppWidgetProviderInfo?) = Unit
+
+        override fun updateAppWidgetSize(
+            newOptions: Bundle?,
+            minWidth: Int,
+            minHeight: Int,
+            maxWidth: Int,
+            maxHeight: Int,
+        ) = Unit
     }
 
     @Composable
