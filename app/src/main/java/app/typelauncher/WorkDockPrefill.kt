@@ -26,7 +26,9 @@ internal fun prefillWorkDock(
 ) {
     val target = maxSlots.coerceAtLeast(0)
     if (target == 0) return
-    val visibleWorkApps = installedApps.filter { it.isWorkApp && !it.isQuietMode }
+    // Shortcuts share their publisher's package and are never dock-prefill
+    // candidates (see prefillDock), so they are left out of every tier.
+    val visibleWorkApps = installedApps.filter { it.isWorkApp && !it.isQuietMode && !it.isShortcut }
     if (visibleWorkApps.isEmpty()) return
     val columnCount = target.coerceAtLeast(1)
     val byPackage = visibleWorkApps.groupBy { it.packageName }

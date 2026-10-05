@@ -562,8 +562,13 @@ internal object AppIconLoader {
         val componentPrefix = "$userPrefix$packageName/"
         val packageOnly = "$userPrefix$packageName"
         val packageWithToken = "$packageOnly@"
+        // A pinned shortcut's id carries its publisher's package too (see
+        // pinnedShortcutEntryId), so a publisher update clears its pages'
+        // icons along with its own.
+        val shortcutPrefix = "${userPrefix}shortcut:$packageName/"
         fun matches(id: String): Boolean =
             id.startsWith(componentPrefix) ||
+                id.startsWith(shortcutPrefix) ||
                 id.startsWith(packageWithToken) ||
                 id == packageOnly
         // Order matters: detach in-flight loads under the lock first so any
@@ -731,6 +736,7 @@ internal object AppIconLoader {
     private const val THEMED_GLYPH_DARK_FALLBACK = 0xFFE8EAED.toInt()
 
     private fun resolve(context: Context, app: InstalledApp): Drawable? {
+        if (app.shortcutId != null) return resolveShortcutIcon(context, app)
         val component = app.launchIntent.component ?: return null
         // Date-aware calendar apps (Google Calendar et al.) ship 31 per-day icon
         // drawables and expect the launcher to pick today's; the system's plain
@@ -779,6 +785,31 @@ internal object AppIconLoader {
             } catch (_: PackageManager.NameNotFoundException) {
                 null
             }
+        }
+    }
+
+    /**
+     * A pinned shortcut's own icon (a site's favicon or manifest icon for a web
+     * page or PWA), looked up by id because the loader only has the
+     * [InstalledApp]. Unbadged, like activity icons. Null — the placeholder —
+     * when the shortcut is gone or its profile is locked or paused: both throw
+     * out of `LauncherApps`, and nothing here may escape the loader scope.
+     */
+    private fun resolveShortcutIcon(context: Context, app: InstalledApp): Drawable? {
+        val shortcutId = app.shortcutId ?: return null
+        val launcherApps = context.getSystemService<LauncherApps>() ?: return null
+        return try {
+            val query = LauncherApps.ShortcutQuery()
+                .setPackage(app.packageName)
+                .setShortcutIds(listOf(shortcutId))
+                .setQueryFlags(LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED)
+            launcherApps.getShortcuts(query, app.user)
+                ?.firstOrNull()
+                ?.let { shortcut -> launcherApps.getShortcutIconDrawable(shortcut, context.resources.displayMetrics.densityDpi) }
+        } catch (exception: RuntimeException) {
+            // Operation only: which page or publisher would be the user's own data.
+            LauncherDebugLog.failure(exception, "resolveShortcutIcon failed")
+            null
         }
     }
 

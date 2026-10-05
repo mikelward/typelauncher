@@ -224,6 +224,32 @@ class ContentSearchScreenshotTest {
     }
 
     @Test
+    fun pinnedShortcutRow_longPressOffersRemoveInsteadOfUninstall() {
+        // A web page pinned from a browser lists like an app, but its menu's
+        // last item unpins it ("Remove") — uninstalling would target the
+        // browser that published it. Lives here because this suite already
+        // composes the apps card with menus captured across popup windows.
+        val page = InstalledApp(
+            name = "Example Docs",
+            packageName = "com.example.browser",
+            launchIntent = Intent().setPackage("com.example.browser"),
+            user = Process.myUserHandle(),
+            isWorkApp = false,
+            launchWithLauncherApps = true,
+            shortcutId = "page-1",
+        )
+        composeContent(reverseLayout = false, apps = apps + page, contacts = emptyList())
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Example Docs").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$UNINSTALL_APP_ACTION_TAG:Example Docs").assertIsDisplayed()
+        composeRule.onNodeWithText("Remove").assertIsDisplayed()
+        composeRule.waitForIdle()
+
+        captureScreen("compose_pinned_shortcut_menu_robolectric.png")
+    }
+
+    @Test
     fun storeSearchRow_ranksUnderAppResultsAndAboveContent() {
         // The app-store search as the apps section's lowest-ranked entry: under
         // every installed match, above the contacts divider, and carrying no

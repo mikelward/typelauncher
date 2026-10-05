@@ -37,6 +37,25 @@ internal class HiddenAppStore(context: Context) {
         }
     }
 
+    /**
+     * [unhide] that writes before returning, for a caller already off the
+     * main thread. An `apply()` write left pending would otherwise be waited
+     * on by the main thread at the next activity stop. Returns whether
+     * [appId] is now unhidden on disk — true when it wasn't hidden at all —
+     * so a failed write is the caller's to report rather than a success that
+     * quietly reverts on the next launch.
+     */
+    fun unhideNow(appId: String): Boolean = synchronized(lock) {
+        if (!hiddenIds.remove(appId)) return@synchronized true
+        val written = sharedPreferences.edit()
+            .putString(KEY_HIDDEN_APP_IDS, hiddenIds.joinToString(HIDDEN_APP_ID_SEPARATOR))
+            .commit()
+        // Keep memory matching the disk, so this instance never claims a
+        // state the file doesn't hold.
+        if (!written) hiddenIds.add(appId)
+        written
+    }
+
     // Callers hold `lock`, so the iteration never races a concurrent mutation.
     private fun save() {
         sharedPreferences.edit()

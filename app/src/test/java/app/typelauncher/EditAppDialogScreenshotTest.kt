@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.os.Process
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.StateRestorationTester
@@ -65,6 +66,26 @@ class EditAppDialogScreenshotTest {
             .assertDoesNotExist()
 
         captureSnapshot("compose_edit_app_dialog_no_override_robolectric.png")
+    }
+
+    @Test
+    fun pinShortcutConfirm_showsThePagesIconAndNameWithAddAndCancel() {
+        // Lives with the Edit dialog's captures: the same dialog shape and
+        // spacing, and a class CI already records.
+        val icon = Bitmap.createBitmap(144, 144, Bitmap.Config.ARGB_8888)
+            .apply { eraseColor(0xFF1E88E5.toInt()) }
+            .asImageBitmap()
+        composeRule.setContent {
+            TypeLauncherTheme {
+                PinShortcutConfirmContent(label = "Example Docs", icon = icon, onAdd = {}, onCancel = {})
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(PIN_SHORTCUT_DIALOG_ADD_TAG, useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag(PIN_SHORTCUT_DIALOG_CANCEL_TAG, useUnmergedTree = true).assertIsDisplayed()
+
+        captureSnapshot("compose_pin_shortcut_confirm_robolectric.png")
     }
 
     @Test

@@ -75,7 +75,9 @@ internal fun prefillDock(
     maxSlots: Int,
 ) {
     val byPackage = installedApps
-        .filter { !it.isWorkApp }
+        // A pinned shortcut shares its browser's package; it must not stand
+        // in for the browser itself.
+        .filter { !it.isWorkApp && !it.isShortcut }
         .groupBy { it.packageName }
     for (packageName in POPULAR_APP_PACKAGES) {
         if (dockedAppStore.dockedAppIds.size >= maxSlots) break

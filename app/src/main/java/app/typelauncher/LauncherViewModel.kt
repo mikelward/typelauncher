@@ -18,6 +18,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
+import android.content.pm.ShortcutInfo
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Process
@@ -85,6 +86,10 @@ internal class LauncherViewModel(
     // starting while the first is still on the wire.
     private val enumerateLauncherActivities: (LauncherApps, UserHandle) -> List<LauncherActivityInfo> =
         { launcherApps, user -> launcherApps.getActivityList(null, user) },
+    // The pinned-shortcut read beside it. Injectable because Robolectric's
+    // `ShadowLauncherApps` has no notion of a pinned shortcut.
+    // Throws on failure, like the system call it wraps.
+    private val queryShortcuts: (LauncherApps, UserHandle) -> List<ShortcutInfo> = ::readPinnedShortcuts,
 ) : ViewModel() {
     private val dockedAppStore = DockedAppStore(app)
     private val workDockedAppStore = DockedAppStore(app, DockedAppStore.WORK_PREFERENCES_NAME)
@@ -311,6 +316,17 @@ internal class LauncherViewModel(
         ) {
             packageNames.forEach { AppIconLoader.evict(it, user) }
             scheduleReload("packagesUnavailable", packageNames.size)
+        }
+        override fun onShortcutsChanged(
+            packageName: String,
+            shortcuts: MutableList<ShortcutInfo>,
+            user: UserHandle,
+        ) {
+            // Fires for every republish of an app's dynamic shortcuts too, so
+            // only reload when what the app list shows actually moved.
+            if (!pinnedShortcutsChanged(installedApps, packageName, user, shortcuts)) return
+            AppIconLoader.evict(packageName, user)
+            scheduleReload("shortcutsChanged")
         }
     }
     private var launcherAppsCallbackRegistered = false
@@ -543,6 +559,12 @@ internal class LauncherViewModel(
     }
 
     init {
+        viewModelScope.launch {
+            PinnedShortcutReveals.requests.collect { entryId ->
+                revealPinnedShortcut(entryId)
+                PinnedShortcutReveals.consumed()
+            }
+        }
         LauncherDebugLog.event("LauncherViewModel initialized %s", _uiState.value.debugSummary())
         // A backup restore or permission auto-reset can leave a content-search
         // toggle persisted on without its permission; coerce before anything
@@ -665,7 +687,13 @@ internal class LauncherViewModel(
                     "initial load degraded and empty, keeping cached=%s",
                     installedApps.size,
                 )
-                installedApps
+                // Minus the cached pinned shortcuts: they are readable only
+                // while this launcher holds the home role, which may have
+                // moved since the snapshot was written, and nothing here
+                // vouches for them. The retry reload restores them if they
+                // are still there; apps get no such filter because they
+                // don't depend on the role.
+                installedApps.filterNot { app -> app.isShortcut }
             } else {
                 if (loadResult.isDegraded) {
                     LauncherDebugLog.event(
@@ -1954,6 +1982,16 @@ internal class LauncherViewModel(
         // so it carries to the Crashlytics mirror.
         LauncherDebugLog.event("homeRoleHeld=%s", isDefaultLauncher)
         _uiState.update { it.copy(isDefaultLauncher = isDefaultLauncher) }
+        // Pinned shortcuts are readable only while this launcher holds the
+        // home role, and no package or shortcut event marks gaining or losing
+        // it, so a change seen here reloads the list to add or drop them. The
+        // first reading only records the baseline: the cold-start load
+        // already read under it.
+        val previousHomeRoleHeld = lastHomeRoleHeld
+        lastHomeRoleHeld = isDefaultLauncher
+        if (previousHomeRoleHeld != null && previousHomeRoleHeld != isDefaultLauncher) {
+            scheduleReload("homeRoleChanged")
+        }
         if (_uiState.value.destination is LauncherDestination.Agenda) {
             refreshAgenda()
         }
@@ -2005,7 +2043,11 @@ internal class LauncherViewModel(
         }
         val priorityIds = priorityIconCacheIds(includeDynamicCalendar = false)
         val snapshots = AppIconLoader.cacheSnapshot()
-            .filterKeys { key -> key.id in priorityIds }
+            // Pinned shortcuts' icons stay in memory only: the snapshot
+            // directory is backed up with the rest of filesDir, and a page's
+            // icon (a favicon) can identify the page. They re-resolve on a
+            // cold start like any icon outside the priority set.
+            .filterKeys { key -> key.id in priorityIds && !isPinnedShortcutCacheId(key.id) }
             .map { (key, bitmap) ->
                 IconSnapshotStore.Snapshot(id = key.id, sizePx = key.sizePx, bitmap = bitmap)
             }
@@ -3045,24 +3087,51 @@ internal class LauncherViewModel(
 
     fun launchApp(app: InstalledApp) {
         val component = app.launchIntent.component
+        // A pinned shortcut's publisher stays out of the log: which pages the
+        // user keeps, and from which browser, is theirs.
+        val loggedPackage = if (app.isShortcut) "(shortcut)" else app.packageName
         LauncherDebugLog.event(
             "launchApp package=%s component=%s work=%s launcherApps=%s",
-            app.packageName,
-            component?.flattenToShortString(),
+            loggedPackage,
+            component?.flattenToShortString().takeUnless { app.isShortcut },
             app.isWorkApp,
             app.launchWithLauncherApps,
         )
         try {
-            if (app.launchWithLauncherApps && component != null) {
+            val shortcutId = app.shortcutId
+            if (shortcutId != null) {
+                this.app.getSystemService<LauncherApps>()
+                    ?.startShortcut(app.packageName, shortcutId, null, null, app.user)
+            } else if (app.launchWithLauncherApps && component != null) {
                 this.app.getSystemService<LauncherApps>()?.startMainActivity(component, app.user, null, null)
             } else {
                 startActivity(app.launchIntent.asLauncherTaskIntent())
             }
         } catch (exception: ActivityNotFoundException) {
-            LauncherDebugLog.failure(exception, "launchApp activity not found package=%s", app.packageName)
+            LauncherDebugLog.failure(exception, "launchApp activity not found package=%s", loggedPackage)
+            // A shortcut its publisher removed or disabled after the list
+            // loaded; an app's own activity going missing is a reload away.
+            if (app.isShortcut) {
+                Toast.makeText(this.app, R.string.app_menu_shortcut_unavailable, Toast.LENGTH_SHORT).show()
+            }
             return
         } catch (exception: SecurityException) {
-            LauncherDebugLog.failure(exception, "launchApp security exception package=%s", app.packageName)
+            LauncherDebugLog.failure(exception, "launchApp security exception package=%s", loggedPackage)
+            // For a shortcut: this launcher lost the home role, or access to
+            // the shortcut's profile, since the list loaded.
+            if (app.isShortcut) {
+                Toast.makeText(this.app, R.string.app_menu_shortcut_unavailable, Toast.LENGTH_SHORT).show()
+            }
+            return
+        } catch (exception: IllegalStateException) {
+            // LauncherApps' refusal while the profile is locked or paused —
+            // for a shortcut, also while this launcher is not the default
+            // home app. The shortcut copy only fits a shortcut; an app keeps
+            // the same silent handling as the failures above.
+            LauncherDebugLog.failure(exception, "launchApp unavailable shortcut=%s", app.isShortcut)
+            if (app.isShortcut) {
+                Toast.makeText(this.app, R.string.app_menu_shortcut_unavailable, Toast.LENGTH_SHORT).show()
+            }
             return
         }
         appLaunchStatsStore.recordLaunch(app.id)
@@ -3080,7 +3149,7 @@ internal class LauncherViewModel(
     fun openAppInfo(app: InstalledApp) {
         LauncherDebugLog.event(
             "openAppInfo package=%s work=%s launcherApps=%s",
-            app.packageName,
+            if (app.isShortcut) "(shortcut)" else app.packageName,
             app.isWorkApp,
             app.launchWithLauncherApps,
         )
@@ -3091,14 +3160,39 @@ internal class LauncherViewModel(
         // the supplied UserHandle so the work-profile copy actually opens.
         val component = app.launchIntent.component
         val launcherApps = launcherAppsService
+        if (app.isShortcut && component == null && launcherApps != null) {
+            // A pinned shortcut whose publisher recorded no activity: look one
+            // up in the shortcut's own profile (an IPC, so off the main
+            // thread) so the profile-aware route below applies.
+            viewModelScope.launch {
+                val resolved = withContext(ioDispatcher) {
+                    try {
+                        launcherApps.getActivityList(app.packageName, app.user).firstOrNull()?.componentName
+                    } catch (exception: CancellationException) {
+                        throw exception
+                    } catch (exception: RuntimeException) {
+                        LauncherDebugLog.failure(exception, "openAppInfo publisher unresolved")
+                        null
+                    }
+                }
+                // No launcher activity in that profile either: the details
+                // screen only needs the package (startAppDetailsActivity
+                // "shows the application details for a package"), so a
+                // package-only component still takes the profile-aware route
+                // rather than the personal-profile package URI.
+                val component = resolved ?: ComponentName(app.packageName, app.packageName)
+                openAppInfo(app.copy(launchIntent = Intent.makeMainActivity(component)))
+            }
+            return
+        }
         if (app.launchWithLauncherApps && component != null && launcherApps != null) {
             try {
                 launcherApps.startAppDetailsActivity(component, app.user, null, null)
                 return
             } catch (exception: ActivityNotFoundException) {
-                LauncherDebugLog.failure(exception, "openAppInfo activity not found package=%s", app.packageName)
+                LauncherDebugLog.failure(exception, "openAppInfo activity not found package=%s", if (app.isShortcut) "(shortcut)" else app.packageName)
             } catch (exception: SecurityException) {
-                LauncherDebugLog.failure(exception, "openAppInfo security exception package=%s", app.packageName)
+                LauncherDebugLog.failure(exception, "openAppInfo security exception package=%s", if (app.isShortcut) "(shortcut)" else app.packageName)
             }
         }
         startActivity(app.appInfoIntent)
@@ -3123,17 +3217,87 @@ internal class LauncherViewModel(
      */
     fun uninstallApp(app: InstalledApp) {
         LauncherDebugLog.event(
-            "uninstallApp package=%s work=%s uninstallable=%s",
-            app.packageName,
+            "uninstallApp package=%s work=%s uninstallable=%s shortcut=%s",
+            if (app.isShortcut) "(shortcut)" else app.packageName,
             app.isWorkApp,
             app.isUninstallable,
+            app.isShortcut,
         )
+        if (app.isShortcut) {
+            removePinnedShortcut(app)
+            return
+        }
         try {
             startActivity(app.uninstallIntent)
         } catch (exception: ActivityNotFoundException) {
             reportUninstallUnavailable("no activity for ACTION_DELETE", exception)
         } catch (exception: SecurityException) {
             reportUninstallUnavailable("not permitted to start ACTION_DELETE", exception)
+        }
+    }
+
+    /**
+     * The shortcut counterpart of uninstalling: unpins it, which is the only
+     * way a launcher can let go of a pinned shortcut. The publisher's other
+     * pins stay — `pinShortcuts` replaces the launcher's whole pinned set for
+     * the package, so it is given every pinned id but this one (see
+     * [remainingPinnedIds]). The
+     * `onShortcutsChanged` callback that follows reloads the list, which is
+     * what drops the entry from every surface; the read and the unpin are both
+     * IPC, so they run off the main thread.
+     */
+
+    // The home-role reading [refreshPermissionDrivenUi] last saw; null until
+    // the first one. Main dispatcher only.
+    private var lastHomeRoleHeld: Boolean? = null
+
+    /** See [PinnedShortcutReveals]. */
+    private fun revealPinnedShortcut(entryId: String) {
+        if (!hiddenAppStore.contains(entryId)) return
+        LauncherDebugLog.event("revealPinnedShortcut")
+        hiddenAppStore.unhide(entryId)
+        refreshLists()
+    }
+
+    private fun removePinnedShortcut(app: InstalledApp) {
+        val shortcutId = app.shortcutId ?: return
+        val launcherApps = launcherAppsService ?: return
+        viewModelScope.launch {
+            val removed = withContext(ioDispatcher) {
+                // Serialized with other Removes and with accepted pins (see
+                // pinnedShortcutSetLock): pinShortcuts replaces the package's
+                // whole set, so a change landing between this read and this
+                // write would be overwritten.
+                pinnedShortcutSetLock.withLock {
+                    try {
+                        // A failed read throws out of here rather than reading as
+                        // empty, and a read missing the shortcut writes nothing:
+                        // either way, writing back would unpin every page this
+                        // publisher has.
+                        val remaining = remainingPinnedIds(queryShortcuts(launcherApps, app.user), app.packageName, shortcutId)
+                        if (remaining == null) {
+                            LauncherDebugLog.event("removePinnedShortcut not in pinned set")
+                            false
+                        } else {
+                            launcherApps.pinShortcuts(app.packageName, remaining, app.user)
+                            true
+                        }
+                    } catch (exception: CancellationException) {
+                        throw exception
+                    } catch (exception: RuntimeException) {
+                        // Locked or paused profile, not the default home app, or a
+                        // binder failure: nothing was unpinned, so say so.
+                        LauncherDebugLog.failure(exception, "removePinnedShortcut failed")
+                        false
+                    }
+                }
+            }
+            if (removed) {
+                scheduleReload("shortcutRemoved")
+            } else {
+                Toast.makeText(this@LauncherViewModel.app, R.string.app_menu_remove_shortcut_failed, Toast.LENGTH_SHORT)
+                    .show()
+            }
         }
     }
 
@@ -5466,6 +5630,11 @@ internal class LauncherViewModel(
 
     private fun loadInstalledApps(): AppLoadResult {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        // The pinned shortcuts the list already shows, per profile, kept for a
+        // profile whose shortcut read fails below. Read once, from this IO
+        // thread: the field holds an immutable list, so at worst this sees
+        // the one a just-finished load replaced.
+        val previousShortcuts = installedApps.filter { app -> app.isShortcut }.groupBy { app -> app.user }
         val personalUser = Process.myUserHandle()
         // Logcat-only, here and for the two lines below. A reload costs eight
         // buffer entries and a device installing updates runs one every minute,
@@ -5629,8 +5798,28 @@ internal class LauncherViewModel(
                             unprefixedName = workSearchName(rawLabel, workApp),
                         )
                     }
+                    // Pinned shortcuts (web pages, PWAs without a WebAPK)
+                    // join the profile's inventory so every surface — search,
+                    // dock, recents, rename — treats them like apps. A failed
+                    // read (a locked or paused profile, a binder failure)
+                    // keeps the ones the last load had for this profile,
+                    // with the profile's current paused state, rather than
+                    // dropping every page until the next reload.
+                    val read = launcherApps?.let { service -> pinnedShortcutsOrNull { queryShortcuts(service, user) } }
+                    val shortcuts = if (read == null && launcherApps != null) {
+                        previousShortcuts[user].orEmpty().map { entry -> entry.copy(isQuietMode = quiet) }
+                    } else {
+                        pinnedShortcutEntries(
+                            shortcuts = read.orEmpty(),
+                            user = user,
+                            isWorkApp = { packageName -> user != personalUser || packageName in workPackages },
+                            isQuietMode = quiet,
+                            displayBase = ::workLabel,
+                            unprefixedName = ::workSearchName,
+                        )
+                    }
                     inventories[user] = ProfileInventory(
-                        apps = mapped,
+                        apps = mapped + shortcuts,
                         isQuietModeKnown = user !in quietModeUnknownFor,
                     )
                 } catch (exception: CancellationException) {
@@ -5719,7 +5908,10 @@ internal class LauncherViewModel(
         // degraded flag, so a reload still declines to publish what it
         // returns — the flag says what the read knows, not where it came
         // from.
-        val rawFallbackApps = if (inventories.values.all { inventory -> inventory.apps.isEmpty() }) {
+        // Activities only: pinned shortcuts are not a launcher activity read,
+        // so a device whose enumeration yields nothing but shortcuts still
+        // takes the fallback.
+        val rawFallbackApps = if (inventories.values.all { inventory -> inventory.apps.all { app -> app.isShortcut } }) {
             packageManagerApps()
         } else {
             emptyList()
