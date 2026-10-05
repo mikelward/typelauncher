@@ -121,8 +121,19 @@ internal class WidgetStore(context: Context) {
     private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
     private var pages = loadPages()
 
+    // The Home screen's own widget set ("Widgets on home screen"), kept apart
+    // from the carousel pages but in this same store so every whole-store
+    // pass — orphan reconciliation, backup-restore remapping, heights,
+    // provider records — covers it without a second code path.
+    private var homeIds = loadHomeIds()
+
+    /** Every tracked widget: the carousel pages' and Home's. */
     val widgetIds: List<Int>
-        get() = pages.flatten()
+        get() = pages.flatten() + homeIds
+
+    /** The widgets shown in Home's app-list slot, top to bottom. */
+    val homeWidgetIds: List<Int>
+        get() = homeIds.toList()
 
     val widgetPages: List<List<Int>>
         get() = pages.map { ids -> ids.toList() }
@@ -153,12 +164,22 @@ internal class WidgetStore(context: Context) {
         save()
     }
 
+    /** Appends [appWidgetId] to the bottom of Home's widget set. */
+    fun addToHome(appWidgetId: Int) {
+        if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID || appWidgetId in widgetIds) {
+            return
+        }
+        homeIds = homeIds + appWidgetId
+        save()
+    }
+
     fun remove(appWidgetId: Int) {
         if (widgetIds.contains(appWidgetId)) {
             pages = pages
                 .map { ids -> ids.filterNot { id -> id == appWidgetId } }
                 .filter { ids -> ids.isNotEmpty() }
                 .ensureAtLeastOnePage()
+            homeIds = homeIds.filterNot { id -> id == appWidgetId }
             sharedPreferences.edit()
                 .remove(heightKey(appWidgetId))
                 .remove(providerKey(appWidgetId))
@@ -220,6 +241,7 @@ internal class WidgetStore(context: Context) {
             .map { ids -> ids.mapNotNull { id -> resultId(id) } }
             .filter { ids -> ids.isNotEmpty() }
             .ensureAtLeastOnePage()
+        homeIds = homeIds.mapNotNull { id -> resultId(id) }
         // Snapshot every old height/provider before touching the store, then
         // clear all old keys and write the new ones. Widget IDs are host-local
         // and the old and new ID spaces can overlap (e.g. old 2 -> new 3 while
@@ -256,6 +278,7 @@ internal class WidgetStore(context: Context) {
     fun replaceId(oldId: Int, newId: Int) {
         if (oldId !in widgetIds || newId == AppWidgetManager.INVALID_APPWIDGET_ID || newId in widgetIds) return
         pages = pages.map { ids -> ids.map { id -> if (id == oldId) newId else id } }
+        homeIds = homeIds.map { id -> if (id == oldId) newId else id }
         val height = sharedPreferences.getInt(heightKey(oldId), -1)
         val provider = sharedPreferences.getString(providerKey(oldId), null)
         val editor = sharedPreferences.edit()
@@ -269,24 +292,22 @@ internal class WidgetStore(context: Context) {
 
     /**
      * Moves [appWidgetId] one slot up or down within the page it currently
-     * lives on. No-op if the widget is unknown or already at the page edge in
-     * the requested direction — moving widgets across pages is intentionally
-     * out of scope, so a widget at the top of a page cannot leave it via
-     * [WidgetMoveDirection.UP].
+     * lives on (Home's set counts as its own page). No-op if the widget is
+     * unknown or already at the page edge in the requested direction — moving
+     * widgets across pages is intentionally out of scope, so a widget at the
+     * top of a page cannot leave it via [WidgetMoveDirection.UP].
      */
     fun move(appWidgetId: Int, direction: WidgetMoveDirection) {
+        if (appWidgetId in homeIds) {
+            homeIds.swappedWithNeighbor(appWidgetId, direction)?.let { reordered ->
+                homeIds = reordered
+                save()
+            }
+            return
+        }
         val pageIndex = pages.indexOfFirst { ids -> ids.contains(appWidgetId) }
         if (pageIndex == -1) return
-        val page = pages[pageIndex]
-        val fromIndex = page.indexOf(appWidgetId)
-        val toIndex = when (direction) {
-            WidgetMoveDirection.UP -> fromIndex - 1
-            WidgetMoveDirection.DOWN -> fromIndex + 1
-        }
-        if (toIndex !in page.indices) return
-        val reorderedPage = page.toMutableList().apply {
-            this[fromIndex] = set(toIndex, this[fromIndex])
-        }
+        val reorderedPage = pages[pageIndex].swappedWithNeighbor(appWidgetId, direction) ?: return
         pages = pages.toMutableList().apply { this[pageIndex] = reorderedPage }
         save()
     }
@@ -309,9 +330,23 @@ internal class WidgetStore(context: Context) {
             .ensureAtLeastOnePage()
     }
 
+    private fun loadHomeIds(): List<Int> =
+        sharedPreferences.getString(KEY_HOME_WIDGET_IDS, "").orEmpty()
+            .split(APP_WIDGET_ID_SEPARATOR)
+            .mapNotNull { value -> value.toIntOrNull() }
+            // A home ID also on a page (never written by this store, but a
+            // hand-edited or corrupt file could) stays on its page only, so
+            // one ID never backs two host views.
+            .filterNot { id -> pages.any { ids -> id in ids } }
+            .distinct()
+
     private fun save() {
-        val flatIds = widgetIds
+        // KEY_APP_WIDGET_IDS is the legacy flat list, read only as the
+        // pre-pages migration source; it stays pages-only so a downgrade
+        // never surfaces Home's widgets on a widget page.
+        val flatIds = pages.flatten()
         sharedPreferences.edit()
+            .putString(KEY_HOME_WIDGET_IDS, homeIds.joinToString(APP_WIDGET_ID_SEPARATOR))
             .putString(KEY_APP_WIDGET_IDS, flatIds.joinToString(APP_WIDGET_ID_SEPARATOR))
             .putString(
                 KEY_APP_WIDGET_PAGES,
@@ -326,6 +361,7 @@ internal class WidgetStore(context: Context) {
         const val PREFERENCES_NAME = "widgets"
         const val KEY_APP_WIDGET_IDS = "app_widget_ids"
         const val KEY_APP_WIDGET_PAGES = "app_widget_pages"
+        const val KEY_HOME_WIDGET_IDS = "home_widget_ids"
         const val APP_WIDGET_ID_SEPARATOR = "\n"
         const val APP_WIDGET_PAGE_SEPARATOR = "\n\n"
 
@@ -337,3 +373,15 @@ internal class WidgetStore(context: Context) {
 
 private fun List<List<Int>>.ensureAtLeastOnePage(): List<List<Int>> =
     if (isEmpty()) listOf(emptyList()) else this
+
+/** This list with [id] swapped one slot in [direction], or null if it can't move. */
+private fun List<Int>.swappedWithNeighbor(id: Int, direction: WidgetMoveDirection): List<Int>? {
+    val fromIndex = indexOf(id)
+    if (fromIndex == -1) return null
+    val toIndex = when (direction) {
+        WidgetMoveDirection.UP -> fromIndex - 1
+        WidgetMoveDirection.DOWN -> fromIndex + 1
+    }
+    if (toIndex !in indices) return null
+    return toMutableList().apply { this[fromIndex] = set(toIndex, this[fromIndex]) }
+}

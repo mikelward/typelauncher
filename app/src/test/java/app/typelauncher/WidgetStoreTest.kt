@@ -445,4 +445,115 @@ class WidgetStoreTest {
         assertEquals(null, WidgetProviderRecord.parse("0|work|notacomponent"))
         assertEquals(null, WidgetProviderRecord.parse("x|personal|p/p.W|L"))
     }
+
+    @Test
+    fun homeWidgetsAreTrackedApartFromPagesAndPersist() {
+        WidgetStore(context).apply {
+            add(1)
+            addToHome(2)
+            addToHome(3)
+        }
+
+        val reloaded = WidgetStore(context)
+
+        assertEquals(listOf(listOf(1)), reloaded.widgetPages)
+        assertEquals(listOf(2, 3), reloaded.homeWidgetIds)
+        // Every whole-store pass (orphan reconciliation, restore) reads
+        // widgetIds, so Home's widgets must be in it.
+        assertEquals(listOf(1, 2, 3), reloaded.widgetIds)
+    }
+
+    @Test
+    fun addToHomeIgnoresAnIdAlreadyTracked() {
+        val store = WidgetStore(context)
+        store.add(1)
+        store.addToHome(2)
+
+        store.addToHome(1)
+        store.addToHome(2)
+        store.add(2)
+
+        assertEquals(listOf(listOf(1)), store.widgetPages)
+        assertEquals(listOf(2), store.homeWidgetIds)
+    }
+
+    @Test
+    fun homeWidgetsNeverLeakIntoTheLegacyFlatList() {
+        val store = WidgetStore(context)
+        store.add(1)
+        store.addToHome(2)
+
+        val legacy = context.getSharedPreferences("widgets", Context.MODE_PRIVATE)
+            .getString("app_widget_ids", null)
+
+        assertEquals("1", legacy)
+    }
+
+    @Test
+    fun removeDropsAHomeWidgetAndItsHeight() {
+        val store = WidgetStore(context)
+        store.addToHome(2)
+        store.addToHome(3)
+        store.setCustomHeight(2, 120)
+
+        store.remove(2)
+
+        assertEquals(listOf(3), store.homeWidgetIds)
+        assertEquals(emptyMap<Int, Int>(), store.customHeights)
+    }
+
+    @Test
+    fun moveReordersWithinHomeOnly() {
+        val store = WidgetStore(context)
+        store.add(1)
+        store.addToHome(2)
+        store.addToHome(3)
+
+        store.move(3, WidgetMoveDirection.UP)
+        assertEquals(listOf(3, 2), store.homeWidgetIds)
+
+        // The top Home widget can't move up onto a page.
+        store.move(3, WidgetMoveDirection.UP)
+        assertEquals(listOf(3, 2), store.homeWidgetIds)
+        assertEquals(listOf(listOf(1)), store.widgetPages)
+    }
+
+    @Test
+    fun restoreMappingRemapsHomeWidgets() {
+        val store = WidgetStore(context)
+        store.add(1)
+        store.addToHome(2)
+        store.setCustomHeight(2, 96)
+
+        store.applyRestoredIdMapping(mapOf(1 to 11, 2 to 12))
+
+        assertEquals(listOf(listOf(11)), store.widgetPages)
+        assertEquals(listOf(12), store.homeWidgetIds)
+        assertEquals(mapOf(12 to 96), store.customHeights)
+    }
+
+    @Test
+    fun replaceIdKeepsAHomeWidgetsSlot() {
+        val store = WidgetStore(context)
+        store.addToHome(2)
+        store.addToHome(3)
+
+        store.replaceId(2, 20)
+
+        assertEquals(listOf(20, 3), store.homeWidgetIds)
+    }
+
+    @Test
+    fun aHomeIdAlsoOnAPageLoadsOnThePageOnly() {
+        context.getSharedPreferences("widgets", Context.MODE_PRIVATE)
+            .edit()
+            .putString("app_widget_pages", "1\n2")
+            .putString("home_widget_ids", "2\n3")
+            .commit()
+
+        val store = WidgetStore(context)
+
+        assertEquals(listOf(listOf(1, 2)), store.widgetPages)
+        assertEquals(listOf(3), store.homeWidgetIds)
+    }
 }

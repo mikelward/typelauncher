@@ -395,6 +395,7 @@ internal class LauncherViewModel(
     private val _uiState = MutableStateFlow(
         LauncherUiState(
             widgetIds = widgetStore.widgetIds,
+            homeWidgetIds = widgetStore.homeWidgetIds,
             widgetPages = widgetStore.widgetPages,
             widgetHeights = widgetStore.customHeights,
             widgetProviderLabels = widgetStore.providerLabels,
@@ -406,6 +407,7 @@ internal class LauncherViewModel(
             appListSortOrder = dockSettingsStore.appListSortOrder,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
             isWallpaperShown = dockSettingsStore.isWallpaperShown,
+            isHomeWidgetsShown = dockSettingsStore.isHomeWidgetsShown,
             keyboardReservation = dockSettingsStore.keyboardReservation,
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             isContactSearchEnabled = dockSettingsStore.isContactSearchEnabled,
@@ -1747,6 +1749,35 @@ internal class LauncherViewModel(
             )
         }
         logState("showWidgetPicker loading")
+        loadWidgetPickerProviders()
+    }
+
+    /**
+     * Opens the add-widget picker inside Home's widget slot, in edit mode, so
+     * the selected widget joins Home's own set (see [addWidget]) rather than a
+     * carousel widget page.
+     */
+    fun showHomeWidgetPicker() {
+        pendingWidgetPlacement = PendingWidgetPlacement(
+            pageIndex = _uiState.value.lastWidgetPage,
+            addToNewPageAfterSelection = false,
+            toHome = true,
+        )
+        _uiState.update {
+            it.copy(
+                destination = LauncherDestination.Home,
+                isSettingsOpen = false,
+                isEditingHomeWidgets = true,
+                isAddingWidget = true,
+                isLoadingAvailableWidgets = true,
+                availableWidgets = emptyList(),
+            )
+        }
+        logState("showHomeWidgetPicker loading")
+        loadWidgetPickerProviders()
+    }
+
+    private fun loadWidgetPickerProviders() {
         viewModelScope.launch {
             val providers = withContext(ioDispatcher) { loadAvailableWidgets() }
             _uiState.update { state ->
@@ -1761,6 +1792,57 @@ internal class LauncherViewModel(
             }
             logState("showWidgetPicker loaded")
         }
+    }
+
+    fun setHomeWidgetsShown(isShown: Boolean) {
+        dockSettingsStore.isHomeWidgetsShown = isShown
+        if (!isShown && pendingWidgetPlacement?.toHome == true) pendingWidgetPlacement = null
+        _uiState.update {
+            it.copy(
+                isHomeWidgetsShown = isShown,
+                isEditingHomeWidgets = it.isEditingHomeWidgets && isShown,
+                isAddingWidget = it.isAddingWidget && (isShown || it.destination !is LauncherDestination.Home),
+            )
+        }
+        logState("setHomeWidgetsShown=%s", isShown)
+    }
+
+    /**
+     * Closes Settings (if open) and puts Home's widget slot into edit mode.
+     * A typed query or an open contact would keep the app list (or the
+     * contact's actions) over the widget slot, so both are cleared — Settings
+     * preserves them, so arriving from there is the case that hits this.
+     */
+    fun startEditingHomeWidgets() {
+        val state = _uiState.value
+        val hadQuery = state.query.isNotEmpty()
+        if (state.isHomeWidgetsShown && state.contactActionsMode != null) contactResolveToken++
+        _uiState.update {
+            it.copy(
+                destination = LauncherDestination.Home,
+                isSettingsOpen = false,
+                isEditingHomeWidgets = it.isHomeWidgetsShown,
+                query = if (it.isHomeWidgetsShown) "" else it.query,
+                contactActionsMode = if (it.isHomeWidgetsShown) null else it.contactActionsMode,
+            )
+        }
+        if (hadQuery && state.isHomeWidgetsShown) refreshFilteredApps()
+        logState("startEditingHomeWidgets")
+    }
+
+    /** Leaves Home widget edit mode, closing a Home add-widget picker with it. */
+    fun stopEditingHomeWidgets() {
+        if (!_uiState.value.isEditingHomeWidgets) return
+        val closesPicker = pendingWidgetPlacement?.toHome == true
+        if (closesPicker) pendingWidgetPlacement = null
+        _uiState.update {
+            it.copy(
+                isEditingHomeWidgets = false,
+                isAddingWidget = it.isAddingWidget && !closesPicker,
+                isLoadingAvailableWidgets = it.isLoadingAvailableWidgets && !closesPicker,
+            )
+        }
+        logState("stopEditingHomeWidgets")
     }
 
     fun hideWidgetPicker() {
@@ -1789,6 +1871,7 @@ internal class LauncherViewModel(
                 isSettingsOpen = false,
                 isAddingWidget = false,
                 isLoadingAvailableWidgets = false,
+                isEditingHomeWidgets = false,
                 isRecentsOpen = false,
                 query = "",
                 contactActionsMode = null,
@@ -3684,6 +3767,10 @@ internal class LauncherViewModel(
             pageIndex = _uiState.value.lastWidgetPage,
             addToNewPageAfterSelection = false,
         )
+        if (placement.toHome) {
+            addHomeWidget(appWidgetId)
+            return
+        }
         val targetPage = if (placement.addToNewPageAfterSelection) {
             (placement.pageIndex + 1).coerceAtMost(widgetStore.widgetPages.size)
         } else {
@@ -3711,12 +3798,32 @@ internal class LauncherViewModel(
                 isAddingWidget = false,
                 isLoadingAvailableWidgets = false,
                 widgetIds = widgetStore.widgetIds,
+                homeWidgetIds = widgetStore.homeWidgetIds,
                 widgetPages = widgetPages,
                 widgetHeights = widgetStore.customHeights,
                 widgetProviderLabels = widgetStore.providerLabels,
             )
         }
         logState("addWidget")
+    }
+
+    private fun addHomeWidget(appWidgetId: Int) {
+        LauncherDebugLog.event("addWidget appWidgetId=%s home", appWidgetId)
+        widgetStore.addToHome(appWidgetId)
+        rememberWidgetProvider(appWidgetId)
+        pendingWidgetPlacement = null
+        _uiState.update {
+            it.copy(
+                destination = LauncherDestination.Home,
+                isAddingWidget = false,
+                isLoadingAvailableWidgets = false,
+                widgetIds = widgetStore.widgetIds,
+                homeWidgetIds = widgetStore.homeWidgetIds,
+                widgetHeights = widgetStore.customHeights,
+                widgetProviderLabels = widgetStore.providerLabels,
+            )
+        }
+        logState("addWidget home")
     }
 
     /**
@@ -3769,15 +3876,17 @@ internal class LauncherViewModel(
 
     fun moveWidget(appWidgetId: Int, direction: WidgetMoveDirection) {
         LauncherDebugLog.event("moveWidget appWidgetId=%s direction=%s", appWidgetId, direction)
+        val isHomeWidget = appWidgetId in widgetStore.homeWidgetIds
         widgetStore.move(appWidgetId, direction)
         _uiState.update {
             val widgetPages = widgetStore.widgetPages
             val current = (it.destination as? LauncherDestination.Widgets)?.pageIndex ?: it.lastWidgetPage
             val clamped = current.coerceInWidgetPages(widgetPages)
             it.copy(
-                destination = LauncherDestination.Widgets(clamped),
+                destination = if (isHomeWidget) it.destination else LauncherDestination.Widgets(clamped),
                 lastWidgetPage = clamped,
                 widgetIds = widgetStore.widgetIds,
+                homeWidgetIds = widgetStore.homeWidgetIds,
                 widgetPages = widgetPages,
                 widgetHeights = widgetStore.customHeights,
                 widgetProviderLabels = widgetStore.providerLabels,
@@ -3832,15 +3941,17 @@ internal class LauncherViewModel(
 
     fun removeWidget(appWidgetId: Int) {
         LauncherDebugLog.event("removeWidget appWidgetId=%s", appWidgetId)
+        val isHomeWidget = appWidgetId in widgetStore.homeWidgetIds
         widgetStore.remove(appWidgetId)
         _uiState.update {
             val widgetPages = widgetStore.widgetPages
             val current = (it.destination as? LauncherDestination.Widgets)?.pageIndex ?: it.lastWidgetPage
             val clamped = current.coerceInWidgetPages(widgetPages)
             it.copy(
-                destination = LauncherDestination.Widgets(clamped),
+                destination = if (isHomeWidget) it.destination else LauncherDestination.Widgets(clamped),
                 lastWidgetPage = clamped,
                 widgetIds = widgetStore.widgetIds,
+                homeWidgetIds = widgetStore.homeWidgetIds,
                 widgetPages = widgetPages,
                 widgetHeights = widgetStore.customHeights,
                 widgetProviderLabels = widgetStore.providerLabels,
@@ -3867,6 +3978,7 @@ internal class LauncherViewModel(
         _uiState.update {
             it.copy(
                 widgetIds = widgetStore.widgetIds,
+                homeWidgetIds = widgetStore.homeWidgetIds,
                 widgetPages = widgetStore.widgetPages,
                 widgetHeights = widgetStore.customHeights,
                 widgetProviderLabels = widgetStore.providerLabels,
@@ -3911,6 +4023,10 @@ internal class LauncherViewModel(
     }
 
     fun openSettings() {
+        // Settings replaces Home wholesale, which counts as leaving Home: end
+        // widget edit mode (and its picker) so closing Settings lands on the
+        // plain Home rather than a still-open editor.
+        stopEditingHomeWidgets()
         _uiState.update { it.copy(isSettingsOpen = true, isRecentsOpen = false) }
         logState("openSettings")
     }
@@ -5866,6 +5982,8 @@ internal class LauncherViewModel(
 private data class PendingWidgetPlacement(
     val pageIndex: Int,
     val addToNewPageAfterSelection: Boolean,
+    // The widget joins Home's own set; pageIndex is then unused.
+    val toHome: Boolean = false,
 )
 
 private fun Int.coerceInWidgetPages(widgetPages: List<List<Int>>): Int =

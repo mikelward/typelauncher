@@ -305,6 +305,10 @@ internal fun TypeLauncherApp(
         onKeyboardAutoShownChanged = viewModel::setKeyboardAutoShown,
         onWallpaperShownChanged = viewModel::setWallpaperShown,
         onChangeWallpaper = viewModel::openWallpaperPicker,
+        onHomeWidgetsShownChanged = viewModel::setHomeWidgetsShown,
+        onEditHomeWidgets = viewModel::startEditingHomeWidgets,
+        onStopEditingHomeWidgets = viewModel::stopEditingHomeWidgets,
+        onAddHomeWidget = viewModel::showHomeWidgetPicker,
         onAgendaEnabledChanged = viewModel::setAgendaEnabled,
         onContactSearchEnabledChanged = onContactSearchEnabledChanged,
         onCalendarSearchEnabledChanged = onCalendarSearchEnabledChanged,
@@ -402,6 +406,10 @@ internal fun TypeLauncherApp(
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onWallpaperShownChanged: (Boolean) -> Unit = {},
     onChangeWallpaper: () -> Unit = {},
+    onHomeWidgetsShownChanged: (Boolean) -> Unit = {},
+    onEditHomeWidgets: () -> Unit = {},
+    onStopEditingHomeWidgets: () -> Unit = {},
+    onAddHomeWidget: () -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onContactSearchEnabledChanged: (Boolean) -> Unit = {},
     onCalendarSearchEnabledChanged: (Boolean) -> Unit = {},
@@ -467,15 +475,19 @@ internal fun TypeLauncherApp(
     // handler swallow Back on those pages instead of their own back behavior.
     val contactActionsOnHome = state.contactActionsMode != null &&
         state.destination is LauncherDestination.Home
+    // Back leaves Home widget edit mode (after closing its picker, above).
+    val editingHomeWidgetsOnHome = state.isEditingHomeWidgets &&
+        state.destination is LauncherDestination.Home
     BackHandler(
         enabled = state.isSettingsOpen || state.isAddingWidget || state.isRecentsOpen ||
-            contactActionsOnHome,
+            contactActionsOnHome || editingHomeWidgetsOnHome,
     ) {
         when {
             state.isSettingsOpen -> onCloseSettings()
             state.isAddingWidget -> onDismissWidgetPicker()
             // Pop the in-list contact-actions mode: step two → step one → out.
             contactActionsOnHome -> onContactActionsBack()
+            editingHomeWidgetsOnHome -> onStopEditingHomeWidgets()
             else -> onSetRecentsOpen(false)
         }
     }
@@ -878,6 +890,8 @@ internal fun TypeLauncherApp(
                         onKeyboardAutoShownChanged = onKeyboardAutoShownChanged,
                         onWallpaperShownChanged = onWallpaperShownChanged,
                         onChangeWallpaper = onChangeWallpaper,
+                        onHomeWidgetsShownChanged = onHomeWidgetsShownChanged,
+                        onEditHomeWidgets = onEditHomeWidgets,
                         onAgendaEnabledChanged = onAgendaEnabledChanged,
                         onContactSearchEnabledChanged = onContactSearchEnabledChanged,
                         onCalendarSearchEnabledChanged = onCalendarSearchEnabledChanged,
@@ -1020,6 +1034,17 @@ internal fun TypeLauncherApp(
                                 dockSuppressedByKeyboard = dockSuppressedByKeyboard,
                                 searchPlaceholderSuffix = searchPlaceholderSuffix,
                                 keyboardShowRequests = keyboardShowRequests,
+                                appWidgetHost = appWidgetHost,
+                                appWidgetManager = appWidgetManager,
+                                onStartEditingHomeWidgets = onEditHomeWidgets,
+                                onStopEditingHomeWidgets = onStopEditingHomeWidgets,
+                                onAddHomeWidget = onAddHomeWidget,
+                                onDismissWidgetPicker = onDismissWidgetPicker,
+                                onSelectWidget = onSelectWidget,
+                                onRemoveWidget = onRemoveWidget,
+                                onRestoreWidget = onRestoreWidget,
+                                onResizeWidget = onResizeWidget,
+                                onMoveWidget = onMoveWidget,
                                 onQueryChanged = onQueryChanged,
                                 onClearQuery = onClearQuery,
                                 onLaunchActiveApp = onLaunchActiveApp,

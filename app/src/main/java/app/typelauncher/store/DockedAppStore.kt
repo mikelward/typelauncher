@@ -582,6 +582,18 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * When on, the empty-query Home shows the user's Home widget set in the
+     * app-list slot until the user starts typing. Opt-in, so it defaults off.
+     */
+    var isHomeWidgetsShown: Boolean
+        get() = sharedPreferences.getBoolean(KEY_SHOW_HOME_WIDGETS, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_SHOW_HOME_WIDGETS, value)
+                .apply()
+        }
+
+    /**
      * Last non-navigation-bar-inclusive IME bottom inset reported while the
      * keyboard was opening, paired with the configuration it was measured
      * under and the source that produced it. Used to reserve Home's
@@ -871,6 +883,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
         const val KEY_SHOW_WALLPAPER = "show_wallpaper"
+        const val KEY_SHOW_HOME_WIDGETS = "show_home_widgets"
         // Legacy wallpaper companions ("show_wallpaper_all_pages",
         // "card_opacity") may remain on disk after upgrade but are no longer
         // read: the wallpaper now always backs every page, at full card
