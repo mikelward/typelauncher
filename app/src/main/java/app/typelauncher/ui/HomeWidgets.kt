@@ -116,6 +116,8 @@ internal fun HomeWidgets(
             }
             return@Box
         }
+        // Landscape doubles the columns a row holds (see widgetGridRowColumns).
+        val rowColumns = currentWidgetGridRowColumns()
         Column(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
@@ -135,7 +137,7 @@ internal fun HomeWidgets(
                 // Grid rows: widgets narrower than a row share it (see
                 // widgetGridRows). Each card stays keyed by its own ID, so a
                 // reflow only re-hosts widgets that actually change rows.
-                widgetGridRows(widgetIds, widgetSpans).forEach { row ->
+                widgetGridRows(widgetIds, widgetSpans, rowColumns).forEach { row ->
                     key(row.key) {
                         WidgetGridRowLayout(row = row, modifier = Modifier.fillMaxWidth()) {
                             row.cells.forEach { cell ->

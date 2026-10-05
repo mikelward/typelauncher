@@ -157,6 +157,8 @@ internal fun WidgetsScreen(
     // flash). See the parameter's doc on HostedWidgetCard for why this is
     // plain state rather than rememberSaveable.
     val resolvedProviderInfos = remember { mutableStateMapOf<Int, AppWidgetProviderInfo?>() }
+    // Landscape doubles the columns a row holds (see widgetGridRowColumns).
+    val rowColumns = currentWidgetGridRowColumns()
     LazyColumn(
         state = listState,
         modifier = Modifier
@@ -173,7 +175,7 @@ internal fun WidgetsScreen(
         // (see widgetGridRows). Keyed by the row's lead widget, and each card
         // by its own ID inside, so a resize that reflows rows only re-hosts the
         // widgets that actually change rows.
-        val rows = widgetGridRows(widgetIds, widgetSpans)
+        val rows = widgetGridRows(widgetIds, widgetSpans, rowColumns)
         items(rows, key = { row -> row.key }) { row ->
             WidgetGridRowLayout(row = row, modifier = Modifier.fillMaxWidth()) {
                 row.cells.forEach { cell ->
