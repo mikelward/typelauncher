@@ -163,6 +163,10 @@
     <string name="settings_wallpaper_title">배경화면</string>
     <string name="settings_change_wallpaper_button">변경</string>
     <string name="settings_change_wallpaper_button_description">배경화면 변경</string>
+    <string name="settings_home_widgets_title">홈 화면에 위젯 표시</string>
+    <string name="settings_home_widgets_edit_title">홈 위젯</string>
+    <string name="settings_home_widgets_edit_button">편집</string>
+    <string name="settings_home_widgets_edit_button_description">홈 위젯 편집</string>
     <string name="settings_wallpaper_picker_unavailable">배경화면 선택기를 사용할 수 없음</string>
     <string name="play_update_banner_restart_failed">설치를 위해 다시 시작할 수 없습니다</string>
     <string name="scroll_up_for_more_hint">위로 스크롤하면 더 볼 수 있습니다</string>

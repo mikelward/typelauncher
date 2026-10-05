@@ -164,6 +164,10 @@
     <string name="settings_wallpaper_title">کاغذدیواری</string>
     <string name="settings_change_wallpaper_button">تغییر</string>
     <string name="settings_change_wallpaper_button_description">تغییر کاغذدیواری</string>
+    <string name="settings_home_widgets_title">ابزارک‌ها در صفحه خانه</string>
+    <string name="settings_home_widgets_edit_title">ابزارک‌های صفحه خانه</string>
+    <string name="settings_home_widgets_edit_button">ویرایش</string>
+    <string name="settings_home_widgets_edit_button_description">ویرایش ابزارک‌های صفحه خانه</string>
     <string name="settings_wallpaper_picker_unavailable">انتخابگر کاغذدیواری در دسترس نیست</string>
     <string name="play_update_banner_restart_failed">راه‌اندازی مجدد برای نصب ممکن نشد</string>
     <string name="scroll_up_for_more_hint">برای دیدن موارد بیشتر به بالا بروید</string>

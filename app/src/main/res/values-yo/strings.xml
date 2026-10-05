@@ -163,6 +163,10 @@
     <string name="settings_wallpaper_title">Aworan abẹ́lẹ̀</string>
     <string name="settings_change_wallpaper_button">Yí padà</string>
     <string name="settings_change_wallpaper_button_description">Yí aworan abẹ́lẹ̀ padà</string>
+    <string name="settings_home_widgets_title">Àwọn wíjẹ́ẹ̀tì lórí ojú ilé</string>
+    <string name="settings_home_widgets_edit_title">Àwọn wíjẹ́ẹ̀tì ojú ilé</string>
+    <string name="settings_home_widgets_edit_button">Ṣàtúnṣe</string>
+    <string name="settings_home_widgets_edit_button_description">Ṣàtúnṣe àwọn wíjẹ́ẹ̀tì ojú ilé</string>
     <string name="settings_wallpaper_picker_unavailable">Kò sí aṣàyàn aworan abẹ́lẹ̀</string>
     <string name="play_update_banner_restart_failed">Kò lè tún bẹ̀rẹ̀ láti fi sórí ẹ̀rọ</string>
     <string name="scroll_up_for_more_hint">Yí sókè fún àfikún</string>

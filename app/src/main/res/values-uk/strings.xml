@@ -166,6 +166,10 @@
     <string name="settings_wallpaper_title">Шпалери</string>
     <string name="settings_change_wallpaper_button">Змінити</string>
     <string name="settings_change_wallpaper_button_description">Змінити шпалери</string>
+    <string name="settings_home_widgets_title">Віджети на головному екрані</string>
+    <string name="settings_home_widgets_edit_title">Віджети головного екрана</string>
+    <string name="settings_home_widgets_edit_button">Редагувати</string>
+    <string name="settings_home_widgets_edit_button_description">Редагувати віджети головного екрана</string>
     <string name="settings_wallpaper_picker_unavailable">Засіб вибору шпалер недоступний</string>
     <string name="play_update_banner_restart_failed">Не вдалося перезапустити для встановлення</string>
     <string name="scroll_up_for_more_hint">Прокрутіть угору, щоб побачити більше</string>

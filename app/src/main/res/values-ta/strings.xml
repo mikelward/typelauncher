@@ -164,6 +164,10 @@
     <string name="settings_wallpaper_title">வால்பேப்பர்</string>
     <string name="settings_change_wallpaper_button">மாற்று</string>
     <string name="settings_change_wallpaper_button_description">வால்பேப்பரை மாற்று</string>
+    <string name="settings_home_widgets_title">முகப்புத் திரையில் விட்ஜெட்டுகள்</string>
+    <string name="settings_home_widgets_edit_title">முகப்பு விட்ஜெட்டுகள்</string>
+    <string name="settings_home_widgets_edit_button">திருத்து</string>
+    <string name="settings_home_widgets_edit_button_description">முகப்பு விட்ஜெட்டுகளைத் திருத்து</string>
     <string name="settings_wallpaper_picker_unavailable">வால்பேப்பர் தேர்வி கிடைக்கவில்லை</string>
     <string name="play_update_banner_restart_failed">நிறுவுவதற்கு மறுதொடக்கம் செய்ய முடியவில்லை</string>
     <string name="scroll_up_for_more_hint">மேலும் பார்க்க மேலே ஸ்க்ரோல் செய்யவும்</string>

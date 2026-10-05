@@ -164,6 +164,10 @@
     <string name="settings_wallpaper_title">Isithombe sangemuva</string>
     <string name="settings_change_wallpaper_button">Shintsha</string>
     <string name="settings_change_wallpaper_button_description">Shintsha isithombe sangemuva</string>
+    <string name="settings_home_widgets_title">Amawijethi esikrinini sasekhaya</string>
+    <string name="settings_home_widgets_edit_title">Amawijethi asekhaya</string>
+    <string name="settings_home_widgets_edit_button">Hlela</string>
+    <string name="settings_home_widgets_edit_button_description">Hlela amawijethi asekhaya</string>
     <string name="settings_wallpaper_picker_unavailable">Isikhethi sesithombe sangemuva asitholakali</string>
     <string name="play_update_banner_restart_failed">Ayikwazanga ukuqala kabusha ukuze ifakwe</string>
     <string name="scroll_up_for_more_hint">Skrolela phezulu ukuze ubone okwengeziwe</string>

@@ -164,6 +164,10 @@
     <string name="settings_wallpaper_title">Bakgrunnsbilde</string>
     <string name="settings_change_wallpaper_button">Endre</string>
     <string name="settings_change_wallpaper_button_description">Endre bakgrunnsbilde</string>
+    <string name="settings_home_widgets_title">Widgeter på startskjermen</string>
+    <string name="settings_home_widgets_edit_title">Startskjermwidgeter</string>
+    <string name="settings_home_widgets_edit_button">Rediger</string>
+    <string name="settings_home_widgets_edit_button_description">Rediger startskjermwidgeter</string>
     <string name="settings_wallpaper_picker_unavailable">Bakgrunnsvelger er utilgjengelig</string>
     <string name="play_update_banner_restart_failed">Kunne ikke starte på nytt for å installere</string>
     <string name="scroll_up_for_more_hint">Rull opp for å se mer</string>

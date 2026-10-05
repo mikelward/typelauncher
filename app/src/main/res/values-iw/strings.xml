@@ -166,6 +166,10 @@
     <string name="settings_wallpaper_title">טפט</string>
     <string name="settings_change_wallpaper_button">שינוי</string>
     <string name="settings_change_wallpaper_button_description">שינוי הטפט</string>
+    <string name="settings_home_widgets_title">ווידג\'טים במסך הבית</string>
+    <string name="settings_home_widgets_edit_title">ווידג\'טים במסך הבית</string>
+    <string name="settings_home_widgets_edit_button">עריכה</string>
+    <string name="settings_home_widgets_edit_button_description">עריכת הווידג\'טים במסך הבית</string>
     <string name="settings_wallpaper_picker_unavailable">בורר הטפטים אינו זמין</string>
     <string name="play_update_banner_restart_failed">לא ניתן היה להפעיל מחדש כדי להתקין</string>
     <string name="scroll_up_for_more_hint">גלול למעלה לעוד</string>

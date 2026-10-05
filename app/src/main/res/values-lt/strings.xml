@@ -166,6 +166,10 @@
     <string name="settings_wallpaper_title">Fonas</string>
     <string name="settings_change_wallpaper_button">Keisti</string>
     <string name="settings_change_wallpaper_button_description">Keisti foną</string>
+    <string name="settings_home_widgets_title">Valdikliai pagrindiniame ekrane</string>
+    <string name="settings_home_widgets_edit_title">Pagrindinio ekrano valdikliai</string>
+    <string name="settings_home_widgets_edit_button">Redaguoti</string>
+    <string name="settings_home_widgets_edit_button_description">Redaguoti pagrindinio ekrano valdiklius</string>
     <string name="settings_wallpaper_picker_unavailable">Fono parinkiklis nepasiekiamas</string>
     <string name="play_update_banner_restart_failed">Nepavyko paleisti iš naujo, kad būtų įdiegta</string>
     <string name="scroll_up_for_more_hint">Slinkite aukštyn, kad pamatytumėte daugiau</string>

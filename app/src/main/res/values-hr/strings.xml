@@ -165,6 +165,10 @@
     <string name="settings_wallpaper_title">Pozadina</string>
     <string name="settings_change_wallpaper_button">Promijeni</string>
     <string name="settings_change_wallpaper_button_description">Promijeni pozadinu</string>
+    <string name="settings_home_widgets_title">Widgeti na početnom zaslonu</string>
+    <string name="settings_home_widgets_edit_title">Widgeti početnog zaslona</string>
+    <string name="settings_home_widgets_edit_button">Uredi</string>
+    <string name="settings_home_widgets_edit_button_description">Uredi widgete početnog zaslona</string>
     <string name="settings_wallpaper_picker_unavailable">Odabir pozadine nije dostupan</string>
     <string name="play_update_banner_restart_failed">Ponovno pokretanje radi instalacije nije uspjelo</string>
     <string name="scroll_up_for_more_hint">Pomaknite se gore za više</string>

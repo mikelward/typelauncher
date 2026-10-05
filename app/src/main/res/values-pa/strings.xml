@@ -164,6 +164,10 @@
     <string name="settings_wallpaper_title">ਵਾਲਪੇਪਰ</string>
     <string name="settings_change_wallpaper_button">ਬਦਲੋ</string>
     <string name="settings_change_wallpaper_button_description">ਵਾਲਪੇਪਰ ਬਦਲੋ</string>
+    <string name="settings_home_widgets_title">ਹੋਮ ਸਕ੍ਰੀਨ \'ਤੇ ਵਿਜੇਟ</string>
+    <string name="settings_home_widgets_edit_title">ਹੋਮ ਵਿਜੇਟ</string>
+    <string name="settings_home_widgets_edit_button">ਸੰਪਾਦਿਤ ਕਰੋ</string>
+    <string name="settings_home_widgets_edit_button_description">ਹੋਮ ਵਿਜੇਟਾਂ ਨੂੰ ਸੰਪਾਦਿਤ ਕਰੋ</string>
     <string name="settings_wallpaper_picker_unavailable">ਵਾਲਪੇਪਰ ਚੋਣਕਾਰ ਉਪਲਬਧ ਨਹੀਂ</string>
     <string name="play_update_banner_restart_failed">ਸਥਾਪਤ ਕਰਨ ਲਈ ਮੁੜ-ਚਾਲੂ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ</string>
     <string name="scroll_up_for_more_hint">ਹੋਰ ਲਈ ਉੱਪਰ ਸਕ੍ਰੋਲ ਕਰੋ</string>

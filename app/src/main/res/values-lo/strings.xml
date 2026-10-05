@@ -163,6 +163,10 @@
     <string name="settings_wallpaper_title">ພາບພື້ນຫຼັງ</string>
     <string name="settings_change_wallpaper_button">ປ່ຽນ</string>
     <string name="settings_change_wallpaper_button_description">ປ່ຽນພາບພື້ນຫຼັງ</string>
+    <string name="settings_home_widgets_title">ວິດເຈັດຢູ່ໜ້າຈໍຫຼັກ</string>
+    <string name="settings_home_widgets_edit_title">ວິດເຈັດໜ້າຈໍຫຼັກ</string>
+    <string name="settings_home_widgets_edit_button">ແກ້ໄຂ</string>
+    <string name="settings_home_widgets_edit_button_description">ແກ້ໄຂວິດເຈັດໜ້າຈໍຫຼັກ</string>
     <string name="settings_wallpaper_picker_unavailable">ບໍ່ມີຕົວເລືອກພາບພື້ນຫຼັງ</string>
     <string name="play_update_banner_restart_failed">ບໍ່ສາມາດເລີ່ມຕົ້ນໃໝ່ເພື່ອຕິດຕັ້ງໄດ້</string>
     <string name="scroll_up_for_more_hint">ເລື່ອນຂຶ້ນເພື່ອເບິ່ງເພີ່ມເຕີມ</string>

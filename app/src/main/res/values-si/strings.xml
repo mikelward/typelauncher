@@ -164,6 +164,10 @@
     <string name="settings_wallpaper_title">බිතුපත</string>
     <string name="settings_change_wallpaper_button">වෙනස් කරන්න</string>
     <string name="settings_change_wallpaper_button_description">බිතුපත වෙනස් කරන්න</string>
+    <string name="settings_home_widgets_title">මුල් තිරයේ විජට්</string>
+    <string name="settings_home_widgets_edit_title">මුල් විජට්</string>
+    <string name="settings_home_widgets_edit_button">සංස්කරණය</string>
+    <string name="settings_home_widgets_edit_button_description">මුල් විජට් සංස්කරණය කරන්න</string>
     <string name="settings_wallpaper_picker_unavailable">බිතුපත තෝරනය නොමැත</string>
     <string name="play_update_banner_restart_failed">ස්ථාපනය කිරීමට යළි ආරම්භ කළ නොහැකි විය</string>
     <string name="scroll_up_for_more_hint">තව බැලීමට ඉහළට අනුචලනය කරන්න</string>

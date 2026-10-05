@@ -165,6 +165,10 @@
     <string name="settings_wallpaper_title">Fons de pantalla</string>
     <string name="settings_change_wallpaper_button">Canvia</string>
     <string name="settings_change_wallpaper_button_description">Canvia el fons de pantalla</string>
+    <string name="settings_home_widgets_title">Widgets a la pantalla d\'inici</string>
+    <string name="settings_home_widgets_edit_title">Widgets d\'inici</string>
+    <string name="settings_home_widgets_edit_button">Edita</string>
+    <string name="settings_home_widgets_edit_button_description">Edita els widgets d\'inici</string>
     <string name="settings_wallpaper_picker_unavailable">El selector de fons de pantalla no està disponible</string>
     <string name="play_update_banner_restart_failed">No s\'ha pogut reiniciar per instal·lar</string>
     <string name="scroll_up_for_more_hint">Desplaça amunt per veure\'n més</string>

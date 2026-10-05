@@ -163,6 +163,10 @@
     <string name="settings_wallpaper_title">Hình nền</string>
     <string name="settings_change_wallpaper_button">Thay đổi</string>
     <string name="settings_change_wallpaper_button_description">Thay đổi hình nền</string>
+    <string name="settings_home_widgets_title">Tiện ích trên màn hình chính</string>
+    <string name="settings_home_widgets_edit_title">Tiện ích màn hình chính</string>
+    <string name="settings_home_widgets_edit_button">Chỉnh sửa</string>
+    <string name="settings_home_widgets_edit_button_description">Chỉnh sửa tiện ích màn hình chính</string>
     <string name="settings_wallpaper_picker_unavailable">Không có ứng dụng chọn hình nền</string>
     <string name="play_update_banner_restart_failed">Không thể khởi động lại để cài đặt</string>
     <string name="scroll_up_for_more_hint">Cuộn lên để xem thêm</string>
