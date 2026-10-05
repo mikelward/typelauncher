@@ -121,6 +121,25 @@
         </activity>
 
         <!--
+            Accepts pin-shortcut requests (a browser's "Add to Home screen", or a
+            PWA installed as a shortcut) so the page joins the app list. No UI.
+            Its own empty task affinity keeps it from bringing Home forward over
+            the browser that asked. Handles every configuration change itself
+            so a rotation doesn't recreate it mid-accept.
+        -->
+        <activity
+            android:name=".PinShortcutActivity"
+            android:configChanges="colorMode|density|fontScale|grammaticalGender|keyboard|keyboardHidden|layoutDirection|locale|mcc|mnc|navigation|orientation|screenLayout|screenSize|smallestScreenSize|touchscreen|uiMode"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.content.pm.action.CONFIRM_PIN_SHORTCUT" />
+            </intent-filter>
+        </activity>
+
+        <!--
             Applies the platform's old→new widget ID translation after a backup
             restore. Delivered even when the launcher isn't running, so it must
             be a manifest receiver. exported="true" is required for the system

@@ -46,6 +46,24 @@
     <string name="app_menu_uninstall" tools:ignore="MissingTranslation">Uninstall</string>
     <!-- TODO: translate -->
     <string name="app_menu_uninstall_unavailable" tools:ignore="MissingTranslation">Can\'t uninstall this app</string>
+    <!-- TODO: translate -->
+    <string name="app_menu_remove_shortcut" tools:ignore="MissingTranslation">Remove</string>
+    <!-- TODO: translate -->
+    <string name="app_menu_shortcut_unavailable" tools:ignore="MissingTranslation">Can\'t open this shortcut right now</string>
+    <!-- TODO: translate -->
+    <string name="app_menu_remove_shortcut_failed" tools:ignore="MissingTranslation">Couldn\'t remove this shortcut</string>
+    <!-- TODO: translate -->
+    <string name="shortcut_already_listed" tools:ignore="MissingTranslation">Already in app list</string>
+    <!-- TODO: translate -->
+    <string name="pin_shortcut_dialog_title" tools:ignore="MissingTranslation">Add to app list?</string>
+    <!-- TODO: translate -->
+    <string name="pin_shortcut_dialog_add" tools:ignore="MissingTranslation">Add</string>
+    <!-- TODO: translate -->
+    <string name="pin_shortcut_dialog_cancel" tools:ignore="MissingTranslation">Cancel</string>
+    <!-- TODO: translate -->
+    <string name="shortcut_pinned" tools:ignore="MissingTranslation">Added to app list</string>
+    <!-- TODO: translate -->
+    <string name="shortcut_pin_failed" tools:ignore="MissingTranslation">Couldn\'t add shortcut</string>
     <string name="app_menu_move_out">Move out</string>
     <string name="app_menu_open_folder">Open folder</string>
     <!-- TODO: rename the "explode" code symbols (app_menu_explode, explodeFolder,

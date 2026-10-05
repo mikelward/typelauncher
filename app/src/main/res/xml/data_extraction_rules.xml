@@ -1,14 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Type Launcher currently relies on Android's default cloud-backup include set.
-   Add explicit include/exclude rules here only when product behavior requires
-   custom backup scope.
+   Type Launcher relies on Android's default cloud-backup and device-transfer
+   include sets, with one exclusion. Add explicit include/exclude rules here
+   only when product behavior requires custom backup scope.
 -->
 <data-extraction-rules>
-    <cloud-backup />
-    <!--
+    <cloud-backup>
+        <!--
+            The cold-start app-list snapshot. A cache the device rebuilds on
+            its first load, so restoring it buys nothing, and it holds pinned
+            shortcuts' raw ids, which a browser may set to the page's URL —
+            browsing data that must not leave the device.
+        -->
+        <exclude domain="sharedpref" path="app_metadata.xml" />
+    </cloud-backup>
+    <!-- Same exclusion, same reason, for device-to-device transfer. -->
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="sharedpref" path="app_metadata.xml" />
     </device-transfer>
-    -->
 </data-extraction-rules>

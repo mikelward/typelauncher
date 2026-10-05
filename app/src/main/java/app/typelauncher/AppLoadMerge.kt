@@ -114,7 +114,9 @@ internal fun attributeFallbackApps(
     return FallbackAttribution(
         inventories = inventories + (
             personalUser to ProfileInventory(
-                apps = fallbackApps,
+                // The profile read's pinned shortcuts stand: the fallback is
+                // standing in for its activities only.
+                apps = fallbackApps + inventories.getValue(personalUser).apps.filter { app -> app.isShortcut },
                 isQuietModeKnown = isPersonalQuietModeKnown,
             )
             ),

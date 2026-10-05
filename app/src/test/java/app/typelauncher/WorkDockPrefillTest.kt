@@ -194,6 +194,29 @@ class WorkDockPrefillTest {
         assertEquals(workTeams.id, store.dockedAppIds[1])
     }
 
+    @Test
+    fun neverSeedsAPinnedShortcutFromAnyTier() {
+        // A pinned page shares its browser's package; launched often, or
+        // docked on the personal side, it must still not seed the work dock.
+        val store = workStore()
+        val stats = AppLaunchStatsStore(context)
+        val workPage = workApp("com.slack.app").copy(
+            launchIntent = Intent().setPackage("com.slack.app"),
+            shortcutId = "page-1",
+        )
+        repeat(5) { stats.recordLaunch(workPage.id) }
+
+        prefillWorkDock(
+            installedApps = listOf(workPage),
+            personalDockedIds = setOf(workPage.id),
+            appLaunchStatsStore = stats,
+            workDockStore = store,
+            maxSlots = 4,
+        )
+
+        assertTrue(store.dockedAppIds.isEmpty())
+    }
+
     private fun workStore(): DockedAppStore =
         DockedAppStore(context, DockedAppStore.WORK_PREFERENCES_NAME)
 

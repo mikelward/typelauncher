@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.UserHandle
 import android.provider.Settings
 import androidx.compose.runtime.Immutable
+import java.security.MessageDigest
 
 // Compose can't infer stability through `Intent` / `UserHandle`, so it
 // otherwise marks every parameter typed as `InstalledApp` (or any list of
@@ -62,9 +63,25 @@ internal data class InstalledApp(
     // outcome the user may want. Defaults to true so the common case (an
     // ordinary installed app) needs no argument.
     val isUninstallable: Boolean = true,
+    // Set when this entry is a shortcut the user pinned through Android's
+    // pin-shortcut flow (a browser's "Add to Home screen", or a PWA installed
+    // without a WebAPK) rather than a launcher activity. [packageName] is then
+    // the app that published it — the browser — and the entry launches through
+    // `LauncherApps.startShortcut` instead of [launchIntent].
+    val shortcutId: String? = null,
 ) {
-    val id: String
-        get() = "${user.hashCode()}:${launchIntent.component?.flattenToString() ?: packageName}"
+    val isShortcut: Boolean
+        get() = shortcutId != null
+
+    // Computed once per instance rather than in a getter: a shortcut's id is
+    // a SHA-256 digest, and ids are read inside the search sort's comparators
+    // on the main thread. Every field it reads is a constructor `val`, and
+    // `copy()` builds a new instance, so it can't go stale.
+    val id: String = if (shortcutId != null) {
+        pinnedShortcutEntryId(user, packageName, shortcutId)
+    } else {
+        "${user.hashCode()}:${launchIntent.component?.flattenToString() ?: packageName}"
+    }
 
     // Cache identity for AppIconLoader / IconSnapshotStore. Layered so the
     // system-icon variant and a user-supplied override variant occupy
@@ -182,3 +199,30 @@ internal data class InstalledApp(
 
     override fun toString(): String = name
 }
+
+/**
+ * [InstalledApp.id] of the entry a pinned shortcut becomes. The shortcut id is
+ * the publisher's own string, and a browser may use the page's URL for it, so
+ * it is never embedded: the id carries a one-way digest of it (SHA-256,
+ * truncated to 128 bits, hex). That keeps browsing data out of every store and
+ * diagnostic that records app ids — the dock list a bug report includes, for
+ * one — and also keeps the stores' newline delimiter out of the id. The
+ * package is a validated Android package name and is kept readable, as it is
+ * for apps. The raw id stays on [InstalledApp.shortcutId] for `LauncherApps`.
+ */
+internal fun pinnedShortcutEntryId(user: UserHandle, packageName: String, shortcutId: String): String {
+    // Hashes the raw UTF-16 code units, two bytes each, rather than an
+    // encoded form: a charset encoder replaces an unpaired surrogate, which
+    // would give two distinct publisher ids the same entry.
+    val units = ByteArray(shortcutId.length * 2)
+    shortcutId.forEachIndexed { index, char ->
+        units[index * 2] = (char.code shr 8).toByte()
+        units[index * 2 + 1] = char.code.toByte()
+    }
+    val digest = MessageDigest.getInstance("SHA-256").digest(units)
+    val opaque = digest.take(16).joinToString("") { byte -> "%02x".format(byte) }
+    return "${user.hashCode()}:shortcut:$packageName/$opaque"
+}
+
+/** Whether an [InstalledApp.id] (or an icon cache id built on one) is a pinned shortcut's. */
+internal fun isPinnedShortcutCacheId(id: String): Boolean = id.contains(":shortcut:")

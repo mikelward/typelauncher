@@ -9,6 +9,7 @@ import android.net.Uri
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -3143,6 +3144,12 @@ private fun DockFolderMemberTile(
     )
 }
 
+// The menu's last, destructive action: a pinned shortcut is unpinned
+// ("Remove"), never uninstalled — its package is the browser that made it.
+@StringRes
+internal fun uninstallActionLabel(app: InstalledApp): Int =
+    if (app.isShortcut) R.string.app_menu_remove_shortcut else R.string.app_menu_uninstall
+
 @Composable
 private fun DockFolderMemberActionsMenu(
     expanded: Boolean,
@@ -3207,7 +3214,7 @@ private fun DockFolderMemberActionsMenu(
         // Same placement and same omission rule as AppActionsMenu.
         if (app.isUninstallable) {
             DropdownMenuItem(
-                text = { LauncherMenuItemText(stringResource(R.string.app_menu_uninstall)) },
+                text = { LauncherMenuItemText(stringResource(uninstallActionLabel(app))) },
                 modifier = Modifier.testTag("$UNINSTALL_APP_ACTION_TAG:${app.displayName}"),
                 onClick = {
                     onDismiss()
@@ -5405,7 +5412,7 @@ private fun AppActionsMenu(
         // app), rather than offering a tap the system would refuse.
         if (app.isUninstallable) {
             DropdownMenuItem(
-                text = { LauncherMenuItemText(stringResource(R.string.app_menu_uninstall)) },
+                text = { LauncherMenuItemText(stringResource(uninstallActionLabel(app))) },
                 modifier = Modifier.testTag("$UNINSTALL_APP_ACTION_TAG:${app.displayName}"),
                 onClick = {
                     onDismiss()
