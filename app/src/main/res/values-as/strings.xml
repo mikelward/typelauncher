@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">আকাৰ সলনি কৰক</string>
     <string name="widget_menu_move_up">ওপৰলৈ নিয়ক</string>
     <string name="widget_menu_move_down">তললৈ নিয়ক</string>
+    <string name="widget_menu_wider">বহল কৰক</string>
+    <string name="widget_menu_narrower">ঠেক কৰক</string>
     <string name="widget_menu_remove">আঁতৰাওক</string>
     <string name="widget_resize_handle_description">উইজেটৰ আকাৰ সলনি কৰিবলৈ টানক</string>
+    <string name="widget_resize_width_handle_description">উইজেটৰ প্ৰস্থ সলনি কৰিবলৈ টানক</string>
     <string name="navigate_to_agenda">এজেণ্ডা খোলক</string>
     <string name="navigate_to_home">হোমলৈ উভতি যাওক</string>
     <string name="calendar_permission_required_title">কেলেণ্ডাৰৰ অনুমতি প্ৰয়োজন</string>

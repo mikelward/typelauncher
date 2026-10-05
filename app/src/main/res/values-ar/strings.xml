@@ -89,8 +89,11 @@
     <string name="widget_menu_resize">تغيير الحجم</string>
     <string name="widget_menu_move_up">نقل لأعلى</string>
     <string name="widget_menu_move_down">نقل لأسفل</string>
+    <string name="widget_menu_wider">أعرض</string>
+    <string name="widget_menu_narrower">أضيق</string>
     <string name="widget_menu_remove">إزالة</string>
     <string name="widget_resize_handle_description">اسحب لتغيير حجم الأداة</string>
+    <string name="widget_resize_width_handle_description">اسحب لتغيير عرض الأداة</string>
     <string name="navigate_to_agenda">فتح الأجندة</string>
     <string name="navigate_to_home">العودة إلى الشاشة الرئيسية</string>
     <string name="calendar_permission_required_title">إذن التقويم مطلوب</string>

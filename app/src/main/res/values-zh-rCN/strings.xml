@@ -84,8 +84,11 @@
     <string name="widget_menu_resize">调整大小</string>
     <string name="widget_menu_move_up">上移</string>
     <string name="widget_menu_move_down">下移</string>
+    <string name="widget_menu_wider">加宽</string>
+    <string name="widget_menu_narrower">变窄</string>
     <string name="widget_menu_remove">移除</string>
     <string name="widget_resize_handle_description">拖动以调整小部件大小</string>
+    <string name="widget_resize_width_handle_description">拖动以调整小部件宽度</string>
     <string name="navigate_to_agenda">打开日程</string>
     <string name="navigate_to_home">返回主页</string>
     <string name="calendar_permission_required_title">需要日历权限</string>

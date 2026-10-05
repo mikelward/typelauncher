@@ -86,8 +86,11 @@
     <string name="widget_menu_resize">Redimensiona</string>
     <string name="widget_menu_move_up">Mou amunt</string>
     <string name="widget_menu_move_down">Mou avall</string>
+    <string name="widget_menu_wider">Més ample</string>
+    <string name="widget_menu_narrower">Més estret</string>
     <string name="widget_menu_remove">Elimina</string>
     <string name="widget_resize_handle_description">Arrossega per redimensionar el widget</string>
+    <string name="widget_resize_width_handle_description">Arrossega per canviar l\'amplada del widget</string>
     <string name="navigate_to_agenda">Obre l\'agenda</string>
     <string name="navigate_to_home">Torna a l\'inici</string>
     <string name="calendar_permission_required_title">Cal permís de calendari</string>

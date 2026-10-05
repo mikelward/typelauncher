@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">መጠን ቀይር</string>
     <string name="widget_menu_move_up">ወደ ላይ አንቀሳቅስ</string>
     <string name="widget_menu_move_down">ወደ ታች አንቀሳቅስ</string>
+    <string name="widget_menu_wider">አስፋ</string>
+    <string name="widget_menu_narrower">አጥብብ</string>
     <string name="widget_menu_remove">አስወግድ</string>
     <string name="widget_resize_handle_description">የዊጅት መጠን ለመቀየር ይጎትቱ</string>
+    <string name="widget_resize_width_handle_description">የዊጅት ስፋት ለመቀየር ይጎትቱ</string>
     <string name="navigate_to_agenda">አጀንዳን ክፈት</string>
     <string name="navigate_to_home">ወደ መነሻ ተመለስ</string>
     <string name="calendar_permission_required_title">የቀን መቁጠሪያ ፈቃድ ያስፈልጋል</string>

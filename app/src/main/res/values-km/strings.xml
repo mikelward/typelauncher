@@ -84,8 +84,11 @@
     <string name="widget_menu_resize">ប្តូរទំហំ</string>
     <string name="widget_menu_move_up">ផ្លាស់ទីឡើងលើ</string>
     <string name="widget_menu_move_down">ផ្លាស់ទីចុះក្រោម</string>
+    <string name="widget_menu_wider">ធំទូលាយជាង</string>
+    <string name="widget_menu_narrower">តូចចង្អៀតជាង</string>
     <string name="widget_menu_remove">លុប</string>
     <string name="widget_resize_handle_description">អូសដើម្បីប្តូរទំហំវិដជិត</string>
+    <string name="widget_resize_width_handle_description">អូសដើម្បីប្តូរទទឹងវិដជិត</string>
     <string name="navigate_to_agenda">បើកកាលវិភាគ</string>
     <string name="navigate_to_home">ត្រឡប់ទៅទំព័រដើម</string>
     <string name="calendar_permission_required_title">ត្រូវការការអនុញ្ញាតប្រតិទិន</string>

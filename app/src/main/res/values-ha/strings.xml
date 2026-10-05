@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">Sauya girma</string>
     <string name="widget_menu_move_up">Matsar sama</string>
     <string name="widget_menu_move_down">Matsar ƙasa</string>
+    <string name="widget_menu_wider">Ƙara faɗi</string>
+    <string name="widget_menu_narrower">Rage faɗi</string>
     <string name="widget_menu_remove">Cire</string>
     <string name="widget_resize_handle_description">Ja don sauya girman widget</string>
+    <string name="widget_resize_width_handle_description">Ja don sauya fadin widget</string>
     <string name="navigate_to_agenda">Bude ajanda</string>
     <string name="navigate_to_home">Koma gida</string>
     <string name="calendar_permission_required_title">Ana buƙatar izinin kalanda</string>

@@ -87,8 +87,11 @@
     <string name="widget_menu_resize">Изменить размер</string>
     <string name="widget_menu_move_up">Переместить вверх</string>
     <string name="widget_menu_move_down">Переместить вниз</string>
+    <string name="widget_menu_wider">Шире</string>
+    <string name="widget_menu_narrower">Уже</string>
     <string name="widget_menu_remove">Удалить</string>
     <string name="widget_resize_handle_description">Перетащите, чтобы изменить размер виджета</string>
+    <string name="widget_resize_width_handle_description">Перетащите, чтобы изменить ширину виджета</string>
     <string name="navigate_to_agenda">Открыть расписание</string>
     <string name="navigate_to_home">Вернуться на главный экран</string>
     <string name="calendar_permission_required_title">Требуется разрешение календаря</string>

@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">పరిమాణం మార్చు</string>
     <string name="widget_menu_move_up">పైకి జరుపు</string>
     <string name="widget_menu_move_down">కిందికి జరుపు</string>
+    <string name="widget_menu_wider">వెడల్పు పెంచు</string>
+    <string name="widget_menu_narrower">వెడల్పు తగ్గించు</string>
     <string name="widget_menu_remove">తీసివేయి</string>
     <string name="widget_resize_handle_description">విడ్జెట్ పరిమాణాన్ని మార్చడానికి లాగండి</string>
+    <string name="widget_resize_width_handle_description">విడ్జెట్ వెడల్పును మార్చడానికి లాగండి</string>
     <string name="navigate_to_agenda">అజెండాను తెరువు</string>
     <string name="navigate_to_home">హోమ్‌కు తిరిగి</string>
     <string name="calendar_permission_required_title">క్యాలెండర్ అనుమతి అవసరం</string>

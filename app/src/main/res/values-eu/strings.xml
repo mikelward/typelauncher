@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">Aldatu tamaina</string>
     <string name="widget_menu_move_up">Eraman gora</string>
     <string name="widget_menu_move_down">Eraman behera</string>
+    <string name="widget_menu_wider">Zabalagoa</string>
+    <string name="widget_menu_narrower">Estuagoa</string>
     <string name="widget_menu_remove">Kendu</string>
     <string name="widget_resize_handle_description">Arrastatu widgetaren tamaina aldatzeko</string>
+    <string name="widget_resize_width_handle_description">Arrastatu widgetaren zabalera aldatzeko</string>
     <string name="navigate_to_agenda">Ireki agenda</string>
     <string name="navigate_to_home">Itzuli hasierara</string>
     <string name="calendar_permission_required_title">Egutegirako baimena behar da</string>

@@ -86,8 +86,11 @@
     <string name="widget_menu_resize">Redimensionează</string>
     <string name="widget_menu_move_up">Mută în sus</string>
     <string name="widget_menu_move_down">Mută în jos</string>
+    <string name="widget_menu_wider">Mai lat</string>
+    <string name="widget_menu_narrower">Mai îngust</string>
     <string name="widget_menu_remove">Elimină</string>
     <string name="widget_resize_handle_description">Trageți pentru a redimensiona widget-ul</string>
+    <string name="widget_resize_width_handle_description">Trageți pentru a modifica lățimea widget-ului</string>
     <string name="navigate_to_agenda">Deschide agenda</string>
     <string name="navigate_to_home">Înapoi acasă</string>
     <string name="calendar_permission_required_title">Permisiune calendar necesară</string>

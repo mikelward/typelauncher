@@ -86,8 +86,11 @@
     <string name="widget_menu_resize">Redimensionar</string>
     <string name="widget_menu_move_up">Mover arriba</string>
     <string name="widget_menu_move_down">Mover abajo</string>
+    <string name="widget_menu_wider">Más ancho</string>
+    <string name="widget_menu_narrower">Más estrecho</string>
     <string name="widget_menu_remove">Eliminar</string>
     <string name="widget_resize_handle_description">Arrastra para redimensionar el widget</string>
+    <string name="widget_resize_width_handle_description">Arrastra para cambiar el ancho del widget</string>
     <string name="navigate_to_agenda">Abrir agenda</string>
     <string name="navigate_to_home">Volver al inicio</string>
     <string name="calendar_permission_required_title">Permiso de calendario requerido</string>

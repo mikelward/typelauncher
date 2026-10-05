@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">Badilisha ukubwa</string>
     <string name="widget_menu_move_up">Sogeza juu</string>
     <string name="widget_menu_move_down">Sogeza chini</string>
+    <string name="widget_menu_wider">Pana zaidi</string>
+    <string name="widget_menu_narrower">Embamba zaidi</string>
     <string name="widget_menu_remove">Ondoa</string>
     <string name="widget_resize_handle_description">Buruta ili kubadilisha ukubwa wa wijeti</string>
+    <string name="widget_resize_width_handle_description">Buruta ili kubadilisha upana wa wijeti</string>
     <string name="navigate_to_agenda">Fungua ratiba</string>
     <string name="navigate_to_home">Rudi nyumbani</string>
     <string name="calendar_permission_required_title">Ruhusa ya kalenda inahitajika</string>

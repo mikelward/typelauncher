@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">ප්‍රමාණය වෙනස් කරන්න</string>
     <string name="widget_menu_move_up">ඉහළට ගෙන යන්න</string>
     <string name="widget_menu_move_down">පහළට ගෙන යන්න</string>
+    <string name="widget_menu_wider">පළල් කරන්න</string>
+    <string name="widget_menu_narrower">පටු කරන්න</string>
     <string name="widget_menu_remove">ඉවත් කරන්න</string>
     <string name="widget_resize_handle_description">විජට් ප්‍රමාණය වෙනස් කිරීමට අදින්න</string>
+    <string name="widget_resize_width_handle_description">විජට් පළල වෙනස් කිරීමට අදින්න</string>
     <string name="navigate_to_agenda">න්‍යාය පත්‍රය විවෘත කරන්න</string>
     <string name="navigate_to_home">මුල් පිටුවට ආපසු</string>
     <string name="calendar_permission_required_title">දින දර්ශන අවසරය අවශ්‍යයි</string>

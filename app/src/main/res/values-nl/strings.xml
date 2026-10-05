@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">Formaat wijzigen</string>
     <string name="widget_menu_move_up">Omhoog verplaatsen</string>
     <string name="widget_menu_move_down">Omlaag verplaatsen</string>
+    <string name="widget_menu_wider">Breder</string>
+    <string name="widget_menu_narrower">Smaller</string>
     <string name="widget_menu_remove">Verwijderen</string>
     <string name="widget_resize_handle_description">Sleep om widgetformaat te wijzigen</string>
+    <string name="widget_resize_width_handle_description">Sleep om widgetbreedte te wijzigen</string>
     <string name="navigate_to_agenda">Agenda openen</string>
     <string name="navigate_to_home">Terug naar startscherm</string>
     <string name="calendar_permission_required_title">Agendatoestemming vereist</string>

@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">Baguhin ang laki</string>
     <string name="widget_menu_move_up">Ilipat pataas</string>
     <string name="widget_menu_move_down">Ilipat pababa</string>
+    <string name="widget_menu_wider">Mas malapad</string>
+    <string name="widget_menu_narrower">Mas makitid</string>
     <string name="widget_menu_remove">Tanggalin</string>
     <string name="widget_resize_handle_description">I-drag para baguhin ang laki ng widget</string>
+    <string name="widget_resize_width_handle_description">I-drag para baguhin ang lapad ng widget</string>
     <string name="navigate_to_agenda">Buksan ang agenda</string>
     <string name="navigate_to_home">Bumalik sa home</string>
     <string name="calendar_permission_required_title">Kailangan ng pahintulot sa kalendaryo</string>

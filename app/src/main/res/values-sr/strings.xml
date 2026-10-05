@@ -86,8 +86,11 @@
     <string name="widget_menu_resize">Промени величину</string>
     <string name="widget_menu_move_up">Помери нагоре</string>
     <string name="widget_menu_move_down">Помери надоле</string>
+    <string name="widget_menu_wider">Шире</string>
+    <string name="widget_menu_narrower">Уже</string>
     <string name="widget_menu_remove">Уклони</string>
     <string name="widget_resize_handle_description">Превуците да промените величину виџета</string>
+    <string name="widget_resize_width_handle_description">Превуците да промените ширину виџета</string>
     <string name="navigate_to_agenda">Отвори агенду</string>
     <string name="navigate_to_home">Назад на почетни екран</string>
     <string name="calendar_permission_required_title">Потребна је дозвола за календар</string>

@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">Átméretezés</string>
     <string name="widget_menu_move_up">Mozgatás felfelé</string>
     <string name="widget_menu_move_down">Mozgatás lefelé</string>
+    <string name="widget_menu_wider">Szélesebb</string>
+    <string name="widget_menu_narrower">Keskenyebb</string>
     <string name="widget_menu_remove">Eltávolítás</string>
     <string name="widget_resize_handle_description">Húzza a widget átméretezéséhez</string>
+    <string name="widget_resize_width_handle_description">Húzza a widget szélességének módosításához</string>
     <string name="navigate_to_agenda">Napirend megnyitása</string>
     <string name="navigate_to_home">Vissza a kezdőképernyőre</string>
     <string name="calendar_permission_required_title">Naptár engedély szükséges</string>

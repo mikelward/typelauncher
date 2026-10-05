@@ -84,8 +84,11 @@
     <string name="widget_menu_resize">အရွယ်အစားပြောင်းမည်</string>
     <string name="widget_menu_move_up">အပေါ်သို့ ရွှေ့ရန်</string>
     <string name="widget_menu_move_down">အောက်သို့ ရွှေ့ရန်</string>
+    <string name="widget_menu_wider">ပိုကျယ်ရန်</string>
+    <string name="widget_menu_narrower">ပိုကျဉ်းရန်</string>
     <string name="widget_menu_remove">ဖယ်ရှားမည်</string>
     <string name="widget_resize_handle_description">ဝစ်ဂျက်အရွယ်အစားပြောင်းရန် ဆွဲပါ</string>
+    <string name="widget_resize_width_handle_description">ဝစ်ဂျက်အကျယ်ပြောင်းရန် ဆွဲပါ</string>
     <string name="navigate_to_agenda">အစီအစဉ်ဖွင့်မည်</string>
     <string name="navigate_to_home">ပင်မသို့ပြန်မည်</string>
     <string name="calendar_permission_required_title">ပြက္ခဒိန်ခွင့်ပြုချက်လိုအပ်သည်</string>

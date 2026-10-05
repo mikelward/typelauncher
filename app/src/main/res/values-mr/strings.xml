@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">आकार बदला</string>
     <string name="widget_menu_move_up">वर हलवा</string>
     <string name="widget_menu_move_down">खाली हलवा</string>
+    <string name="widget_menu_wider">अधिक रुंद</string>
+    <string name="widget_menu_narrower">कमी रुंद</string>
     <string name="widget_menu_remove">काढून टाका</string>
     <string name="widget_resize_handle_description">विजेटचा आकार बदलण्यासाठी ड्रॅग करा</string>
+    <string name="widget_resize_width_handle_description">विजेटची रुंदी बदलण्यासाठी ड्रॅग करा</string>
     <string name="navigate_to_agenda">अजेंडा उघडा</string>
     <string name="navigate_to_home">होमवर परत</string>
     <string name="calendar_permission_required_title">कॅलेंडर परवानगी आवश्यक</string>

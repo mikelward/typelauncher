@@ -87,8 +87,11 @@
     <string name="widget_menu_resize">Změnit velikost</string>
     <string name="widget_menu_move_up">Posunout nahoru</string>
     <string name="widget_menu_move_down">Posunout dolů</string>
+    <string name="widget_menu_wider">Širší</string>
+    <string name="widget_menu_narrower">Užší</string>
     <string name="widget_menu_remove">Odstranit</string>
     <string name="widget_resize_handle_description">Přetažením změníte velikost widgetu</string>
+    <string name="widget_resize_width_handle_description">Přetažením změníte šířku widgetu</string>
     <string name="navigate_to_agenda">Otevřít agendu</string>
     <string name="navigate_to_home">Zpět na domovskou obrazovku</string>
     <string name="calendar_permission_required_title">Vyžadováno oprávnění ke kalendáři</string>

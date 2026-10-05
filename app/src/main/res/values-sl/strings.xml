@@ -87,8 +87,11 @@
     <string name="widget_menu_resize">Spremeni velikost</string>
     <string name="widget_menu_move_up">Premakni navzgor</string>
     <string name="widget_menu_move_down">Premakni navzdol</string>
+    <string name="widget_menu_wider">Širše</string>
+    <string name="widget_menu_narrower">Ožje</string>
     <string name="widget_menu_remove">Odstrani</string>
     <string name="widget_resize_handle_description">Povlecite za spremembo velikosti pripomočka</string>
+    <string name="widget_resize_width_handle_description">Povlecite za spremembo širine pripomočka</string>
     <string name="navigate_to_agenda">Odpri agendo</string>
     <string name="navigate_to_home">Nazaj na začetni zaslon</string>
     <string name="calendar_permission_required_title">Zahtevano je dovoljenje za koledar</string>
