@@ -22,10 +22,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -218,6 +221,44 @@ class WallpaperAllPagesScreenshotTest {
         composeRule.waitForIdle()
 
         capture("compose_home_widgets_mixed_widths_robolectric.png")
+    }
+
+    @Test
+    @Config(qualifiers = "w914dp-h411dp-420dpi")
+    fun homeWidgets_landscape_fullWidthWidgetsSitSideBySide() {
+        val host = LauncherAppWidgetHost(composeRule.activity, /* hostId = */ 0)
+        val providerInfo = AppWidgetProviderInfo().apply {
+            provider = ComponentName("com.example.widget", "SampleProvider")
+            minWidth = 100
+            minHeight = 100
+            targetCellWidth = 4
+            targetCellHeight = 2
+        }
+        composeRule.setContent {
+            TypeLauncherTheme(themeMode = ThemeMode.Light, dynamicColor = false) {
+                GradientWallpaperStandIn {
+                    // Three full-width widgets: landscape pairs the first two
+                    // in one row and starts the third on the next.
+                    HomeWidgetsForCapture(
+                        widgetIds = listOf(1, 2, 3),
+                        isEditing = false,
+                        host = host,
+                        providerInfo = providerInfo,
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        val first = composeRule.onNodeWithTag("$WIDGET_CARD_TAG:1").getBoundsInRoot()
+        val second = composeRule.onNodeWithTag("$WIDGET_CARD_TAG:2").getBoundsInRoot()
+        val third = composeRule.onNodeWithTag("$WIDGET_CARD_TAG:3").getBoundsInRoot()
+        assertEquals(first.top, second.top)
+        assertEquals(first.right - first.left, second.right - second.left)
+        assertTrue("second widget should sit right of the first", second.left > first.right)
+        assertEquals(first.left, third.left)
+        assertTrue("third widget should start a new row", third.top > first.bottom)
+
+        capture("compose_home_widgets_landscape_robolectric.png", widthPx = 2400, heightPx = 1080)
     }
 
     @Test

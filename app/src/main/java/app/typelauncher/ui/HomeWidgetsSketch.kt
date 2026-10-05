@@ -61,7 +61,8 @@ internal fun HomeWidgetsSketch(
             }
             return@Box
         }
-        val rows = remember(widgetIds, widgetSpans) { widgetGridRows(widgetIds, widgetSpans) }
+        val rowColumns = currentWidgetGridRowColumns()
+        val rows = remember(widgetIds, widgetSpans, rowColumns) { widgetGridRows(widgetIds, widgetSpans, rowColumns) }
         val rowHeightsDp = rows.map { row ->
             row.cells.maxOf { widgetHeights[it.widgetId] ?: HOME_WIDGET_SKETCH_DEFAULT_HEIGHT_DP }
         }
