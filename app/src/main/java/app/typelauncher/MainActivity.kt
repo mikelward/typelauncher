@@ -84,6 +84,9 @@ private const val KEY_RESTORE_TARGET_WIDGET_ID = "app.typelauncher.RESTORE_TARGE
 // death discards while the saved bundle (when the system keeps it) survives,
 // so without this a Home add resumed after a kill would land on a page.
 private const val KEY_PENDING_WIDGET_FOR_HOME = "app.typelauncher.PENDING_WIDGET_FOR_HOME"
+// Persists the in-flight add's picked starting width in grid columns (0 =
+// full row) for the same reason as KEY_PENDING_WIDGET_FOR_HOME.
+private const val KEY_PENDING_WIDGET_SPAN = "app.typelauncher.PENDING_WIDGET_SPAN"
 
 /**
  * The `SendIntentException` AndroidX redelivers through an activity result when an
@@ -473,10 +476,14 @@ class MainActivity : ComponentActivity() {
                 ),
             )[LauncherViewModel::class.java]
         }
-        // Re-seed a Home add's target lost with the old process; see
-        // KEY_PENDING_WIDGET_FOR_HOME.
-        if (savedInstanceState?.getBoolean(KEY_PENDING_WIDGET_FOR_HOME, false) == true) {
-            viewModel.restoreHomeWidgetPlacement()
+        // Re-seed an in-flight add's placement lost with the old process — its
+        // Home target and picked width; see KEY_PENDING_WIDGET_FOR_HOME and
+        // KEY_PENDING_WIDGET_SPAN.
+        if (savedInstanceState != null) {
+            viewModel.restorePendingWidgetPlacement(
+                toHome = savedInstanceState.getBoolean(KEY_PENDING_WIDGET_FOR_HOME, false),
+                defaultSpan = savedInstanceState.getInt(KEY_PENDING_WIDGET_SPAN, 0).takeIf { it > 0 },
+            )
         }
         // A download that fails or is canceled without the user ever
         // leaving this screen is heard only through this listener, with no
@@ -1448,6 +1455,7 @@ class MainActivity : ComponentActivity() {
         outState.putInt(KEY_PENDING_WIDGET_ID, widgetAddFlow.pendingWidgetId)
         outState.putInt(KEY_RESTORE_TARGET_WIDGET_ID, restoreTargetWidgetId)
         outState.putBoolean(KEY_PENDING_WIDGET_FOR_HOME, viewModel.isPendingWidgetForHome)
+        outState.putInt(KEY_PENDING_WIDGET_SPAN, viewModel.pendingWidgetDefaultSpan ?: 0)
         super.onSaveInstanceState(outState)
         LauncherDebugLog.event("MainActivity.onSaveInstanceState afterSuper outState=%s", outState.debugSummary())
     }
@@ -1581,7 +1589,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun bindWidget(provider: WidgetProvider) {
-        startWidgetBind(provider.componentName, provider.profile)
+        startWidgetBind(provider.componentName, provider.profile, targetCellWidth = provider.targetCellWidth)
     }
 
     /**
@@ -1711,6 +1719,9 @@ class MainActivity : ComponentActivity() {
         component: ComponentName,
         profile: UserHandle,
         restoreTargetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID,
+        // The picked provider's target width in cells, for a fresh add's
+        // starting width (see LauncherViewModel.rememberSelectedWidgetWidth).
+        targetCellWidth: Int = 0,
     ) {
         // One add at a time: WidgetAddFlow tracks a single pendingWidgetId, so
         // a second Add tap while a bind/configure launch is still in flight
@@ -1729,6 +1740,11 @@ class MainActivity : ComponentActivity() {
         // Set only past the guard so a refused tap doesn't clobber an in-flight
         // restore target. INVALID for an ordinary add clears any stale target.
         restoreTargetWidgetId = restoreTargetId
+        // Past the guard too, so a refused tap can't change the width of the
+        // add already in flight. A restore keeps its widget's stored width.
+        if (restoreTargetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
+            viewModel.rememberSelectedWidgetWidth(targetCellWidth)
+        }
         bindLaunchInFlight = true
         // allocateAppWidgetId and bindAppWidgetIdIfAllowed are AppWidgetService
         // Binder IPCs — keep them off the main thread (same policy as

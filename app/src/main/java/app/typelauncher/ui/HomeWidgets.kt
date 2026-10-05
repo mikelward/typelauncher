@@ -66,6 +66,7 @@ internal fun HomeWidgets(
     appWidgetHost: AppWidgetHost?,
     appWidgetManager: AppWidgetManager?,
     widgetHeights: Map<Int, Int>,
+    widgetSpans: Map<Int, Int>,
     widgetProviderLabels: Map<Int, String>,
     strandedWidgetIds: Set<Int>,
     workProfileWidgetRefreshToken: Int,
@@ -80,6 +81,7 @@ internal fun HomeWidgets(
     onRestoreWidget: (Int) -> Unit,
     onResizeWidget: (widgetId: Int, heightDp: Int) -> Unit,
     onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit,
+    onResizeWidgetSpan: (widgetId: Int, span: Int) -> Unit,
     modifier: Modifier = Modifier,
     // Test seams, forwarded to each HostedWidgetCard (see its docs).
     providerInfoOverride: ((Int) -> AppWidgetProviderInfo?)? = null,
@@ -130,28 +132,42 @@ internal fun HomeWidgets(
                     .verticalScroll(scrollState, enabled = isEditing),
                 verticalArrangement = Arrangement.spacedBy(HOME_CARD_SPACING_DP.dp),
             ) {
-                widgetIds.forEachIndexed { index, widgetId ->
-                    key(widgetId) {
-                        HostedWidgetCard(
-                            widgetId = widgetId,
-                            appWidgetHost = appWidgetHost,
-                            appWidgetManager = appWidgetManager,
-                            customHeightDp = widgetHeights[widgetId],
-                            canMoveUp = index > 0,
-                            canMoveDown = index < widgetIds.lastIndex,
-                            restoreLabel = widgetProviderLabels[widgetId]?.takeIf { widgetId in strandedWidgetIds },
-                            onRemoveWidget = onRemoveWidget,
-                            onRestoreWidget = onRestoreWidget,
-                            onResizeWidget = { heightDp -> onResizeWidget(widgetId, heightDp) },
-                            onMoveWidget = onMoveWidget,
-                            workProfileWidgetRefreshToken = workProfileWidgetRefreshToken,
-                            providerInfoOverride = providerInfoOverride?.invoke(widgetId),
-                            createWidgetView = createWidgetView,
-                            resolvedProviderInfos = resolvedProviderInfos,
-                            isCurrentPage = isCurrentPage,
-                            onLongPressOverride = if (isEditing) ({}) else onStartEditing,
-                            showInlineActions = isEditing,
-                        )
+                // Grid rows: widgets narrower than a row share it (see
+                // widgetGridRows). Each card stays keyed by its own ID, so a
+                // reflow only re-hosts widgets that actually change rows.
+                widgetGridRows(widgetIds, widgetSpans).forEach { row ->
+                    key(row.key) {
+                        WidgetGridRowLayout(row = row, modifier = Modifier.fillMaxWidth()) {
+                            row.cells.forEach { cell ->
+                                val widgetId = cell.widgetId
+                                val index = widgetIds.indexOf(widgetId)
+                                key(widgetId) {
+                                    HostedWidgetCard(
+                                        widgetId = widgetId,
+                                        appWidgetHost = appWidgetHost,
+                                        appWidgetManager = appWidgetManager,
+                                        customHeightDp = widgetHeights[widgetId],
+                                        canMoveUp = index > 0,
+                                        canMoveDown = index < widgetIds.lastIndex,
+                                        restoreLabel = widgetProviderLabels[widgetId]
+                                            ?.takeIf { widgetId in strandedWidgetIds },
+                                        onRemoveWidget = onRemoveWidget,
+                                        onRestoreWidget = onRestoreWidget,
+                                        onResizeWidget = { heightDp -> onResizeWidget(widgetId, heightDp) },
+                                        onMoveWidget = onMoveWidget,
+                                        workProfileWidgetRefreshToken = workProfileWidgetRefreshToken,
+                                        providerInfoOverride = providerInfoOverride?.invoke(widgetId),
+                                        createWidgetView = createWidgetView,
+                                        resolvedProviderInfos = resolvedProviderInfos,
+                                        isCurrentPage = isCurrentPage,
+                                        onLongPressOverride = if (isEditing) ({}) else onStartEditing,
+                                        showInlineActions = isEditing,
+                                        span = cell.span,
+                                        onResizeSpan = { span -> onResizeWidgetSpan(widgetId, span) },
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
                 if (isEditing && isAddingWidget) {

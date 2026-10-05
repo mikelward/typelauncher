@@ -104,8 +104,14 @@
     <string name="widget_menu_resize">Resize</string>
     <string name="widget_menu_move_up">Move up</string>
     <string name="widget_menu_move_down">Move down</string>
+    <!-- TODO: translate -->
+    <string name="widget_menu_wider" tools:ignore="MissingTranslation">Wider</string>
+    <!-- TODO: translate -->
+    <string name="widget_menu_narrower" tools:ignore="MissingTranslation">Narrower</string>
     <string name="widget_menu_remove">Remove</string>
     <string name="widget_resize_handle_description">Drag to resize widget</string>
+    <!-- TODO: translate -->
+    <string name="widget_resize_width_handle_description" tools:ignore="MissingTranslation">Drag to change widget width</string>
     <string name="navigate_to_agenda">Open agenda</string>
     <string name="navigate_to_home">Back to home</string>
     <string name="calendar_permission_required_title">Calendar permission required</string>

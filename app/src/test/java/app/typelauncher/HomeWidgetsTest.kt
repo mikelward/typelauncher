@@ -10,13 +10,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -123,6 +126,134 @@ class HomeWidgetsTest {
     }
 
     @Test
+    fun halfWidthWidgetsSitSideBySide() {
+        val host = LauncherAppWidgetHost(context, /* hostId = */ 0)
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TestHomeWidgets(
+                    widgetIds = listOf(1, 2, 3),
+                    isEditing = false,
+                    host = host,
+                    providerInfoOverride = { providerInfo },
+                    createWidgetView = { viewContext, _ -> RecordingHostView(viewContext, host) {} },
+                    spans = mapOf(1 to 2, 2 to 2),
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        val first = composeRule.onNodeWithTag("$WIDGET_CARD_TAG:1").getBoundsInRoot()
+        val second = composeRule.onNodeWithTag("$WIDGET_CARD_TAG:2").getBoundsInRoot()
+        val third = composeRule.onNodeWithTag("$WIDGET_CARD_TAG:3").getBoundsInRoot()
+        // Same row, equal widths, the second starting after the first.
+        assertEquals(first.top, second.top)
+        assertEquals(first.right - first.left, second.right - second.left)
+        assertTrue(second.left > first.right)
+        // The full-width widget takes the next row and spans both.
+        assertTrue(third.top >= first.bottom)
+        assertEquals(first.left, third.left)
+        assertEquals(second.right, third.right)
+    }
+
+    @Test
+    fun draggingTheWidthHandleCommitsASnappedSpan() {
+        val host = LauncherAppWidgetHost(context, /* hostId = */ 0)
+        val committed = mutableListOf<Pair<Int, Int>>()
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TestHomeWidgets(
+                    widgetIds = listOf(1),
+                    isEditing = true,
+                    host = host,
+                    providerInfoOverride = { providerInfo },
+                    createWidgetView = { viewContext, _ -> RecordingHostView(viewContext, host) {} },
+                    onResizeWidgetSpan = { id, span -> committed += id to span },
+                )
+            }
+        }
+        composeRule.onNodeWithTag("$RESIZE_WIDGET_ACTION_TAG:1").performClick()
+        val cardBounds = composeRule.onNodeWithTag("$WIDGET_CARD_TAG:1").getBoundsInRoot()
+        val cardWidth = cardBounds.right - cardBounds.left
+        val cardWidthPx = with(composeRule.density) { cardWidth.toPx() }
+
+        // Drag the end-edge handle a little over half the card toward the
+        // start: about 1.8 of the 4 columns remain, which snaps to 2.
+        composeRule.onNodeWithTag(WIDGET_WIDTH_HANDLE_TAG).performTouchInput {
+            swipe(start = center, end = center.copy(x = center.x - cardWidthPx * 0.55f), durationMillis = 300)
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(1 to 2), committed)
+        // Resize mode ends with the drag.
+        composeRule.onNodeWithTag(WIDGET_WIDTH_HANDLE_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun aWidthDragReleasedBeforeTheNextFrameCommitsWhereTheFingerEnded() {
+        val host = LauncherAppWidgetHost(context, /* hostId = */ 0)
+        val committed = mutableListOf<Pair<Int, Int>>()
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TestHomeWidgets(
+                    widgetIds = listOf(1),
+                    isEditing = true,
+                    host = host,
+                    providerInfoOverride = { providerInfo },
+                    createWidgetView = { viewContext, _ -> RecordingHostView(viewContext, host) {} },
+                    onResizeWidgetSpan = { id, span -> committed += id to span },
+                )
+            }
+        }
+        composeRule.onNodeWithTag("$RESIZE_WIDGET_ACTION_TAG:1").performClick()
+        composeRule.waitForIdle()
+        val cardBounds = composeRule.onNodeWithTag("$WIDGET_CARD_TAG:1").getBoundsInRoot()
+        val cardWidthPx = with(composeRule.density) { (cardBounds.right - cardBounds.left).toPx() }
+
+        // No frame between the drag and the release: nothing recomposes, so a
+        // span captured from composition would still be the starting 4.
+        composeRule.mainClock.autoAdvance = false
+        composeRule.onNodeWithTag(WIDGET_WIDTH_HANDLE_TAG).performTouchInput {
+            down(center)
+            moveBy(androidx.compose.ui.geometry.Offset(-viewConfiguration.touchSlop - 1f, 0f))
+            moveBy(androidx.compose.ui.geometry.Offset(-cardWidthPx * 0.55f, 0f))
+            up()
+        }
+        composeRule.mainClock.autoAdvance = true
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(1 to 2), committed)
+    }
+
+    @Test
+    fun widerAndNarrowerStepAnEndOfRowWidgetsWidth() {
+        val host = LauncherAppWidgetHost(context, /* hostId = */ 0)
+        val committed = mutableListOf<Pair<Int, Int>>()
+        composeRule.setContent {
+            TypeLauncherTheme {
+                // Widget 2 ends its row at the screen edge, where the width
+                // handle has no room to be dragged outward.
+                TestHomeWidgets(
+                    widgetIds = listOf(1, 2, 3),
+                    isEditing = true,
+                    host = host,
+                    providerInfoOverride = { providerInfo },
+                    createWidgetView = { viewContext, _ -> RecordingHostView(viewContext, host) {} },
+                    spans = mapOf(1 to 2, 2 to 2),
+                    onResizeWidgetSpan = { id, span -> committed += id to span },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("$WIDER_WIDGET_ACTION_TAG:2").performClick()
+        composeRule.onNodeWithTag("$NARROWER_WIDGET_ACTION_TAG:2").performClick()
+
+        assertEquals(listOf(2 to 3, 2 to 1), committed)
+        // A full-row widget can't get wider.
+        composeRule.onNodeWithTag("$WIDER_WIDGET_ACTION_TAG:3").assertDoesNotExist()
+        composeRule.onNodeWithTag("$NARROWER_WIDGET_ACTION_TAG:3").assertExists()
+    }
+
+    @Test
     fun emptyAreaShowsAddButtonThatOpensThePicker() {
         var adds = 0
         composeRule.setContent {
@@ -201,6 +332,8 @@ class HomeWidgetsTest {
         onStartEditing: () -> Unit = {},
         onStopEditing: () -> Unit = {},
         onAddWidget: () -> Unit = {},
+        spans: Map<Int, Int> = emptyMap(),
+        onResizeWidgetSpan: (Int, Int) -> Unit = { _, _ -> },
     ) {
         HomeWidgets(
             widgetIds = widgetIds,
@@ -211,6 +344,7 @@ class HomeWidgetsTest {
             appWidgetHost = host,
             appWidgetManager = null,
             widgetHeights = emptyMap(),
+            widgetSpans = spans,
             widgetProviderLabels = emptyMap(),
             strandedWidgetIds = emptySet(),
             workProfileWidgetRefreshToken = 0,
@@ -225,6 +359,7 @@ class HomeWidgetsTest {
             onRestoreWidget = {},
             onResizeWidget = { _, _ -> },
             onMoveWidget = { _, _ -> },
+            onResizeWidgetSpan = onResizeWidgetSpan,
             modifier = Modifier.fillMaxSize(),
             providerInfoOverride = providerInfoOverride,
             createWidgetView = createWidgetView,

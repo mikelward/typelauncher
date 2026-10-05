@@ -120,6 +120,75 @@ class LauncherViewModelHomeWidgetsTest {
     }
 
     @Test
+    fun resizingAWidgetsWidthPublishesItsSpan() {
+        val viewModel = newViewModel()
+        viewModel.showWidgetPicker(pageIndex = 0)
+        viewModel.addWidget(5)
+        idle()
+
+        viewModel.resizeWidgetWidth(5, 2)
+        assertEquals(mapOf(5 to 2), viewModel.uiState.value.widgetSpans)
+
+        // Back to a full row: no span entry.
+        viewModel.resizeWidgetWidth(5, WIDGET_GRID_COLUMNS)
+        assertEquals(emptyMap<Int, Int>(), viewModel.uiState.value.widgetSpans)
+    }
+
+    @Test
+    fun aNewWidgetStartsAtThePickedProvidersTargetWidth() {
+        val viewModel = newViewModel()
+        viewModel.showWidgetPicker(pageIndex = 0)
+        viewModel.rememberSelectedWidgetWidth(targetCellWidth = 2)
+
+        viewModel.addWidget(8)
+
+        // Already narrow in the state that first shows the widget, so it never
+        // flashes full width, and nothing depends on a post-bind lookup.
+        assertEquals(mapOf(8 to 2), viewModel.uiState.value.widgetSpans)
+    }
+
+    @Test
+    fun aHomeWidgetStartsAtThePickedProvidersTargetWidth() {
+        val viewModel = newViewModel()
+        viewModel.setHomeWidgetsShown(true)
+        viewModel.showHomeWidgetPicker()
+        viewModel.rememberSelectedWidgetWidth(targetCellWidth = 1)
+
+        viewModel.addWidget(9)
+
+        assertEquals(mapOf(9 to 1), viewModel.uiState.value.widgetSpans)
+    }
+
+    @Test
+    fun aPickedWidthSurvivesProcessDeath() {
+        val before = newViewModel()
+        before.showWidgetPicker(pageIndex = 0)
+        before.rememberSelectedWidgetWidth(targetCellWidth = 2)
+        assertEquals(2, before.pendingWidgetDefaultSpan)
+
+        // The activity's saved bundle carries the span to a fresh ViewModel.
+        val after = newViewModel()
+        after.restorePendingWidgetPlacement(toHome = false, defaultSpan = 2)
+        after.addWidget(12)
+
+        assertEquals(mapOf(12 to 2), after.uiState.value.widgetSpans)
+        assertEquals(listOf(listOf(12)), after.uiState.value.widgetPages)
+    }
+
+    @Test
+    fun aProviderWithNoOrAFullRowTargetWidthStartsFullWidth() {
+        val viewModel = newViewModel()
+        viewModel.showWidgetPicker(pageIndex = 0)
+        viewModel.rememberSelectedWidgetWidth(targetCellWidth = 0)
+        viewModel.addWidget(10)
+        viewModel.showWidgetPicker(pageIndex = 0)
+        viewModel.rememberSelectedWidgetWidth(targetCellWidth = 5)
+        viewModel.addWidget(11)
+
+        assertEquals(emptyMap<Int, Int>(), viewModel.uiState.value.widgetSpans)
+    }
+
+    @Test
     fun editFromSettingsClosesSettingsAndOpensEditMode() {
         val viewModel = newViewModel()
         viewModel.setHomeWidgetsShown(true)

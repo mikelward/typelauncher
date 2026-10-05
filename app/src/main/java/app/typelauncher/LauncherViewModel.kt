@@ -398,6 +398,7 @@ internal class LauncherViewModel(
             homeWidgetIds = widgetStore.homeWidgetIds,
             widgetPages = widgetStore.widgetPages,
             widgetHeights = widgetStore.customHeights,
+            widgetSpans = widgetStore.customSpans,
             widgetProviderLabels = widgetStore.providerLabels,
             isDockEnabled = dockSettingsStore.isDockEnabled,
             appListLayout = dockSettingsStore.appListLayout,
@@ -1856,16 +1857,47 @@ internal class LauncherViewModel(
      * add starts, is restored with it. A placement this ViewModel still holds
      * (a plain configuration change) is left alone.
      */
-    fun restoreHomeWidgetPlacement() {
-        if (pendingWidgetPlacement != null) return
+    fun restoreHomeWidgetPlacement() = restorePendingWidgetPlacement(toHome = true, defaultSpan = null)
+
+    /**
+     * The general form of [restoreHomeWidgetPlacement]: re-seeds whatever of
+     * the in-flight add's placement the activity saved — its Home target and
+     * the picked provider's starting width ([rememberSelectedWidgetWidth]) —
+     * after a process death discarded [pendingWidgetPlacement]. A placement
+     * this ViewModel still holds is left alone, and nothing is seeded when
+     * there is nothing to restore.
+     */
+    fun restorePendingWidgetPlacement(toHome: Boolean, defaultSpan: Int?) {
+        if (pendingWidgetPlacement != null || (!toHome && defaultSpan == null)) return
         pendingWidgetPlacement = PendingWidgetPlacement(
             pageIndex = _uiState.value.lastWidgetPage,
             addToNewPageAfterSelection = false,
-            toHome = true,
+            toHome = toHome,
+            defaultSpan = defaultSpan?.takeIf { it in 1 until WIDGET_GRID_COLUMNS },
         )
-        // The add was started from Home's edit mode, so resume there.
-        _uiState.update { it.copy(isEditingHomeWidgets = it.isHomeWidgetsShown) }
-        LauncherDebugLog.event("restoreHomeWidgetPlacement")
+        // A Home add was started from Home's edit mode, so resume there.
+        if (toHome) _uiState.update { it.copy(isEditingHomeWidgets = it.isHomeWidgetsShown) }
+        LauncherDebugLog.event("restorePendingWidgetPlacement home=%s span=%s", toHome, defaultSpan)
+    }
+
+    /** The in-flight add's picked starting width, saved across process death. */
+    val pendingWidgetDefaultSpan: Int?
+        get() = pendingWidgetPlacement?.defaultSpan
+
+    /**
+     * Records the width the widget the user just picked asks for, so the add
+     * that follows its bind places it at that width from its first frame. The
+     * picker already holds the provider's metadata, so nothing has to be
+     * looked up after the bind (where a late-resolving binding could leave it
+     * unknown, and where the widget would first flash at full width). The
+     * platform's cells map one-to-one onto the four grid columns; a provider
+     * asking for no target width, or a full row or more, stays full width.
+     */
+    fun rememberSelectedWidgetWidth(targetCellWidth: Int) {
+        val placement = pendingWidgetPlacement ?: return
+        pendingWidgetPlacement = placement.copy(
+            defaultSpan = targetCellWidth.takeIf { it in 1 until WIDGET_GRID_COLUMNS },
+        )
     }
 
     fun hideWidgetPicker() {
@@ -3810,6 +3842,7 @@ internal class LauncherViewModel(
             pageIndex = placement.pageIndex,
             addToNewPageAfter = placement.addToNewPageAfterSelection,
         )
+        placement.defaultSpan?.let { span -> widgetStore.setCustomSpan(appWidgetId, span) }
         rememberWidgetProvider(appWidgetId)
         pendingWidgetPlacement = null
         _uiState.update {
@@ -3824,6 +3857,7 @@ internal class LauncherViewModel(
                 homeWidgetIds = widgetStore.homeWidgetIds,
                 widgetPages = widgetPages,
                 widgetHeights = widgetStore.customHeights,
+                widgetSpans = widgetStore.customSpans,
                 widgetProviderLabels = widgetStore.providerLabels,
             )
         }
@@ -3833,6 +3867,7 @@ internal class LauncherViewModel(
     private fun addHomeWidget(appWidgetId: Int) {
         LauncherDebugLog.event("addWidget appWidgetId=%s home", appWidgetId)
         widgetStore.addToHome(appWidgetId)
+        pendingWidgetPlacement?.defaultSpan?.let { span -> widgetStore.setCustomSpan(appWidgetId, span) }
         rememberWidgetProvider(appWidgetId)
         pendingWidgetPlacement = null
         _uiState.update {
@@ -3843,6 +3878,7 @@ internal class LauncherViewModel(
                 widgetIds = widgetStore.widgetIds,
                 homeWidgetIds = widgetStore.homeWidgetIds,
                 widgetHeights = widgetStore.customHeights,
+                widgetSpans = widgetStore.customSpans,
                 widgetProviderLabels = widgetStore.providerLabels,
             )
         }
@@ -3912,10 +3948,18 @@ internal class LauncherViewModel(
                 homeWidgetIds = widgetStore.homeWidgetIds,
                 widgetPages = widgetPages,
                 widgetHeights = widgetStore.customHeights,
+                widgetSpans = widgetStore.customSpans,
                 widgetProviderLabels = widgetStore.providerLabels,
             )
         }
         logState("moveWidget")
+    }
+
+    fun resizeWidgetWidth(appWidgetId: Int, span: Int) {
+        LauncherDebugLog.event("resizeWidgetWidth appWidgetId=%s span=%s", appWidgetId, span)
+        widgetStore.setCustomSpan(appWidgetId, span)
+        _uiState.update { it.copy(widgetSpans = widgetStore.customSpans) }
+        logState("resizeWidgetWidth")
     }
 
     fun resizeWidget(appWidgetId: Int, heightDp: Int) {
@@ -3977,6 +4021,7 @@ internal class LauncherViewModel(
                 homeWidgetIds = widgetStore.homeWidgetIds,
                 widgetPages = widgetPages,
                 widgetHeights = widgetStore.customHeights,
+                widgetSpans = widgetStore.customSpans,
                 widgetProviderLabels = widgetStore.providerLabels,
                 strandedWidgetIds = it.strandedWidgetIds - appWidgetId,
             )
@@ -4004,6 +4049,7 @@ internal class LauncherViewModel(
                 homeWidgetIds = widgetStore.homeWidgetIds,
                 widgetPages = widgetStore.widgetPages,
                 widgetHeights = widgetStore.customHeights,
+                widgetSpans = widgetStore.customSpans,
                 widgetProviderLabels = widgetStore.providerLabels,
                 strandedWidgetIds = it.strandedWidgetIds - oldWidgetId,
             )
@@ -6007,6 +6053,9 @@ private data class PendingWidgetPlacement(
     val addToNewPageAfterSelection: Boolean,
     // The widget joins Home's own set; pageIndex is then unused.
     val toHome: Boolean = false,
+    // The selected provider's target width in grid columns, or null for a
+    // full row; see rememberSelectedWidgetWidth.
+    val defaultSpan: Int? = null,
 )
 
 private fun Int.coerceInWidgetPages(widgetPages: List<List<Int>>): Int =

@@ -556,4 +556,36 @@ class WidgetStoreTest {
         assertEquals(listOf(listOf(1, 2)), store.widgetPages)
         assertEquals(listOf(3), store.homeWidgetIds)
     }
+
+    @Test
+    fun spansPersistAndAFullRowSpanIsNotStored() {
+        WidgetStore(context).apply {
+            add(1)
+            add(2)
+            addToHome(3)
+            setCustomSpan(1, 2)
+            setCustomSpan(2, 4)
+            setCustomSpan(3, 0)
+        }
+
+        // 4 is a full row (no entry); 0 clamps to a single column.
+        assertEquals(mapOf(1 to 2, 3 to 1), WidgetStore(context).customSpans)
+    }
+
+    @Test
+    fun spansFollowRemoveReplaceAndRestore() {
+        val store = WidgetStore(context)
+        store.add(1)
+        store.add(2)
+        store.add(3)
+        store.setCustomSpan(1, 2)
+        store.setCustomSpan(2, 3)
+        store.setCustomSpan(3, 1)
+
+        store.remove(1)
+        store.replaceId(2, 20)
+        store.applyRestoredIdMapping(mapOf(20 to 21, 3 to 31))
+
+        assertEquals(mapOf(21 to 3, 31 to 1), store.customSpans)
+    }
 }

@@ -13,6 +13,14 @@ import android.widget.FrameLayout
 import android.view.View
 import android.widget.RemoteViews
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -21,6 +29,8 @@ import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -31,7 +41,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -98,6 +108,7 @@ internal fun WidgetsScreen(
     appWidgetManager: AppWidgetManager?,
     innerPadding: PaddingValues,
     widgetHeights: Map<Int, Int> = emptyMap(),
+    widgetSpans: Map<Int, Int> = emptyMap(),
     // The provider label to show on a stranded widget's restore placeholder.
     widgetProviderLabels: Map<Int, String> = emptyMap(),
     // Widget IDs with no host binding on this device (restore residue) that
@@ -117,6 +128,7 @@ internal fun WidgetsScreen(
     onRestoreWidget: (Int) -> Unit = {},
     onResizeWidget: (widgetId: Int, heightDp: Int) -> Unit = { _, _ -> },
     onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit = { _, _ -> },
+    onResizeWidgetSpan: (widgetId: Int, span: Int) -> Unit = { _, _ -> },
     workProfileWidgetRefreshToken: Int = 0,
 ) {
     val listState = rememberLazyListState()
@@ -157,26 +169,41 @@ internal fun WidgetsScreen(
             .testTag(widgetScreenTag),
         verticalArrangement = Arrangement.spacedBy(HOME_CARD_SPACING_DP.dp),
     ) {
-        itemsIndexed(widgetIds, key = { _, widgetId -> widgetId }) { index, widgetId ->
-            HostedWidgetCard(
-                widgetId = widgetId,
-                appWidgetHost = appWidgetHost,
-                appWidgetManager = appWidgetManager,
-                customHeightDp = widgetHeights[widgetId],
-                canMoveUp = index > 0,
-                canMoveDown = index < widgetIds.lastIndex,
-                // Only stranded widgets (no live binding) offer restore; a widget
-                // merely waiting for its provider to reinstall keeps its binding
-                // and self-heals, so it isn't re-bound.
-                restoreLabel = widgetProviderLabels[widgetId]?.takeIf { widgetId in strandedWidgetIds },
-                onRemoveWidget = onRemoveWidget,
-                onRestoreWidget = onRestoreWidget,
-                onResizeWidget = { heightDp -> onResizeWidget(widgetId, heightDp) },
-                onMoveWidget = onMoveWidget,
-                workProfileWidgetRefreshToken = workProfileWidgetRefreshToken,
-                resolvedProviderInfos = resolvedProviderInfos,
-                isCurrentPage = isCurrentPage,
-            )
+        // One lazy item per grid row; widgets narrower than a row share it
+        // (see widgetGridRows). Keyed by the row's lead widget, and each card
+        // by its own ID inside, so a resize that reflows rows only re-hosts the
+        // widgets that actually change rows.
+        val rows = widgetGridRows(widgetIds, widgetSpans)
+        items(rows, key = { row -> row.key }) { row ->
+            WidgetGridRowLayout(row = row, modifier = Modifier.fillMaxWidth()) {
+                row.cells.forEach { cell ->
+                    val widgetId = cell.widgetId
+                    val index = widgetIds.indexOf(widgetId)
+                    key(widgetId) {
+                        HostedWidgetCard(
+                            widgetId = widgetId,
+                            appWidgetHost = appWidgetHost,
+                            appWidgetManager = appWidgetManager,
+                            customHeightDp = widgetHeights[widgetId],
+                            canMoveUp = index > 0,
+                            canMoveDown = index < widgetIds.lastIndex,
+                            // Only stranded widgets (no live binding) offer restore; a widget
+                            // merely waiting for its provider to reinstall keeps its binding
+                            // and self-heals, so it isn't re-bound.
+                            restoreLabel = widgetProviderLabels[widgetId]?.takeIf { widgetId in strandedWidgetIds },
+                            onRemoveWidget = onRemoveWidget,
+                            onRestoreWidget = onRestoreWidget,
+                            onResizeWidget = { heightDp -> onResizeWidget(widgetId, heightDp) },
+                            onMoveWidget = onMoveWidget,
+                            workProfileWidgetRefreshToken = workProfileWidgetRefreshToken,
+                            resolvedProviderInfos = resolvedProviderInfos,
+                            isCurrentPage = isCurrentPage,
+                            span = cell.span,
+                            onResizeSpan = { span -> onResizeWidgetSpan(widgetId, span) },
+                        )
+                    }
+                }
+            }
         }
         if (isAddingWidget) {
             item {
@@ -771,6 +798,11 @@ internal fun HostedWidgetCard(
     // box keeps its composition slot either way, so toggling this never
     // recreates the hosted view.
     showInlineActions: Boolean = false,
+    // How many of the WIDGET_GRID_COLUMNS columns this card spans, and where
+    // a width drag in resize mode commits a new span. The card fills whatever
+    // width its grid cell gives it; the span only calibrates the drag's snap.
+    span: Int = WIDGET_GRID_COLUMNS,
+    onResizeSpan: (Int) -> Unit = {},
 ) {
     val currentLongPressOverride by rememberUpdatedState(onLongPressOverride)
     // Resolved asynchronously: `AppWidgetManager.getAppWidgetInfo` is a Binder
@@ -902,6 +934,8 @@ internal fun HostedWidgetCard(
                     onRemoveWidget = onRemoveWidget,
                     onStartResize = {},
                     onMoveWidget = onMoveWidget,
+                    span = span,
+                    onResizeSpan = onResizeSpan,
                 )
             }
             if (showInlineActions) {
@@ -913,6 +947,8 @@ internal fun HostedWidgetCard(
                     onRemoveWidget = onRemoveWidget,
                     onStartResize = {},
                     onMoveWidget = onMoveWidget,
+                    span = span,
+                    onResizeSpan = onResizeSpan,
                 )
             }
         }
@@ -1077,6 +1113,8 @@ internal fun HostedWidgetCard(
                 onRemoveWidget = onRemoveWidget,
                 onStartResize = startResize,
                 onMoveWidget = onMoveWidget,
+                span = span,
+                onResizeSpan = onResizeSpan,
             )
             if (isResizing) {
                 WidgetResizeHandle(
@@ -1090,6 +1128,17 @@ internal fun HostedWidgetCard(
                     },
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
+                WidgetWidthHandle(
+                    span = span,
+                    cardWidthPx = measuredSize.width,
+                    onDragEnd = { newSpan ->
+                        if (newSpan != span) onResizeSpan(newSpan)
+                        isResizing = false
+                    },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(bottom = WIDGET_RESIZE_HANDLE_HEIGHT_DP.dp),
+                )
             }
         }
         if (showInlineActions) {
@@ -1101,6 +1150,8 @@ internal fun HostedWidgetCard(
                 onRemoveWidget = onRemoveWidget,
                 onStartResize = startResize,
                 onMoveWidget = onMoveWidget,
+                span = span,
+                onResizeSpan = onResizeSpan,
             )
         }
     }
@@ -1111,6 +1162,7 @@ internal fun HostedWidgetCard(
  * Home's widget edit mode shows these instead of hiding them behind a
  * long-press. Move up / down are hidden at the list edges, as in the menu.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun WidgetInlineActions(
     widgetId: Int,
@@ -1120,6 +1172,8 @@ private fun WidgetInlineActions(
     onRemoveWidget: (Int) -> Unit,
     onStartResize: () -> Unit,
     onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit,
+    span: Int,
+    onResizeSpan: (Int) -> Unit,
 ) {
     // On the launcher's opaque card surface, so the actions stay legible over
     // any wallpaper (Home's slot is transparent while the wallpaper shows).
@@ -1131,10 +1185,12 @@ private fun WidgetInlineActions(
             .testTag("$WIDGET_INLINE_ACTIONS_TAG:$widgetId"),
         contentPadding = WIDGET_ACTION_BAR_PADDING,
     ) {
-        Row(
+        // Wraps onto a second line in a narrow (one- or two-column) widget,
+        // where the four actions don't fit side by side.
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
+            itemVerticalAlignment = Alignment.CenterVertically,
         ) {
             if (canMoveUp) {
                 IconButton(
@@ -1166,6 +1222,22 @@ private fun WidgetInlineActions(
                     Text(stringResource(R.string.widget_menu_resize))
                 }
             }
+            if (span < WIDGET_GRID_COLUMNS) {
+                TextButton(
+                    onClick = { onResizeSpan(span + 1) },
+                    modifier = Modifier.testTag("$WIDER_WIDGET_ACTION_TAG:$widgetId"),
+                ) {
+                    Text(stringResource(R.string.widget_menu_wider))
+                }
+            }
+            if (span > 1) {
+                TextButton(
+                    onClick = { onResizeSpan(span - 1) },
+                    modifier = Modifier.testTag("$NARROWER_WIDGET_ACTION_TAG:$widgetId"),
+                ) {
+                    Text(stringResource(R.string.widget_menu_narrower))
+                }
+            }
             TextButton(
                 onClick = { onRemoveWidget(widgetId) },
                 modifier = Modifier.testTag("$REMOVE_WIDGET_ACTION_TAG:$widgetId"),
@@ -1179,6 +1251,82 @@ private fun WidgetInlineActions(
 // A compact card around a row of 48dp buttons: the shared 16dp card sides,
 // 4dp top and bottom so the bar stays one button tall plus a hairline frame.
 internal val WIDGET_ACTION_BAR_PADDING = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
+
+/**
+ * The right-edge (end-edge in RTL) handle that resizes a widget's width in
+ * whole grid columns. While dragging, an outline previews the snapped width —
+ * drawn past the card's own bounds when growing — and the new span commits
+ * only on release, so the grid reflows (and a widget that changes rows is
+ * re-hosted) once per drag rather than on every frame.
+ */
+@Composable
+private fun BoxScope.WidgetWidthHandle(
+    span: Int,
+    cardWidthPx: Int,
+    onDragEnd: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val density = LocalDensity.current
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val gapPx = with(density) { HOME_CARD_SPACING_DP.dp.toPx() }
+    // One column plus its gap, from the card's own measured width: the card is
+    // span columns plus (span - 1) gaps wide.
+    val columnStepPx = (cardWidthPx + gapPx) / span
+    var dragPx by remember { mutableFloatStateOf(0f) }
+    var isDragging by remember { mutableStateOf(false) }
+    // Computed on demand from the live drag offset, not captured from the last
+    // composition: the final drag delta can land after the frame that last
+    // recomposed, and the stop callback must commit where the finger ended.
+    val currentSpan by rememberUpdatedState(span)
+    val currentCardWidthPx by rememberUpdatedState(cardWidthPx)
+    fun snappedSpan(): Int {
+        val stepPx = (currentCardWidthPx + gapPx) / currentSpan
+        if (stepPx <= 0f) return currentSpan
+        return ((currentCardWidthPx + gapPx + dragPx) / stepPx).roundToInt().coerceIn(1, WIDGET_GRID_COLUMNS)
+    }
+    val targetSpan = snappedSpan()
+    if (isDragging) {
+        val previewWidth = with(density) { (columnStepPx * targetSpan - gapPx).toDp() }
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .fillMaxHeight()
+                .wrapContentWidth(Alignment.Start, unbounded = true)
+                .width(previewWidth)
+                .border(2.dp, MaterialTheme.colorScheme.primary, MaterialTheme.shapes.medium)
+                .testTag(WIDGET_WIDTH_PREVIEW_TAG),
+        )
+    }
+    val resizeWidthDescription = stringResource(R.string.widget_resize_width_handle_description)
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .width(WIDGET_RESIZE_HANDLE_HEIGHT_DP.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
+            .draggable(
+                orientation = Orientation.Horizontal,
+                state = rememberDraggableState { delta -> dragPx += if (isRtl) -delta else delta },
+                onDragStarted = {
+                    dragPx = 0f
+                    isDragging = true
+                },
+                onDragStopped = {
+                    isDragging = false
+                    onDragEnd(snappedSpan())
+                },
+            )
+            .semantics { contentDescription = resizeWidthDescription }
+            .testTag(WIDGET_WIDTH_HANDLE_TAG),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            LauncherIcons.DragHandle,
+            contentDescription = null,
+            modifier = Modifier.rotate(90f),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
 
 @Composable
 private fun WidgetResizeHandle(
@@ -1220,6 +1368,8 @@ private fun WidgetActionsMenu(
     onRemoveWidget: (Int) -> Unit,
     onStartResize: () -> Unit,
     onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit,
+    span: Int,
+    onResizeSpan: (Int) -> Unit,
 ) {
     LauncherDropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         if (showResize) {
@@ -1229,6 +1379,29 @@ private fun WidgetActionsMenu(
                 onClick = {
                     onDismiss()
                     onStartResize()
+                },
+            )
+        }
+        // One-column steps: these work wherever the widget sits, including at
+        // the screen edge where the width handle has no room to be dragged
+        // outward, and give screen readers a non-drag way to change width.
+        if (span < WIDGET_GRID_COLUMNS) {
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.widget_menu_wider)) },
+                modifier = Modifier.testTag("$WIDER_WIDGET_ACTION_TAG:$widgetId"),
+                onClick = {
+                    onDismiss()
+                    onResizeSpan(span + 1)
+                },
+            )
+        }
+        if (span > 1) {
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.widget_menu_narrower)) },
+                modifier = Modifier.testTag("$NARROWER_WIDGET_ACTION_TAG:$widgetId"),
+                onClick = {
+                    onDismiss()
+                    onResizeSpan(span - 1)
                 },
             )
         }

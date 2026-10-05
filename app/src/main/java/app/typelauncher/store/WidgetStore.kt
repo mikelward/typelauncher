@@ -6,6 +6,9 @@ import android.content.Context
 
 internal enum class WidgetMoveDirection { UP, DOWN }
 
+/** Columns in the widget grid; a widget spans 1..this many (the default is all). */
+internal const val WIDGET_GRID_COLUMNS = 4
+
 /** Which kind of profile a hosted widget's provider lives in; see [WidgetProviderRecord.profileKind]. */
 internal enum class WidgetProfileKind(val token: String) {
     /** The user the launcher runs as. */
@@ -144,6 +147,17 @@ internal class WidgetStore(context: Context) {
             if (h == -1) null else id to h
         }.toMap()
 
+    /**
+     * Column spans (1 until [WIDGET_GRID_COLUMNS]) for widgets narrower than a
+     * full row, per widget ID. A widget absent from the map spans the whole
+     * row — every widget added before spans existed keeps its full width.
+     */
+    val customSpans: Map<Int, Int>
+        get() = widgetIds.mapNotNull { id ->
+            val span = sharedPreferences.getInt(spanKey(id), -1)
+            if (span in 1 until WIDGET_GRID_COLUMNS) id to span else null
+        }.toMap()
+
     /** The provider name to show on the restore placeholder, per widget ID. */
     val providerLabels: Map<Int, String>
         get() = widgetIds.mapNotNull { id -> providerRecord(id)?.let { id to it.label } }.toMap()
@@ -182,6 +196,7 @@ internal class WidgetStore(context: Context) {
             homeIds = homeIds.filterNot { id -> id == appWidgetId }
             sharedPreferences.edit()
                 .remove(heightKey(appWidgetId))
+                .remove(spanKey(appWidgetId))
                 .remove(providerKey(appWidgetId))
                 .apply()
             save()
@@ -190,6 +205,18 @@ internal class WidgetStore(context: Context) {
 
     fun setCustomHeight(appWidgetId: Int, heightDp: Int) {
         sharedPreferences.edit().putInt(heightKey(appWidgetId), heightDp).apply()
+    }
+
+    /**
+     * Sets how many of the [WIDGET_GRID_COLUMNS] grid columns [appWidgetId]
+     * spans, clamped to 1..[WIDGET_GRID_COLUMNS]. A full-row span is stored
+     * as "no custom span", so the map only ever names narrow widgets.
+     */
+    fun setCustomSpan(appWidgetId: Int, span: Int) {
+        val clamped = span.coerceIn(1, WIDGET_GRID_COLUMNS)
+        sharedPreferences.edit().apply {
+            if (clamped == WIDGET_GRID_COLUMNS) remove(spanKey(appWidgetId)) else putInt(spanKey(appWidgetId), clamped)
+        }.apply()
     }
 
     /** Remembers [record] as the provider behind [appWidgetId] for later restore. */
@@ -252,15 +279,18 @@ internal class WidgetStore(context: Context) {
         // where a later put on a key wins over an earlier remove — keeps every
         // value with its widget across an overlapping remap.
         val oldHeights = previousIds.associateWith { id -> sharedPreferences.getInt(heightKey(id), -1) }
+        val oldSpans = previousIds.associateWith { id -> sharedPreferences.getInt(spanKey(id), -1) }
         val oldProviders = previousIds.associateWith { id -> sharedPreferences.getString(providerKey(id), null) }
         val editor = sharedPreferences.edit()
         previousIds.forEach { oldId ->
             editor.remove(heightKey(oldId))
+            editor.remove(spanKey(oldId))
             editor.remove(providerKey(oldId))
         }
         for (oldId in previousIds) {
             val target = resultId(oldId) ?: continue
             oldHeights.getValue(oldId).let { height -> if (height != -1) editor.putInt(heightKey(target), height) }
+            oldSpans.getValue(oldId).let { span -> if (span != -1) editor.putInt(spanKey(target), span) }
             oldProviders[oldId]?.let { record -> editor.putString(providerKey(target), record) }
         }
         editor.apply()
@@ -280,11 +310,14 @@ internal class WidgetStore(context: Context) {
         pages = pages.map { ids -> ids.map { id -> if (id == oldId) newId else id } }
         homeIds = homeIds.map { id -> if (id == oldId) newId else id }
         val height = sharedPreferences.getInt(heightKey(oldId), -1)
+        val span = sharedPreferences.getInt(spanKey(oldId), -1)
         val provider = sharedPreferences.getString(providerKey(oldId), null)
         val editor = sharedPreferences.edit()
             .remove(heightKey(oldId))
+            .remove(spanKey(oldId))
             .remove(providerKey(oldId))
         if (height != -1) editor.putInt(heightKey(newId), height)
+        if (span != -1) editor.putInt(spanKey(newId), span)
         if (provider != null) editor.putString(providerKey(newId), provider)
         editor.apply()
         save()
@@ -366,6 +399,8 @@ internal class WidgetStore(context: Context) {
         const val APP_WIDGET_PAGE_SEPARATOR = "\n\n"
 
         fun heightKey(appWidgetId: Int) = "height_$appWidgetId"
+
+        fun spanKey(appWidgetId: Int) = "span_$appWidgetId"
 
         fun providerKey(appWidgetId: Int) = "provider_$appWidgetId"
     }
