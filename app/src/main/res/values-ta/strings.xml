@@ -100,6 +100,8 @@
     <string name="dock_subtitle">இங்கு அதிகபட்சம் %1$d பயன்பாடுகள் பொருந்தும்</string>
     <string name="home_empty_title">பொருத்தம் இல்லை</string>
     <string name="home_empty_body">சிறிய பயன்பாட்டுப் பெயரை முயற்சிக்கவும் அல்லது தேடலை அழிக்கவும்.</string>
+    <string name="home_search_play_store">Play Store இல் தேடுக</string>
+    <string name="app_store_search_unavailable">பயன்பாட்டுக் கடை எதுவும் இல்லை</string>
     <string name="agenda_permission_title">நாள்காட்டி நிகழ்வுகளைக் காட்டு</string>
     <string name="navigate_home_description">துவக்கியின் தேடலுக்குத் திரும்பு</string>
     <string name="app_actions_description">பயன்பாட்டுச் செயல்கள்</string>

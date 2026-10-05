@@ -99,6 +99,8 @@
     <string name="dock_subtitle">รองรับสูงสุด %1$d แอปที่นี่</string>
     <string name="home_empty_title">ไม่พบผลลัพธ์</string>
     <string name="home_empty_body">ลองใช้ชื่อแอปที่สั้นกว่าหรือล้างการค้นหา</string>
+    <string name="home_search_play_store">ค้นหาใน Play Store</string>
+    <string name="app_store_search_unavailable">ไม่มีร้านค้าแอปที่ใช้ได้</string>
     <string name="agenda_permission_title">แสดงกิจกรรมในปฏิทิน</string>
     <string name="navigate_home_description">กลับไปที่การค้นหาของลอนเชอร์</string>
     <string name="app_actions_description">การกระทำของแอป</string>

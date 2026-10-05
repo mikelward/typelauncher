@@ -100,6 +100,8 @@
     <string name="dock_subtitle">Maximaal %1$d apps passen hier</string>
     <string name="home_empty_title">Geen resultaten</string>
     <string name="home_empty_body">Probeer een kortere app-naam of wis het zoekveld.</string>
+    <string name="home_search_play_store">Zoeken in Play Store</string>
+    <string name="app_store_search_unavailable">Geen app-store beschikbaar</string>
     <string name="agenda_permission_title">Agenda-afspraken tonen</string>
     <string name="navigate_home_description">Terug naar zoeken in launcher</string>
     <string name="app_actions_description">App-acties</string>

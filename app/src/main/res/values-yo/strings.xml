@@ -99,6 +99,8 @@
     <string name="dock_subtitle">Áàpù tó dé %1$d le wọ níbí</string>
     <string name="home_empty_title">Kò sí àbájáde</string>
     <string name="home_empty_body">Gbìyànjú orúkọ áàpù kúkúrú tàbí pa ìwákiri rẹ́.</string>
+    <string name="home_search_play_store">Wá nínú Play Store</string>
+    <string name="app_store_search_unavailable">Kò sí ilé ìtajà áàpù kankan</string>
     <string name="agenda_permission_title">Fihàn ìṣẹ̀lẹ̀ kàlẹ́ńdà</string>
     <string name="navigate_home_description">Padà sí ìwákiri olùṣèdá</string>
     <string name="app_actions_description">Iṣẹ́ áàpù</string>

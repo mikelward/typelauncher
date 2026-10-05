@@ -99,6 +99,8 @@
     <string name="dock_subtitle">ဤနေရာတွင် အက်ပ် %1$d ခုအထိ ထည့်နိုင်သည်</string>
     <string name="home_empty_title">ကိုက်ညီသည်မရှိပါ</string>
     <string name="home_empty_body">အက်ပ်အမည်ပိုတိုသည်ကိုစမ်းကြည့်ပါ သို့မဟုတ် ရှာဖွေမှုကိုရှင်းပါ။</string>
+    <string name="home_search_play_store">Play Store တွင် ရှာရန်</string>
+    <string name="app_store_search_unavailable">အက်ပ်စတိုး မရှိပါ</string>
     <string name="agenda_permission_title">ပြက္ခဒိန်ပွဲများပြသမည်</string>
     <string name="navigate_home_description">လောင်ချာရှာဖွေမှုသို့ပြန်မည်</string>
     <string name="app_actions_description">အက်ပ်လုပ်ဆောင်ချက်များ</string>

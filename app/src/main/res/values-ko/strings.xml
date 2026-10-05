@@ -99,6 +99,8 @@
     <string name="dock_subtitle">최대 %1$d개의 앱이 표시됩니다</string>
     <string name="home_empty_title">일치 항목 없음</string>
     <string name="home_empty_body">앱 이름을 짧게 하거나 검색을 지우세요.</string>
+    <string name="home_search_play_store">Play 스토어에서 검색</string>
+    <string name="app_store_search_unavailable">사용 가능한 앱 스토어 없음</string>
     <string name="agenda_permission_title">캘린더 이벤트 표시</string>
     <string name="navigate_home_description">런처 검색으로 돌아가기</string>
     <string name="app_actions_description">앱 작업</string>

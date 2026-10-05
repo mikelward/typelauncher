@@ -100,6 +100,8 @@
     <string name="dock_subtitle">Hadi programu %1$d zinatosha hapa</string>
     <string name="home_empty_title">Hakuna matokeo</string>
     <string name="home_empty_body">Jaribu jina fupi la programu au futa utafutaji.</string>
+    <string name="home_search_play_store">Tafuta kwenye Duka la Play</string>
+    <string name="app_store_search_unavailable">Hakuna duka la programu linalopatikana</string>
     <string name="agenda_permission_title">Onyesha matukio ya kalenda</string>
     <string name="navigate_home_description">Rudi kwa utafutaji wa kizinduzi</string>
     <string name="app_actions_description">Vitendo vya programu</string>

@@ -100,6 +100,8 @@
     <string name="dock_subtitle">Op til %1$d apps kan være her</string>
     <string name="home_empty_title">Ingen resultater</string>
     <string name="home_empty_body">Prøv et kortere appnavn eller ryd søgningen.</string>
+    <string name="home_search_play_store">Søg i Play Butik</string>
+    <string name="app_store_search_unavailable">Ingen appbutik tilgængelig</string>
     <string name="agenda_permission_title">Vis kalenderbegivenheder</string>
     <string name="navigate_home_description">Vend tilbage til launcher-søgning</string>
     <string name="app_actions_description">Apphandlinger</string>

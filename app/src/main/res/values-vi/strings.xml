@@ -99,6 +99,8 @@
     <string name="dock_subtitle">Tối đa %1$d ứng dụng vừa ở đây</string>
     <string name="home_empty_title">Không có kết quả</string>
     <string name="home_empty_body">Thử tên ứng dụng ngắn hơn hoặc xóa tìm kiếm.</string>
+    <string name="home_search_play_store">Tìm kiếm trên Cửa hàng Play</string>
+    <string name="app_store_search_unavailable">Không có cửa hàng ứng dụng nào</string>
     <string name="agenda_permission_title">Hiển thị sự kiện lịch</string>
     <string name="navigate_home_description">Quay lại tìm kiếm trình khởi chạy</string>
     <string name="app_actions_description">Thao tác ứng dụng</string>

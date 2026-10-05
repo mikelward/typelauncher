@@ -100,6 +100,8 @@
     <string name="dock_subtitle">Jopa %1$d sovellusta mahtuu tänne</string>
     <string name="home_empty_title">Ei tuloksia</string>
     <string name="home_empty_body">Kokeile lyhyempää sovelluksen nimeä tai tyhjennä haku.</string>
+    <string name="home_search_play_store">Hae Play Kaupasta</string>
+    <string name="app_store_search_unavailable">Sovelluskauppaa ei ole saatavilla</string>
     <string name="agenda_permission_title">Näytä kalenteritapahtumat</string>
     <string name="navigate_home_description">Palaa launcherin hakuun</string>
     <string name="app_actions_description">Sovellustoiminnot</string>

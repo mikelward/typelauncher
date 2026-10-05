@@ -100,6 +100,8 @@
     <string name="dock_subtitle">Buraya %1$d uygulamaya kadar sığar</string>
     <string name="home_empty_title">Eşleşme yok</string>
     <string name="home_empty_body">Daha kısa bir ad deneyin veya aramayı temizleyin.</string>
+    <string name="home_search_play_store">Play Store\'da ara</string>
+    <string name="app_store_search_unavailable">Kullanılabilir uygulama mağazası yok</string>
     <string name="agenda_permission_title">Takvim etkinliklerini göster</string>
     <string name="navigate_home_description">Başlatıcı aramasına dön</string>
     <string name="app_actions_description">Uygulama eylemleri</string>

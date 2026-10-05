@@ -100,6 +100,8 @@
     <string name="dock_subtitle">Тук се събират до %1$d приложения</string>
     <string name="home_empty_title">Няма резултати</string>
     <string name="home_empty_body">Опитайте по-кратко име на приложение или изчистете търсенето.</string>
+    <string name="home_search_play_store">Търсене в Play Магазин</string>
+    <string name="app_store_search_unavailable">Няма наличен магазин за приложения</string>
     <string name="agenda_permission_title">Показване на събитията от календара</string>
     <string name="navigate_home_description">Връщане към търсенето в лаунчъра</string>
     <string name="app_actions_description">Действия на приложението</string>

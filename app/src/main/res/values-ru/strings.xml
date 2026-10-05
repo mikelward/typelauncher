@@ -102,6 +102,8 @@
     <string name="dock_subtitle">Сюда помещается до %1$d приложений</string>
     <string name="home_empty_title">Нет совпадений</string>
     <string name="home_empty_body">Попробуйте более короткое имя или очистите поиск.</string>
+    <string name="home_search_play_store">Поиск в Play Маркете</string>
+    <string name="app_store_search_unavailable">Нет доступного магазина приложений</string>
     <string name="agenda_permission_title">Показать события календаря</string>
     <string name="navigate_home_description">Вернуться к поиску лаунчера</string>
     <string name="app_actions_description">Действия с приложением</string>

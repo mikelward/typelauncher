@@ -102,6 +102,8 @@
     <string name="dock_subtitle">Sem se prilega do %1$d aplikacij</string>
     <string name="home_empty_title">Ni zadetkov</string>
     <string name="home_empty_body">Poskusite s krajšim imenom aplikacije ali počistite iskanje.</string>
+    <string name="home_search_play_store">Iskanje v Trgovini Play</string>
+    <string name="app_store_search_unavailable">Na voljo ni nobene trgovine z aplikacijami</string>
     <string name="agenda_permission_title">Prikaži dogodke koledarja</string>
     <string name="navigate_home_description">Vrnitev na iskanje zaganjalnika</string>
     <string name="app_actions_description">Dejanja aplikacije</string>

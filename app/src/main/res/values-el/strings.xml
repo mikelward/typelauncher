@@ -100,6 +100,8 @@
     <string name="dock_subtitle">Χωράνε έως %1$d εφαρμογές εδώ</string>
     <string name="home_empty_title">Δεν υπάρχουν αντιστοιχίες</string>
     <string name="home_empty_body">Δοκιμάστε ένα συντομότερο όνομα ή εκκαθαρίστε την αναζήτηση.</string>
+    <string name="home_search_play_store">Αναζήτηση στο Play Store</string>
+    <string name="app_store_search_unavailable">Δεν υπάρχει διαθέσιμο κατάστημα εφαρμογών</string>
     <string name="agenda_permission_title">Εμφάνιση γεγονότων ημερολογίου</string>
     <string name="navigate_home_description">Επιστροφή στην αναζήτηση του launcher</string>
     <string name="app_actions_description">Ενέργειες εφαρμογής</string>

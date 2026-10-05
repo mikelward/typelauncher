@@ -99,6 +99,8 @@
     <string name="dock_subtitle">ここに最大 %1$d 個のアプリ</string>
     <string name="home_empty_title">一致なし</string>
     <string name="home_empty_body">アプリ名を短くするか、検索を消去してください。</string>
+    <string name="home_search_play_store">Play ストアで検索</string>
+    <string name="app_store_search_unavailable">利用できるアプリストアがありません</string>
     <string name="agenda_permission_title">カレンダーイベントを表示</string>
     <string name="navigate_home_description">ランチャー検索に戻る</string>
     <string name="app_actions_description">アプリのアクション</string>

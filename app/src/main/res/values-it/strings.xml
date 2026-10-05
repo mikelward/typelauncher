@@ -101,6 +101,8 @@
     <string name="dock_subtitle">Fino a %1$d app qui</string>
     <string name="home_empty_title">Nessun risultato</string>
     <string name="home_empty_body">Prova un nome più corto o cancella la ricerca.</string>
+    <string name="home_search_play_store">Cerca nel Play Store</string>
+    <string name="app_store_search_unavailable">Nessuno store di app disponibile</string>
     <string name="agenda_permission_title">Mostra eventi del calendario</string>
     <string name="navigate_home_description">Torna alla ricerca del launcher</string>
     <string name="app_actions_description">Azioni app</string>

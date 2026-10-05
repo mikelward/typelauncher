@@ -99,6 +99,8 @@
     <string name="dock_subtitle">ບັນຈຸໄດ້ສູງສຸດ %1$d ແອັບຢູ່ນີ້</string>
     <string name="home_empty_title">ບໍ່ມີຜົນລັບ</string>
     <string name="home_empty_body">ລອງໃຊ້ຊື່ແອັບສັ້ນກວ່າ ຫຼື ລຶບການຄົ້ນຫາ.</string>
+    <string name="home_search_play_store">ຊອກຫາໃນ Play Store</string>
+    <string name="app_store_search_unavailable">ບໍ່ມີຮ້ານແອັບທີ່ໃຊ້ໄດ້</string>
     <string name="agenda_permission_title">ສະແດງເຫດການປະຕິທິນ</string>
     <string name="navigate_home_description">ກັບໄປຍັງການຄົ້ນຫາລອນເຊີ</string>
     <string name="app_actions_description">ການກະທຳແອັບ</string>

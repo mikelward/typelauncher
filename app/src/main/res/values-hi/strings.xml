@@ -100,6 +100,8 @@
     <string name="dock_subtitle">यहां अधिकतम %1$d ऐप्स आते हैं</string>
     <string name="home_empty_title">कोई मिलान नहीं</string>
     <string name="home_empty_body">छोटा ऐप नाम आज़माएं या खोज साफ़ करें.</string>
+    <string name="home_search_play_store">Play Store में खोजें</string>
+    <string name="app_store_search_unavailable">कोई ऐप स्टोर उपलब्ध नहीं है</string>
     <string name="agenda_permission_title">कैलेंडर इवेंट दिखाएं</string>
     <string name="navigate_home_description">लॉन्चर खोज पर लौटें</string>
     <string name="app_actions_description">ऐप कार्य</string>

@@ -102,6 +102,8 @@
     <string name="dock_subtitle">Čia telpa iki %1$d programų</string>
     <string name="home_empty_title">Nėra atitikmenų</string>
     <string name="home_empty_body">Pabandykite trumpesnį pavadinimą arba išvalykite paiešką.</string>
+    <string name="home_search_play_store">Ieškoti „Play“ parduotuvėje</string>
+    <string name="app_store_search_unavailable">Nėra jokios programų parduotuvės</string>
     <string name="agenda_permission_title">Rodyti kalendoriaus įvykius</string>
     <string name="navigate_home_description">Grįžti į paleidiklio paiešką</string>
     <string name="app_actions_description">Programos veiksmai</string>

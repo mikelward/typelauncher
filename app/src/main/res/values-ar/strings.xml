@@ -104,6 +104,8 @@
     <string name="dock_subtitle">يتسع لـ %1$d تطبيقًا هنا</string>
     <string name="home_empty_title">لا توجد نتائج</string>
     <string name="home_empty_body">جرّب اسمًا أقصر أو امسح البحث.</string>
+    <string name="home_search_play_store">البحث في متجر Play</string>
+    <string name="app_store_search_unavailable">لا يتوفر متجر تطبيقات</string>
     <string name="agenda_permission_title">عرض أحداث التقويم</string>
     <string name="navigate_home_description">العودة إلى بحث المشغّل</string>
     <string name="app_actions_description">إجراءات التطبيق</string>

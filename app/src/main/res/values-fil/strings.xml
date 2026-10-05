@@ -100,6 +100,8 @@
     <string name="dock_subtitle">Hanggang %1$d app ang kasya rito</string>
     <string name="home_empty_title">Walang resulta</string>
     <string name="home_empty_body">Subukan ang mas maikling pangalan ng app o i-clear ang paghahanap.</string>
+    <string name="home_search_play_store">Maghanap sa Play Store</string>
+    <string name="app_store_search_unavailable">Walang available na app store</string>
     <string name="agenda_permission_title">Ipakita ang mga kaganapan sa kalendaryo</string>
     <string name="navigate_home_description">Bumalik sa paghahanap ng launcher</string>
     <string name="app_actions_description">Mga aksyon ng app</string>

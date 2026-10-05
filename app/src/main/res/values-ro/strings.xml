@@ -101,6 +101,8 @@
     <string name="dock_subtitle">Până la %1$d aplicații încap aici</string>
     <string name="home_empty_title">Niciun rezultat</string>
     <string name="home_empty_body">Încercați un nume de aplicație mai scurt sau ștergeți căutarea.</string>
+    <string name="home_search_play_store">Caută în Magazin Play</string>
+    <string name="app_store_search_unavailable">Niciun magazin de aplicații disponibil</string>
     <string name="agenda_permission_title">Afișează evenimentele din calendar</string>
     <string name="navigate_home_description">Revenire la căutarea launcher-ului</string>
     <string name="app_actions_description">Acțiuni aplicație</string>

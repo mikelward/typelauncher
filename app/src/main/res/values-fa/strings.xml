@@ -100,6 +100,8 @@
     <string name="dock_subtitle">تا %1$d برنامه اینجا جا می‌شود</string>
     <string name="home_empty_title">نتیجه‌ای نیست</string>
     <string name="home_empty_body">نام کوتاه‌تری امتحان کنید یا جستجو را پاک کنید.</string>
+    <string name="home_search_play_store">جستجو در Play Store</string>
+    <string name="app_store_search_unavailable">هیچ فروشگاه برنامه‌ای در دسترس نیست</string>
     <string name="agenda_permission_title">نمایش رویدادهای تقویم</string>
     <string name="navigate_home_description">بازگشت به جستجوی لانچر</string>
     <string name="app_actions_description">عملیات برنامه</string>

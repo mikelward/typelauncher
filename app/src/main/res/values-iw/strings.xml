@@ -102,6 +102,8 @@
     <string name="dock_subtitle">עד %1$d אפליקציות נכנסות כאן</string>
     <string name="home_empty_title">אין התאמות</string>
     <string name="home_empty_body">נסו שם קצר יותר או נקו את החיפוש.</string>
+    <string name="home_search_play_store">חיפוש בחנות Play</string>
+    <string name="app_store_search_unavailable">אין חנות אפליקציות זמינה</string>
     <string name="agenda_permission_title">הצגת אירועי יומן</string>
     <string name="navigate_home_description">חזרה לחיפוש המשגר</string>
     <string name="app_actions_description">פעולות אפליקציה</string>

@@ -100,6 +100,8 @@
     <string name="dock_subtitle">এখানে সর্বাধিক %1$d অ্যাপ আঁটে</string>
     <string name="home_empty_title">কোনো মিল নেই</string>
     <string name="home_empty_body">ছোট অ্যাপের নাম চেষ্টা করুন বা অনুসন্ধান মুছুন।</string>
+    <string name="home_search_play_store">Play Store-এ সার্চ করুন</string>
+    <string name="app_store_search_unavailable">কোনও অ্যাপ স্টোর উপলভ্য নেই</string>
     <string name="agenda_permission_title">ক্যালেন্ডার ইভেন্ট দেখান</string>
     <string name="navigate_home_description">লঞ্চার অনুসন্ধানে ফিরুন</string>
     <string name="app_actions_description">অ্যাপ অ্যাকশন</string>

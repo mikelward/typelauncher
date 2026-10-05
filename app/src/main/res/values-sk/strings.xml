@@ -102,6 +102,8 @@
     <string name="dock_subtitle">Sem sa zmestí až %1$d aplikácií</string>
     <string name="home_empty_title">Žiadne výsledky</string>
     <string name="home_empty_body">Skúste kratší názov aplikácie alebo vymažte vyhľadávanie.</string>
+    <string name="home_search_play_store">Hľadať v Obchode Play</string>
+    <string name="app_store_search_unavailable">Nie je k dispozícii žiadny obchod s aplikáciami</string>
     <string name="agenda_permission_title">Zobraziť udalosti z kalendára</string>
     <string name="navigate_home_description">Návrat do vyhľadávania launchera</string>
     <string name="app_actions_description">Akcie aplikácie</string>

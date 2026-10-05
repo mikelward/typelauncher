@@ -102,6 +102,8 @@
     <string name="dock_subtitle">Mieści się tu do %1$d aplikacji</string>
     <string name="home_empty_title">Brak wyników</string>
     <string name="home_empty_body">Spróbuj krótszej nazwy aplikacji lub wyczyść wyszukiwanie.</string>
+    <string name="home_search_play_store">Szukaj w Sklepie Play</string>
+    <string name="app_store_search_unavailable">Brak dostępnego sklepu z aplikacjami</string>
     <string name="agenda_permission_title">Pokaż wydarzenia kalendarza</string>
     <string name="navigate_home_description">Wróć do wyszukiwania w launcherze</string>
     <string name="app_actions_description">Akcje aplikacji</string>

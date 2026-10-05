@@ -100,6 +100,8 @@
     <string name="dock_subtitle">Manhajoji har %1$d na shiga nan</string>
     <string name="home_empty_title">Babu sakamako</string>
     <string name="home_empty_body">Gwada gajeren sunan manhaja ko share binciken.</string>
+    <string name="home_search_play_store">Nemi a Play Store</string>
+    <string name="app_store_search_unavailable">Babu shagon manhaja da ake da shi</string>
     <string name="agenda_permission_title">Nuna abubuwan kalanda</string>
     <string name="navigate_home_description">Koma zuwa binciken mai ƙaddamarwa</string>
     <string name="app_actions_description">Ayyukan manhaja</string>

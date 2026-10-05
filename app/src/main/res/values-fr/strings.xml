@@ -101,6 +101,8 @@
     <string name="dock_subtitle">Jusqu\'à %1$d applications ici</string>
     <string name="home_empty_title">Aucun résultat</string>
     <string name="home_empty_body">Essayez un nom plus court ou effacez la recherche.</string>
+    <string name="home_search_play_store">Rechercher sur le Play Store</string>
+    <string name="app_store_search_unavailable">Aucune boutique d\'applications disponible</string>
     <string name="agenda_permission_title">Afficher les événements du calendrier</string>
     <string name="navigate_home_description">Retourner à la recherche du lanceur</string>
     <string name="app_actions_description">Actions de l\'application</string>

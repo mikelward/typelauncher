@@ -100,6 +100,8 @@
     <string name="dock_subtitle">અહીં વધુમાં વધુ %1$d એપ્સ સમાય છે</string>
     <string name="home_empty_title">કોઈ મેળ નથી</string>
     <string name="home_empty_body">ટૂંકું એપ નામ અજમાવો અથવા શોધ સાફ કરો.</string>
+    <string name="home_search_play_store">Play Storeમાં શોધો</string>
+    <string name="app_store_search_unavailable">કોઈ એપ સ્ટોર ઉપલબ્ધ નથી</string>
     <string name="agenda_permission_title">કૅલેન્ડર ઇવેન્ટ્સ બતાવો</string>
     <string name="navigate_home_description">લૉન્ચર શોધ પર પાછા ફરો</string>
     <string name="app_actions_description">એપ ક્રિયાઓ</string>
