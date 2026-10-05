@@ -64,6 +64,27 @@ class LauncherViewModelHomeWidgetsTest {
     }
 
     @Test
+    fun homeAddResumedAfterProcessDeathStillJoinsHome() {
+        val before = newViewModel()
+        before.setHomeWidgetsShown(true)
+        before.showHomeWidgetPicker()
+        idle()
+        assertTrue(before.isPendingWidgetForHome)
+
+        // A process death drops the ViewModel; the activity's saved bundle
+        // carries the Home flag back to a fresh one.
+        val after = newViewModel()
+        after.restoreHomeWidgetPlacement()
+        after.addWidget(9)
+        idle()
+
+        assertEquals(listOf(9), after.uiState.value.homeWidgetIds)
+        assertEquals(listOf(emptyList<Int>()), after.uiState.value.widgetPages)
+        // Back in the edit mode the add started from.
+        assertTrue(after.uiState.value.isEditingHomeWidgets)
+    }
+
+    @Test
     fun widgetPagePickerStillAddsToAPage() {
         val viewModel = newViewModel()
         viewModel.setHomeWidgetsShown(true)

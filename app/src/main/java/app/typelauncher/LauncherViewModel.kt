@@ -1845,6 +1845,29 @@ internal class LauncherViewModel(
         logState("stopEditingHomeWidgets")
     }
 
+    /** Whether the add in flight targets Home's own widget set (saved across process death). */
+    val isPendingWidgetForHome: Boolean
+        get() = pendingWidgetPlacement?.toHome == true
+
+    /**
+     * Re-seeds a Home add's target after the activity restored its saved
+     * state: a process death discards [pendingWidgetPlacement] while the
+     * bind / configure result can still arrive. Edit mode, where every Home
+     * add starts, is restored with it. A placement this ViewModel still holds
+     * (a plain configuration change) is left alone.
+     */
+    fun restoreHomeWidgetPlacement() {
+        if (pendingWidgetPlacement != null) return
+        pendingWidgetPlacement = PendingWidgetPlacement(
+            pageIndex = _uiState.value.lastWidgetPage,
+            addToNewPageAfterSelection = false,
+            toHome = true,
+        )
+        // The add was started from Home's edit mode, so resume there.
+        _uiState.update { it.copy(isEditingHomeWidgets = it.isHomeWidgetsShown) }
+        LauncherDebugLog.event("restoreHomeWidgetPlacement")
+    }
+
     fun hideWidgetPicker() {
         pendingWidgetPlacement = null
         _uiState.update { it.copy(isAddingWidget = false, isLoadingAvailableWidgets = false) }
