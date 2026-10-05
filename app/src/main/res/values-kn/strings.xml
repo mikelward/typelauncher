@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">ಗಾತ್ರ ಬದಲಿಸಿ</string>
     <string name="widget_menu_move_up">ಮೇಲಕ್ಕೆ ಸರಿಸಿ</string>
     <string name="widget_menu_move_down">ಕೆಳಕ್ಕೆ ಸರಿಸಿ</string>
+    <string name="widget_menu_wider">ಹೆಚ್ಚು ಅಗಲ</string>
+    <string name="widget_menu_narrower">ಕಡಿಮೆ ಅಗಲ</string>
     <string name="widget_menu_remove">ತೆಗೆದುಹಾಕಿ</string>
     <string name="widget_resize_handle_description">ವಿಜೆಟ್‌ನ ಗಾತ್ರವನ್ನು ಬದಲಿಸಲು ಎಳೆಯಿರಿ</string>
+    <string name="widget_resize_width_handle_description">ವಿಜೆಟ್‌ನ ಅಗಲವನ್ನು ಬದಲಿಸಲು ಎಳೆಯಿರಿ</string>
     <string name="navigate_to_agenda">ಅಜೆಂಡಾ ತೆರೆಯಿರಿ</string>
     <string name="navigate_to_home">ಮುಖಪುಟಕ್ಕೆ ಹಿಂತಿರುಗಿ</string>
     <string name="calendar_permission_required_title">ಕ್ಯಾಲೆಂಡರ್ ಅನುಮತಿ ಅಗತ್ಯವಿದೆ</string>

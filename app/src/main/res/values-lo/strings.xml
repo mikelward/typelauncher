@@ -84,8 +84,11 @@
     <string name="widget_menu_resize">ປ່ຽນຂະໜາດ</string>
     <string name="widget_menu_move_up">ຍ້າຍຂຶ້ນ</string>
     <string name="widget_menu_move_down">ຍ້າຍລົງ</string>
+    <string name="widget_menu_wider">ກວ້າງຂຶ້ນ</string>
+    <string name="widget_menu_narrower">ແຄບລົງ</string>
     <string name="widget_menu_remove">ລຶບ</string>
     <string name="widget_resize_handle_description">ລາກເພື່ອປ່ຽນຂະໜາດວິດເຈັດ</string>
+    <string name="widget_resize_width_handle_description">ລາກເພື່ອປ່ຽນຄວາມກວ້າງວິດເຈັດ</string>
     <string name="navigate_to_agenda">ເປີດກຳນົດການ</string>
     <string name="navigate_to_home">ກັບໜ້າຫຼັກ</string>
     <string name="calendar_permission_required_title">ຕ້ອງການການອະນຸຍາດປະຕິທິນ</string>

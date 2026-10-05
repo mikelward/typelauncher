@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">ଆକାର ବଦଳାନ୍ତୁ</string>
     <string name="widget_menu_move_up">ଉପରକୁ ନିଅନ୍ତୁ</string>
     <string name="widget_menu_move_down">ତଳକୁ ନିଅନ୍ତୁ</string>
+    <string name="widget_menu_wider">ଅଧିକ ଚଉଡ଼ା</string>
+    <string name="widget_menu_narrower">କମ୍ ଚଉଡ଼ା</string>
     <string name="widget_menu_remove">ହଟାନ୍ତୁ</string>
     <string name="widget_resize_handle_description">ୱିଜେଟ୍‌ର ଆକାର ବଦଳାଇବାକୁ ଟାଣନ୍ତୁ</string>
+    <string name="widget_resize_width_handle_description">ୱିଜେଟ୍‌ର ପ୍ରସ୍ଥ ବଦଳାଇବାକୁ ଟାଣନ୍ତୁ</string>
     <string name="navigate_to_agenda">ଏଜେଣ୍ଡା ଖୋଲନ୍ତୁ</string>
     <string name="navigate_to_home">ହୋମ୍‌କୁ ଫେରନ୍ତୁ</string>
     <string name="calendar_permission_required_title">କ୍ୟାଲେଣ୍ଡର ଅନୁମତି ଆବଶ୍ୟକ</string>

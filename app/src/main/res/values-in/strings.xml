@@ -84,8 +84,11 @@
     <string name="widget_menu_resize">Ubah ukuran</string>
     <string name="widget_menu_move_up">Pindahkan ke atas</string>
     <string name="widget_menu_move_down">Pindahkan ke bawah</string>
+    <string name="widget_menu_wider">Lebih lebar</string>
+    <string name="widget_menu_narrower">Lebih sempit</string>
     <string name="widget_menu_remove">Hapus</string>
     <string name="widget_resize_handle_description">Seret untuk mengubah ukuran widget</string>
+    <string name="widget_resize_width_handle_description">Seret untuk mengubah lebar widget</string>
     <string name="navigate_to_agenda">Buka agenda</string>
     <string name="navigate_to_home">Kembali ke beranda</string>
     <string name="calendar_permission_required_title">Izin kalender diperlukan</string>

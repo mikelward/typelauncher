@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">Yeniden boyutlandır</string>
     <string name="widget_menu_move_up">Yukarı taşı</string>
     <string name="widget_menu_move_down">Aşağı taşı</string>
+    <string name="widget_menu_wider">Daha geniş</string>
+    <string name="widget_menu_narrower">Daha dar</string>
     <string name="widget_menu_remove">Kaldır</string>
     <string name="widget_resize_handle_description">Pencere öğesini yeniden boyutlandırmak için sürükle</string>
+    <string name="widget_resize_width_handle_description">Pencere öğesinin genişliğini değiştirmek için sürükle</string>
     <string name="navigate_to_agenda">Ajandayı aç</string>
     <string name="navigate_to_home">Ana ekrana dön</string>
     <string name="calendar_permission_required_title">Takvim izni gerekli</string>

@@ -86,8 +86,11 @@
     <string name="widget_menu_resize">Promijeni veličinu</string>
     <string name="widget_menu_move_up">Pomakni gore</string>
     <string name="widget_menu_move_down">Pomakni dolje</string>
+    <string name="widget_menu_wider">Šire</string>
+    <string name="widget_menu_narrower">Uže</string>
     <string name="widget_menu_remove">Ukloni</string>
     <string name="widget_resize_handle_description">Povucite za promjenu veličine widgeta</string>
+    <string name="widget_resize_width_handle_description">Povucite za promjenu širine widgeta</string>
     <string name="navigate_to_agenda">Otvori agendu</string>
     <string name="navigate_to_home">Natrag na početni zaslon</string>
     <string name="calendar_permission_required_title">Potrebno dopuštenje za kalendar</string>

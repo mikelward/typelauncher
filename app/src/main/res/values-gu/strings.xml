@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">કદ બદલો</string>
     <string name="widget_menu_move_up">ઉપર ખસેડો</string>
     <string name="widget_menu_move_down">નીચે ખસેડો</string>
+    <string name="widget_menu_wider">વધુ પહોળું</string>
+    <string name="widget_menu_narrower">વધુ સાંકડું</string>
     <string name="widget_menu_remove">દૂર કરો</string>
     <string name="widget_resize_handle_description">વિજેટનું કદ બદલવા ખેંચો</string>
+    <string name="widget_resize_width_handle_description">વિજેટની પહોળાઈ બદલવા ખેંચો</string>
     <string name="navigate_to_agenda">એજન્ડા ખોલો</string>
     <string name="navigate_to_home">હોમ પર પાછા</string>
     <string name="calendar_permission_required_title">કૅલેન્ડર પરવાનગી જરૂરી</string>

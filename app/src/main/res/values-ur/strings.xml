@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">سائز تبدیل کریں</string>
     <string name="widget_menu_move_up">اوپر منتقل کریں</string>
     <string name="widget_menu_move_down">نیچے منتقل کریں</string>
+    <string name="widget_menu_wider">زیادہ چوڑا</string>
+    <string name="widget_menu_narrower">کم چوڑا</string>
     <string name="widget_menu_remove">ہٹائیں</string>
     <string name="widget_resize_handle_description">ویجٹ کا سائز تبدیل کرنے کے لیے گھسیٹیں</string>
+    <string name="widget_resize_width_handle_description">ویجٹ کی چوڑائی تبدیل کرنے کے لیے گھسیٹیں</string>
     <string name="navigate_to_agenda">شیڈول کھولیں</string>
     <string name="navigate_to_home">گھر واپس جائیں</string>
     <string name="calendar_permission_required_title">کیلنڈر کی اجازت درکار ہے</string>

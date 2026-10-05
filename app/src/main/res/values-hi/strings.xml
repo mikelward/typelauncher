@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">आकार बदलें</string>
     <string name="widget_menu_move_up">ऊपर ले जाएं</string>
     <string name="widget_menu_move_down">नीचे ले जाएं</string>
+    <string name="widget_menu_wider">ज़्यादा चौड़ा</string>
+    <string name="widget_menu_narrower">कम चौड़ा</string>
     <string name="widget_menu_remove">हटाएं</string>
     <string name="widget_resize_handle_description">विजेट का आकार बदलने के लिए खींचें</string>
+    <string name="widget_resize_width_handle_description">विजेट की चौड़ाई बदलने के लिए खींचें</string>
     <string name="navigate_to_agenda">एजेंडा खोलें</string>
     <string name="navigate_to_home">होम पर वापस</string>
     <string name="calendar_permission_required_title">कैलेंडर अनुमति आवश्यक</string>

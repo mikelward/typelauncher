@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">Промени размер</string>
     <string name="widget_menu_move_up">Преместване нагоре</string>
     <string name="widget_menu_move_down">Преместване надолу</string>
+    <string name="widget_menu_wider">По-широко</string>
+    <string name="widget_menu_narrower">По-тясно</string>
     <string name="widget_menu_remove">Премахни</string>
     <string name="widget_resize_handle_description">Плъзнете, за да преоразмерите джаджата</string>
+    <string name="widget_resize_width_handle_description">Плъзнете, за да промените ширината на джаджата</string>
     <string name="navigate_to_agenda">Отвори дневния ред</string>
     <string name="navigate_to_home">Назад към началния екран</string>
     <string name="calendar_permission_required_title">Изисква се разрешение за календара</string>

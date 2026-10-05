@@ -84,8 +84,11 @@
     <string name="widget_menu_resize">サイズ変更</string>
     <string name="widget_menu_move_up">上に移動</string>
     <string name="widget_menu_move_down">下に移動</string>
+    <string name="widget_menu_wider">幅を広く</string>
+    <string name="widget_menu_narrower">幅を狭く</string>
     <string name="widget_menu_remove">削除</string>
     <string name="widget_resize_handle_description">ドラッグしてウィジェットのサイズを変更</string>
+    <string name="widget_resize_width_handle_description">ドラッグしてウィジェットの幅を変更</string>
     <string name="navigate_to_agenda">アジェンダを開く</string>
     <string name="navigate_to_home">ホームに戻る</string>
     <string name="calendar_permission_required_title">カレンダーの権限が必要です</string>

@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">Muuda suurust</string>
     <string name="widget_menu_move_up">Teisalda üles</string>
     <string name="widget_menu_move_down">Teisalda alla</string>
+    <string name="widget_menu_wider">Laiemaks</string>
+    <string name="widget_menu_narrower">Kitsamaks</string>
     <string name="widget_menu_remove">Eemalda</string>
     <string name="widget_resize_handle_description">Lohistage vidina suuruse muutmiseks</string>
+    <string name="widget_resize_width_handle_description">Lohistage vidina laiuse muutmiseks</string>
     <string name="navigate_to_agenda">Ava päevakava</string>
     <string name="navigate_to_home">Tagasi avalehele</string>
     <string name="calendar_permission_required_title">Vajalik on kalendri luba</string>

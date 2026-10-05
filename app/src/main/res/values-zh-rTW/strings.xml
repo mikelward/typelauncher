@@ -84,8 +84,11 @@
     <string name="widget_menu_resize">調整大小</string>
     <string name="widget_menu_move_up">上移</string>
     <string name="widget_menu_move_down">下移</string>
+    <string name="widget_menu_wider">加寬</string>
+    <string name="widget_menu_narrower">變窄</string>
     <string name="widget_menu_remove">移除</string>
     <string name="widget_resize_handle_description">拖曳以調整小工具大小</string>
+    <string name="widget_resize_width_handle_description">拖曳以調整小工具寬度</string>
     <string name="navigate_to_agenda">開啟議程</string>
     <string name="navigate_to_home">返回主畫面</string>
     <string name="calendar_permission_required_title">需要行事曆權限</string>

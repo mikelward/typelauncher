@@ -84,8 +84,11 @@
     <string name="widget_menu_resize">ปรับขนาด</string>
     <string name="widget_menu_move_up">ย้ายขึ้น</string>
     <string name="widget_menu_move_down">ย้ายลง</string>
+    <string name="widget_menu_wider">กว้างขึ้น</string>
+    <string name="widget_menu_narrower">แคบลง</string>
     <string name="widget_menu_remove">ลบ</string>
     <string name="widget_resize_handle_description">ลากเพื่อปรับขนาดวิดเจ็ต</string>
+    <string name="widget_resize_width_handle_description">ลากเพื่อปรับความกว้างวิดเจ็ต</string>
     <string name="navigate_to_agenda">เปิดกำหนดการ</string>
     <string name="navigate_to_home">กลับหน้าหลัก</string>
     <string name="calendar_permission_required_title">ต้องได้รับอนุญาตให้เข้าถึงปฏิทิน</string>

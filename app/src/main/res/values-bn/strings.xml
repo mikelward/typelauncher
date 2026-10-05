@@ -85,8 +85,11 @@
     <string name="widget_menu_resize">আকার পরিবর্তন করুন</string>
     <string name="widget_menu_move_up">উপরে সরান</string>
     <string name="widget_menu_move_down">নিচে সরান</string>
+    <string name="widget_menu_wider">আরও চওড়া</string>
+    <string name="widget_menu_narrower">আরও সরু</string>
     <string name="widget_menu_remove">সরান</string>
     <string name="widget_resize_handle_description">উইজেটের আকার পরিবর্তন করতে টেনে আনুন</string>
+    <string name="widget_resize_width_handle_description">উইজেটের প্রস্থ পরিবর্তন করতে টেনে আনুন</string>
     <string name="navigate_to_agenda">এজেন্ডা খুলুন</string>
     <string name="navigate_to_home">হোমে ফিরুন</string>
     <string name="calendar_permission_required_title">ক্যালেন্ডার অনুমতি প্রয়োজন</string>
