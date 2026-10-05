@@ -100,6 +100,8 @@
     <string name="dock_subtitle">Legfeljebb %1$d alkalmazás fér el itt</string>
     <string name="home_empty_title">Nincs találat</string>
     <string name="home_empty_body">Próbáljon rövidebb alkalmazásnevet vagy törölje a keresést.</string>
+    <string name="home_search_play_store">Keresés a Play Áruházban</string>
+    <string name="app_store_search_unavailable">Nincs elérhető alkalmazásbolt</string>
     <string name="agenda_permission_title">Naptári események megjelenítése</string>
     <string name="navigate_home_description">Visszatérés a launcher kereséshez</string>
     <string name="app_actions_description">Alkalmazás műveletek</string>

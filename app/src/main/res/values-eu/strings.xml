@@ -100,6 +100,8 @@
     <string name="dock_subtitle">%1$d aplikaziorako lekua dago hemen</string>
     <string name="home_empty_title">Bat datorrenik ez</string>
     <string name="home_empty_body">Saiatu izen laburrago batekin edo garbitu bilaketa.</string>
+    <string name="home_search_play_store">Bilatu Play Store-n</string>
+    <string name="app_store_search_unavailable">Ez dago aplikazio-dendarik erabilgarri</string>
     <string name="agenda_permission_title">Erakutsi egutegiko gertaerak</string>
     <string name="navigate_home_description">Itzuli abiarazlearen bilaketara</string>
     <string name="app_actions_description">Aplikazioaren ekintzak</string>

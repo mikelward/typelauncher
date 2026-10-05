@@ -100,6 +100,8 @@
     <string name="dock_subtitle">Kufaka izinhlelo zokusebenza ezingafika ku-%1$d lapha</string>
     <string name="home_empty_title">Awekho amaresult</string>
     <string name="home_empty_body">Zama igama elifushane lohlelo lokusebenza noma sula usesho.</string>
+    <string name="home_search_play_store">Sesha ku-Play Store</string>
+    <string name="app_store_search_unavailable">Asikho isitolo sezinhlelo zokusebenza esitholakalayo</string>
     <string name="agenda_permission_title">Bonisa imicimbi yekhalenda</string>
     <string name="navigate_home_description">Buyela osesho lwesiqalisi</string>
     <string name="app_actions_description">Izenzo zohlelo lokusebenza</string>

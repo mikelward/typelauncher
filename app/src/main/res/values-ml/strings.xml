@@ -100,6 +100,8 @@
     <string name="dock_subtitle">ഇവിടെ പരമാവധി %1$d ആപ്പുകൾ ഉൾക്കൊള്ളും</string>
     <string name="home_empty_title">പൊരുത്തങ്ങളില്ല</string>
     <string name="home_empty_body">ചെറിയ ആപ്പ് പേര് പരീക്ഷിക്കുക അല്ലെങ്കിൽ തിരയൽ മായ്ക്കുക.</string>
+    <string name="home_search_play_store">Play Store-ൽ തിരയുക</string>
+    <string name="app_store_search_unavailable">ആപ്പ് സ്റ്റോറൊന്നും ലഭ്യമല്ല</string>
     <string name="agenda_permission_title">കലണ്ടർ ഇവന്റുകൾ കാണിക്കുക</string>
     <string name="navigate_home_description">ലോഞ്ചർ തിരയലിലേക്ക് മടങ്ങുക</string>
     <string name="app_actions_description">ആപ്പ് പ്രവർത്തനങ്ങൾ</string>

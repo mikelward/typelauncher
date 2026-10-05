@@ -100,6 +100,8 @@
     <string name="dock_subtitle">Siia mahub kuni %1$d rakendust</string>
     <string name="home_empty_title">Vasteid pole</string>
     <string name="home_empty_body">Proovige lühemat nime või tühjendage otsing.</string>
+    <string name="home_search_play_store">Otsi Play poest</string>
+    <string name="app_store_search_unavailable">Ühtegi rakenduste poodi pole saadaval</string>
     <string name="agenda_permission_title">Kuva kalendrisündmused</string>
     <string name="navigate_home_description">Naase käivitaja otsingusse</string>
     <string name="app_actions_description">Rakenduse toimingud</string>

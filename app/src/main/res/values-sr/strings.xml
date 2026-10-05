@@ -101,6 +101,8 @@
     <string name="dock_subtitle">Овде стаје до %1$d апликација</string>
     <string name="home_empty_title">Нема резултата</string>
     <string name="home_empty_body">Покушајте са краћим називом апликације или обришите претрагу.</string>
+    <string name="home_search_play_store">Претражи Play продавницу</string>
+    <string name="app_store_search_unavailable">Ниједна продавница апликација није доступна</string>
     <string name="agenda_permission_title">Прикажи догађаје из календара</string>
     <string name="navigate_home_description">Повратак на претрагу лаунчера</string>
     <string name="app_actions_description">Радње апликације</string>

@@ -100,6 +100,8 @@
     <string name="dock_subtitle">یہاں %1$d ایپس تک سما سکتی ہیں</string>
     <string name="home_empty_title">کوئی نتیجہ نہیں</string>
     <string name="home_empty_body">چھوٹا نام آزمائیں یا تلاش صاف کریں۔</string>
+    <string name="home_search_play_store">Play Store میں تلاش کریں</string>
+    <string name="app_store_search_unavailable">کوئی ایپ اسٹور دستیاب نہیں ہے</string>
     <string name="agenda_permission_title">کیلنڈر کے واقعات دکھائیں</string>
     <string name="navigate_home_description">لانچر کی تلاش پر واپس جائیں</string>
     <string name="app_actions_description">ایپ کی کارروائیاں</string>

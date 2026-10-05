@@ -100,6 +100,8 @@
     <string name="dock_subtitle">ಇಲ್ಲಿ ಗರಿಷ್ಠ %1$d ಆ್ಯಪ್‌ಗಳು ಹೊಂದಿಕೊಳ್ಳುತ್ತವೆ</string>
     <string name="home_empty_title">ಯಾವುದೇ ಹೊಂದಾಣಿಕೆ ಇಲ್ಲ</string>
     <string name="home_empty_body">ಚಿಕ್ಕ ಆ್ಯಪ್ ಹೆಸರನ್ನು ಪ್ರಯತ್ನಿಸಿ ಅಥವಾ ಹುಡುಕಾಟ ತೆರವುಗೊಳಿಸಿ.</string>
+    <string name="home_search_play_store">Play Store ನಲ್ಲಿ ಹುಡುಕಿ</string>
+    <string name="app_store_search_unavailable">ಯಾವುದೇ ಆ್ಯಪ್ ಸ್ಟೋರ್ ಲಭ್ಯವಿಲ್ಲ</string>
     <string name="agenda_permission_title">ಕ್ಯಾಲೆಂಡರ್ ಈವೆಂಟ್‌ಗಳನ್ನು ತೋರಿಸಿ</string>
     <string name="navigate_home_description">ಲಾಂಚರ್ ಹುಡುಕಾಟಕ್ಕೆ ಹಿಂತಿರುಗಿ</string>
     <string name="app_actions_description">ಆ್ಯಪ್ ಕ್ರಿಯೆಗಳು</string>

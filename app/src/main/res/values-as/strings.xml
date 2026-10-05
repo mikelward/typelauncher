@@ -100,6 +100,8 @@
     <string name="dock_subtitle">ইয়াত সৰ্বাধিক %1$d এপ থাকিব পাৰে</string>
     <string name="home_empty_title">কোনো মিল নাই</string>
     <string name="home_empty_body">চুটি এপ নাম চেষ্টা কৰক বা সন্ধান মচক।</string>
+    <string name="home_search_play_store">Play Storeত সন্ধান কৰক</string>
+    <string name="app_store_search_unavailable">কোনো এপ ষ্ট\'ৰ উপলব্ধ নহয়</string>
     <string name="agenda_permission_title">কেলেণ্ডাৰ ইভেণ্ট দেখুৱাওক</string>
     <string name="navigate_home_description">লঞ্চাৰ সন্ধানলৈ উভতি যাওক</string>
     <string name="app_actions_description">এপ কাৰ্য</string>

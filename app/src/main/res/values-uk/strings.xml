@@ -102,6 +102,8 @@
     <string name="dock_subtitle">Сюди вміщується до %1$d застосунків</string>
     <string name="home_empty_title">Немає збігів</string>
     <string name="home_empty_body">Спробуйте коротшу назву або очистіть пошук.</string>
+    <string name="home_search_play_store">Пошук у Play Маркеті</string>
+    <string name="app_store_search_unavailable">Немає доступного магазину застосунків</string>
     <string name="agenda_permission_title">Показати події календаря</string>
     <string name="navigate_home_description">Повернутися до пошуку лаунчера</string>
     <string name="app_actions_description">Дії застосунку</string>

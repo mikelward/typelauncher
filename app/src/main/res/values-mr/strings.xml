@@ -100,6 +100,8 @@
     <string name="dock_subtitle">इथे जास्तीत जास्त %1$d अॅप्स बसतात</string>
     <string name="home_empty_title">कोणतेही जुळणारे नाहीत</string>
     <string name="home_empty_body">लहान अॅप नाव वापरून पहा किंवा शोध साफ करा.</string>
+    <string name="home_search_play_store">Play Store मध्ये शोधा</string>
+    <string name="app_store_search_unavailable">कोणतेही अॅप स्टोअर उपलब्ध नाही</string>
     <string name="agenda_permission_title">कॅलेंडर इव्हेंट दाखवा</string>
     <string name="navigate_home_description">लाँचर शोधावर परत जा</string>
     <string name="app_actions_description">अॅप क्रिया</string>

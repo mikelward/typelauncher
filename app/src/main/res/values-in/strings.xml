@@ -99,6 +99,8 @@
     <string name="dock_subtitle">Hingga %1$d aplikasi muat di sini</string>
     <string name="home_empty_title">Tidak ada hasil</string>
     <string name="home_empty_body">Coba nama aplikasi yang lebih pendek atau hapus pencarian.</string>
+    <string name="home_search_play_store">Telusuri di Play Store</string>
+    <string name="app_store_search_unavailable">Tidak ada toko aplikasi yang tersedia</string>
     <string name="agenda_permission_title">Tampilkan acara kalender</string>
     <string name="navigate_home_description">Kembali ke pencarian peluncur</string>
     <string name="app_actions_description">Tindakan aplikasi</string>

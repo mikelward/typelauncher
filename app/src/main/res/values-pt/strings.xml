@@ -101,6 +101,8 @@
     <string name="dock_subtitle">Até %1$d apps aqui</string>
     <string name="home_empty_title">Sem resultados</string>
     <string name="home_empty_body">Tente um nome mais curto ou limpe a pesquisa.</string>
+    <string name="home_search_play_store">Pesquisar na Play Store</string>
+    <string name="app_store_search_unavailable">Nenhuma loja de apps disponível</string>
     <string name="agenda_permission_title">Mostrar eventos do calendário</string>
     <string name="navigate_home_description">Voltar à pesquisa do launcher</string>
     <string name="app_actions_description">Ações do app</string>

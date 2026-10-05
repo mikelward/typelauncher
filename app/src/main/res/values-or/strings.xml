@@ -100,6 +100,8 @@
     <string name="dock_subtitle">ଏଠାରେ ସର୍ବାଧିକ %1$d ଆପ୍ ଆସିପାରେ</string>
     <string name="home_empty_title">କୌଣସି ମେଳ ନାହିଁ</string>
     <string name="home_empty_body">ଛୋଟ ଆପ୍ ନାମ ଚେଷ୍ଟା କରନ୍ତୁ କିମ୍ବା ସନ୍ଧାନ ଖାଲି କରନ୍ତୁ।</string>
+    <string name="home_search_play_store">Play Storeରେ ଖୋଜନ୍ତୁ</string>
+    <string name="app_store_search_unavailable">କୌଣସି ଆପ୍ ଷ୍ଟୋର ଉପଲବ୍ଧ ନାହିଁ</string>
     <string name="agenda_permission_title">କ୍ୟାଲେଣ୍ଡର ଇଭେଣ୍ଟ ଦେଖାନ୍ତୁ</string>
     <string name="navigate_home_description">ଲଞ୍ଚର୍ ସନ୍ଧାନକୁ ଫେରନ୍ତୁ</string>
     <string name="app_actions_description">ଆପ୍ କାର୍ଯ୍ୟଗୁଡ଼ିକ</string>

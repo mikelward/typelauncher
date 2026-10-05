@@ -99,6 +99,8 @@
     <string name="dock_subtitle">最多容纳 %1$d 个应用</string>
     <string name="home_empty_title">无匹配项</string>
     <string name="home_empty_body">尝试更短的应用名称或清除搜索。</string>
+    <string name="home_search_play_store">在 Play 商店中搜索</string>
+    <string name="app_store_search_unavailable">没有可用的应用商店</string>
     <string name="agenda_permission_title">显示日历事件</string>
     <string name="navigate_home_description">返回启动器搜索</string>
     <string name="app_actions_description">应用操作</string>

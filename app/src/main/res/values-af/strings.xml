@@ -100,6 +100,8 @@
     <string name="dock_subtitle">Tot %1$d programme pas hier</string>
     <string name="home_empty_title">Geen resultate nie</string>
     <string name="home_empty_body">Probeer \'n korter programnaam of vee die soekveld uit.</string>
+    <string name="home_search_play_store">Soek in Play Store</string>
+    <string name="app_store_search_unavailable">Geen programwinkel beskikbaar nie</string>
     <string name="agenda_permission_title">Wys kalendergebeurtenisse</string>
     <string name="navigate_home_description">Keer terug na laaier-soektog</string>
     <string name="app_actions_description">Programaksies</string>

@@ -99,6 +99,8 @@
     <string name="dock_subtitle">Sehingga %1$d aplikasi muat di sini</string>
     <string name="home_empty_title">Tiada padanan</string>
     <string name="home_empty_body">Cuba nama aplikasi yang lebih pendek atau kosongkan carian.</string>
+    <string name="home_search_play_store">Cari di Gedung Play</string>
+    <string name="app_store_search_unavailable">Tiada gedung aplikasi tersedia</string>
     <string name="agenda_permission_title">Tunjukkan acara kalendar</string>
     <string name="navigate_home_description">Kembali ke carian pelancar</string>
     <string name="app_actions_description">Tindakan aplikasi</string>

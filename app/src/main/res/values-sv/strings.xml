@@ -100,6 +100,8 @@
     <string name="dock_subtitle">Upp till %1$d appar får plats här</string>
     <string name="home_empty_title">Inga träffar</string>
     <string name="home_empty_body">Prova ett kortare appnamn eller rensa sökningen.</string>
+    <string name="home_search_play_store">Sök i Play Butik</string>
+    <string name="app_store_search_unavailable">Ingen appbutik tillgänglig</string>
     <string name="agenda_permission_title">Visa kalenderhändelser</string>
     <string name="navigate_home_description">Återgå till launcher-sökning</string>
     <string name="app_actions_description">Appåtgärder</string>

@@ -99,6 +99,8 @@
     <string name="dock_subtitle">ដាក់បានរហូតដល់ %1$d កម្មវិធីនៅទីនេះ</string>
     <string name="home_empty_title">មិនមានលទ្ធផល</string>
     <string name="home_empty_body">សាកល្បងឈ្មោះកម្មវិធីខ្លីជាង ឬសម្អាតការស្វែងរក។</string>
+    <string name="home_search_play_store">ស្វែងរកក្នុង Play Store</string>
+    <string name="app_store_search_unavailable">មិនមានហាងកម្មវិធីទេ</string>
     <string name="agenda_permission_title">បង្ហាញព្រឹត្តិការណ៍ប្រតិទិន</string>
     <string name="navigate_home_description">ត្រឡប់ទៅការស្វែងរកឡានឆ័រ</string>
     <string name="app_actions_description">សកម្មភាពកម្មវិធី</string>

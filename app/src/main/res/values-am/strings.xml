@@ -100,6 +100,8 @@
     <string name="dock_subtitle">እዚህ እስከ %1$d መተግበሪያዎች ይገባሉ</string>
     <string name="home_empty_title">ምንም ውጤት የለም</string>
     <string name="home_empty_body">አጠር ያለ የመተግበሪያ ስም ይሞክሩ ወይም ፍለጋውን ያጽዱ።</string>
+    <string name="home_search_play_store">በPlay መደብር ውስጥ ይፈልጉ</string>
+    <string name="app_store_search_unavailable">ምንም የመተግበሪያ መደብር አይገኝም</string>
     <string name="agenda_permission_title">የቀን መቁጠሪያ ክስተቶችን አሳይ</string>
     <string name="navigate_home_description">ወደ አስጀማሪ ፍለጋ ተመለስ</string>
     <string name="app_actions_description">የመተግበሪያ እርምጃዎች</string>

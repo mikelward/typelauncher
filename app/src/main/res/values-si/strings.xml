@@ -100,6 +100,8 @@
     <string name="dock_subtitle">මෙහි යෙදුම් %1$d ක් දක්වා ගැලපේ</string>
     <string name="home_empty_title">ගැලපීම් නැත</string>
     <string name="home_empty_body">කෙටි යෙදුම් නමක් උත්සාහ කරන්න හෝ සෙවුම හිස් කරන්න.</string>
+    <string name="home_search_play_store">Play Store හි සොයන්න</string>
+    <string name="app_store_search_unavailable">යෙදුම් ගබඩාවක් නොමැත</string>
     <string name="agenda_permission_title">දින දර්ශන සිදුවීම් පෙන්වන්න</string>
     <string name="navigate_home_description">ලොන්චර් සෙවුමට ආපසු</string>
     <string name="app_actions_description">යෙදුම් ක්‍රියා</string>

@@ -101,6 +101,8 @@
     <string name="dock_subtitle">Hi caben fins a %1$d aplicacions</string>
     <string name="home_empty_title">Sense resultats</string>
     <string name="home_empty_body">Prova un nom més curt o esborra la cerca.</string>
+    <string name="home_search_play_store">Cerca a Play Store</string>
+    <string name="app_store_search_unavailable">No hi ha cap botiga d\'aplicacions disponible</string>
     <string name="agenda_permission_title">Mostra els esdeveniments del calendari</string>
     <string name="navigate_home_description">Torna a la cerca del llançador</string>
     <string name="app_actions_description">Accions de l\'aplicació</string>
