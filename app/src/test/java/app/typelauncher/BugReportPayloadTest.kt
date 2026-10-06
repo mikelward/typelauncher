@@ -325,12 +325,44 @@ class BugReportPayloadTest {
         assertTrue(payload.contains("Lookups: 32949 hits, 15301 misses"))
     }
 
+    @Test
+    fun appListChangesGetTheirOwnSectionAheadOfTheLog() {
+        val payload = basePayload(
+            previousRun = null,
+            appListChanges = listOf("10-06 09:08:35.000 installed com.example.app user=0"),
+        )
+
+        val changes = payload.indexOf("--- App list changes (1, newest last) ---")
+        assertTrue(changes >= 0)
+        assertTrue(payload.contains("installed com.example.app user=0"))
+        assertTrue("ahead of the log", changes < payload.indexOf("--- Log ("))
+    }
+
+    @Test
+    fun anEmptyAppListHistorySaysSo() {
+        assertTrue(basePayload(previousRun = null).contains("(none since the launcher started)"))
+    }
+
+    @Test
+    fun aLongAppListHistoryKeepsItsNewestLinesAndStaysShareable() {
+        val payload = basePayload(
+            previousRun = "x".repeat(500_000),
+            log = (0 until 300).map { "line-$it " + "x".repeat(600) },
+            appListChanges = (0 until 200).map { "change-$it " + "y".repeat(100) } + "the newest change",
+        )
+
+        assertTrue(payload.contains("the newest change"))
+        assertTrue("the oldest is dropped", !payload.contains("change-0 "))
+        assertTrue("stays shareable", payload.length <= MAX_SHARE_PAYLOAD_CHARS)
+    }
+
     private fun basePayload(
         previousRun: String?,
         log: List<String> = listOf("11-04 09:00:01.000 D TypeLauncherDebug: current hello"),
         iconCache: AppIconLoader.CacheStats? = null,
         otherSettings: List<Pair<String, String>> = emptyList(),
         homeWidgetIds: List<Int> = emptyList(),
+        appListChanges: List<String> = emptyList(),
     ): String = buildBugReportPayload(
         nowMillis = 1_700_000_000_000L,
         versionName = "1.0",
@@ -356,5 +388,6 @@ class BugReportPayloadTest {
         iconCache = iconCache,
         otherSettings = otherSettings,
         homeWidgetIds = homeWidgetIds,
+        appListChanges = appListChanges,
     )
 }
