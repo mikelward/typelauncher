@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.longClick
@@ -250,6 +251,37 @@ class ContentSearchScreenshotTest {
     }
 
     @Test
+    fun appRow_longPressOffersTheAppsOwnShortcutsFirst() {
+        // An app's own shortcuts lead its menu, each with its icon, divided
+        // from the launcher's actions.
+        val maps = apps.first { it.name == "Maps" }
+        val user = maps.user
+        val shortcuts = listOf(
+            AppShortcut("home", maps.packageName, user, "Directions home"),
+            AppShortcut("saved", maps.packageName, user, "Saved places"),
+            AppShortcut("offline", maps.packageName, user, "Offline maps"),
+        )
+        val icon = android.graphics.Bitmap.createBitmap(48, 48, android.graphics.Bitmap.Config.ARGB_8888)
+            .apply { eraseColor(0xFF1E88E5.toInt()) }
+            .asImageBitmap()
+        val source = AppShortcutMenuSource(
+            shortcuts = kotlinx.coroutines.flow.MutableStateFlow(mapOf(AppShortcutKey(maps.packageName, user) to shortcuts)),
+            onLaunch = { _, _ -> },
+            loadIcon = { _, _ -> icon },
+        )
+        composeContent(reverseLayout = false, apps = apps, contacts = emptyList(), shortcutMenu = source)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Maps").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$APP_SHORTCUT_ACTION_TAG:Directions home").assertIsDisplayed()
+        composeRule.onNodeWithTag(APP_SHORTCUTS_DIVIDER_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag("$APP_INFO_ACTION_TAG:Maps").assertIsDisplayed()
+        composeRule.waitForIdle()
+
+        captureScreen("compose_app_shortcuts_menu_robolectric.png")
+    }
+
+    @Test
     fun storeSearchRow_ranksUnderAppResultsAndAboveContent() {
         // The app-store search as the apps section's lowest-ranked entry: under
         // every installed match, above the contacts divider, and carrying no
@@ -387,34 +419,37 @@ class ContentSearchScreenshotTest {
         // Blank by default so the existing section captures keep their shape:
         // the store-search row only joins the list once a query is typed.
         query: String = "",
+        shortcutMenu: AppShortcutMenuSource = AppShortcutMenuSource.None,
     ) {
         composeRule.setContent {
             TypeLauncherTheme {
-                Box(
-                    modifier = Modifier
-                        .width(320.dp)
-                        .height(480.dp)
-                        .background(Color(0xFFEFEFEF)),
-                ) {
-                    AppsCard(
-                        apps = apps,
-                        dockLimit = Int.MAX_VALUE,
-                        layout = layout,
-                        iconSizeDp = 43,
-                        highlightFirst = true,
-                        query = query,
-                        onSearchAppStore = {},
-                        reverseLayout = reverseLayout,
-                        contactResults = contacts,
-                        eventResults = events,
-                        onLaunchApp = {},
-                        onOpenAppInfo = {},
-                        onToggleDock = { _, _ -> },
-                        onResetRank = {},
-                        onRenameApp = { _, _ -> },
-                        onHideApp = {},
-                        onUninstallApp = {},
-                    )
+                androidx.compose.runtime.CompositionLocalProvider(LocalAppShortcutMenu provides shortcutMenu) {
+                    Box(
+                        modifier = Modifier
+                            .width(320.dp)
+                            .height(480.dp)
+                            .background(Color(0xFFEFEFEF)),
+                    ) {
+                        AppsCard(
+                            apps = apps,
+                            dockLimit = Int.MAX_VALUE,
+                            layout = layout,
+                            iconSizeDp = 43,
+                            highlightFirst = true,
+                            query = query,
+                            onSearchAppStore = {},
+                            reverseLayout = reverseLayout,
+                            contactResults = contacts,
+                            eventResults = events,
+                            onLaunchApp = {},
+                            onOpenAppInfo = {},
+                            onToggleDock = { _, _ -> },
+                            onResetRank = {},
+                            onRenameApp = { _, _ -> },
+                            onHideApp = {},
+                            onUninstallApp = {},
+                        )
+                    }
                 }
             }
         }
