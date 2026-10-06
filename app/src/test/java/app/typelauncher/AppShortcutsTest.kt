@@ -38,6 +38,7 @@ class AppShortcutsTest {
     @Before
     fun clearLaunches() {
         RecordingShortcutLauncherApps.launches.clear()
+        RecordingShortcutLauncherApps.failure = null
     }
 
     @After
@@ -285,10 +286,71 @@ class AppShortcutsTest {
         assertTrue(viewModel.uiState.value.recentApps.any { it.packageName == MAIL })
     }
 
-    private fun viewModel(query: (UserHandle, String?) -> List<ShortcutInfo>) = LauncherViewModel(
+    @Test
+    @Config(shadows = [RecordingShortcutLauncherApps::class])
+    fun aShortcutLaunchRunsOffTheMainThreadThenUpdatesHome() {
+        seedApp("Mail", MAIL)
+        val launches = QueuedDispatcher()
+        val viewModel = viewModel(launchDispatcher = launches) { _, _ -> emptyList() }
+        shadowOf(Looper.getMainLooper()).idle()
+        val mail = viewModel.uiState.value.filteredApps.single { it.packageName == MAIL }
+        viewModel.setQuery("ma")
+
+        viewModel.launchAppShortcut(mail, AppShortcut("compose", MAIL, personalUser, "Compose"))
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue("the binder call waits on the launch dispatcher", RecordingShortcutLauncherApps.launches.isEmpty())
+        assertEquals("Home is untouched until the start is accepted", "ma", viewModel.uiState.value.query)
+
+        launches.drain()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(listOf(Triple(MAIL, "compose", personalUser)), RecordingShortcutLauncherApps.launches)
+        assertEquals("", viewModel.uiState.value.query)
+        assertTrue(viewModel.uiState.value.recentApps.any { it.packageName == MAIL })
+    }
+
+    @Test
+    @Config(shadows = [RecordingShortcutLauncherApps::class])
+    fun aRefusedShortcutLaunchKeepsTheQueryAndDoesNotCountAsUse() {
+        seedApp("Mail", MAIL)
+        val viewModel = viewModel { _, _ -> emptyList() }
+        shadowOf(Looper.getMainLooper()).idle()
+        val mail = viewModel.uiState.value.filteredApps.single { it.packageName == MAIL }
+        viewModel.setQuery("ma")
+        RecordingShortcutLauncherApps.failure = IllegalStateException("profile locked")
+
+        viewModel.launchAppShortcut(mail, AppShortcut("compose", MAIL, personalUser, "Compose"))
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals("ma", viewModel.uiState.value.query)
+        assertFalse(viewModel.uiState.value.recentApps.any { it.packageName == MAIL })
+        assertEquals(
+            context.getString(R.string.app_menu_shortcut_unavailable),
+            org.robolectric.shadows.ShadowToast.getTextOfLatestToast(),
+        )
+    }
+
+    /** Holds dispatched work until [drain], so a test sees the state before it runs. */
+    private class QueuedDispatcher : kotlinx.coroutines.CoroutineDispatcher() {
+        private val queue = ArrayDeque<Runnable>()
+
+        override fun dispatch(context: kotlin.coroutines.CoroutineContext, block: Runnable) {
+            queue.add(block)
+        }
+
+        fun drain() {
+            while (queue.isNotEmpty()) queue.removeFirst().run()
+        }
+    }
+
+    private fun viewModel(
+        launchDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Unconfined,
+        query: (UserHandle, String?) -> List<ShortcutInfo>,
+    ) = LauncherViewModel(
         app = ApplicationProvider.getApplicationContext(),
         workPackages = emptySet(),
         ioDispatcher = Dispatchers.Unconfined,
+        launchDispatcher = launchDispatcher,
         queryShortcuts = { _, _ -> emptyList() },
         queryAppShortcuts = { _, user, packageName -> query(user, packageName) },
     )
@@ -368,10 +430,13 @@ class RecordingShortcutLauncherApps : org.robolectric.shadows.ShadowLauncherApps
         startActivityOptions: android.os.Bundle?,
         user: UserHandle,
     ) {
+        failure?.let { throw it }
         launches += Triple(packageName, shortcutId, user)
     }
 
     companion object {
         val launches = mutableListOf<Triple<String, String, UserHandle>>()
+        // Thrown by the next startShortcut instead of recording it.
+        var failure: RuntimeException? = null
     }
 }
