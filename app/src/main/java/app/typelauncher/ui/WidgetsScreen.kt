@@ -63,6 +63,8 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -231,6 +233,20 @@ internal fun WidgetsScreen(
 
 @Composable
 internal fun WidgetPickerCard(
+    availableWidgets: List<WidgetProvider>,
+    isLoading: Boolean,
+    appWidgetManager: AppWidgetManager?,
+    onDismissWidgetPicker: () -> Unit,
+    onSelectWidget: (WidgetProvider) -> Unit,
+) {
+    val iconCache = remember(availableWidgets) { WidgetPickerIconCache() }
+    CompositionLocalProvider(LocalWidgetPickerIconCache provides iconCache) {
+        WidgetPickerCardContent(availableWidgets, isLoading, appWidgetManager, onDismissWidgetPicker, onSelectWidget)
+    }
+}
+
+@Composable
+private fun WidgetPickerCardContent(
     availableWidgets: List<WidgetProvider>,
     isLoading: Boolean,
     appWidgetManager: AppWidgetManager?,
@@ -639,7 +655,7 @@ private fun WidgetAppIcon(
     profile: UserHandle?,
     isWorkProvider: Boolean,
 ) {
-    val bitmap = remember(appIcon) { appIcon?.toBitmap()?.asImageBitmap() }
+    val bitmap = rememberPickerIconBitmap(appIcon)
     val iconSize = 36.dp
     Box(modifier = Modifier.size(iconSize)) {
         Box(
@@ -683,7 +699,7 @@ private fun WidgetAppIcon(
 
 @Composable
 private fun WidgetIcon(provider: WidgetProvider) {
-    val bitmap = remember(provider) { provider.icon()?.toBitmap()?.asImageBitmap() }
+    val bitmap = rememberPickerIconBitmap(provider.icon())
     Box(
         modifier = Modifier.size(36.dp),
         contentAlignment = Alignment.Center,
@@ -1544,6 +1560,35 @@ private fun WidgetProvider.preview(appWidgetManager: AppWidgetManager?, context:
 }
 
 private fun WidgetProvider.icon(): Drawable? = icon ?: appIcon
+
+/**
+ * The picker's app and widget icons, rasterized once per drawable. The picker
+ * emits its rows positionally, so filtering recomposes a row with a different
+ * provider and a row-scoped `remember` would rasterize every visible icon again
+ * on each keystroke. One instance lives for one picker composition and one
+ * provider list (see [WidgetPickerCard]): closing the picker, or a reload that
+ * replaces the list, drops it and its bitmaps, so nothing outlives the picker.
+ * Keyed by drawable instance (drawables use identity equality). Rasterizes at
+ * the drawable's intrinsic size, as before. Main thread only: read from
+ * composition.
+ */
+internal class WidgetPickerIconCache {
+    private val bitmaps = HashMap<Drawable, ImageBitmap>()
+
+    fun bitmapFor(drawable: Drawable): ImageBitmap =
+        bitmaps.getOrPut(drawable) { drawable.toBitmap().asImageBitmap() }
+}
+
+// Null outside a picker, where an icon is rasterized on its own as before.
+private val LocalWidgetPickerIconCache = staticCompositionLocalOf<WidgetPickerIconCache?> { null }
+
+@Composable
+private fun rememberPickerIconBitmap(drawable: Drawable?): ImageBitmap? {
+    val cache = LocalWidgetPickerIconCache.current
+    return remember(drawable, cache) {
+        drawable?.let { cache?.bitmapFor(it) ?: it.toBitmap().asImageBitmap() }
+    }
+}
 
 @Composable
 private fun widgetProviderCountLabel(providerCount: Int): String =
