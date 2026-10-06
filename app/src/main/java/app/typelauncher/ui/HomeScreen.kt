@@ -3174,6 +3174,7 @@ private fun DockFolderMemberActionsMenu(
         onDismissRequest = onDismiss,
         properties = AppActionsMenuPopupProperties,
     ) {
+        AppShortcutMenuItems(app, onDismiss)
         DropdownMenuItem(
             text = { LauncherMenuItemText(stringResource(R.string.app_menu_app_info)) },
             onClick = {
@@ -5354,6 +5355,7 @@ private fun AppActionsMenu(
         onDismissRequest = onDismiss,
         properties = AppActionsMenuPopupProperties,
     ) {
+        AppShortcutMenuItems(app, onDismiss)
         DropdownMenuItem(
             text = { LauncherMenuItemText(stringResource(R.string.app_menu_app_info)) },
             modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.displayName}"),
@@ -5752,6 +5754,7 @@ private fun RecentAppActionsMenu(
         onDismissRequest = onDismissMenu,
         properties = AppActionsMenuPopupProperties,
     ) {
+        AppShortcutMenuItems(app, onDismissMenu)
         DropdownMenuItem(
             text = { LauncherMenuItemText(stringResource(R.string.app_menu_app_info)) },
             modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.displayName}"),

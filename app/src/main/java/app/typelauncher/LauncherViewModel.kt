@@ -90,6 +90,9 @@ internal class LauncherViewModel(
     // `ShadowLauncherApps` has no notion of a pinned shortcut.
     // Throws on failure, like the system call it wraps.
     private val queryShortcuts: (LauncherApps, UserHandle) -> List<ShortcutInfo> = ::readPinnedShortcuts,
+    // Apps' own shortcuts for the long-press menus (null package: every app in
+    // the profile). Injectable for the same reason as [queryShortcuts].
+    private val queryAppShortcuts: (LauncherApps, UserHandle, String?) -> List<ShortcutInfo> = ::readAppShortcuts,
 ) : ViewModel() {
     private val dockedAppStore = DockedAppStore(app)
     private val workDockedAppStore = DockedAppStore(app, DockedAppStore.WORK_PREFERENCES_NAME)
@@ -230,6 +233,19 @@ internal class LauncherViewModel(
     // instance and we never silently miss the unregister because the service
     // is null on a future `getSystemService` call.
     private val launcherAppsService: LauncherApps? = app.getSystemService<LauncherApps>()
+    private val appShortcutCache = AppShortcutCache(viewModelScope, ioDispatcher) { user, packageName ->
+        launcherAppsService?.let { service -> queryAppShortcuts(service, user, packageName) }.orEmpty()
+    }
+    private val appShortcutIconLoader = AppShortcutIconLoader(ioDispatcher) { shortcut ->
+        launcherAppsService?.getShortcutIconDrawable(shortcut, app.resources.displayMetrics.densityDpi)
+    }
+
+    /** The apps' own shortcuts the long-press menus offer. See [AppShortcutMenuSource]. */
+    val appShortcutMenu = AppShortcutMenuSource(
+        shortcuts = appShortcutCache.shortcuts,
+        onLaunch = ::launchAppShortcut,
+        loadIcon = appShortcutIconLoader::load,
+    )
     // The reload of the installed-app list that is currently running, if any.
     // Held so a burst of package events (e.g. an upgrade firing
     // PACKAGE_REMOVED then PACKAGE_ADDED) doesn't pile up redundant IO.
@@ -322,8 +338,11 @@ internal class LauncherViewModel(
             shortcuts: MutableList<ShortcutInfo>,
             user: UserHandle,
         ) {
+            // The menu's copy of this app's own shortcuts is reread on every
+            // change; it is one app's, off the main thread.
+            appShortcutCache.refreshPackage(packageName, user)
             // Fires for every republish of an app's dynamic shortcuts too, so
-            // only reload when what the app list shows actually moved.
+            // only reload the app list when what it shows actually moved.
             if (!pinnedShortcutsChanged(installedApps, packageName, user, shortcuts)) return
             AppIconLoader.evict(packageName, user)
             scheduleReload("shortcutsChanged")
@@ -706,6 +725,7 @@ internal class LauncherViewModel(
             initialLoadTrace.incrementMetric("app_count", loadedApps.size.toLong())
             initialLoadTrace.stop()
             installedApps = loadedApps
+            refreshAppShortcuts()
             // Set with the list it came from, and before anything reads it:
             // `maybePrefillWorkDock` consults this flag, so leaving the
             // assignment further down would let the seed run against the
@@ -1366,6 +1386,7 @@ internal class LauncherViewModel(
         }
         val loadedApps = loadResult.apps
         installedApps = loadedApps
+        refreshAppShortcuts()
         if (!isAppInventoryComplete) {
             // The first healthy read after a degraded cold start. Same
             // "latched rather than dropped" promise the cold-start path
@@ -3134,6 +3155,41 @@ internal class LauncherViewModel(
             }
             return
         }
+        onAppLaunched(app)
+    }
+
+    /**
+     * Opens one of [app]'s own shortcuts from its long-press menu. Counts as
+     * using [app], like launching it.
+     */
+    fun launchAppShortcut(app: InstalledApp, shortcut: AppShortcut) {
+        // No package or shortcut in the line: which shortcuts the user opens
+        // (a messenger's are often named after contacts) is theirs.
+        LauncherDebugLog.event("launchAppShortcut work=%s", app.isWorkApp)
+        try {
+            val launcherApps = launcherAppsService ?: return
+            launcherApps.startShortcut(shortcut.packageName, shortcut.id, null, null, shortcut.user)
+        } catch (exception: ActivityNotFoundException) {
+            // The app withdrew or disabled the shortcut since the menu's copy
+            // was read.
+            LauncherDebugLog.failure(exception, "launchAppShortcut activity not found")
+            Toast.makeText(this.app, R.string.app_menu_shortcut_unavailable, Toast.LENGTH_SHORT).show()
+            return
+        } catch (exception: SecurityException) {
+            // This launcher lost the home role, or access to the profile.
+            LauncherDebugLog.failure(exception, "launchAppShortcut security exception")
+            Toast.makeText(this.app, R.string.app_menu_shortcut_unavailable, Toast.LENGTH_SHORT).show()
+            return
+        } catch (exception: IllegalStateException) {
+            // The profile is locked or paused, or this is not the home app.
+            LauncherDebugLog.failure(exception, "launchAppShortcut unavailable")
+            Toast.makeText(this.app, R.string.app_menu_shortcut_unavailable, Toast.LENGTH_SHORT).show()
+            return
+        }
+        onAppLaunched(app)
+    }
+
+    private fun onAppLaunched(app: InstalledApp) {
         appLaunchStatsStore.recordLaunch(app.id)
         // recordLaunch mutates the recents store, so the recentApps surface
         // and the launch-count tier in the main list both need to be
@@ -3144,6 +3200,38 @@ internal class LauncherViewModel(
         // it should be tucked away again, not still expanded from before.
         _uiState.update { it.copy(isRecentsOpen = false) }
         setQuery("")
+    }
+
+    // The configuration the activity last started under. Main dispatcher only.
+    private var activityConfiguration: Configuration? = null
+
+    /**
+     * Called by the activity with each configuration it starts under. This
+     * view model outlives the activity a configuration change recreates, and
+     * the menu shortcuts were resolved against the old one: any change
+     * redraws their icons (which can vary on any resource qualifier), and a
+     * new language rereads them, since static labels come from the app's
+     * resources.
+     */
+    fun onActivityConfiguration(configuration: Configuration) {
+        val previous = activityConfiguration
+        activityConfiguration = Configuration(configuration)
+        if (previous == null || previous.diff(configuration) == 0) return
+        appShortcutIconLoader.clear()
+        if (previous.locales != configuration.locales && installedApps.isNotEmpty()) refreshAppShortcuts()
+    }
+
+    /**
+     * Rereads every app's menu shortcuts for the profiles the list just
+     * loaded. Off the main thread, after the list is published, so it never
+     * competes with the first frame.
+     */
+    private fun refreshAppShortcuts() {
+        val profiles = installedApps
+            .filterNot { app -> app.isShortcut }
+            .groupBy { app -> app.user }
+            .mapValues { (_, apps) -> apps.any { app -> app.isQuietMode } }
+        appShortcutCache.refreshAll(profiles)
     }
 
     fun openAppInfo(app: InstalledApp) {

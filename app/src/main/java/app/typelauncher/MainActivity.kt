@@ -495,6 +495,7 @@ class MainActivity : ComponentActivity() {
             if (recoveryToken != null) checkPlayUpdate(recoveryToken)
         }
         LauncherDebugLog.event("ViewModel ready %s", viewModel.uiState.value.debugSummary())
+        viewModel.onActivityConfiguration(resources.configuration)
         // A "Show wallpaper" toggle restarts the launcher through a fresh
         // activity start (see `restartForWallpaperWindowMode`); the restart
         // intent asks the new instance to land back in Settings so the toggle
