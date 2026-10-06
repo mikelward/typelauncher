@@ -3168,10 +3168,11 @@ private fun DockFolderMemberTile(
 }
 
 // The menu's last, destructive action: a pinned shortcut is unpinned
-// ("Remove"), never uninstalled — its package is the browser that made it.
+// ("Remove"), never uninstalled — its package is the browser that made it —
+// and a web link is deleted ("Remove").
 @StringRes
 internal fun uninstallActionLabel(app: InstalledApp): Int =
-    if (app.isShortcut) R.string.app_menu_remove_shortcut else R.string.app_menu_uninstall
+    if (app.isShortcut || app.isWebLink) R.string.app_menu_remove_shortcut else R.string.app_menu_uninstall
 
 @Composable
 private fun DockFolderMemberActionsMenu(
@@ -3198,13 +3199,16 @@ private fun DockFolderMemberActionsMenu(
         properties = AppActionsMenuPopupProperties,
     ) {
         AppShortcutMenuItems(app, onDismiss)
-        DropdownMenuItem(
-            text = { LauncherMenuItemText(stringResource(R.string.app_menu_app_info)) },
-            onClick = {
-                onDismiss()
-                onOpenAppInfo(app)
-            },
-        )
+        // A web link belongs to no package, so there is no App info to show.
+        if (!app.isWebLink) {
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.app_menu_app_info)) },
+                onClick = {
+                    onDismiss()
+                    onOpenAppInfo(app)
+                },
+            )
+        }
         // "Move out" pops the app back to a loose dock icon; "Undock" takes it
         // off the dock entirely. Both leave the folder.
         DropdownMenuItem(
@@ -5379,14 +5383,17 @@ private fun AppActionsMenu(
         properties = AppActionsMenuPopupProperties,
     ) {
         AppShortcutMenuItems(app, onDismiss)
-        DropdownMenuItem(
-            text = { LauncherMenuItemText(stringResource(R.string.app_menu_app_info)) },
-            modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.displayName}"),
-            onClick = {
-                onDismiss()
-                onOpenAppInfo(app)
-            },
-        )
+        // A web link belongs to no package, so there is no App info to show.
+        if (!app.isWebLink) {
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.app_menu_app_info)) },
+                modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.displayName}"),
+                onClick = {
+                    onDismiss()
+                    onOpenAppInfo(app)
+                },
+            )
+        }
         // A folder member on a flat surface (app list / recents) gets no dock
         // toggle: re-docking it no-ops in the store and folder membership is
         // managed in the folder popup (Move out / Undock). Dock tiles still
@@ -5630,7 +5637,15 @@ internal fun EditAppDialogContent(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            text = stringResource(R.string.edit_app_dialog_package, app.packageName),
+            // A web link has no package of its own; its address says what it is.
+            text = if (app.isWebLink) {
+                app.launchIntent.dataString.orEmpty()
+            } else {
+                stringResource(R.string.edit_app_dialog_package, app.packageName)
+            },
+            // An address can run long; it must not push the buttons off the dialog.
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.testTag(EDIT_APP_DIALOG_PACKAGE_TAG),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -5778,14 +5793,17 @@ private fun RecentAppActionsMenu(
         properties = AppActionsMenuPopupProperties,
     ) {
         AppShortcutMenuItems(app, onDismissMenu)
-        DropdownMenuItem(
-            text = { LauncherMenuItemText(stringResource(R.string.app_menu_app_info)) },
-            modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.displayName}"),
-            onClick = {
-                onDismissMenu()
-                onOpenAppInfo(app)
-            },
-        )
+        // A web link belongs to no package, so there is no App info to show.
+        if (!app.isWebLink) {
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.app_menu_app_info)) },
+                modifier = Modifier.testTag("$APP_INFO_ACTION_TAG:${app.displayName}"),
+                onClick = {
+                    onDismissMenu()
+                    onOpenAppInfo(app)
+                },
+            )
+        }
         // A folder member has no plain dock toggle here: re-docking a foldered
         // app no-ops in the store, so the item would be a dead button. Folder
         // membership is managed in the folder popup (Move out / Undock).
