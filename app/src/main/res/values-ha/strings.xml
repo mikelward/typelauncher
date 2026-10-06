@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">A\'a, na gode</string>
     <string name="telemetry_consent_badge_description">Taimaka a inganta Type Launcher — yana buƙatar amsa</string>
     <string name="settings_analytics_title">Taimaka a inganta Type Launcher</string>
+    <string name="app_menu_remove_shortcut">Cire</string>
+    <string name="app_menu_shortcut_unavailable">Ba za a iya buɗe wannan gajerar hanya yanzu ba</string>
+    <string name="app_menu_remove_shortcut_failed">An kasa cire wannan gajerar hanya</string>
+    <string name="shortcut_already_listed">Tana cikin jerin manhajoji tuni</string>
+    <string name="pin_shortcut_dialog_title">A ƙara cikin jerin manhajoji?</string>
+    <string name="pin_shortcut_dialog_add">Ƙara</string>
+    <string name="pin_shortcut_dialog_cancel">Soke</string>
+    <string name="shortcut_pinned">An ƙara cikin jerin manhajoji</string>
+    <string name="shortcut_pin_failed">An kasa ƙara gajerar hanya</string>
 </resources>

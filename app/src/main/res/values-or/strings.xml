@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">ନା, ଧନ୍ୟବାଦ</string>
     <string name="telemetry_consent_badge_description">Type Launcherକୁ ଉନ୍ନତ କରିବାରେ ସାହାଯ୍ୟ କରନ୍ତୁ — ଉତ୍ତର ଆବଶ୍ୟକ</string>
     <string name="settings_analytics_title">Type Launcherକୁ ଉନ୍ନତ କରିବାରେ ସାହାଯ୍ୟ କରନ୍ତୁ</string>
+    <string name="app_menu_remove_shortcut">ହଟାନ୍ତୁ</string>
+    <string name="app_menu_shortcut_unavailable">ଏହି ସର୍ଟକଟ୍ ଏବେ ଖୋଲିହେବ ନାହିଁ</string>
+    <string name="app_menu_remove_shortcut_failed">ଏହି ସର୍ଟକଟ୍ ହଟାଇହେଲା ନାହିଁ</string>
+    <string name="shortcut_already_listed">ପୂର୍ବରୁ ଆପ୍ ତାଲିକାରେ ଅଛି</string>
+    <string name="pin_shortcut_dialog_title">ଆପ୍ ତାଲିକାରେ ଯୋଗ କରିବେ?</string>
+    <string name="pin_shortcut_dialog_add">ଯୋଗ କରନ୍ତୁ</string>
+    <string name="pin_shortcut_dialog_cancel">ବାତିଲ୍</string>
+    <string name="shortcut_pinned">ଆପ୍ ତାଲିକାରେ ଯୋଗ କରାଗଲା</string>
+    <string name="shortcut_pin_failed">ସର୍ଟକଟ୍ ଯୋଗ କରିହେଲା ନାହିଁ</string>
 </resources>

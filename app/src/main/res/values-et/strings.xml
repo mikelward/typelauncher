@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">Ei, aitäh</string>
     <string name="telemetry_consent_badge_description">Aita Type Launcherit paremaks muuta — ootab vastust</string>
     <string name="settings_analytics_title">Aita Type Launcherit paremaks muuta</string>
+    <string name="app_menu_remove_shortcut">Eemalda</string>
+    <string name="app_menu_shortcut_unavailable">Seda otseteed ei saa praegu avada</string>
+    <string name="app_menu_remove_shortcut_failed">Otseteed ei õnnestunud eemaldada</string>
+    <string name="shortcut_already_listed">On juba rakenduste loendis</string>
+    <string name="pin_shortcut_dialog_title">Kas lisada rakenduste loendisse?</string>
+    <string name="pin_shortcut_dialog_add">Lisa</string>
+    <string name="pin_shortcut_dialog_cancel">Tühista</string>
+    <string name="shortcut_pinned">Lisatud rakenduste loendisse</string>
+    <string name="shortcut_pin_failed">Otseteed ei õnnestunud lisada</string>
 </resources>

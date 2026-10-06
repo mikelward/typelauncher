@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">వద్దు, ధన్యవాదాలు</string>
     <string name="telemetry_consent_badge_description">Type Launcherను మెరుగుపరచడంలో సహాయపడండి — సమాధానం అవసరం</string>
     <string name="settings_analytics_title">Type Launcherను మెరుగుపరచడంలో సహాయపడండి</string>
+    <string name="app_menu_remove_shortcut">తీసివేయి</string>
+    <string name="app_menu_shortcut_unavailable">ఈ షార్ట్‌కట్‌ను ఇప్పుడు తెరవడం సాధ్యం కాదు</string>
+    <string name="app_menu_remove_shortcut_failed">ఈ షార్ట్‌కట్‌ను తీసివేయడం సాధ్యం కాలేదు</string>
+    <string name="shortcut_already_listed">ఇప్పటికే యాప్ జాబితాలో ఉంది</string>
+    <string name="pin_shortcut_dialog_title">యాప్ జాబితాకు జోడించాలా?</string>
+    <string name="pin_shortcut_dialog_add">జోడించు</string>
+    <string name="pin_shortcut_dialog_cancel">రద్దు చేయి</string>
+    <string name="shortcut_pinned">యాప్ జాబితాకు జోడించబడింది</string>
+    <string name="shortcut_pin_failed">షార్ట్‌కట్‌ను జోడించడం సాధ్యం కాలేదు</string>
 </resources>

@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">Hindi, salamat</string>
     <string name="telemetry_consent_badge_description">Tumulong na pagandahin ang Type Launcher — kailangan ng sagot</string>
     <string name="settings_analytics_title">Tumulong na pagandahin ang Type Launcher</string>
+    <string name="app_menu_remove_shortcut">Tanggalin</string>
+    <string name="app_menu_shortcut_unavailable">Hindi mabuksan ang shortcut na ito ngayon</string>
+    <string name="app_menu_remove_shortcut_failed">Hindi matanggal ang shortcut na ito</string>
+    <string name="shortcut_already_listed">Nasa listahan na ng app</string>
+    <string name="pin_shortcut_dialog_title">Idagdag sa listahan ng app?</string>
+    <string name="pin_shortcut_dialog_add">Idagdag</string>
+    <string name="pin_shortcut_dialog_cancel">Kanselahin</string>
+    <string name="shortcut_pinned">Idinagdag sa listahan ng app</string>
+    <string name="shortcut_pin_failed">Hindi maidagdag ang shortcut</string>
 </resources>

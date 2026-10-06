@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">Hayır, teşekkürler</string>
     <string name="telemetry_consent_badge_description">Type Launcher\'ı geliştirmeye yardım edin — yanıt bekliyor</string>
     <string name="settings_analytics_title">Type Launcher\'ı geliştirmeye yardım edin</string>
+    <string name="app_menu_remove_shortcut">Kaldır</string>
+    <string name="app_menu_shortcut_unavailable">Bu kısayol şu anda açılamıyor</string>
+    <string name="app_menu_remove_shortcut_failed">Bu kısayol kaldırılamadı</string>
+    <string name="shortcut_already_listed">Zaten uygulama listesinde</string>
+    <string name="pin_shortcut_dialog_title">Uygulama listesine eklensin mi?</string>
+    <string name="pin_shortcut_dialog_add">Ekle</string>
+    <string name="pin_shortcut_dialog_cancel">İptal</string>
+    <string name="shortcut_pinned">Uygulama listesine eklendi</string>
+    <string name="shortcut_pin_failed">Kısayol eklenemedi</string>
 </resources>

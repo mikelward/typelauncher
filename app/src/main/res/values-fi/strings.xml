@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">Ei kiitos</string>
     <string name="telemetry_consent_badge_description">Auta tekemään Type Launcherista parempi — odottaa vastausta</string>
     <string name="settings_analytics_title">Auta tekemään Type Launcherista parempi</string>
+    <string name="app_menu_remove_shortcut">Poista</string>
+    <string name="app_menu_shortcut_unavailable">Tätä pikakuvaketta ei voi avata nyt</string>
+    <string name="app_menu_remove_shortcut_failed">Pikakuvakkeen poistaminen epäonnistui</string>
+    <string name="shortcut_already_listed">On jo sovellusluettelossa</string>
+    <string name="pin_shortcut_dialog_title">Lisätäänkö sovellusluetteloon?</string>
+    <string name="pin_shortcut_dialog_add">Lisää</string>
+    <string name="pin_shortcut_dialog_cancel">Peruuta</string>
+    <string name="shortcut_pinned">Lisätty sovellusluetteloon</string>
+    <string name="shortcut_pin_failed">Pikakuvakkeen lisääminen epäonnistui</string>
 </resources>

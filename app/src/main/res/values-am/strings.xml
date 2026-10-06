@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">አይ፣ አመሰግናለሁ</string>
     <string name="telemetry_consent_badge_description">Type Launcherን የተሻለ ለማድረግ ያግዙ — መልስ ያስፈልገዋል</string>
     <string name="settings_analytics_title">Type Launcherን የተሻለ ለማድረግ ያግዙ</string>
+    <string name="app_menu_remove_shortcut">አስወግድ</string>
+    <string name="app_menu_shortcut_unavailable">ይህን አቋራጭ አሁን መክፈት አልተቻለም</string>
+    <string name="app_menu_remove_shortcut_failed">ይህን አቋራጭ ማስወገድ አልተቻለም</string>
+    <string name="shortcut_already_listed">አስቀድሞ በመተግበሪያ ዝርዝር ውስጥ አለ</string>
+    <string name="pin_shortcut_dialog_title">ወደ መተግበሪያ ዝርዝር ይታከል?</string>
+    <string name="pin_shortcut_dialog_add">አክል</string>
+    <string name="pin_shortcut_dialog_cancel">ሰርዝ</string>
+    <string name="shortcut_pinned">ወደ መተግበሪያ ዝርዝር ታክሏል</string>
+    <string name="shortcut_pin_failed">አቋራጩን ማከል አልተቻለም</string>
 </resources>

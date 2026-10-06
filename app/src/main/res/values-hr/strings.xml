@@ -210,4 +210,13 @@
     <string name="telemetry_consent_deny">Ne, hvala</string>
     <string name="telemetry_consent_badge_description">Pomozite poboljšati Type Launcher — čeka odgovor</string>
     <string name="settings_analytics_title">Pomozite poboljšati Type Launcher</string>
+    <string name="app_menu_remove_shortcut">Ukloni</string>
+    <string name="app_menu_shortcut_unavailable">Ovaj prečac trenutačno se ne može otvoriti</string>
+    <string name="app_menu_remove_shortcut_failed">Prečac nije uklonjen</string>
+    <string name="shortcut_already_listed">Već je na popisu aplikacija</string>
+    <string name="pin_shortcut_dialog_title">Dodati na popis aplikacija?</string>
+    <string name="pin_shortcut_dialog_add">Dodaj</string>
+    <string name="pin_shortcut_dialog_cancel">Odustani</string>
+    <string name="shortcut_pinned">Dodano na popis aplikacija</string>
+    <string name="shortcut_pin_failed">Prečac nije dodan</string>
 </resources>

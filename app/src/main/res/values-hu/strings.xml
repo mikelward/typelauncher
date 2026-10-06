@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">Nem, köszönöm</string>
     <string name="telemetry_consent_badge_description">Segíts jobbá tenni a Type Launchert — válaszra vár</string>
     <string name="settings_analytics_title">Segíts jobbá tenni a Type Launchert</string>
+    <string name="app_menu_remove_shortcut">Eltávolítás</string>
+    <string name="app_menu_shortcut_unavailable">Ez a parancsikon most nem nyitható meg</string>
+    <string name="app_menu_remove_shortcut_failed">Nem sikerült eltávolítani a parancsikont</string>
+    <string name="shortcut_already_listed">Már szerepel az alkalmazáslistában</string>
+    <string name="pin_shortcut_dialog_title">Hozzáadja az alkalmazáslistához?</string>
+    <string name="pin_shortcut_dialog_add">Hozzáadás</string>
+    <string name="pin_shortcut_dialog_cancel">Mégse</string>
+    <string name="shortcut_pinned">Hozzáadva az alkalmazáslistához</string>
+    <string name="shortcut_pin_failed">Nem sikerült hozzáadni a parancsikont</string>
 </resources>

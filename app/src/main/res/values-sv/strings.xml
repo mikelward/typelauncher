@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">Nej tack</string>
     <string name="telemetry_consent_badge_description">Hjälp till att göra Type Launcher bättre — behöver ett svar</string>
     <string name="settings_analytics_title">Hjälp till att göra Type Launcher bättre</string>
+    <string name="app_menu_remove_shortcut">Ta bort</string>
+    <string name="app_menu_shortcut_unavailable">Det går inte att öppna genvägen just nu</string>
+    <string name="app_menu_remove_shortcut_failed">Det gick inte att ta bort genvägen</string>
+    <string name="shortcut_already_listed">Finns redan i applistan</string>
+    <string name="pin_shortcut_dialog_title">Vill du lägga till i applistan?</string>
+    <string name="pin_shortcut_dialog_add">Lägg till</string>
+    <string name="pin_shortcut_dialog_cancel">Avbryt</string>
+    <string name="shortcut_pinned">Tillagd i applistan</string>
+    <string name="shortcut_pin_failed">Det gick inte att lägga till genvägen</string>
 </resources>

@@ -211,4 +211,13 @@
     <string name="telemetry_consent_deny">Ne, hvala</string>
     <string name="telemetry_consent_badge_description">Pomagajte izboljšati Type Launcher — čaka na odgovor</string>
     <string name="settings_analytics_title">Pomagajte izboljšati Type Launcher</string>
+    <string name="app_menu_remove_shortcut">Odstrani</string>
+    <string name="app_menu_shortcut_unavailable">Te bližnjice trenutno ni mogoče odpreti</string>
+    <string name="app_menu_remove_shortcut_failed">Bližnjice ni bilo mogoče odstraniti</string>
+    <string name="shortcut_already_listed">Že na seznamu aplikacij</string>
+    <string name="pin_shortcut_dialog_title">Želite dodati na seznam aplikacij?</string>
+    <string name="pin_shortcut_dialog_add">Dodaj</string>
+    <string name="pin_shortcut_dialog_cancel">Prekliči</string>
+    <string name="shortcut_pinned">Dodano na seznam aplikacij</string>
+    <string name="shortcut_pin_failed">Bližnjice ni bilo mogoče dodati</string>
 </resources>

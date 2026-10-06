@@ -211,4 +211,13 @@
     <string name="telemetry_consent_deny">Ne, děkuji</string>
     <string name="telemetry_consent_badge_description">Pomozte vylepšit Type Launcher — čeká na odpověď</string>
     <string name="settings_analytics_title">Pomozte vylepšit Type Launcher</string>
+    <string name="app_menu_remove_shortcut">Odstranit</string>
+    <string name="app_menu_shortcut_unavailable">Tuto zkratku teď nelze otevřít</string>
+    <string name="app_menu_remove_shortcut_failed">Zkratku se nepodařilo odstranit</string>
+    <string name="shortcut_already_listed">Už je v seznamu aplikací</string>
+    <string name="pin_shortcut_dialog_title">Přidat do seznamu aplikací?</string>
+    <string name="pin_shortcut_dialog_add">Přidat</string>
+    <string name="pin_shortcut_dialog_cancel">Zrušit</string>
+    <string name="shortcut_pinned">Přidáno do seznamu aplikací</string>
+    <string name="shortcut_pin_failed">Zkratku se nepodařilo přidat</string>
 </resources>

@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">Ez, eskerrik asko</string>
     <string name="telemetry_consent_badge_description">Lagundu Type Launcher hobetzen — erantzuna behar du</string>
     <string name="settings_analytics_title">Lagundu Type Launcher hobetzen</string>
+    <string name="app_menu_remove_shortcut">Kendu</string>
+    <string name="app_menu_shortcut_unavailable">Ezin da lasterbide hau ireki orain</string>
+    <string name="app_menu_remove_shortcut_failed">Ezin izan da kendu lasterbidea</string>
+    <string name="shortcut_already_listed">Aplikazio-zerrendan dago dagoeneko</string>
+    <string name="pin_shortcut_dialog_title">Aplikazio-zerrendara gehitu nahi duzu?</string>
+    <string name="pin_shortcut_dialog_add">Gehitu</string>
+    <string name="pin_shortcut_dialog_cancel">Utzi</string>
+    <string name="shortcut_pinned">Aplikazio-zerrendara gehitu da</string>
+    <string name="shortcut_pin_failed">Ezin izan da gehitu lasterbidea</string>
 </resources>

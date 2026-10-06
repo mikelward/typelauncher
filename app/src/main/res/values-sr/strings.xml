@@ -210,4 +210,13 @@
     <string name="telemetry_consent_deny">Не, хвала</string>
     <string name="telemetry_consent_badge_description">Помозите да Type Launcher буде бољи — чека одговор</string>
     <string name="settings_analytics_title">Помозите да Type Launcher буде бољи</string>
+    <string name="app_menu_remove_shortcut">Уклони</string>
+    <string name="app_menu_shortcut_unavailable">Ова пречица тренутно не може да се отвори</string>
+    <string name="app_menu_remove_shortcut_failed">Уклањање пречице није успело</string>
+    <string name="shortcut_already_listed">Већ је на списку апликација</string>
+    <string name="pin_shortcut_dialog_title">Желите да додате на списак апликација?</string>
+    <string name="pin_shortcut_dialog_add">Додај</string>
+    <string name="pin_shortcut_dialog_cancel">Откажи</string>
+    <string name="shortcut_pinned">Додато на списак апликација</string>
+    <string name="shortcut_pin_failed">Додавање пречице није успело</string>
 </resources>

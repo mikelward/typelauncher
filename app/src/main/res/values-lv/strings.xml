@@ -210,4 +210,13 @@
     <string name="telemetry_consent_deny">Nē, paldies</string>
     <string name="telemetry_consent_badge_description">Palīdziet uzlabot Type Launcher — jāatbild</string>
     <string name="settings_analytics_title">Palīdziet uzlabot Type Launcher</string>
+    <string name="app_menu_remove_shortcut">Noņemt</string>
+    <string name="app_menu_shortcut_unavailable">Šo saīsni pašlaik nevar atvērt</string>
+    <string name="app_menu_remove_shortcut_failed">Neizdevās noņemt šo saīsni</string>
+    <string name="shortcut_already_listed">Jau ir lietotņu sarakstā</string>
+    <string name="pin_shortcut_dialog_title">Vai pievienot lietotņu sarakstam?</string>
+    <string name="pin_shortcut_dialog_add">Pievienot</string>
+    <string name="pin_shortcut_dialog_cancel">Atcelt</string>
+    <string name="shortcut_pinned">Pievienota lietotņu sarakstam</string>
+    <string name="shortcut_pin_failed">Neizdevās pievienot saīsni</string>
 </resources>

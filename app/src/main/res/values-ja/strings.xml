@@ -208,4 +208,13 @@
     <string name="telemetry_consent_deny">いいえ</string>
     <string name="telemetry_consent_badge_description">Type Launcher の改善にご協力ください — 回答が必要です</string>
     <string name="settings_analytics_title">Type Launcher の改善にご協力ください</string>
+    <string name="app_menu_remove_shortcut">削除</string>
+    <string name="app_menu_shortcut_unavailable">このショートカットは現在開けません</string>
+    <string name="app_menu_remove_shortcut_failed">このショートカットを削除できませんでした</string>
+    <string name="shortcut_already_listed">すでにアプリ一覧にあります</string>
+    <string name="pin_shortcut_dialog_title">アプリ一覧に追加しますか？</string>
+    <string name="pin_shortcut_dialog_add">追加</string>
+    <string name="pin_shortcut_dialog_cancel">キャンセル</string>
+    <string name="shortcut_pinned">アプリ一覧に追加しました</string>
+    <string name="shortcut_pin_failed">ショートカットを追加できませんでした</string>
 </resources>

@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">Nein, danke</string>
     <string name="telemetry_consent_badge_description">Hilf, Type Launcher besser zu machen — braucht eine Antwort</string>
     <string name="settings_analytics_title">Hilf, Type Launcher besser zu machen</string>
+    <string name="app_menu_remove_shortcut">Entfernen</string>
+    <string name="app_menu_shortcut_unavailable">Diese Verknüpfung kann gerade nicht geöffnet werden</string>
+    <string name="app_menu_remove_shortcut_failed">Verknüpfung konnte nicht entfernt werden</string>
+    <string name="shortcut_already_listed">Bereits in der App-Liste</string>
+    <string name="pin_shortcut_dialog_title">Zur App-Liste hinzufügen?</string>
+    <string name="pin_shortcut_dialog_add">Hinzufügen</string>
+    <string name="pin_shortcut_dialog_cancel">Abbrechen</string>
+    <string name="shortcut_pinned">Zur App-Liste hinzugefügt</string>
+    <string name="shortcut_pin_failed">Verknüpfung konnte nicht hinzugefügt werden</string>
 </resources>
