@@ -886,13 +886,11 @@ Not blocking the PR: nothing in it changes what is transmitted.
 
 ## Deferred review findings (Codex, PR #770)
 
-- [ ] **Launch apps and shortcuts off the main thread.** Every tap calls
-  `LauncherApps.startMainActivity` / `startShortcut` (both binder calls) from
-  the UI callback, so a slow launcher-apps service or a work profile mid-transition
-  can stall the launcher. Codex raised it twice for shortcuts; fixing shortcuts
-  alone would split the launch path, so move both together: run the IPC on the
-  IO dispatcher and return to main for launch stats, list refresh and failure
-  toasts, keeping the launch-state updates ahead of the transition.
+- [x] **Launch apps and shortcuts off the main thread.** Done: app and
+  shortcut starts (`LauncherApps.startMainActivity` / `startShortcut`, and the
+  plain `startActivity` fallback) run on a launch dispatcher, and launch stats,
+  list refresh and failure toasts follow on main once the system has accepted
+  the start.
 
 ## Privacy
 - [ ] **Decide whether "we don't hold a user's data captive" belongs in this
