@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">Не, благодаря</string>
     <string name="telemetry_consent_badge_description">Помогнете да подобрим Type Launcher — изисква отговор</string>
     <string name="settings_analytics_title">Помогнете да подобрим Type Launcher</string>
+    <string name="app_menu_remove_shortcut">Премахни</string>
+    <string name="app_menu_shortcut_unavailable">Този пряк път не може да се отвори в момента</string>
+    <string name="app_menu_remove_shortcut_failed">Прекият път не можа да бъде премахнат</string>
+    <string name="shortcut_already_listed">Вече е в списъка с приложения</string>
+    <string name="pin_shortcut_dialog_title">Добавяне към списъка с приложения?</string>
+    <string name="pin_shortcut_dialog_add">Добави</string>
+    <string name="pin_shortcut_dialog_cancel">Отказ</string>
+    <string name="shortcut_pinned">Добавено към списъка с приложения</string>
+    <string name="shortcut_pin_failed">Прекият път не можа да бъде добавен</string>
 </resources>

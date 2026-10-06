@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">Cha, ngiyabonga</string>
     <string name="telemetry_consent_badge_description">Siza ukwenza i-Type Launcher ibe ngcono — idinga impendulo</string>
     <string name="settings_analytics_title">Siza ukwenza i-Type Launcher ibe ngcono</string>
+    <string name="app_menu_remove_shortcut">Susa</string>
+    <string name="app_menu_shortcut_unavailable">Ayikwazi ukuvula lesi sinqamuleli manje</string>
+    <string name="app_menu_remove_shortcut_failed">Ayikwazanga ukususa lesi sinqamuleli</string>
+    <string name="shortcut_already_listed">Sekukhona ohlwini lwezinhlelo zokusebenza</string>
+    <string name="pin_shortcut_dialog_title">Engeza ohlwini lwezinhlelo zokusebenza?</string>
+    <string name="pin_shortcut_dialog_add">Engeza</string>
+    <string name="pin_shortcut_dialog_cancel">Khansela</string>
+    <string name="shortcut_pinned">Kungeziwe ohlwini lwezinhlelo zokusebenza</string>
+    <string name="shortcut_pin_failed">Ayikwazanga ukwengeza isinqamuleli</string>
 </resources>

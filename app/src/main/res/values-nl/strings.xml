@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">Nee, bedankt</string>
     <string name="telemetry_consent_badge_description">Help Type Launcher beter te maken — wacht op antwoord</string>
     <string name="settings_analytics_title">Help Type Launcher beter te maken</string>
+    <string name="app_menu_remove_shortcut">Verwijderen</string>
+    <string name="app_menu_shortcut_unavailable">Deze snelkoppeling kan nu niet worden geopend</string>
+    <string name="app_menu_remove_shortcut_failed">Kan deze snelkoppeling niet verwijderen</string>
+    <string name="shortcut_already_listed">Staat al in de app-lijst</string>
+    <string name="pin_shortcut_dialog_title">Toevoegen aan app-lijst?</string>
+    <string name="pin_shortcut_dialog_add">Toevoegen</string>
+    <string name="pin_shortcut_dialog_cancel">Annuleren</string>
+    <string name="shortcut_pinned">Toegevoegd aan app-lijst</string>
+    <string name="shortcut_pin_failed">Kan snelkoppeling niet toevoegen</string>
 </resources>

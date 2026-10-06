@@ -210,4 +210,13 @@
     <string name="telemetry_consent_deny">Nu, mulțumesc</string>
     <string name="telemetry_consent_badge_description">Ajută la îmbunătățirea Type Launcher — așteaptă un răspuns</string>
     <string name="settings_analytics_title">Ajută la îmbunătățirea Type Launcher</string>
+    <string name="app_menu_remove_shortcut">Elimină</string>
+    <string name="app_menu_shortcut_unavailable">Comanda rapidă nu poate fi deschisă acum</string>
+    <string name="app_menu_remove_shortcut_failed">Comanda rapidă nu a putut fi eliminată</string>
+    <string name="shortcut_already_listed">Este deja în lista de aplicații</string>
+    <string name="pin_shortcut_dialog_title">Adaugi în lista de aplicații?</string>
+    <string name="pin_shortcut_dialog_add">Adaugă</string>
+    <string name="pin_shortcut_dialog_cancel">Anulează</string>
+    <string name="shortcut_pinned">Adăugată în lista de aplicații</string>
+    <string name="shortcut_pin_failed">Comanda rapidă nu a putut fi adăugată</string>
 </resources>

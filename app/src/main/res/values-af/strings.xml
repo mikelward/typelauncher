@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">Nee, dankie</string>
     <string name="telemetry_consent_badge_description">Help om Type Launcher beter te maak — het ’n antwoord nodig</string>
     <string name="settings_analytics_title">Help om Type Launcher beter te maak</string>
+    <string name="app_menu_remove_shortcut">Verwyder</string>
+    <string name="app_menu_shortcut_unavailable">Kan nie hierdie kortpad nou oopmaak nie</string>
+    <string name="app_menu_remove_shortcut_failed">Kon nie hierdie kortpad verwyder nie</string>
+    <string name="shortcut_already_listed">Reeds in programlys</string>
+    <string name="pin_shortcut_dialog_title">Voeg by programlys?</string>
+    <string name="pin_shortcut_dialog_add">Voeg by</string>
+    <string name="pin_shortcut_dialog_cancel">Kanselleer</string>
+    <string name="shortcut_pinned">By programlys gevoeg</string>
+    <string name="shortcut_pin_failed">Kon nie kortpad byvoeg nie</string>
 </resources>

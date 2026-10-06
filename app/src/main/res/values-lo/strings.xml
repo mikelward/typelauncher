@@ -208,4 +208,13 @@
     <string name="telemetry_consent_deny">ບໍ່, ຂອບໃຈ</string>
     <string name="telemetry_consent_badge_description">ຊ່ວຍເຮັດໃຫ້ Type Launcher ດີຂຶ້ນ — ຕ້ອງການຄຳຕອບ</string>
     <string name="settings_analytics_title">ຊ່ວຍເຮັດໃຫ້ Type Launcher ດີຂຶ້ນ</string>
+    <string name="app_menu_remove_shortcut">ລຶບ</string>
+    <string name="app_menu_shortcut_unavailable">ບໍ່ສາມາດເປີດທາງລັດນີ້ໄດ້ໃນຕອນນີ້</string>
+    <string name="app_menu_remove_shortcut_failed">ບໍ່ສາມາດລຶບທາງລັດນີ້ໄດ້</string>
+    <string name="shortcut_already_listed">ມີໃນລາຍຊື່ແອັບແລ້ວ</string>
+    <string name="pin_shortcut_dialog_title">ເພີ່ມໃສ່ລາຍຊື່ແອັບບໍ?</string>
+    <string name="pin_shortcut_dialog_add">ເພີ່ມ</string>
+    <string name="pin_shortcut_dialog_cancel">ຍົກເລີກ</string>
+    <string name="shortcut_pinned">ເພີ່ມໃສ່ລາຍຊື່ແອັບແລ້ວ</string>
+    <string name="shortcut_pin_failed">ບໍ່ສາມາດເພີ່ມທາງລັດໄດ້</string>
 </resources>

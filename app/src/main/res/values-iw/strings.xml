@@ -211,4 +211,13 @@
     <string name="telemetry_consent_deny">לא, תודה</string>
     <string name="telemetry_consent_badge_description">עזרו לשפר את Type Launcher — נדרשת תשובה</string>
     <string name="settings_analytics_title">עזרו לשפר את Type Launcher</string>
+    <string name="app_menu_remove_shortcut">הסרה</string>
+    <string name="app_menu_shortcut_unavailable">אי אפשר לפתוח את קיצור הדרך הזה כרגע</string>
+    <string name="app_menu_remove_shortcut_failed">לא ניתן היה להסיר את קיצור הדרך</string>
+    <string name="shortcut_already_listed">כבר ברשימת האפליקציות</string>
+    <string name="pin_shortcut_dialog_title">להוסיף לרשימת האפליקציות?</string>
+    <string name="pin_shortcut_dialog_add">הוספה</string>
+    <string name="pin_shortcut_dialog_cancel">ביטול</string>
+    <string name="shortcut_pinned">נוסף לרשימת האפליקציות</string>
+    <string name="shortcut_pin_failed">לא ניתן היה להוסיף את קיצור הדרך</string>
 </resources>

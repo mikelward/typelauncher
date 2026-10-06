@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">එපා, ස්තූතියි</string>
     <string name="telemetry_consent_badge_description">Type Launcher වඩා හොඳ කිරීමට උදව් කරන්න — පිළිතුරක් අවශ්‍යයි</string>
     <string name="settings_analytics_title">Type Launcher වඩා හොඳ කිරීමට උදව් කරන්න</string>
+    <string name="app_menu_remove_shortcut">ඉවත් කරන්න</string>
+    <string name="app_menu_shortcut_unavailable">මෙම කෙටිමඟ දැන් විවෘත කළ නොහැක</string>
+    <string name="app_menu_remove_shortcut_failed">මෙම කෙටිමඟ ඉවත් කළ නොහැකි විය</string>
+    <string name="shortcut_already_listed">දැනටමත් යෙදුම් ලැයිස්තුවේ ඇත</string>
+    <string name="pin_shortcut_dialog_title">යෙදුම් ලැයිස්තුවට එක් කරන්නද?</string>
+    <string name="pin_shortcut_dialog_add">එක් කරන්න</string>
+    <string name="pin_shortcut_dialog_cancel">අවලංගු කරන්න</string>
+    <string name="shortcut_pinned">යෙදුම් ලැයිස්තුවට එක් කළා</string>
+    <string name="shortcut_pin_failed">කෙටිමඟ එක් කළ නොහැකි විය</string>
 </resources>

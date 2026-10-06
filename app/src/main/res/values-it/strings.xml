@@ -210,4 +210,13 @@
     <string name="telemetry_consent_deny">No, grazie</string>
     <string name="telemetry_consent_badge_description">Aiuta a migliorare Type Launcher — richiede una risposta</string>
     <string name="settings_analytics_title">Aiuta a migliorare Type Launcher</string>
+    <string name="app_menu_remove_shortcut">Rimuovi</string>
+    <string name="app_menu_shortcut_unavailable">Impossibile aprire questa scorciatoia al momento</string>
+    <string name="app_menu_remove_shortcut_failed">Impossibile rimuovere questa scorciatoia</string>
+    <string name="shortcut_already_listed">Già nell\'elenco app</string>
+    <string name="pin_shortcut_dialog_title">Aggiungere all\'elenco app?</string>
+    <string name="pin_shortcut_dialog_add">Aggiungi</string>
+    <string name="pin_shortcut_dialog_cancel">Annulla</string>
+    <string name="shortcut_pinned">Aggiunta all\'elenco app</string>
+    <string name="shortcut_pin_failed">Impossibile aggiungere la scorciatoia</string>
 </resources>

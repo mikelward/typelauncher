@@ -211,4 +211,13 @@
     <string name="telemetry_consent_deny">Ні, дякую</string>
     <string name="telemetry_consent_badge_description">Допоможіть покращити Type Launcher — потрібна відповідь</string>
     <string name="settings_analytics_title">Допоможіть покращити Type Launcher</string>
+    <string name="app_menu_remove_shortcut">Видалити</string>
+    <string name="app_menu_shortcut_unavailable">Зараз не вдається відкрити цей ярлик</string>
+    <string name="app_menu_remove_shortcut_failed">Не вдалося видалити цей ярлик</string>
+    <string name="shortcut_already_listed">Уже є в списку застосунків</string>
+    <string name="pin_shortcut_dialog_title">Додати до списку застосунків?</string>
+    <string name="pin_shortcut_dialog_add">Додати</string>
+    <string name="pin_shortcut_dialog_cancel">Скасувати</string>
+    <string name="shortcut_pinned">Додано до списку застосунків</string>
+    <string name="shortcut_pin_failed">Не вдалося додати ярлик</string>
 </resources>

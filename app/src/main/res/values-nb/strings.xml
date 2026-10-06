@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">Nei takk</string>
     <string name="telemetry_consent_badge_description">Hjelp til med å gjøre Type Launcher bedre — trenger et svar</string>
     <string name="settings_analytics_title">Hjelp til med å gjøre Type Launcher bedre</string>
+    <string name="app_menu_remove_shortcut">Fjern</string>
+    <string name="app_menu_shortcut_unavailable">Kan ikke åpne denne snarveien nå</string>
+    <string name="app_menu_remove_shortcut_failed">Kunne ikke fjerne denne snarveien</string>
+    <string name="shortcut_already_listed">Allerede på applisten</string>
+    <string name="pin_shortcut_dialog_title">Vil du legge til på applisten?</string>
+    <string name="pin_shortcut_dialog_add">Legg til</string>
+    <string name="pin_shortcut_dialog_cancel">Avbryt</string>
+    <string name="shortcut_pinned">Lagt til på applisten</string>
+    <string name="shortcut_pin_failed">Kunne ikke legge til snarveien</string>
 </resources>

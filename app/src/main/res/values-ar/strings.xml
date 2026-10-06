@@ -213,4 +213,13 @@
     <string name="telemetry_consent_deny">لا، شكرًا</string>
     <string name="telemetry_consent_badge_description">ساعِد في تحسين Type Launcher — يحتاج إلى إجابة</string>
     <string name="settings_analytics_title">ساعِد في تحسين Type Launcher</string>
+    <string name="app_menu_remove_shortcut">إزالة</string>
+    <string name="app_menu_shortcut_unavailable">يتعذّر فتح هذا الاختصار الآن</string>
+    <string name="app_menu_remove_shortcut_failed">تعذّرت إزالة هذا الاختصار</string>
+    <string name="shortcut_already_listed">موجود بالفعل في قائمة التطبيقات</string>
+    <string name="pin_shortcut_dialog_title">هل تريد الإضافة إلى قائمة التطبيقات؟</string>
+    <string name="pin_shortcut_dialog_add">إضافة</string>
+    <string name="pin_shortcut_dialog_cancel">إلغاء</string>
+    <string name="shortcut_pinned">تمت الإضافة إلى قائمة التطبيقات</string>
+    <string name="shortcut_pin_failed">تعذّرت إضافة الاختصار</string>
 </resources>

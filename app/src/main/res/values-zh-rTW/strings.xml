@@ -208,4 +208,13 @@
     <string name="telemetry_consent_deny">不用了，謝謝</string>
     <string name="telemetry_consent_badge_description">協助改善 Type Launcher — 需要回覆</string>
     <string name="settings_analytics_title">協助改善 Type Launcher</string>
+    <string name="app_menu_remove_shortcut">移除</string>
+    <string name="app_menu_shortcut_unavailable">目前無法開啟這個捷徑</string>
+    <string name="app_menu_remove_shortcut_failed">無法移除這個捷徑</string>
+    <string name="shortcut_already_listed">已在應用程式清單中</string>
+    <string name="pin_shortcut_dialog_title">要新增至應用程式清單嗎？</string>
+    <string name="pin_shortcut_dialog_add">新增</string>
+    <string name="pin_shortcut_dialog_cancel">取消</string>
+    <string name="shortcut_pinned">已新增至應用程式清單</string>
+    <string name="shortcut_pin_failed">無法新增捷徑</string>
 </resources>

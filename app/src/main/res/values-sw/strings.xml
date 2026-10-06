@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">Hapana, asante</string>
     <string name="telemetry_consent_badge_description">Saidia kuboresha Type Launcher — inahitaji jibu</string>
     <string name="settings_analytics_title">Saidia kuboresha Type Launcher</string>
+    <string name="app_menu_remove_shortcut">Ondoa</string>
+    <string name="app_menu_shortcut_unavailable">Haiwezekani kufungua njia hii ya mkato sasa</string>
+    <string name="app_menu_remove_shortcut_failed">Imeshindwa kuondoa njia hii ya mkato</string>
+    <string name="shortcut_already_listed">Tayari iko kwenye orodha ya programu</string>
+    <string name="pin_shortcut_dialog_title">Ungependa kuongeza kwenye orodha ya programu?</string>
+    <string name="pin_shortcut_dialog_add">Ongeza</string>
+    <string name="pin_shortcut_dialog_cancel">Ghairi</string>
+    <string name="shortcut_pinned">Imeongezwa kwenye orodha ya programu</string>
+    <string name="shortcut_pin_failed">Imeshindwa kuongeza njia ya mkato</string>
 </resources>

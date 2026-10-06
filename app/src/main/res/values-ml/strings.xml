@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">വേണ്ട, നന്ദി</string>
     <string name="telemetry_consent_badge_description">Type Launcher മെച്ചപ്പെടുത്താൻ സഹായിക്കൂ — മറുപടി ആവശ്യമാണ്</string>
     <string name="settings_analytics_title">Type Launcher മെച്ചപ്പെടുത്താൻ സഹായിക്കൂ</string>
+    <string name="app_menu_remove_shortcut">നീക്കം ചെയ്യുക</string>
+    <string name="app_menu_shortcut_unavailable">ഈ കുറുക്കുവഴി ഇപ്പോൾ തുറക്കാനാകില്ല</string>
+    <string name="app_menu_remove_shortcut_failed">ഈ കുറുക്കുവഴി നീക്കം ചെയ്യാനായില്ല</string>
+    <string name="shortcut_already_listed">ഇതിനകം ആപ്പ് പട്ടികയിലുണ്ട്</string>
+    <string name="pin_shortcut_dialog_title">ആപ്പ് പട്ടികയിലേക്ക് ചേർക്കണോ?</string>
+    <string name="pin_shortcut_dialog_add">ചേർക്കുക</string>
+    <string name="pin_shortcut_dialog_cancel">റദ്ദാക്കുക</string>
+    <string name="shortcut_pinned">ആപ്പ് പട്ടികയിലേക്ക് ചേർത്തു</string>
+    <string name="shortcut_pin_failed">കുറുക്കുവഴി ചേർക്കാനായില്ല</string>
 </resources>

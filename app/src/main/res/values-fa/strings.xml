@@ -209,4 +209,13 @@
     <string name="telemetry_consent_deny">نه، ممنون</string>
     <string name="telemetry_consent_badge_description">به بهتر شدن Type Launcher کمک کنید — نیاز به پاسخ دارد</string>
     <string name="settings_analytics_title">به بهتر شدن Type Launcher کمک کنید</string>
+    <string name="app_menu_remove_shortcut">حذف</string>
+    <string name="app_menu_shortcut_unavailable">اکنون نمی‌توان این میان‌بر را باز کرد</string>
+    <string name="app_menu_remove_shortcut_failed">این میان‌بر حذف نشد</string>
+    <string name="shortcut_already_listed">از قبل در فهرست برنامه‌ها هست</string>
+    <string name="pin_shortcut_dialog_title">به فهرست برنامه‌ها اضافه شود؟</string>
+    <string name="pin_shortcut_dialog_add">افزودن</string>
+    <string name="pin_shortcut_dialog_cancel">لغو</string>
+    <string name="shortcut_pinned">به فهرست برنامه‌ها اضافه شد</string>
+    <string name="shortcut_pin_failed">میان‌بر اضافه نشد</string>
 </resources>

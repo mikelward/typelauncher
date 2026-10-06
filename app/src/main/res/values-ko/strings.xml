@@ -208,4 +208,13 @@
     <string name="telemetry_consent_deny">아니요</string>
     <string name="telemetry_consent_badge_description">Type Launcher 개선에 도움 주기 — 응답 필요</string>
     <string name="settings_analytics_title">Type Launcher 개선에 도움 주기</string>
+    <string name="app_menu_remove_shortcut">삭제</string>
+    <string name="app_menu_shortcut_unavailable">지금은 이 바로가기를 열 수 없습니다</string>
+    <string name="app_menu_remove_shortcut_failed">이 바로가기를 삭제하지 못했습니다</string>
+    <string name="shortcut_already_listed">이미 앱 목록에 있습니다</string>
+    <string name="pin_shortcut_dialog_title">앱 목록에 추가하시겠습니까?</string>
+    <string name="pin_shortcut_dialog_add">추가</string>
+    <string name="pin_shortcut_dialog_cancel">취소</string>
+    <string name="shortcut_pinned">앱 목록에 추가됨</string>
+    <string name="shortcut_pin_failed">바로가기를 추가하지 못했습니다</string>
 </resources>

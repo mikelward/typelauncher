@@ -208,4 +208,13 @@
     <string name="telemetry_consent_deny">Không, cảm ơn</string>
     <string name="telemetry_consent_badge_description">Giúp cải thiện Type Launcher — cần câu trả lời</string>
     <string name="settings_analytics_title">Giúp cải thiện Type Launcher</string>
+    <string name="app_menu_remove_shortcut">Xóa</string>
+    <string name="app_menu_shortcut_unavailable">Không thể mở lối tắt này ngay bây giờ</string>
+    <string name="app_menu_remove_shortcut_failed">Không thể xóa lối tắt này</string>
+    <string name="shortcut_already_listed">Đã có trong danh sách ứng dụng</string>
+    <string name="pin_shortcut_dialog_title">Thêm vào danh sách ứng dụng?</string>
+    <string name="pin_shortcut_dialog_add">Thêm</string>
+    <string name="pin_shortcut_dialog_cancel">Hủy</string>
+    <string name="shortcut_pinned">Đã thêm vào danh sách ứng dụng</string>
+    <string name="shortcut_pin_failed">Không thể thêm lối tắt</string>
 </resources>

@@ -208,4 +208,13 @@
     <string name="telemetry_consent_deny">Tidak, terima kasih</string>
     <string name="telemetry_consent_badge_description">Bantu jadikan Type Launcher lebih baik — perlukan jawapan</string>
     <string name="settings_analytics_title">Bantu jadikan Type Launcher lebih baik</string>
+    <string name="app_menu_remove_shortcut">Buang</string>
+    <string name="app_menu_shortcut_unavailable">Tidak dapat membuka pintasan ini sekarang</string>
+    <string name="app_menu_remove_shortcut_failed">Tidak dapat membuang pintasan ini</string>
+    <string name="shortcut_already_listed">Sudah ada dalam senarai aplikasi</string>
+    <string name="pin_shortcut_dialog_title">Tambah pada senarai aplikasi?</string>
+    <string name="pin_shortcut_dialog_add">Tambah</string>
+    <string name="pin_shortcut_dialog_cancel">Batal</string>
+    <string name="shortcut_pinned">Ditambahkan pada senarai aplikasi</string>
+    <string name="shortcut_pin_failed">Tidak dapat menambah pintasan</string>
 </resources>

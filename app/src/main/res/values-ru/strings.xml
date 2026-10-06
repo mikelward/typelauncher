@@ -211,4 +211,13 @@
     <string name="telemetry_consent_deny">Нет, спасибо</string>
     <string name="telemetry_consent_badge_description">Помогите улучшить Type Launcher — нужен ответ</string>
     <string name="settings_analytics_title">Помогите улучшить Type Launcher</string>
+    <string name="app_menu_remove_shortcut">Удалить</string>
+    <string name="app_menu_shortcut_unavailable">Сейчас не удаётся открыть этот ярлык</string>
+    <string name="app_menu_remove_shortcut_failed">Не удалось удалить этот ярлык</string>
+    <string name="shortcut_already_listed">Уже в списке приложений</string>
+    <string name="pin_shortcut_dialog_title">Добавить в список приложений?</string>
+    <string name="pin_shortcut_dialog_add">Добавить</string>
+    <string name="pin_shortcut_dialog_cancel">Отмена</string>
+    <string name="shortcut_pinned">Добавлено в список приложений</string>
+    <string name="shortcut_pin_failed">Не удалось добавить ярлык</string>
 </resources>

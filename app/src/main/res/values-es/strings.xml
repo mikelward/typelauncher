@@ -210,4 +210,13 @@
     <string name="telemetry_consent_deny">No, gracias</string>
     <string name="telemetry_consent_badge_description">Ayuda a mejorar Type Launcher — necesita una respuesta</string>
     <string name="settings_analytics_title">Ayuda a mejorar Type Launcher</string>
+    <string name="app_menu_remove_shortcut">Eliminar</string>
+    <string name="app_menu_shortcut_unavailable">No se puede abrir este acceso directo ahora</string>
+    <string name="app_menu_remove_shortcut_failed">No se ha podido eliminar este acceso directo</string>
+    <string name="shortcut_already_listed">Ya está en la lista de apps</string>
+    <string name="pin_shortcut_dialog_title">¿Añadir a la lista de apps?</string>
+    <string name="pin_shortcut_dialog_add">Añadir</string>
+    <string name="pin_shortcut_dialog_cancel">Cancelar</string>
+    <string name="shortcut_pinned">Añadido a la lista de apps</string>
+    <string name="shortcut_pin_failed">No se ha podido añadir el acceso directo</string>
 </resources>

@@ -208,4 +208,13 @@
     <string name="telemetry_consent_deny">မလိုပါ၊ ကျေးဇူးပါ</string>
     <string name="telemetry_consent_badge_description">Type Launcher ပိုကောင်းလာအောင် ကူညီပါ — အဖြေလိုအပ်သည်</string>
     <string name="settings_analytics_title">Type Launcher ပိုကောင်းလာအောင် ကူညီပါ</string>
+    <string name="app_menu_remove_shortcut">ဖယ်ရှားမည်</string>
+    <string name="app_menu_shortcut_unavailable">ဤဖြတ်လမ်းကို ယခု ဖွင့်၍မရပါ</string>
+    <string name="app_menu_remove_shortcut_failed">ဤဖြတ်လမ်းကို ဖယ်ရှား၍မရပါ</string>
+    <string name="shortcut_already_listed">အက်ပ်စာရင်းတွင် ရှိပြီးဖြစ်သည်</string>
+    <string name="pin_shortcut_dialog_title">အက်ပ်စာရင်းသို့ ထည့်မလား။</string>
+    <string name="pin_shortcut_dialog_add">ထည့်မည်</string>
+    <string name="pin_shortcut_dialog_cancel">ပယ်ဖျက်မည်</string>
+    <string name="shortcut_pinned">အက်ပ်စာရင်းသို့ ထည့်ပြီးပါပြီ</string>
+    <string name="shortcut_pin_failed">ဖြတ်လမ်းကို ထည့်၍မရပါ</string>
 </resources>

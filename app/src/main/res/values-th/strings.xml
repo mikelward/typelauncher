@@ -208,4 +208,13 @@
     <string name="telemetry_consent_deny">ไม่ล่ะ ขอบคุณ</string>
     <string name="telemetry_consent_badge_description">ช่วยทำให้ Type Launcher ดีขึ้น — รอคำตอบ</string>
     <string name="settings_analytics_title">ช่วยทำให้ Type Launcher ดีขึ้น</string>
+    <string name="app_menu_remove_shortcut">ลบ</string>
+    <string name="app_menu_shortcut_unavailable">เปิดทางลัดนี้ไม่ได้ในขณะนี้</string>
+    <string name="app_menu_remove_shortcut_failed">นำทางลัดนี้ออกไม่ได้</string>
+    <string name="shortcut_already_listed">อยู่ในรายการแอปแล้ว</string>
+    <string name="pin_shortcut_dialog_title">เพิ่มลงในรายการแอปไหม</string>
+    <string name="pin_shortcut_dialog_add">เพิ่ม</string>
+    <string name="pin_shortcut_dialog_cancel">ยกเลิก</string>
+    <string name="shortcut_pinned">เพิ่มลงในรายการแอปแล้ว</string>
+    <string name="shortcut_pin_failed">เพิ่มทางลัดไม่ได้</string>
 </resources>

@@ -208,4 +208,13 @@
     <string name="telemetry_consent_deny">Rárá, ẹ ṣé</string>
     <string name="telemetry_consent_badge_description">Ràn wá lọ́wọ́ láti mú Type Launcher dára sí i — nílò ìdáhùn</string>
     <string name="settings_analytics_title">Ràn wá lọ́wọ́ láti mú Type Launcher dára sí i</string>
+    <string name="app_menu_remove_shortcut">Yọ kúrò</string>
+    <string name="app_menu_shortcut_unavailable">Kò ṣeé ṣí ọ̀nà àbùjá yìí báyìí</string>
+    <string name="app_menu_remove_shortcut_failed">Kò ṣeé yọ ọ̀nà àbùjá yìí kúrò</string>
+    <string name="shortcut_already_listed">Ó ti wà nínú àtòjọ áàpù</string>
+    <string name="pin_shortcut_dialog_title">Ṣé kí a fi kún àtòjọ áàpù?</string>
+    <string name="pin_shortcut_dialog_add">Fi kún</string>
+    <string name="pin_shortcut_dialog_cancel">Fagilé</string>
+    <string name="shortcut_pinned">A ti fi kún àtòjọ áàpù</string>
+    <string name="shortcut_pin_failed">Kò ṣeé fi ọ̀nà àbùjá kún</string>
 </resources>
