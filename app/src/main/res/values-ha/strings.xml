@@ -203,10 +203,10 @@
     <string name="crash_banner_share">Raba</string>
     <string name="crash_banner_dismiss">Yi watsi</string>
     <string name="crash_pending_badge_description">Mai yiwuwa app ya daina aiki</string>
-    <string name="telemetry_consent_title">Bincike mara suna</string>
-    <string name="telemetry_consent_body">Aika rahotannin matsala da bayanan amfani. Ba a taɓa aika bayananka na sirri ba.</string>
-    <string name="telemetry_consent_allow">Ba da izini</string>
-    <string name="telemetry_consent_deny">Kada a ba da izini</string>
-    <string name="telemetry_consent_badge_description">Bincike yana buƙatar amsa</string>
-    <string name="settings_analytics_title">Bincike</string>
+    <string name="telemetry_consent_title">Za ka taimaka a inganta Type Launcher?</string>
+    <string name="telemetry_consent_body">A aika rahotannin faɗuwar manhaja da ƙididdigar amfani ba tare da suna ba domin a gano kurakurai a gyara su?</string>
+    <string name="telemetry_consent_allow">Eh, don Allah</string>
+    <string name="telemetry_consent_deny">A\'a, na gode</string>
+    <string name="telemetry_consent_badge_description">Taimaka a inganta Type Launcher — yana buƙatar amsa</string>
+    <string name="settings_analytics_title">Taimaka a inganta Type Launcher</string>
 </resources>

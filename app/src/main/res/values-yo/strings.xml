@@ -202,10 +202,10 @@
     <string name="crash_banner_share">Pín</string>
     <string name="crash_banner_dismiss">Kọ̀</string>
     <string name="crash_pending_badge_description">A rí ìjàmbá tí ó lè ti ṣẹlẹ̀</string>
-    <string name="telemetry_consent_title">Ìtúpalẹ̀ àìlórúkọ</string>
-    <string name="telemetry_consent_body">Firanṣẹ́ àwọn ìròyìn ìjàmbá àti dátà ìlò. A kì í firanṣẹ́ dátà ara ẹni rẹ láé.</string>
-    <string name="telemetry_consent_allow">Gbà láàyè</string>
-    <string name="telemetry_consent_deny">Má ṣe gbà láàyè</string>
-    <string name="telemetry_consent_badge_description">Ìtúpalẹ̀ nílò ìdáhùn</string>
-    <string name="settings_analytics_title">Ìtúpalẹ̀</string>
+    <string name="telemetry_consent_title">Ṣé o máa ràn wá lọ́wọ́ láti mú Type Launcher dára sí i?</string>
+    <string name="telemetry_consent_body">Ṣé kí a fi ìròyìn ìjamba àti ìṣirò ìlò láìdárúkọ ránṣẹ́ kí a lè rí àṣìṣe kí a sì tún wọn ṣe?</string>
+    <string name="telemetry_consent_allow">Bẹ́ẹ̀ni, jọ̀ọ́</string>
+    <string name="telemetry_consent_deny">Rárá, ẹ ṣé</string>
+    <string name="telemetry_consent_badge_description">Ràn wá lọ́wọ́ láti mú Type Launcher dára sí i — nílò ìdáhùn</string>
+    <string name="settings_analytics_title">Ràn wá lọ́wọ́ láti mú Type Launcher dára sí i</string>
 </resources>

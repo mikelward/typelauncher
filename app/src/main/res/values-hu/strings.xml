@@ -203,10 +203,10 @@
     <string name="crash_banner_share">Megosztás</string>
     <string name="crash_banner_dismiss">Elvetés</string>
     <string name="crash_pending_badge_description">Lehetséges összeomlás észlelve</string>
-    <string name="telemetry_consent_title">Névtelen analitika</string>
-    <string name="telemetry_consent_body">Összeomlási jelentések és használati adatok küldése. Személyes adatait soha nem küldjük el.</string>
-    <string name="telemetry_consent_allow">Engedélyezés</string>
-    <string name="telemetry_consent_deny">Tiltás</string>
-    <string name="telemetry_consent_badge_description">Az analitika választ vár</string>
-    <string name="settings_analytics_title">Analitika</string>
+    <string name="telemetry_consent_title">Segítesz jobbá tenni a Type Launchert?</string>
+    <string name="telemetry_consent_body">Küldjünk összeomlási jelentéseket és névtelen használati statisztikákat, hogy a hibák kiderüljenek és javításra kerüljenek?</string>
+    <string name="telemetry_consent_allow">Igen, kérem</string>
+    <string name="telemetry_consent_deny">Nem, köszönöm</string>
+    <string name="telemetry_consent_badge_description">Segíts jobbá tenni a Type Launchert — válaszra vár</string>
+    <string name="settings_analytics_title">Segíts jobbá tenni a Type Launchert</string>
 </resources>

@@ -203,10 +203,10 @@
     <string name="crash_banner_share">Partekatu</string>
     <string name="crash_banner_dismiss">Baztertu</string>
     <string name="crash_pending_badge_description">Kraskadura posiblea hauteman da</string>
-    <string name="telemetry_consent_title">Analitika anonimoa</string>
-    <string name="telemetry_consent_body">Bidali kraskadura-txostenak eta erabilera-datuak. Zure datu pertsonalak ez dira inoiz bidaltzen.</string>
-    <string name="telemetry_consent_allow">Baimendu</string>
-    <string name="telemetry_consent_deny">Ez baimendu</string>
-    <string name="telemetry_consent_badge_description">Analitikak erantzuna behar du</string>
-    <string name="settings_analytics_title">Analitika</string>
+    <string name="telemetry_consent_title">Type Launcher hobetzen lagundu nahi duzu?</string>
+    <string name="telemetry_consent_body">Hutsegite-txostenak eta erabilera-estatistika anonimoak bidali, akatsak aurkitu eta konpon daitezen?</string>
+    <string name="telemetry_consent_allow">Bai, mesedez</string>
+    <string name="telemetry_consent_deny">Ez, eskerrik asko</string>
+    <string name="telemetry_consent_badge_description">Lagundu Type Launcher hobetzen — erantzuna behar du</string>
+    <string name="settings_analytics_title">Lagundu Type Launcher hobetzen</string>
 </resources>

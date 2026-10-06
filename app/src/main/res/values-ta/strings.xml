@@ -203,10 +203,10 @@
     <string name="crash_banner_share">பகிர்</string>
     <string name="crash_banner_dismiss">நிராகரி</string>
     <string name="crash_pending_badge_description">சாத்தியமான செயலிழப்பு கண்டறியப்பட்டது</string>
-    <string name="telemetry_consent_title">அநாமதேய பகுப்பாய்வு</string>
-    <string name="telemetry_consent_body">செயலிழப்பு அறிக்கைகளையும் பயன்பாட்டுத் தரவையும் அனுப்பவும். உங்கள் தனிப்பட்ட தரவு ஒருபோதும் அனுப்பப்படாது.</string>
-    <string name="telemetry_consent_allow">அனுமதி</string>
-    <string name="telemetry_consent_deny">அனுமதிக்க வேண்டாம்</string>
-    <string name="telemetry_consent_badge_description">பகுப்பாய்வுக்குப் பதில் தேவை</string>
-    <string name="settings_analytics_title">பகுப்பாய்வு</string>
+    <string name="telemetry_consent_title">Type Launcher-ஐ மேம்படுத்த உதவுவீர்களா?</string>
+    <string name="telemetry_consent_body">பிழைகளைக் கண்டறிந்து சரிசெய்ய, செயலிழப்பு அறிக்கைகளையும் அநாமதேயப் பயன்பாட்டுப் புள்ளிவிவரங்களையும் அனுப்பவா?</string>
+    <string name="telemetry_consent_allow">ஆம், அனுப்பு</string>
+    <string name="telemetry_consent_deny">வேண்டாம், நன்றி</string>
+    <string name="telemetry_consent_badge_description">Type Launcher-ஐ மேம்படுத்த உதவுங்கள் — பதில் தேவை</string>
+    <string name="settings_analytics_title">Type Launcher-ஐ மேம்படுத்த உதவுங்கள்</string>
 </resources>

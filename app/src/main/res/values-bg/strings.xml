@@ -203,10 +203,10 @@
     <string name="crash_banner_share">Споделяне</string>
     <string name="crash_banner_dismiss">Отхвърляне</string>
     <string name="crash_pending_badge_description">Открито е възможно сриване</string>
-    <string name="telemetry_consent_title">Анонимни анализи</string>
-    <string name="telemetry_consent_body">Изпращане на отчети за сривове и данни за употреба. Личните ви данни никога не се изпращат.</string>
-    <string name="telemetry_consent_allow">Разрешаване</string>
-    <string name="telemetry_consent_deny">Забраняване</string>
-    <string name="telemetry_consent_badge_description">Анализите се нуждаят от отговор</string>
-    <string name="settings_analytics_title">Анализи</string>
+    <string name="telemetry_consent_title">Ще помогнете ли да подобрим Type Launcher?</string>
+    <string name="telemetry_consent_body">Да се изпращат ли отчети за сривове и анонимна статистика за използването, за да се откриват и поправят грешки?</string>
+    <string name="telemetry_consent_allow">Да, моля</string>
+    <string name="telemetry_consent_deny">Не, благодаря</string>
+    <string name="telemetry_consent_badge_description">Помогнете да подобрим Type Launcher — изисква отговор</string>
+    <string name="settings_analytics_title">Помогнете да подобрим Type Launcher</string>
 </resources>

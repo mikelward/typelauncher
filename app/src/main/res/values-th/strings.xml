@@ -202,10 +202,10 @@
     <string name="crash_banner_share">แชร์</string>
     <string name="crash_banner_dismiss">ปิด</string>
     <string name="crash_pending_badge_description">ตรวจพบข้อขัดข้องที่อาจเกิดขึ้น</string>
-    <string name="telemetry_consent_title">การวิเคราะห์แบบไม่ระบุตัวตน</string>
-    <string name="telemetry_consent_body">ส่งรายงานข้อขัดข้องและข้อมูลการใช้งาน ระบบจะไม่ส่งข้อมูลส่วนบุคคลของคุณ</string>
-    <string name="telemetry_consent_allow">อนุญาต</string>
-    <string name="telemetry_consent_deny">ไม่อนุญาต</string>
-    <string name="telemetry_consent_badge_description">การวิเคราะห์ต้องการคำตอบ</string>
-    <string name="settings_analytics_title">การวิเคราะห์</string>
+    <string name="telemetry_consent_title">ช่วยทำให้ Type Launcher ดีขึ้นไหม</string>
+    <string name="telemetry_consent_body">ส่งรายงานข้อขัดข้องและสถิติการใช้งานแบบไม่ระบุตัวตน เพื่อให้พบและแก้ไขข้อบกพร่องได้ไหม</string>
+    <string name="telemetry_consent_allow">ได้เลย</string>
+    <string name="telemetry_consent_deny">ไม่ล่ะ ขอบคุณ</string>
+    <string name="telemetry_consent_badge_description">ช่วยทำให้ Type Launcher ดีขึ้น — รอคำตอบ</string>
+    <string name="settings_analytics_title">ช่วยทำให้ Type Launcher ดีขึ้น</string>
 </resources>

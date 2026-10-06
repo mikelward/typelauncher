@@ -202,10 +202,10 @@
     <string name="crash_banner_share">공유</string>
     <string name="crash_banner_dismiss">닫기</string>
     <string name="crash_pending_badge_description">다운 가능성이 감지됨</string>
-    <string name="telemetry_consent_title">익명 분석 데이터</string>
-    <string name="telemetry_consent_body">비정상 종료 보고서와 사용 데이터를 전송합니다. 개인 데이터는 전송되지 않습니다.</string>
-    <string name="telemetry_consent_allow">허용</string>
-    <string name="telemetry_consent_deny">허용 안 함</string>
-    <string name="telemetry_consent_badge_description">분석 데이터에 대한 응답 필요</string>
-    <string name="settings_analytics_title">분석 데이터</string>
+    <string name="telemetry_consent_title">Type Launcher 개선에 도움을 주시겠어요?</string>
+    <string name="telemetry_consent_body">버그를 찾아 고칠 수 있도록 비정상 종료 보고서와 익명 사용 통계를 보낼까요?</string>
+    <string name="telemetry_consent_allow">네, 보낼게요</string>
+    <string name="telemetry_consent_deny">아니요</string>
+    <string name="telemetry_consent_badge_description">Type Launcher 개선에 도움 주기 — 응답 필요</string>
+    <string name="settings_analytics_title">Type Launcher 개선에 도움 주기</string>
 </resources>

@@ -202,10 +202,10 @@
     <string name="crash_banner_share">共有</string>
     <string name="crash_banner_dismiss">閉じる</string>
     <string name="crash_pending_badge_description">クラッシュの可能性を検出しました</string>
-    <string name="telemetry_consent_title">匿名の分析データ</string>
-    <string name="telemetry_consent_body">クラッシュレポートと使用状況データを送信します。個人データが送信されることはありません。</string>
-    <string name="telemetry_consent_allow">許可</string>
-    <string name="telemetry_consent_deny">許可しない</string>
-    <string name="telemetry_consent_badge_description">分析データの回答が必要です</string>
-    <string name="settings_analytics_title">分析データ</string>
+    <string name="telemetry_consent_title">Type Launcher の改善にご協力いただけますか？</string>
+    <string name="telemetry_consent_body">バグの発見と修正のため、クラッシュレポートと匿名の使用状況データを送信しますか？</string>
+    <string name="telemetry_consent_allow">はい、送信する</string>
+    <string name="telemetry_consent_deny">いいえ</string>
+    <string name="telemetry_consent_badge_description">Type Launcher の改善にご協力ください — 回答が必要です</string>
+    <string name="settings_analytics_title">Type Launcher の改善にご協力ください</string>
 </resources>

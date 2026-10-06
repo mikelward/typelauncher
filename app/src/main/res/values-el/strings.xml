@@ -203,10 +203,10 @@
     <string name="crash_banner_share">Κοινοποίηση</string>
     <string name="crash_banner_dismiss">Παράβλεψη</string>
     <string name="crash_pending_badge_description">Εντοπίστηκε πιθανή διακοπή λειτουργίας</string>
-    <string name="telemetry_consent_title">Ανώνυμα αναλυτικά στοιχεία</string>
-    <string name="telemetry_consent_body">Αποστολή αναφορών σφαλμάτων και δεδομένων χρήσης. Τα προσωπικά σας δεδομένα δεν αποστέλλονται ποτέ.</string>
-    <string name="telemetry_consent_allow">Να επιτρέπεται</string>
-    <string name="telemetry_consent_deny">Να μην επιτρέπεται</string>
-    <string name="telemetry_consent_badge_description">Τα αναλυτικά στοιχεία χρειάζονται απάντηση</string>
-    <string name="settings_analytics_title">Αναλυτικά στοιχεία</string>
+    <string name="telemetry_consent_title">Θα βοηθήσετε να γίνει καλύτερο το Type Launcher;</string>
+    <string name="telemetry_consent_body">Αποστολή αναφορών σφαλμάτων και ανώνυμων στατιστικών χρήσης, ώστε να εντοπίζονται και να διορθώνονται σφάλματα;</string>
+    <string name="telemetry_consent_allow">Ναι, παρακαλώ</string>
+    <string name="telemetry_consent_deny">Όχι, ευχαριστώ</string>
+    <string name="telemetry_consent_badge_description">Βοηθήστε να γίνει καλύτερο το Type Launcher — χρειάζεται απάντηση</string>
+    <string name="settings_analytics_title">Βοηθήστε να γίνει καλύτερο το Type Launcher</string>
 </resources>

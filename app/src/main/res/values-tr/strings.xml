@@ -203,10 +203,10 @@
     <string name="crash_banner_share">Paylaş</string>
     <string name="crash_banner_dismiss">Kapat</string>
     <string name="crash_pending_badge_description">Olası kilitlenme algılandı</string>
-    <string name="telemetry_consent_title">Anonim analiz</string>
-    <string name="telemetry_consent_body">Kilitlenme raporlarını ve kullanım verilerini gönder. Kişisel verileriniz asla gönderilmez.</string>
-    <string name="telemetry_consent_allow">İzin ver</string>
-    <string name="telemetry_consent_deny">İzin verme</string>
-    <string name="telemetry_consent_badge_description">Analiz yanıt bekliyor</string>
-    <string name="settings_analytics_title">Analiz</string>
+    <string name="telemetry_consent_title">Type Launcher\'ı geliştirmeye yardım eder misiniz?</string>
+    <string name="telemetry_consent_body">Hataların bulunup düzeltilmesi için kilitlenme raporları ve anonim kullanım istatistikleri gönderilsin mi?</string>
+    <string name="telemetry_consent_allow">Evet, lütfen</string>
+    <string name="telemetry_consent_deny">Hayır, teşekkürler</string>
+    <string name="telemetry_consent_badge_description">Type Launcher\'ı geliştirmeye yardım edin — yanıt bekliyor</string>
+    <string name="settings_analytics_title">Type Launcher\'ı geliştirmeye yardım edin</string>
 </resources>

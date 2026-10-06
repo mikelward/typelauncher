@@ -205,10 +205,10 @@
     <string name="crash_banner_share">Sdílet</string>
     <string name="crash_banner_dismiss">Zavřít</string>
     <string name="crash_pending_badge_description">Zjištěn možný pád</string>
-    <string name="telemetry_consent_title">Anonymní analytika</string>
-    <string name="telemetry_consent_body">Odesílat hlášení o pádech a data o používání. Vaše osobní údaje se nikdy neodesílají.</string>
-    <string name="telemetry_consent_allow">Povolit</string>
-    <string name="telemetry_consent_deny">Nepovolovat</string>
-    <string name="telemetry_consent_badge_description">Analytika čeká na odpověď</string>
-    <string name="settings_analytics_title">Analytika</string>
+    <string name="telemetry_consent_title">Pomůžete vylepšit Type Launcher?</string>
+    <string name="telemetry_consent_body">Odesílat hlášení o pádech a anonymní statistiky používání, aby se chyby našly a opravily?</string>
+    <string name="telemetry_consent_allow">Ano, prosím</string>
+    <string name="telemetry_consent_deny">Ne, děkuji</string>
+    <string name="telemetry_consent_badge_description">Pomozte vylepšit Type Launcher — čeká na odpověď</string>
+    <string name="settings_analytics_title">Pomozte vylepšit Type Launcher</string>
 </resources>

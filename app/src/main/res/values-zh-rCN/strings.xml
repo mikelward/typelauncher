@@ -202,10 +202,10 @@
     <string name="crash_banner_share">分享</string>
     <string name="crash_banner_dismiss">关闭</string>
     <string name="crash_pending_badge_description">检测到可能的崩溃</string>
-    <string name="telemetry_consent_title">匿名分析数据</string>
-    <string name="telemetry_consent_body">发送崩溃报告和使用情况数据。我们绝不会发送您的个人数据。</string>
-    <string name="telemetry_consent_allow">允许</string>
-    <string name="telemetry_consent_deny">不允许</string>
-    <string name="telemetry_consent_badge_description">分析数据需要您的回应</string>
-    <string name="settings_analytics_title">分析数据</string>
+    <string name="telemetry_consent_title">要帮助改进 Type Launcher 吗？</string>
+    <string name="telemetry_consent_body">发送崩溃报告和匿名使用统计信息，以便发现并修复错误？</string>
+    <string name="telemetry_consent_allow">好的</string>
+    <string name="telemetry_consent_deny">不用了，谢谢</string>
+    <string name="telemetry_consent_badge_description">帮助改进 Type Launcher — 需要回复</string>
+    <string name="settings_analytics_title">帮助改进 Type Launcher</string>
 </resources>

@@ -203,10 +203,10 @@
     <string name="crash_banner_share">Yabelana</string>
     <string name="crash_banner_dismiss">Cashisa</string>
     <string name="crash_pending_badge_description">Kutholwe ukuphahlazeka okungenzeka</string>
-    <string name="telemetry_consent_title">Ukuhlaziya okungaziwa</string>
-    <string name="telemetry_consent_body">Thumela imibiko yokuphahlazeka nedatha yokusetshenziswa. Idatha yakho yomuntu siqu ayithunyelwa neze.</string>
-    <string name="telemetry_consent_allow">Vumela</string>
-    <string name="telemetry_consent_deny">Ungavumeli</string>
-    <string name="telemetry_consent_badge_description">Ukuhlaziya kudinga impendulo</string>
-    <string name="settings_analytics_title">Ukuhlaziya</string>
+    <string name="telemetry_consent_title">Ungasiza ukwenza i-Type Launcher ibe ngcono?</string>
+    <string name="telemetry_consent_body">Thumela imibiko yokuphahlazeka nezibalo zokusetshenziswa ezingaziwa ukuze iziphazamisi zitholakale futhi zilungiswe?</string>
+    <string name="telemetry_consent_allow">Yebo, ngicela</string>
+    <string name="telemetry_consent_deny">Cha, ngiyabonga</string>
+    <string name="telemetry_consent_badge_description">Siza ukwenza i-Type Launcher ibe ngcono — idinga impendulo</string>
+    <string name="settings_analytics_title">Siza ukwenza i-Type Launcher ibe ngcono</string>
 </resources>

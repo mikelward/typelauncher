@@ -205,10 +205,10 @@
     <string name="crash_banner_share">Bendrinti</string>
     <string name="crash_banner_dismiss">Atsisakyti</string>
     <string name="crash_pending_badge_description">Aptiktas galimas strigimas</string>
-    <string name="telemetry_consent_title">Anoniminė analizė</string>
-    <string name="telemetry_consent_body">Siųsti strigčių ataskaitas ir naudojimo duomenis. Jūsų asmens duomenys niekada nesiunčiami.</string>
-    <string name="telemetry_consent_allow">Leisti</string>
-    <string name="telemetry_consent_deny">Neleisti</string>
-    <string name="telemetry_consent_badge_description">Analizei reikia atsakymo</string>
-    <string name="settings_analytics_title">Analizė</string>
+    <string name="telemetry_consent_title">Ar padėsite tobulinti Type Launcher?</string>
+    <string name="telemetry_consent_body">Siųsti strigčių ataskaitas ir anoniminę naudojimo statistiką, kad klaidos būtų rastos ir ištaisytos?</string>
+    <string name="telemetry_consent_allow">Taip, prašau</string>
+    <string name="telemetry_consent_deny">Ne, ačiū</string>
+    <string name="telemetry_consent_badge_description">Padėkite tobulinti Type Launcher — laukia atsakymo</string>
+    <string name="settings_analytics_title">Padėkite tobulinti Type Launcher</string>
 </resources>

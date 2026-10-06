@@ -205,10 +205,10 @@
     <string name="crash_banner_share">Udostępnij</string>
     <string name="crash_banner_dismiss">Zamknij</string>
     <string name="crash_pending_badge_description">Wykryto możliwą awarię</string>
-    <string name="telemetry_consent_title">Anonimowe statystyki</string>
-    <string name="telemetry_consent_body">Wysyłaj raporty o awariach i dane o użyciu. Twoje dane osobowe nigdy nie są wysyłane.</string>
-    <string name="telemetry_consent_allow">Zezwól</string>
-    <string name="telemetry_consent_deny">Nie zezwalaj</string>
-    <string name="telemetry_consent_badge_description">Statystyki czekają na odpowiedź</string>
-    <string name="settings_analytics_title">Statystyki</string>
+    <string name="telemetry_consent_title">Pomożesz ulepszyć Type Launcher?</string>
+    <string name="telemetry_consent_body">Wysyłać raporty o awariach i anonimowe statystyki użycia, by błędy były znajdowane i naprawiane?</string>
+    <string name="telemetry_consent_allow">Tak, chętnie</string>
+    <string name="telemetry_consent_deny">Nie, dziękuję</string>
+    <string name="telemetry_consent_badge_description">Pomóż ulepszyć Type Launcher — wymaga odpowiedzi</string>
+    <string name="settings_analytics_title">Pomóż ulepszyć Type Launcher</string>
 </resources>
