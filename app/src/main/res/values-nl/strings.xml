@@ -203,10 +203,10 @@
     <string name="crash_banner_share">Delen</string>
     <string name="crash_banner_dismiss">Sluiten</string>
     <string name="crash_pending_badge_description">Mogelijke crash gedetecteerd</string>
-    <string name="telemetry_consent_title">Anonieme statistieken</string>
-    <string name="telemetry_consent_body">Crashrapporten en gebruiksgegevens verzenden. Je persoonlijke gegevens worden nooit verzonden.</string>
-    <string name="telemetry_consent_allow">Toestaan</string>
-    <string name="telemetry_consent_deny">Niet toestaan</string>
-    <string name="telemetry_consent_badge_description">Statistieken wachten op een antwoord</string>
-    <string name="settings_analytics_title">Statistieken</string>
+    <string name="telemetry_consent_title">Wil je helpen Type Launcher beter te maken?</string>
+    <string name="telemetry_consent_body">Crashrapporten en anonieme gebruiksstatistieken sturen, zodat bugs worden gevonden en opgelost?</string>
+    <string name="telemetry_consent_allow">Ja, graag</string>
+    <string name="telemetry_consent_deny">Nee, bedankt</string>
+    <string name="telemetry_consent_badge_description">Help Type Launcher beter te maken — wacht op antwoord</string>
+    <string name="settings_analytics_title">Help Type Launcher beter te maken</string>
 </resources>

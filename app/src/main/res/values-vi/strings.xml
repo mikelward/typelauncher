@@ -202,10 +202,10 @@
     <string name="crash_banner_share">Chia sẻ</string>
     <string name="crash_banner_dismiss">Đóng</string>
     <string name="crash_pending_badge_description">Đã phát hiện sự cố có thể xảy ra</string>
-    <string name="telemetry_consent_title">Phân tích ẩn danh</string>
-    <string name="telemetry_consent_body">Gửi báo cáo sự cố và dữ liệu sử dụng. Dữ liệu cá nhân của bạn không bao giờ được gửi đi.</string>
-    <string name="telemetry_consent_allow">Cho phép</string>
-    <string name="telemetry_consent_deny">Không cho phép</string>
-    <string name="telemetry_consent_badge_description">Phân tích cần câu trả lời</string>
-    <string name="settings_analytics_title">Phân tích</string>
+    <string name="telemetry_consent_title">Bạn có muốn giúp cải thiện Type Launcher?</string>
+    <string name="telemetry_consent_body">Gửi báo cáo sự cố và số liệu thống kê sử dụng ẩn danh để lỗi được tìm ra và khắc phục?</string>
+    <string name="telemetry_consent_allow">Có, vui lòng</string>
+    <string name="telemetry_consent_deny">Không, cảm ơn</string>
+    <string name="telemetry_consent_badge_description">Giúp cải thiện Type Launcher — cần câu trả lời</string>
+    <string name="settings_analytics_title">Giúp cải thiện Type Launcher</string>
 </resources>

@@ -203,10 +203,10 @@
     <string name="crash_banner_share">सेयर गर्नुहोस्</string>
     <string name="crash_banner_dismiss">हटाउनुहोस्</string>
     <string name="crash_pending_badge_description">सम्भावित क्र्यास पत्ता लाग्यो</string>
-    <string name="telemetry_consent_title">बेनामी एनालिटिक्स</string>
-    <string name="telemetry_consent_body">क्र्यास रिपोर्ट र प्रयोगसम्बन्धी डेटा पठाउनुहोस्। तपाईंको व्यक्तिगत डेटा कहिल्यै पठाइँदैन।</string>
-    <string name="telemetry_consent_allow">अनुमति दिनुहोस्</string>
-    <string name="telemetry_consent_deny">अनुमति नदिनुहोस्</string>
-    <string name="telemetry_consent_badge_description">एनालिटिक्सलाई जवाफ चाहिन्छ</string>
-    <string name="settings_analytics_title">एनालिटिक्स</string>
+    <string name="telemetry_consent_title">Type Launcher अझ राम्रो बनाउन मद्दत गर्नुहुन्छ?</string>
+    <string name="telemetry_consent_body">बगहरू फेला पारेर समाधान गर्न क्र्यास रिपोर्ट र गुमनाम प्रयोग तथ्याङ्क पठाउने?</string>
+    <string name="telemetry_consent_allow">हो, पठाउनुहोस्</string>
+    <string name="telemetry_consent_deny">पर्दैन, धन्यवाद</string>
+    <string name="telemetry_consent_badge_description">Type Launcher अझ राम्रो बनाउन मद्दत गर्नुहोस् — जवाफ आवश्यक छ</string>
+    <string name="settings_analytics_title">Type Launcher अझ राम्रो बनाउन मद्दत गर्नुहोस्</string>
 </resources>

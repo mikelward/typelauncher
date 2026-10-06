@@ -203,10 +203,10 @@
     <string name="crash_banner_share">Teilen</string>
     <string name="crash_banner_dismiss">Schließen</string>
     <string name="crash_pending_badge_description">Möglicher Absturz erkannt</string>
-    <string name="telemetry_consent_title">Anonyme Analysen</string>
-    <string name="telemetry_consent_body">Absturzberichte und Nutzungsdaten senden. Deine personenbezogenen Daten werden nie gesendet.</string>
-    <string name="telemetry_consent_allow">Zulassen</string>
-    <string name="telemetry_consent_deny">Nicht zulassen</string>
-    <string name="telemetry_consent_badge_description">Analysen brauchen eine Antwort</string>
-    <string name="settings_analytics_title">Analysen</string>
+    <string name="telemetry_consent_title">Hilfst du, Type Launcher besser zu machen?</string>
+    <string name="telemetry_consent_body">Absturzberichte und anonyme Nutzungsstatistiken senden, damit Fehler gefunden und behoben werden?</string>
+    <string name="telemetry_consent_allow">Ja, gern</string>
+    <string name="telemetry_consent_deny">Nein, danke</string>
+    <string name="telemetry_consent_badge_description">Hilf, Type Launcher besser zu machen — braucht eine Antwort</string>
+    <string name="settings_analytics_title">Hilf, Type Launcher besser zu machen</string>
 </resources>

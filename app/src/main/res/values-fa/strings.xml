@@ -203,10 +203,10 @@
     <string name="crash_banner_share">هم‌رسانی</string>
     <string name="crash_banner_dismiss">بستن</string>
     <string name="crash_pending_badge_description">خرابی احتمالی شناسایی شد</string>
-    <string name="telemetry_consent_title">تحلیل‌های ناشناس</string>
-    <string name="telemetry_consent_body">ارسال گزارش‌های خرابی و داده‌های استفاده. داده‌های شخصی شما هرگز ارسال نمی‌شود.</string>
-    <string name="telemetry_consent_allow">اجازه دادن</string>
-    <string name="telemetry_consent_deny">اجازه ندادن</string>
-    <string name="telemetry_consent_badge_description">تحلیل‌ها به پاسخ نیاز دارند</string>
-    <string name="settings_analytics_title">تحلیل‌ها</string>
+    <string name="telemetry_consent_title">به بهتر شدن Type Launcher کمک می‌کنید؟</string>
+    <string name="telemetry_consent_body">گزارش‌های خرابی و آمار استفادهٔ ناشناس ارسال شود تا اشکال‌ها پیدا و رفع شوند؟</string>
+    <string name="telemetry_consent_allow">بله، لطفاً</string>
+    <string name="telemetry_consent_deny">نه، ممنون</string>
+    <string name="telemetry_consent_badge_description">به بهتر شدن Type Launcher کمک کنید — نیاز به پاسخ دارد</string>
+    <string name="settings_analytics_title">به بهتر شدن Type Launcher کمک کنید</string>
 </resources>

@@ -205,10 +205,10 @@
     <string name="crash_banner_share">שיתוף</string>
     <string name="crash_banner_dismiss">סגירה</string>
     <string name="crash_pending_badge_description">זוהתה קריסה אפשרית</string>
-    <string name="telemetry_consent_title">ניתוח נתונים אנונימי</string>
-    <string name="telemetry_consent_body">שליחת דוחות קריסה ונתוני שימוש. הנתונים האישיים שלך לעולם לא נשלחים.</string>
-    <string name="telemetry_consent_allow">אישור</string>
-    <string name="telemetry_consent_deny">לא לאשר</string>
-    <string name="telemetry_consent_badge_description">ניתוח הנתונים מחכה לתשובה</string>
-    <string name="settings_analytics_title">ניתוח נתונים</string>
+    <string name="telemetry_consent_title">רוצה לעזור לשפר את Type Launcher?</string>
+    <string name="telemetry_consent_body">לשלוח דוחות קריסה ונתוני שימוש אנונימיים כדי שבאגים יימצאו ויתוקנו?</string>
+    <string name="telemetry_consent_allow">כן, בבקשה</string>
+    <string name="telemetry_consent_deny">לא, תודה</string>
+    <string name="telemetry_consent_badge_description">עזרו לשפר את Type Launcher — נדרשת תשובה</string>
+    <string name="settings_analytics_title">עזרו לשפר את Type Launcher</string>
 </resources>

@@ -204,10 +204,10 @@
     <string name="crash_banner_share">Kopīgot</string>
     <string name="crash_banner_dismiss">Nerādīt</string>
     <string name="crash_pending_badge_description">Konstatēta iespējama avārija</string>
-    <string name="telemetry_consent_title">Anonīma analīze</string>
-    <string name="telemetry_consent_body">Sūtīt avāriju pārskatus un lietojuma datus. Jūsu personas dati nekad netiek sūtīti.</string>
-    <string name="telemetry_consent_allow">Atļaut</string>
-    <string name="telemetry_consent_deny">Neatļaut</string>
-    <string name="telemetry_consent_badge_description">Analīzei nepieciešama atbilde</string>
-    <string name="settings_analytics_title">Analīze</string>
+    <string name="telemetry_consent_title">Vai palīdzēsiet uzlabot Type Launcher?</string>
+    <string name="telemetry_consent_body">Vai sūtīt avāriju pārskatus un anonīmu lietojuma statistiku, lai kļūdas tiktu atrastas un novērstas?</string>
+    <string name="telemetry_consent_allow">Jā, lūdzu</string>
+    <string name="telemetry_consent_deny">Nē, paldies</string>
+    <string name="telemetry_consent_badge_description">Palīdziet uzlabot Type Launcher — jāatbild</string>
+    <string name="settings_analytics_title">Palīdziet uzlabot Type Launcher</string>
 </resources>

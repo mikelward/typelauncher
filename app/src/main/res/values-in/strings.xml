@@ -202,10 +202,10 @@
     <string name="crash_banner_share">Bagikan</string>
     <string name="crash_banner_dismiss">Tutup</string>
     <string name="crash_pending_badge_description">Kemungkinan error terdeteksi</string>
-    <string name="telemetry_consent_title">Analitik anonim</string>
-    <string name="telemetry_consent_body">Kirim laporan error dan data penggunaan. Data pribadi Anda tidak pernah dikirim.</string>
-    <string name="telemetry_consent_allow">Izinkan</string>
-    <string name="telemetry_consent_deny">Jangan izinkan</string>
-    <string name="telemetry_consent_badge_description">Analitik memerlukan jawaban</string>
-    <string name="settings_analytics_title">Analitik</string>
+    <string name="telemetry_consent_title">Bantu jadikan Type Launcher lebih baik?</string>
+    <string name="telemetry_consent_body">Kirim laporan error dan statistik penggunaan anonim agar bug dapat ditemukan dan diperbaiki?</string>
+    <string name="telemetry_consent_allow">Ya, silakan</string>
+    <string name="telemetry_consent_deny">Tidak, terima kasih</string>
+    <string name="telemetry_consent_badge_description">Bantu jadikan Type Launcher lebih baik — perlu jawaban</string>
+    <string name="settings_analytics_title">Bantu jadikan Type Launcher lebih baik</string>
 </resources>

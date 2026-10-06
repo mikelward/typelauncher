@@ -203,10 +203,10 @@
     <string name="crash_banner_share">බෙදා ගන්න</string>
     <string name="crash_banner_dismiss">අස් කරන්න</string>
     <string name="crash_pending_badge_description">විය හැකි බිඳ වැටීමක් අනාවරණය විය</string>
-    <string name="telemetry_consent_title">නිර්නාමික විශ්ලේෂණ</string>
-    <string name="telemetry_consent_body">බිඳවැටීම් වාර්තා සහ භාවිත දත්ත යවන්න. ඔබේ පෞද්ගලික දත්ත කිසි විටෙක නොයවයි.</string>
-    <string name="telemetry_consent_allow">ඉඩ දෙන්න</string>
-    <string name="telemetry_consent_deny">ඉඩ නොදෙන්න</string>
-    <string name="telemetry_consent_badge_description">විශ්ලේෂණ සඳහා පිළිතුරක් අවශ්‍යයි</string>
-    <string name="settings_analytics_title">විශ්ලේෂණ</string>
+    <string name="telemetry_consent_title">Type Launcher වඩා හොඳ කිරීමට උදව් කරනවාද?</string>
+    <string name="telemetry_consent_body">දෝෂ සොයා නිවැරදි කිරීමට බිඳවැටීම් වාර්තා සහ නිර්නාමික භාවිත සංඛ්‍යාලේඛන යවන්නද?</string>
+    <string name="telemetry_consent_allow">ඔව්, කරුණාකර</string>
+    <string name="telemetry_consent_deny">එපා, ස්තූතියි</string>
+    <string name="telemetry_consent_badge_description">Type Launcher වඩා හොඳ කිරීමට උදව් කරන්න — පිළිතුරක් අවශ්‍යයි</string>
+    <string name="settings_analytics_title">Type Launcher වඩා හොඳ කිරීමට උදව් කරන්න</string>
 </resources>

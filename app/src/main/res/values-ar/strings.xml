@@ -207,10 +207,10 @@
     <string name="crash_banner_share">مشاركة</string>
     <string name="crash_banner_dismiss">إغلاق</string>
     <string name="crash_pending_badge_description">تم رصد تعطّل محتمل</string>
-    <string name="telemetry_consent_title">تحليلات مجهولة المصدر</string>
-    <string name="telemetry_consent_body">إرسال تقارير الأعطال وبيانات الاستخدام. لا يتم إرسال بياناتك الشخصية أبدًا.</string>
-    <string name="telemetry_consent_allow">السماح</string>
-    <string name="telemetry_consent_deny">عدم السماح</string>
-    <string name="telemetry_consent_badge_description">التحليلات بحاجة إلى إجابة</string>
-    <string name="settings_analytics_title">التحليلات</string>
+    <string name="telemetry_consent_title">هل تساعد في تحسين Type Launcher؟</string>
+    <string name="telemetry_consent_body">هل تريد إرسال تقارير الأعطال وإحصاءات استخدام مجهولة الهوية حتى يتم العثور على الأخطاء وإصلاحها؟</string>
+    <string name="telemetry_consent_allow">نعم، من فضلك</string>
+    <string name="telemetry_consent_deny">لا، شكرًا</string>
+    <string name="telemetry_consent_badge_description">ساعِد في تحسين Type Launcher — يحتاج إلى إجابة</string>
+    <string name="settings_analytics_title">ساعِد في تحسين Type Launcher</string>
 </resources>

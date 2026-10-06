@@ -202,10 +202,10 @@
     <string name="crash_banner_share">分享</string>
     <string name="crash_banner_dismiss">關閉</string>
     <string name="crash_pending_badge_description">偵測到可能的當機</string>
-    <string name="telemetry_consent_title">匿名分析資料</string>
-    <string name="telemetry_consent_body">傳送當機報告和使用情況資料。系統絕不會傳送你的個人資料。</string>
-    <string name="telemetry_consent_allow">允許</string>
-    <string name="telemetry_consent_deny">不允許</string>
-    <string name="telemetry_consent_badge_description">分析資料需要你回應</string>
-    <string name="settings_analytics_title">分析資料</string>
+    <string name="telemetry_consent_title">要協助改善 Type Launcher 嗎？</string>
+    <string name="telemetry_consent_body">傳送當機報告和匿名使用統計資料，以便找出並修正錯誤？</string>
+    <string name="telemetry_consent_allow">好</string>
+    <string name="telemetry_consent_deny">不用了，謝謝</string>
+    <string name="telemetry_consent_badge_description">協助改善 Type Launcher — 需要回覆</string>
+    <string name="settings_analytics_title">協助改善 Type Launcher</string>
 </resources>

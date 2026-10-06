@@ -204,10 +204,10 @@
     <string name="crash_banner_share">Condividi</string>
     <string name="crash_banner_dismiss">Ignora</string>
     <string name="crash_pending_badge_description">Rilevato possibile arresto anomalo</string>
-    <string name="telemetry_consent_title">Statistiche anonime</string>
-    <string name="telemetry_consent_body">Invia report sugli arresti anomali e dati di utilizzo. I tuoi dati personali non vengono mai inviati.</string>
-    <string name="telemetry_consent_allow">Consenti</string>
-    <string name="telemetry_consent_deny">Non consentire</string>
-    <string name="telemetry_consent_badge_description">Le statistiche attendono una risposta</string>
-    <string name="settings_analytics_title">Statistiche</string>
+    <string name="telemetry_consent_title">Vuoi aiutare a migliorare Type Launcher?</string>
+    <string name="telemetry_consent_body">Inviare segnalazioni di arresti anomali e statistiche di utilizzo anonime per trovare e correggere i bug?</string>
+    <string name="telemetry_consent_allow">Sì, grazie</string>
+    <string name="telemetry_consent_deny">No, grazie</string>
+    <string name="telemetry_consent_badge_description">Aiuta a migliorare Type Launcher — richiede una risposta</string>
+    <string name="settings_analytics_title">Aiuta a migliorare Type Launcher</string>
 </resources>

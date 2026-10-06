@@ -204,10 +204,10 @@
     <string name="crash_banner_share">Trimite</string>
     <string name="crash_banner_dismiss">Închide</string>
     <string name="crash_pending_badge_description">Posibilă blocare detectată</string>
-    <string name="telemetry_consent_title">Statistici anonime</string>
-    <string name="telemetry_consent_body">Trimite rapoarte de blocare și date de utilizare. Datele tale personale nu sunt trimise niciodată.</string>
-    <string name="telemetry_consent_allow">Permite</string>
-    <string name="telemetry_consent_deny">Nu permite</string>
-    <string name="telemetry_consent_badge_description">Statisticile așteaptă un răspuns</string>
-    <string name="settings_analytics_title">Statistici</string>
+    <string name="telemetry_consent_title">Vrei să ajuți la îmbunătățirea Type Launcher?</string>
+    <string name="telemetry_consent_body">Trimiți rapoarte de blocare și statistici anonime de utilizare, ca erorile să fie găsite și remediate?</string>
+    <string name="telemetry_consent_allow">Da, te rog</string>
+    <string name="telemetry_consent_deny">Nu, mulțumesc</string>
+    <string name="telemetry_consent_badge_description">Ajută la îmbunătățirea Type Launcher — așteaptă un răspuns</string>
+    <string name="settings_analytics_title">Ajută la îmbunătățirea Type Launcher</string>
 </resources>

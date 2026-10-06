@@ -203,10 +203,10 @@
     <string name="crash_banner_share">አጋራ</string>
     <string name="crash_banner_dismiss">አሰናብት</string>
     <string name="crash_pending_badge_description">ሊሆን የሚችል ብልሽት ተገኝቷል</string>
-    <string name="telemetry_consent_title">ስም-አልባ ትንታኔ</string>
-    <string name="telemetry_consent_body">የብልሽት ሪፖርቶችን እና የአጠቃቀም ውሂብ ይላኩ። የግል ውሂብዎ በጭራሽ አይላክም።</string>
-    <string name="telemetry_consent_allow">ፍቀድ</string>
-    <string name="telemetry_consent_deny">አትፍቀድ</string>
-    <string name="telemetry_consent_badge_description">ትንታኔ መልስ ይፈልጋል</string>
-    <string name="settings_analytics_title">ትንታኔ</string>
+    <string name="telemetry_consent_title">Type Launcherን የተሻለ ለማድረግ ያግዛሉ?</string>
+    <string name="telemetry_consent_body">ስህተቶች እንዲገኙና እንዲስተካከሉ የብልሽት ሪፖርቶችንና ስም-አልባ የአጠቃቀም ስታቲስቲክስ ይላኩ?</string>
+    <string name="telemetry_consent_allow">አዎ፣ እባክዎ</string>
+    <string name="telemetry_consent_deny">አይ፣ አመሰግናለሁ</string>
+    <string name="telemetry_consent_badge_description">Type Launcherን የተሻለ ለማድረግ ያግዙ — መልስ ያስፈልገዋል</string>
+    <string name="settings_analytics_title">Type Launcherን የተሻለ ለማድረግ ያግዙ</string>
 </resources>

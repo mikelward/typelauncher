@@ -203,10 +203,10 @@
     <string name="crash_banner_share">Ibahagi</string>
     <string name="crash_banner_dismiss">I-dismiss</string>
     <string name="crash_pending_badge_description">May na-detect na posibleng pag-crash</string>
-    <string name="telemetry_consent_title">Hindi nagpapakilalang analytics</string>
-    <string name="telemetry_consent_body">Magpadala ng mga ulat ng pag-crash at data ng paggamit. Hindi kailanman ipinapadala ang personal mong data.</string>
-    <string name="telemetry_consent_allow">Payagan</string>
-    <string name="telemetry_consent_deny">Huwag payagan</string>
-    <string name="telemetry_consent_badge_description">Kailangan ng sagot ng analytics</string>
-    <string name="settings_analytics_title">Analytics</string>
+    <string name="telemetry_consent_title">Tutulong ka bang pagandahin ang Type Launcher?</string>
+    <string name="telemetry_consent_body">Magpadala ng mga ulat ng pag-crash at anonymous na istatistika ng paggamit para mahanap at maayos ang mga bug?</string>
+    <string name="telemetry_consent_allow">Oo, sige</string>
+    <string name="telemetry_consent_deny">Hindi, salamat</string>
+    <string name="telemetry_consent_badge_description">Tumulong na pagandahin ang Type Launcher — kailangan ng sagot</string>
+    <string name="settings_analytics_title">Tumulong na pagandahin ang Type Launcher</string>
 </resources>

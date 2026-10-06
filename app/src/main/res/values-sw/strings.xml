@@ -203,10 +203,10 @@
     <string name="crash_banner_share">Shiriki</string>
     <string name="crash_banner_dismiss">Ondoa</string>
     <string name="crash_pending_badge_description">Huenda kuna hitilafu iliyotokea</string>
-    <string name="telemetry_consent_title">Takwimu zisizo na utambulisho</string>
-    <string name="telemetry_consent_body">Tuma ripoti za hitilafu na data ya matumizi. Data yako binafsi haitumwi kamwe.</string>
-    <string name="telemetry_consent_allow">Ruhusu</string>
-    <string name="telemetry_consent_deny">Usiruhusu</string>
-    <string name="telemetry_consent_badge_description">Takwimu zinahitaji jibu</string>
-    <string name="settings_analytics_title">Takwimu</string>
+    <string name="telemetry_consent_title">Ungependa kusaidia kuboresha Type Launcher?</string>
+    <string name="telemetry_consent_body">Tuma ripoti za hitilafu na takwimu za matumizi zisizo na majina ili hitilafu zipatikane na kurekebishwa?</string>
+    <string name="telemetry_consent_allow">Ndiyo, tafadhali</string>
+    <string name="telemetry_consent_deny">Hapana, asante</string>
+    <string name="telemetry_consent_badge_description">Saidia kuboresha Type Launcher — inahitaji jibu</string>
+    <string name="settings_analytics_title">Saidia kuboresha Type Launcher</string>
 </resources>

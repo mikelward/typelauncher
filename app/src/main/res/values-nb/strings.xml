@@ -203,10 +203,10 @@
     <string name="crash_banner_share">Del</string>
     <string name="crash_banner_dismiss">Avvis</string>
     <string name="crash_pending_badge_description">Mulig krasj oppdaget</string>
-    <string name="telemetry_consent_title">Anonym analyse</string>
-    <string name="telemetry_consent_body">Send krasjrapporter og bruksdata. Personopplysningene dine sendes aldri.</string>
-    <string name="telemetry_consent_allow">Tillat</string>
-    <string name="telemetry_consent_deny">Ikke tillat</string>
-    <string name="telemetry_consent_badge_description">Analyse trenger et svar</string>
-    <string name="settings_analytics_title">Analyse</string>
+    <string name="telemetry_consent_title">Vil du hjelpe til med å gjøre Type Launcher bedre?</string>
+    <string name="telemetry_consent_body">Vil du sende krasjrapporter og anonym bruksstatistikk, slik at feil blir funnet og rettet?</string>
+    <string name="telemetry_consent_allow">Ja takk</string>
+    <string name="telemetry_consent_deny">Nei takk</string>
+    <string name="telemetry_consent_badge_description">Hjelp til med å gjøre Type Launcher bedre — trenger et svar</string>
+    <string name="settings_analytics_title">Hjelp til med å gjøre Type Launcher bedre</string>
 </resources>

@@ -204,10 +204,10 @@
     <string name="crash_banner_share">Comparteix</string>
     <string name="crash_banner_dismiss">Descarta</string>
     <string name="crash_pending_badge_description">S\'ha detectat una possible fallada</string>
-    <string name="telemetry_consent_title">Analítiques anònimes</string>
-    <string name="telemetry_consent_body">Envia informes de fallada i dades d\'ús. Les teves dades personals no s\'envien mai.</string>
-    <string name="telemetry_consent_allow">Permet</string>
-    <string name="telemetry_consent_deny">No ho permetis</string>
-    <string name="telemetry_consent_badge_description">L\'analítica necessita una resposta</string>
-    <string name="settings_analytics_title">Analítiques</string>
+    <string name="telemetry_consent_title">Vols ajudar a millorar Type Launcher?</string>
+    <string name="telemetry_consent_body">Vols enviar informes d\'error i estadístiques d\'ús anònimes perquè es trobin i es corregeixin errors?</string>
+    <string name="telemetry_consent_allow">Sí, si us plau</string>
+    <string name="telemetry_consent_deny">No, gràcies</string>
+    <string name="telemetry_consent_badge_description">Ajuda a millorar Type Launcher — cal una resposta</string>
+    <string name="settings_analytics_title">Ajuda a millorar Type Launcher</string>
 </resources>

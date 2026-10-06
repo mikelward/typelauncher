@@ -204,10 +204,10 @@
     <string name="crash_banner_share">Podijeli</string>
     <string name="crash_banner_dismiss">Odbaci</string>
     <string name="crash_pending_badge_description">Otkriveno moguće rušenje</string>
-    <string name="telemetry_consent_title">Anonimna analitika</string>
-    <string name="telemetry_consent_body">Slanje izvješća o rušenju i podataka o upotrebi. Vaši se osobni podaci nikad ne šalju.</string>
-    <string name="telemetry_consent_allow">Dopusti</string>
-    <string name="telemetry_consent_deny">Nemoj dopustiti</string>
-    <string name="telemetry_consent_badge_description">Analitika čeka odgovor</string>
-    <string name="settings_analytics_title">Analitika</string>
+    <string name="telemetry_consent_title">Želite li pomoći poboljšati Type Launcher?</string>
+    <string name="telemetry_consent_body">Slati izvješća o rušenju i anonimnu statistiku korištenja kako bi se greške pronašle i ispravile?</string>
+    <string name="telemetry_consent_allow">Da, molim</string>
+    <string name="telemetry_consent_deny">Ne, hvala</string>
+    <string name="telemetry_consent_badge_description">Pomozite poboljšati Type Launcher — čeka odgovor</string>
+    <string name="settings_analytics_title">Pomozite poboljšati Type Launcher</string>
 </resources>

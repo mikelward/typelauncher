@@ -202,10 +202,10 @@
     <string name="crash_banner_share">Kongsi</string>
     <string name="crash_banner_dismiss">Ketepikan</string>
     <string name="crash_pending_badge_description">Kemungkinan ranap dikesan</string>
-    <string name="telemetry_consent_title">Analitis tanpa nama</string>
-    <string name="telemetry_consent_body">Hantar laporan ranap dan data penggunaan. Data peribadi anda tidak pernah dihantar.</string>
-    <string name="telemetry_consent_allow">Benarkan</string>
-    <string name="telemetry_consent_deny">Jangan benarkan</string>
-    <string name="telemetry_consent_badge_description">Analitis memerlukan jawapan</string>
-    <string name="settings_analytics_title">Analitis</string>
+    <string name="telemetry_consent_title">Bantu jadikan Type Launcher lebih baik?</string>
+    <string name="telemetry_consent_body">Hantar laporan ranap dan statistik penggunaan tanpa nama supaya pepijat dapat ditemui dan dibaiki?</string>
+    <string name="telemetry_consent_allow">Ya, silakan</string>
+    <string name="telemetry_consent_deny">Tidak, terima kasih</string>
+    <string name="telemetry_consent_badge_description">Bantu jadikan Type Launcher lebih baik — perlukan jawapan</string>
+    <string name="settings_analytics_title">Bantu jadikan Type Launcher lebih baik</string>
 </resources>

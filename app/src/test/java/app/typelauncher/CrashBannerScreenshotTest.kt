@@ -168,16 +168,19 @@ class CrashBannerScreenshotTest {
         )
     }
 
-    // The same card in the locale with the longest Allow/Deny pair of the 63,
-    // because the button row is a fixed-width `SpaceBetween` and the two labels
-    // grow toward each other in the middle of it. Greek rather than Odia, whose
-    // pair is longer still: Robolectric has no Odia glyphs, so that capture
-    // would be tofu boxes whose advance widths say nothing about the real
-    // thing. This is the one screenshot in the suite that renders translated
-    // strings, so it is what catches a label collision or an unexpected wrap
-    // before it ships to a locale nobody here reads.
+    // The same card in the locale with the longest Allow/Deny label of the 63,
+    // because the button row is a fixed-width `SpaceBetween`, each button is
+    // capped at half of it, and the two labels grow toward each other in the
+    // middle. Indonesian ("Tidak, terima kasih", shared with Malay) since the
+    // "Yes please" / "No thanks" copy, rather than a script with a comparable
+    // pair such as Burmese or Telugu: Robolectric has no glyphs for those, so
+    // that capture would be tofu boxes whose advance widths say nothing about
+    // the real thing. This is the one screenshot in the suite that renders
+    // translated strings, so it is what catches a label collision or an
+    // unexpected wrap before it ships to a locale nobody here reads. Re-pick
+    // the locale whenever the pair is retranslated.
     @Test
-    @Config(qualifiers = "+el-rGR")
+    @Config(qualifiers = "+in-rID")
     fun telemetryConsent_longestLabels() {
         composeRule.setContent {
             TypeLauncherTheme(themeMode = ThemeMode.Light, dynamicColor = false) {
@@ -190,7 +193,7 @@ class CrashBannerScreenshotTest {
         composeRule.onNodeWithTag(TELEMETRY_CONSENT_DENY_TAG).assertExists()
         composeRule.onNodeWithTag(TELEMETRY_CONSENT_ALLOW_TAG).assertExists()
 
-        // Taller than the default, because the Greek body runs to three lines.
+        // Taller than the default, because the translated body runs to three lines.
         // The full-width capture this test used to specify explicitly is now
         // what every capture in the class does — see [capture].
         capture(

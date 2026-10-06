@@ -203,10 +203,10 @@
     <string name="crash_banner_share">Jaa</string>
     <string name="crash_banner_dismiss">Hylkää</string>
     <string name="crash_pending_badge_description">Mahdollinen kaatuminen havaittu</string>
-    <string name="telemetry_consent_title">Anonyymi analytiikka</string>
-    <string name="telemetry_consent_body">Lähetä kaatumisraportit ja käyttötiedot. Henkilötietojasi ei lähetetä koskaan.</string>
-    <string name="telemetry_consent_allow">Salli</string>
-    <string name="telemetry_consent_deny">Älä salli</string>
-    <string name="telemetry_consent_badge_description">Analytiikka odottaa vastausta</string>
-    <string name="settings_analytics_title">Analytiikka</string>
+    <string name="telemetry_consent_title">Autatko tekemään Type Launcherista paremman?</string>
+    <string name="telemetry_consent_body">Lähetetäänkö kaatumisraportit ja anonyymit käyttötilastot, jotta virheet löydetään ja korjataan?</string>
+    <string name="telemetry_consent_allow">Kyllä, kiitos</string>
+    <string name="telemetry_consent_deny">Ei kiitos</string>
+    <string name="telemetry_consent_badge_description">Auta tekemään Type Launcherista parempi — odottaa vastausta</string>
+    <string name="settings_analytics_title">Auta tekemään Type Launcherista parempi</string>
 </resources>

@@ -203,10 +203,10 @@
     <string name="crash_banner_share">Deel</string>
     <string name="crash_banner_dismiss">Maak toe</string>
     <string name="crash_pending_badge_description">Moontlike omval bespeur</string>
-    <string name="telemetry_consent_title">Anonieme analise</string>
-    <string name="telemetry_consent_body">Stuur omvalverslae en gebruiksdata. Jou persoonlike data word nooit gestuur nie.</string>
-    <string name="telemetry_consent_allow">Laat toe</string>
-    <string name="telemetry_consent_deny">Moenie toelaat nie</string>
-    <string name="telemetry_consent_badge_description">Analise benodig \'n antwoord</string>
-    <string name="settings_analytics_title">Analise</string>
+    <string name="telemetry_consent_title">Help om Type Launcher beter te maak?</string>
+    <string name="telemetry_consent_body">Stuur omvalverslae en anonieme gebruikstatistieke sodat foute gevind en reggestel word?</string>
+    <string name="telemetry_consent_allow">Ja, asseblief</string>
+    <string name="telemetry_consent_deny">Nee, dankie</string>
+    <string name="telemetry_consent_badge_description">Help om Type Launcher beter te maak — het ’n antwoord nodig</string>
+    <string name="settings_analytics_title">Help om Type Launcher beter te maak</string>
 </resources>

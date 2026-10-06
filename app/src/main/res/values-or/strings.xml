@@ -203,10 +203,10 @@
     <string name="crash_banner_share">ସେୟାର୍ କରନ୍ତୁ</string>
     <string name="crash_banner_dismiss">ଖାରଜ କରନ୍ତୁ</string>
     <string name="crash_pending_badge_description">ସମ୍ଭାବ୍ୟ କ୍ରାସ୍ ଚିହ୍ନଟ ହେଲା</string>
-    <string name="telemetry_consent_title">ଅନାମୀ ଆନାଲିଟିକ୍ସ</string>
-    <string name="telemetry_consent_body">କ୍ରାସ୍ ରିପୋର୍ଟ ଏବଂ ବ୍ୟବହାର ଡାଟା ପଠାନ୍ତୁ। ଆପଣଙ୍କ ବ୍ୟକ୍ତିଗତ ଡାଟା କେବେ ପଠାଯାଏ ନାହିଁ।</string>
-    <string name="telemetry_consent_allow">ଅନୁମତି ଦିଅନ୍ତୁ</string>
-    <string name="telemetry_consent_deny">ଅନୁମତି ଦିଅନ୍ତୁ ନାହିଁ</string>
-    <string name="telemetry_consent_badge_description">ଆନାଲିଟିକ୍ସ ପାଇଁ ଉତ୍ତର ଆବଶ୍ୟକ</string>
-    <string name="settings_analytics_title">ଆନାଲିଟିକ୍ସ</string>
+    <string name="telemetry_consent_title">Type Launcherକୁ ଉନ୍ନତ କରିବାରେ ସାହାଯ୍ୟ କରିବେ କି?</string>
+    <string name="telemetry_consent_body">ତ୍ରୁଟି ଖୋଜି ସମାଧାନ କରିବା ପାଇଁ କ୍ରାସ୍ ରିପୋର୍ଟ ଏବଂ ଅଜ୍ଞାତ ବ୍ୟବହାର ପରିସଂଖ୍ୟାନ ପଠାଇବେ କି?</string>
+    <string name="telemetry_consent_allow">ହଁ, ଦୟାକରି</string>
+    <string name="telemetry_consent_deny">ନା, ଧନ୍ୟବାଦ</string>
+    <string name="telemetry_consent_badge_description">Type Launcherକୁ ଉନ୍ନତ କରିବାରେ ସାହାଯ୍ୟ କରନ୍ତୁ — ଉତ୍ତର ଆବଶ୍ୟକ</string>
+    <string name="settings_analytics_title">Type Launcherକୁ ଉନ୍ନତ କରିବାରେ ସାହାଯ୍ୟ କରନ୍ତୁ</string>
 </resources>

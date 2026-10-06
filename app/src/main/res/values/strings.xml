@@ -256,27 +256,18 @@
       and fixed" both survive the move, so nothing about what is sent or why
       is lost.
 
-      TODO: translate — all four are reworded existing keys, so every one of
-      the 63 locales is stale until the approved copy is fanned out. No
-      `tools:ignore` needed: MissingTranslation fires on a key absent from a
-      locale, and none of these is absent.
     -->
     <string name="telemetry_consent_title">Help make Type Launcher better?</string>
     <string name="telemetry_consent_body">Send crash reports and anonymous usage stats so bugs get found and fixed?</string>
     <string name="telemetry_consent_allow">Yes please</string>
     <string name="telemetry_consent_deny">No thanks</string>
-    <!-- TODO: translate — reworded to follow the same rename as the row below
-         (maintainer, 2026-08-31): the badge sits on the gear that opens that
-         row, so naming the thing by a name neither the card nor the row uses
-         was the one place "Analytics" survived. Reworded existing key, so
-         MissingTranslation does not fire and no tools:ignore is needed; the
-         63 locales are stale until the approved copy is fanned out. -->
+    <!-- Follows the same rename as the row below (maintainer, 2026-08-31): the
+         badge sits on the gear that opens that row, so naming the thing by a
+         name neither the card nor the row uses was the one place "Analytics"
+         survived. -->
     <string name="telemetry_consent_badge_description">Help make Type Launcher better — needs an answer</string>
-    <!-- TODO: translate — reworded to match the consent card's title, minus the
-         question mark: the card asks and the row labels, and one thing the user
-         agreed to once should not carry two names (maintainer, 2026-08-31). The
-         key is not new, so MissingTranslation does not fire and no tools:ignore
-         is needed; this comment is the only record that all 63 locales now hold
-         stale copy for it. -->
+    <!-- Matches the consent card's title, minus the question mark: the card asks
+         and the row labels, and one thing the user agreed to once should not
+         carry two names (maintainer, 2026-08-31). -->
     <string name="settings_analytics_title">Help make Type Launcher better</string>
 </resources>

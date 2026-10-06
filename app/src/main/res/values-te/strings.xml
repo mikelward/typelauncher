@@ -203,10 +203,10 @@
     <string name="crash_banner_share">షేర్ చేయండి</string>
     <string name="crash_banner_dismiss">విస్మరించండి</string>
     <string name="crash_pending_badge_description">క్రాష్ అయ్యే అవకాశం గుర్తించబడింది</string>
-    <string name="telemetry_consent_title">అనామక అనలిటిక్స్</string>
-    <string name="telemetry_consent_body">క్రాష్ నివేదికలు, వినియోగ డేటాను పంపండి. మీ వ్యక్తిగత డేటా ఎప్పుడూ పంపబడదు.</string>
-    <string name="telemetry_consent_allow">అనుమతించు</string>
-    <string name="telemetry_consent_deny">అనుమతించవద్దు</string>
-    <string name="telemetry_consent_badge_description">అనలిటిక్స్‌కు సమాధానం కావాలి</string>
-    <string name="settings_analytics_title">అనలిటిక్స్</string>
+    <string name="telemetry_consent_title">Type Launcherను మెరుగుపరచడంలో సహాయపడతారా?</string>
+    <string name="telemetry_consent_body">బగ్‌లను కనుగొని పరిష్కరించడానికి క్రాష్ రిపోర్ట్‌లు, అనామక వినియోగ గణాంకాలు పంపాలా?</string>
+    <string name="telemetry_consent_allow">అవును, పంపండి</string>
+    <string name="telemetry_consent_deny">వద్దు, ధన్యవాదాలు</string>
+    <string name="telemetry_consent_badge_description">Type Launcherను మెరుగుపరచడంలో సహాయపడండి — సమాధానం అవసరం</string>
+    <string name="settings_analytics_title">Type Launcherను మెరుగుపరచడంలో సహాయపడండి</string>
 </resources>

@@ -205,10 +205,10 @@
     <string name="crash_banner_share">Поділитися</string>
     <string name="crash_banner_dismiss">Закрити</string>
     <string name="crash_pending_badge_description">Виявлено можливий збій</string>
-    <string name="telemetry_consent_title">Анонімна аналітика</string>
-    <string name="telemetry_consent_body">Надсилати звіти про збої та дані про використання. Ваші особисті дані ніколи не надсилаються.</string>
-    <string name="telemetry_consent_allow">Дозволити</string>
-    <string name="telemetry_consent_deny">Заборонити</string>
-    <string name="telemetry_consent_badge_description">Аналітика очікує відповіді</string>
-    <string name="settings_analytics_title">Аналітика</string>
+    <string name="telemetry_consent_title">Допоможете покращити Type Launcher?</string>
+    <string name="telemetry_consent_body">Надсилати звіти про збої та анонімну статистику використання, щоб помилки знаходили й виправляли?</string>
+    <string name="telemetry_consent_allow">Так, звісно</string>
+    <string name="telemetry_consent_deny">Ні, дякую</string>
+    <string name="telemetry_consent_badge_description">Допоможіть покращити Type Launcher — потрібна відповідь</string>
+    <string name="settings_analytics_title">Допоможіть покращити Type Launcher</string>
 </resources>
