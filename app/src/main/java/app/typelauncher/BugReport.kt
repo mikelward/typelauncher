@@ -223,6 +223,7 @@ internal object BugReport {
             log = log,
             iconCache = AppIconLoader.cacheStats(),
             previousRun = previousRun?.text,
+            appListChanges = appListEvents.lines(),
         )
         return CollectedReport(text, previousRun)
     }
@@ -387,6 +388,7 @@ internal fun buildBugReportPayload(
     homeWidgetIds: List<Int> = emptyList(),
     previousRun: String? = null,
     iconCache: AppIconLoader.CacheStats? = null,
+    appListChanges: List<String> = emptyList(),
 ): String {
     val widgetIds = widgetPages.flatten()
     val timestamp = formatLogTimestamp(nowMillis, zoneId)
@@ -467,7 +469,21 @@ internal fun buildBugReportPayload(
             )
         }
     }
-    return boundedHead + crash +
+    // Its own bounded section, ahead of the log the routine lines fill: an
+    // install and the reload it caused are what "the app I installed isn't
+    // listed" needs, and the log has usually dropped them by the time it's
+    // reported. See [AppListEventLog].
+    val changes = buildString {
+        appendLine()
+        val kept = boundedLogTail(appListChanges, MAX_APP_LIST_CHANGES_CHARS)
+        appendLine("--- App list changes (${kept.size}, newest last) ---")
+        if (kept.isEmpty()) {
+            appendLine("(none since the launcher started)")
+        } else {
+            kept.forEach { appendLine(it) }
+        }
+    }
+    return boundedHead + crash + changes +
         renderLog(log, MAX_LOG_PAYLOAD_CHARS + MAX_PINNED_PAYLOAD_CHARS)
 }
 
@@ -522,8 +538,14 @@ private fun renderLog(log: List<String>, budgetChars: Int): String = buildString
  */
 internal const val MAX_SHARE_PAYLOAD_CHARS = DebugReport.MAX_REPORT_CHARS
 
-/** Ceiling for the current run's log — ~40 KB of UTF-16 on the wire. */
-private const val MAX_LOG_PAYLOAD_CHARS = 20_000
+/** Ceiling for the current run's log — ~32 KB of UTF-16 on the wire. */
+private const val MAX_LOG_PAYLOAD_CHARS = 16_000
+
+/**
+ * Ceiling for the app-list changes section: about fifty lines. Taken from the
+ * log's budget, so the sections still add up to the same total.
+ */
+private const val MAX_APP_LIST_CHANGES_CHARS = 4_000
 
 /**
  * Ceiling for the pinned lines the log restores ahead of its kept tail.

@@ -309,10 +309,12 @@ internal class LauncherViewModel(
         // Each of these puts the package name into the reload's reason string,
         // which is logged immediately — an *added* package is not in
         override fun onPackageAdded(packageName: String, user: UserHandle) {
+            appListEvents.record("installed $packageName user=${user.hashCode()}")
             AppIconLoader.evict(packageName, user)
             scheduleReload("packageAdded", packageName)
         }
         override fun onPackageRemoved(packageName: String, user: UserHandle) {
+            appListEvents.record("removed $packageName user=${user.hashCode()}")
             AppIconLoader.evict(packageName, user)
             scheduleReload("packageRemoved", packageName)
         }
@@ -325,6 +327,7 @@ internal class LauncherViewModel(
             user: UserHandle,
             replacing: Boolean,
         ) {
+            appListEvents.record("available ${describePackageBatch(packageNames.asList())} user=${user.hashCode()}")
             packageNames.forEach { AppIconLoader.evict(it, user) }
             scheduleReload("packagesAvailable", packageNames.size)
         }
@@ -333,6 +336,7 @@ internal class LauncherViewModel(
             user: UserHandle,
             replacing: Boolean,
         ) {
+            appListEvents.record("unavailable ${describePackageBatch(packageNames.asList())} user=${user.hashCode()}")
             packageNames.forEach { AppIconLoader.evict(it, user) }
             scheduleReload("packagesUnavailable", packageNames.size)
         }
@@ -821,6 +825,15 @@ internal class LauncherViewModel(
                 drainPendingIconOverrideRequest()
             }
             LauncherDebugLog.event("LauncherViewModel initial load complete %s", _uiState.value.debugSummary())
+            // A degraded read published the cached list or part of one; saying
+            // "loaded" would vouch for a count nothing enumerated.
+            appListEvents.record(
+                when {
+                    !loadResult.isDegraded -> "loaded at startup: ${installedApps.size} apps"
+                    loadResult.apps.isEmpty() -> "startup load failed, kept ${installedApps.size} cached apps"
+                    else -> "startup load was partial: ${installedApps.size} apps"
+                },
+            )
             if (reloadPendingDuringColdStart) {
                 reloadPendingDuringColdStart = false
                 scheduleReload("coldStartCompletedWithPendingEvent")
@@ -1327,6 +1340,9 @@ internal class LauncherViewModel(
                 installedApps.size,
                 degradedReloadAttempts,
             )
+            appListEvents.record(
+                "reload for ${listOfNotNull(reason, detail).joinToString(" ")} failed, kept ${installedApps.size} apps",
+            )
             if (degradedReloadAttempts >= MAX_DEGRADED_RELOAD_ATTEMPTS) {
                 // Bounded, because the reloads are serial now: without a
                 // bound this would spin a failing enumeration for as long as
@@ -1419,6 +1435,7 @@ internal class LauncherViewModel(
             detail,
             loadedApps.size,
         )
+        appListEvents.record("reloaded for ${listOfNotNull(reason, detail).joinToString(" ")}: ${loadedApps.size} apps")
         // Published — and still not finished, when the paused state was
         // guessed. The apps are all here, which is why this ran at all, but
         // the work dock's once-ever seed is gated on a *readable* paused
