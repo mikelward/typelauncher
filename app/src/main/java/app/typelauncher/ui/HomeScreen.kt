@@ -112,6 +112,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
@@ -135,6 +136,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -1480,12 +1482,22 @@ private fun SearchCard(
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
+    val windowInfo = LocalWindowInfo.current
+    // Diagnostics only: written from onFocusChanged and read by the two show
+    // paths, never during composition, so it costs no recomposition. A
+    // bug report then says whether a keyboard request found the field focused.
+    var fieldFocused by remember { mutableStateOf(false) }
     // The auto-focus / show pair is the launcher's "type immediately on Home"
     // behavior. Gating both on the user setting is what actually keeps the IME
     // down. MainActivity also applies stateAlwaysHidden when the setting is off
     // so a retained TextField focus cannot re-show the IME on launcher resume.
     LaunchedEffect(autoShowKeyboard) {
         if (autoShowKeyboard) {
+            LauncherDebugLog.event(
+                "SearchCard autoShowKeyboard fieldFocused=%s windowFocused=%s",
+                fieldFocused,
+                windowInfo.isWindowFocused,
+            )
             focusRequester.requestFocus()
             keyboard?.show()
         }
@@ -1496,6 +1508,11 @@ private fun SearchCard(
     // dismissed the keyboard typically also dropped focus from the TextField.
     LaunchedEffect(keyboardShowRequests) {
         keyboardShowRequests.collect {
+            LauncherDebugLog.event(
+                "SearchCard showKeyboard fieldFocused=%s windowFocused=%s",
+                fieldFocused,
+                windowInfo.isWindowFocused,
+            )
             focusRequester.requestFocus()
             keyboard?.show()
         }
@@ -1514,6 +1531,12 @@ private fun SearchCard(
                 placeholder = stringResource(R.string.app_search_hint, placeholderSuffix),
                 modifier = Modifier
                     .focusRequester(focusRequester)
+                    .onFocusChanged { focus ->
+                        if (focus.isFocused != fieldFocused) {
+                            fieldFocused = focus.isFocused
+                            LauncherDebugLog.event("SearchCard field focused=%s", focus.isFocused)
+                        }
+                    }
                     // Swallow held-Enter key repeats before they reach the text
                     // field core: the core maps a hardware Enter ACTION_DOWN to
                     // the IME Search action (-> onSearch -> onLaunchActiveApp)

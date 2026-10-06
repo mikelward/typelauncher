@@ -767,6 +767,7 @@ internal fun TypeLauncherApp(
         // frame is drawn.
         var keyboardSeenThisHomePresence by remember { mutableStateOf(false) }
         LaunchedEffect(imeVisible) {
+            LauncherDebugLog.event("Home imeVisible=%s", imeVisible)
             if (imeVisible) keyboardSeenThisHomePresence = true
         }
         val lifecycleOwner = LocalLifecycleOwner.current
