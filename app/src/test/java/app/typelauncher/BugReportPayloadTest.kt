@@ -297,6 +297,20 @@ class BugReportPayloadTest {
     }
 
     @Test
+    fun payloadListsOtherSettingsAndHomeWidgets() {
+        val payload = basePayload(
+            previousRun = null,
+            otherSettings = listOf("Keyboard auto-shown" to "true", "Home widgets shown" to "false"),
+            homeWidgetIds = listOf(31, 32),
+        )
+        val settings = payload.substringAfter("--- Settings ---").substringBefore("Docked apps")
+        assertTrue("keyboard setting in Settings", settings.contains("Keyboard auto-shown: true"))
+        assertTrue("home widgets setting in Settings", settings.contains("Home widgets shown: false"))
+        assertTrue("home widget ids", payload.contains("Home widgets (2): 31, 32"))
+        assertTrue("no home widgets", basePayload(previousRun = null).contains("Home widgets (0): (none)"))
+    }
+
+    @Test
     fun payloadIncludesIconCacheCountersOnlyWhenSupplied() {
         assertTrue(
             "no section without stats",
@@ -315,6 +329,8 @@ class BugReportPayloadTest {
         previousRun: String?,
         log: List<String> = listOf("11-04 09:00:01.000 D TypeLauncherDebug: current hello"),
         iconCache: AppIconLoader.CacheStats? = null,
+        otherSettings: List<Pair<String, String>> = emptyList(),
+        homeWidgetIds: List<Int> = emptyList(),
     ): String = buildBugReportPayload(
         nowMillis = 1_700_000_000_000L,
         versionName = "1.0",
@@ -338,5 +354,7 @@ class BugReportPayloadTest {
         log = log,
         previousRun = previousRun,
         iconCache = iconCache,
+        otherSettings = otherSettings,
+        homeWidgetIds = homeWidgetIds,
     )
 }

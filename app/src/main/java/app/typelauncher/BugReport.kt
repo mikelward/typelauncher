@@ -216,8 +216,10 @@ internal object BugReport {
             dockIconSizeDp = dockSettings.dockIconSizeDp,
             appListSortOrder = dockSettings.appListSortOrder,
             isAgendaEnabled = dockSettings.isAgendaEnabled,
+            otherSettings = bugReportSettingRows(dockSettings),
             dockedAppIds = dockedApps,
             widgetPages = widgetStore.widgetPages,
+            homeWidgetIds = widgetStore.homeWidgetIds,
             log = log,
             iconCache = AppIconLoader.cacheStats(),
             previousRun = previousRun?.text,
@@ -331,6 +333,35 @@ internal fun Context.findActivity(): Activity? {
     return null
 }
 
+/**
+ * Every user setting [buildBugReportPayload] doesn't already name, as
+ * `label to value` rows for the report's "--- Settings ---" section, so a
+ * report shows the whole configuration the bug happened under (e.g. whether
+ * the keyboard auto-shows, or Home's widgets are on). Choices, toggles, and
+ * numbers only — the same privacy floor as [launcherTelemetryKeys]. Reads
+ * SharedPreferences, so call it off the main thread.
+ */
+internal fun bugReportSettingRows(settings: DockSettingsStore): List<Pair<String, String>> {
+    val reservation = settings.keyboardReservation
+    return listOf(
+        "Work dock enabled" to settings.isWorkDockEnabled.toString(),
+        "Dock layout" to settings.dockLayout.name,
+        "Keyboard auto-shown" to settings.isKeyboardAutoShown.toString(),
+        "Keyboard reservation" to "${reservation.bottomPx}px (${reservation.source.name})",
+        "Wallpaper shown" to settings.isWallpaperShown.toString(),
+        "Home widgets shown" to settings.isHomeWidgetsShown.toString(),
+        "Contact search enabled" to settings.isContactSearchEnabled.toString(),
+        "Calendar search enabled" to settings.isCalendarSearchEnabled.toString(),
+        "Call method" to settings.callMethod.name,
+        "Theme" to settings.themeMode.name,
+        "Icon shape" to settings.iconShape.name,
+        "Icon theme" to settings.iconTheme.name,
+        // The effective choice, consent gate included — the raw flag can read
+        // true on an install that never answered the consent question.
+        "Analytics enabled" to (StoredTelemetryPreferences(settings).isEnabled()?.toString() ?: "unreadable"),
+    )
+}
+
 internal fun buildBugReportPayload(
     nowMillis: Long,
     versionName: String,
@@ -352,6 +383,8 @@ internal fun buildBugReportPayload(
     dockedAppIds: List<String>,
     widgetPages: List<List<Int>>,
     log: List<String>,
+    otherSettings: List<Pair<String, String>> = emptyList(),
+    homeWidgetIds: List<Int> = emptyList(),
     previousRun: String? = null,
     iconCache: AppIconLoader.CacheStats? = null,
 ): String {
@@ -384,6 +417,7 @@ internal fun buildBugReportPayload(
         appendLine("Dock icon size: ${dockIconSizeDp}dp")
         appendLine("App list sort order: $appListSortOrder")
         appendLine("Agenda enabled: $isAgendaEnabled")
+        otherSettings.forEach { (name, value) -> appendLine("$name: $value") }
         appendLine("Docked apps (${dockedAppIds.size}):")
         if (dockedAppIds.isEmpty()) {
             appendLine("  (none)")
@@ -394,6 +428,7 @@ internal fun buildBugReportPayload(
         widgetPages.forEachIndexed { index, pageIds ->
             appendLine("  Page ${index + 1}: ${if (pageIds.isEmpty()) "(empty)" else pageIds.joinToString()}")
         }
+        appendLine("Home widgets (${homeWidgetIds.size}): ${if (homeWidgetIds.isEmpty()) "(none)" else homeWidgetIds.joinToString()}")
         // Read live at capture rather than recovered from the log: the counters
         // used to be flushed into the ring buffer every 50 lookups, which
         // dominated it and evicted the very context the report is read for.
