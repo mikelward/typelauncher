@@ -72,6 +72,9 @@ internal class LauncherViewModel(
     // pass this in: it launches the real activity, which builds the view model.
     @get:VisibleForTesting
     internal val ioDispatcher: CoroutineDispatcher = LauncherDispatchers.io,
+    // Runs the binder call that starts a tapped app or shortcut, so a slow
+    // launcher-apps service can't stall Home's main thread.
+    private val launchDispatcher: CoroutineDispatcher = LauncherDispatchers.launch,
     // The on-device debug-log sink, resolved from the Application by default.
     // Injectable so a test can drive the post-crash banner with its own sink —
     // the Application skips wiring the real one under Robolectric (a per-test
@@ -3118,44 +3121,38 @@ internal class LauncherViewModel(
             app.isWorkApp,
             app.launchWithLauncherApps,
         )
-        try {
-            val shortcutId = app.shortcutId
-            if (shortcutId != null) {
-                this.app.getSystemService<LauncherApps>()
-                    ?.startShortcut(app.packageName, shortcutId, null, null, app.user)
-            } else if (app.launchWithLauncherApps && component != null) {
-                this.app.getSystemService<LauncherApps>()?.startMainActivity(component, app.user, null, null)
-            } else {
-                startActivity(app.launchIntent.asLauncherTaskIntent())
+        val shortcutId = app.shortcutId
+        val launcherApps = launcherAppsService
+        startLaunch(
+            start = {
+                if (shortcutId != null) {
+                    launcherApps?.startShortcut(app.packageName, shortcutId, null, null, app.user)
+                } else if (app.launchWithLauncherApps && component != null) {
+                    launcherApps?.startMainActivity(component, app.user, null, null)
+                } else {
+                    startActivity(app.launchIntent.asLauncherTaskIntent())
+                }
+            },
+        ) { failure ->
+            when (failure) {
+                null -> onAppLaunched(app)
+                is ActivityNotFoundException ->
+                    LauncherDebugLog.failure(failure, "launchApp activity not found package=%s", loggedPackage)
+                is SecurityException ->
+                    LauncherDebugLog.failure(failure, "launchApp security exception package=%s", loggedPackage)
+                // LauncherApps' refusal while the profile is locked or paused —
+                // for a shortcut, also while this launcher is not the default
+                // home app.
+                else -> LauncherDebugLog.failure(failure, "launchApp unavailable shortcut=%s", app.isShortcut)
             }
-        } catch (exception: ActivityNotFoundException) {
-            LauncherDebugLog.failure(exception, "launchApp activity not found package=%s", loggedPackage)
             // A shortcut its publisher removed or disabled after the list
-            // loaded; an app's own activity going missing is a reload away.
-            if (app.isShortcut) {
+            // loaded, or one this launcher lost the home role or profile
+            // access for. The shortcut copy only fits a shortcut; an app's
+            // own activity going missing is a reload away, so it stays silent.
+            if (failure != null && app.isShortcut) {
                 Toast.makeText(this.app, R.string.app_menu_shortcut_unavailable, Toast.LENGTH_SHORT).show()
             }
-            return
-        } catch (exception: SecurityException) {
-            LauncherDebugLog.failure(exception, "launchApp security exception package=%s", loggedPackage)
-            // For a shortcut: this launcher lost the home role, or access to
-            // the shortcut's profile, since the list loaded.
-            if (app.isShortcut) {
-                Toast.makeText(this.app, R.string.app_menu_shortcut_unavailable, Toast.LENGTH_SHORT).show()
-            }
-            return
-        } catch (exception: IllegalStateException) {
-            // LauncherApps' refusal while the profile is locked or paused —
-            // for a shortcut, also while this launcher is not the default
-            // home app. The shortcut copy only fits a shortcut; an app keeps
-            // the same silent handling as the failures above.
-            LauncherDebugLog.failure(exception, "launchApp unavailable shortcut=%s", app.isShortcut)
-            if (app.isShortcut) {
-                Toast.makeText(this.app, R.string.app_menu_shortcut_unavailable, Toast.LENGTH_SHORT).show()
-            }
-            return
         }
-        onAppLaunched(app)
     }
 
     /**
@@ -3166,27 +3163,59 @@ internal class LauncherViewModel(
         // No package or shortcut in the line: which shortcuts the user opens
         // (a messenger's are often named after contacts) is theirs.
         LauncherDebugLog.event("launchAppShortcut work=%s", app.isWorkApp)
-        try {
-            val launcherApps = launcherAppsService ?: return
-            launcherApps.startShortcut(shortcut.packageName, shortcut.id, null, null, shortcut.user)
-        } catch (exception: ActivityNotFoundException) {
+        val launcherApps = launcherAppsService ?: return
+        startLaunch(
+            start = { launcherApps.startShortcut(shortcut.packageName, shortcut.id, null, null, shortcut.user) },
+        ) { failure ->
+            if (failure == null) {
+                onAppLaunched(app)
+                return@startLaunch
+            }
             // The app withdrew or disabled the shortcut since the menu's copy
-            // was read.
-            LauncherDebugLog.failure(exception, "launchAppShortcut activity not found")
+            // was read; this launcher lost the home role or access to the
+            // profile; or the profile is locked or paused.
+            LauncherDebugLog.failure(failure, "launchAppShortcut failed type=%s", failure.javaClass.simpleName)
             Toast.makeText(this.app, R.string.app_menu_shortcut_unavailable, Toast.LENGTH_SHORT).show()
-            return
-        } catch (exception: SecurityException) {
-            // This launcher lost the home role, or access to the profile.
-            LauncherDebugLog.failure(exception, "launchAppShortcut security exception")
-            Toast.makeText(this.app, R.string.app_menu_shortcut_unavailable, Toast.LENGTH_SHORT).show()
-            return
-        } catch (exception: IllegalStateException) {
-            // The profile is locked or paused, or this is not the home app.
-            LauncherDebugLog.failure(exception, "launchAppShortcut unavailable")
-            Toast.makeText(this.app, R.string.app_menu_shortcut_unavailable, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // The start currently on the wire, if any; see [startLaunch]. Main thread only.
+    private var launchInFlight: Job? = null
+
+    /**
+     * Runs [start] — the binder call that opens an app or shortcut — on
+     * [launchDispatcher], then hands [onResult] its outcome back on the main
+     * thread: null on success, or the failure `LauncherApps` / the activity
+     * manager reports for a target that is gone, refused, or in a locked or
+     * paused profile. Anything else propagates as before. The caller's
+     * success path (launch stats, list refresh, clearing the query) runs only
+     * once the system has accepted the start, as it did when the call ran on
+     * the main thread.
+     */
+    private fun startLaunch(start: () -> Unit, onResult: (RuntimeException?) -> Unit) {
+        // One start at a time. Home stays interactive while a slow call is on
+        // the wire, so a double tap (or a second icon tapped before the first
+        // app appears) would otherwise open both, and record their launches
+        // in completion order. The first tap wins; the rest are dropped.
+        if (launchInFlight?.isActive == true) {
+            LauncherDebugLog.event("launch ignored: another start is in flight")
             return
         }
-        onAppLaunched(app)
+        launchInFlight = viewModelScope.launch {
+            val failure = withContext(launchDispatcher) {
+                try {
+                    start()
+                    null
+                } catch (exception: ActivityNotFoundException) {
+                    exception
+                } catch (exception: SecurityException) {
+                    exception
+                } catch (exception: IllegalStateException) {
+                    exception
+                }
+            }
+            onResult(failure)
+        }
     }
 
     private fun onAppLaunched(app: InstalledApp) {

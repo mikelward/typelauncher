@@ -24,4 +24,14 @@ internal object LauncherDispatchers {
     internal var testOverride: CoroutineDispatcher? = null
 
     val io: CoroutineDispatcher get() = testOverride ?: Dispatchers.IO
+
+    /**
+     * Where an app or shortcut launch's binder call runs. Separate from [io]
+     * so a test can make launches complete inline (and assert on what follows
+     * them) without also making the startup app load synchronous.
+     */
+    @VisibleForTesting
+    internal var launchTestOverride: CoroutineDispatcher? = null
+
+    val launch: CoroutineDispatcher get() = launchTestOverride ?: Dispatchers.IO
 }

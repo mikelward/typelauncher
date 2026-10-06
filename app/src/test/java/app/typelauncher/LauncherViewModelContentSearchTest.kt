@@ -1968,6 +1968,7 @@ class LauncherViewModelContentSearchTest {
         app = ApplicationProvider.getApplicationContext(),
         workPackages = emptySet(),
         ioDispatcher = Dispatchers.Unconfined,
+        launchDispatcher = Dispatchers.Unconfined,
     )
 
     /**

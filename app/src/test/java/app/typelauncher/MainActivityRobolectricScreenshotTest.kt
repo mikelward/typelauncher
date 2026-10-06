@@ -4232,12 +4232,17 @@ class MainActivityRobolectricScreenshotTest {
             object : Statement() {
                 override fun evaluate() {
                     val previous = LauncherDispatchers.testOverride
+                    val previousLaunch = LauncherDispatchers.launchTestOverride
                     dispatcher = MainLooperIoDispatcher()
                     LauncherDispatchers.testOverride = dispatcher
+                    // A tapped app's start completes inline, so a test can
+                    // assert on the launch stats and cleared query right after.
+                    LauncherDispatchers.launchTestOverride = kotlinx.coroutines.Dispatchers.Unconfined
                     try {
                         base.evaluate()
                     } finally {
                         LauncherDispatchers.testOverride = previous
+                        LauncherDispatchers.launchTestOverride = previousLaunch
                     }
                 }
             }
