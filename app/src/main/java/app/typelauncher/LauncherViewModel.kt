@@ -107,6 +107,7 @@ internal class LauncherViewModel(
     private val dockSettingsStore = DockSettingsStore(app)
     private val appLaunchStatsStore = AppLaunchStatsStore(app)
     private val appMetadataStore = AppMetadataStore(app)
+    private val webLinkStore = WebLinkStore(app)
     private val iconSnapshotStore = IconSnapshotStore(app)
     private val playUpdateStore = PlayUpdateStore(app)
     // In-flight progress for the currently-known available version. Lets the
@@ -591,6 +592,9 @@ internal class LauncherViewModel(
                 PinnedShortcutReveals.consumed()
             }
         }
+        viewModelScope.launch {
+            WebLinkStore.changes.collect { refreshWebLinks() }
+        }
         LauncherDebugLog.event("LauncherViewModel initialized %s", _uiState.value.debugSummary())
         // A backup restore or permission auto-reset can leave a content-search
         // toggle persisted on without its permission; coerce before anything
@@ -708,7 +712,7 @@ internal class LauncherViewModel(
             // is a real reading of the profiles that answered, and nothing
             // here can tell how much a truncated one left out. What such a
             // read may not do is anything irreversible — see below.
-            val loadedApps = if (loadResult.isDegraded && loadResult.apps.isEmpty()) {
+            val loadedApps = if (loadResult.isDegraded && loadResult.apps.all { app -> app.isWebLink }) {
                 LauncherDebugLog.event(
                     "initial load degraded and empty, keeping cached=%s",
                     installedApps.size,
@@ -718,8 +722,12 @@ internal class LauncherViewModel(
                 // moved since the snapshot was written, and nothing here
                 // vouches for them. The retry reload restores them if they
                 // are still there; apps get no such filter because they
-                // don't depend on the role.
-                installedApps.filterNot { app -> app.isShortcut }
+                // don't depend on the role. The links are the ones just read
+                // rather than the cached ones: they are this launcher's own,
+                // and one added while no launcher was running is in the
+                // store but not the snapshot.
+                (installedApps.filterNot { app -> app.isShortcut || app.isWebLink } + loadResult.apps)
+                    .sortedWith(compareBy(displayNameOrder()) { app -> app.name })
             } else {
                 if (loadResult.isDegraded) {
                     LauncherDebugLog.event(
@@ -830,7 +838,7 @@ internal class LauncherViewModel(
             appListEvents.record(
                 when {
                     !loadResult.isDegraded -> "loaded at startup: ${installedApps.size} apps"
-                    loadResult.apps.isEmpty() -> "startup load failed, kept ${installedApps.size} cached apps"
+                    loadResult.apps.all { app -> app.isWebLink } -> "startup load failed, kept ${installedApps.size} cached apps"
                     else -> "startup load was partial: ${installedApps.size} apps"
                 },
             )
@@ -1192,7 +1200,9 @@ internal class LauncherViewModel(
      */
     private fun maybePrefillDock(apps: List<InstalledApp>) {
         if (dockedAppStore.hasBeenPrefilled) return
-        if (apps.isEmpty()) return
+        // Web links come from this launcher's own store, so a read that
+        // produced nothing else still had no inventory behind it.
+        if (apps.all { app -> app.isWebLink }) return
         if (dockedAppStore.dockedAppIds.isEmpty()) {
             // Prefill against what this device can actually render (see
             // `deviceRenderableDockIconCount`) so a narrow phone that
@@ -3129,8 +3139,9 @@ internal class LauncherViewModel(
     fun launchApp(app: InstalledApp) {
         val component = app.launchIntent.component
         // A pinned shortcut's publisher stays out of the log: which pages the
-        // user keeps, and from which browser, is theirs.
-        val loggedPackage = if (app.isShortcut) "(shortcut)" else app.packageName
+        // user keeps, and from which browser, is theirs. A web link's address
+        // likewise.
+        val loggedPackage = loggedPackageOf(app)
         LauncherDebugLog.event(
             "launchApp package=%s component=%s work=%s launcherApps=%s",
             loggedPackage,
@@ -3166,7 +3177,8 @@ internal class LauncherViewModel(
             // loaded, or one this launcher lost the home role or profile
             // access for. The shortcut copy only fits a shortcut; an app's
             // own activity going missing is a reload away, so it stays silent.
-            if (failure != null && app.isShortcut) {
+            // A web link with no browser left to open it reads the same way.
+            if (failure != null && (app.isShortcut || app.isWebLink)) {
                 Toast.makeText(this.app, R.string.app_menu_shortcut_unavailable, Toast.LENGTH_SHORT).show()
             }
         }
@@ -3281,9 +3293,11 @@ internal class LauncherViewModel(
     }
 
     fun openAppInfo(app: InstalledApp) {
+        // A web link is no package's: its menu offers no App info.
+        if (app.isWebLink) return
         LauncherDebugLog.event(
             "openAppInfo package=%s work=%s launcherApps=%s",
-            if (app.isShortcut) "(shortcut)" else app.packageName,
+            loggedPackageOf(app),
             app.isWorkApp,
             app.launchWithLauncherApps,
         )
@@ -3324,9 +3338,9 @@ internal class LauncherViewModel(
                 launcherApps.startAppDetailsActivity(component, app.user, null, null)
                 return
             } catch (exception: ActivityNotFoundException) {
-                LauncherDebugLog.failure(exception, "openAppInfo activity not found package=%s", if (app.isShortcut) "(shortcut)" else app.packageName)
+                LauncherDebugLog.failure(exception, "openAppInfo activity not found package=%s", loggedPackageOf(app))
             } catch (exception: SecurityException) {
-                LauncherDebugLog.failure(exception, "openAppInfo security exception package=%s", if (app.isShortcut) "(shortcut)" else app.packageName)
+                LauncherDebugLog.failure(exception, "openAppInfo security exception package=%s", loggedPackageOf(app))
             }
         }
         startActivity(app.appInfoIntent)
@@ -3352,13 +3366,17 @@ internal class LauncherViewModel(
     fun uninstallApp(app: InstalledApp) {
         LauncherDebugLog.event(
             "uninstallApp package=%s work=%s uninstallable=%s shortcut=%s",
-            if (app.isShortcut) "(shortcut)" else app.packageName,
+            loggedPackageOf(app),
             app.isWorkApp,
             app.isUninstallable,
             app.isShortcut,
         )
         if (app.isShortcut) {
             removePinnedShortcut(app)
+            return
+        }
+        if (app.isWebLink) {
+            removeWebLink(app)
             return
         }
         try {
@@ -3429,6 +3447,33 @@ internal class LauncherViewModel(
             if (removed) {
                 scheduleReload("shortcutRemoved")
             } else {
+                Toast.makeText(this@LauncherViewModel.app, R.string.app_menu_remove_shortcut_failed, Toast.LENGTH_SHORT)
+                    .show()
+            }
+        }
+    }
+
+    /**
+     * Deletes a web link. No confirmation, like unpinning a shortcut: the
+     * page is a share away from coming back. The store's change reloads the
+     * list, which drops the entry from every surface.
+     */
+    private fun removeWebLink(app: InstalledApp) {
+        val webLinkId = app.webLinkId ?: return
+        viewModelScope.launch {
+            val removed = withContext(ioDispatcher) { webLinkStore.remove(webLinkId) }
+            if (removed) {
+                // Unlike an uninstalled app, a deleted link's id never comes
+                // back, so a dock slot or folder place it held would stay
+                // taken by nothing. Links are personal-profile only.
+                val columns = deviceRenderableDockIconCount(_uiState.value.dockIconSizeDp)
+                dockedAppStore.folderIdContaining(app.id)?.let { folderId ->
+                    dockedAppStore.removeFromFolder(folderId, app.id, columns)
+                }
+                dockedAppStore.undock(app.id)
+                refreshLists()
+            } else {
+                LauncherDebugLog.warning("removeWebLink write failed")
                 Toast.makeText(this@LauncherViewModel.app, R.string.app_menu_remove_shortcut_failed, Toast.LENGTH_SHORT)
                     .show()
             }
@@ -6109,7 +6154,9 @@ internal class LauncherViewModel(
         // wins the dedup below over the same component read through
         // `PackageManager` (the former launches through `LauncherApps`,
         // which is the path that works across profiles).
-        (inventories.values.flatMap { inventory -> inventory.apps } + fallbackApps)
+        // The user's web links ride along with every read: they live in this
+        // launcher's own store, so no profile failure can lose them.
+        (inventories.values.flatMap { inventory -> inventory.apps } + fallbackApps + webLinkEntries())
             // Keying dedup on `id` (userHandle.hashCode():componentName) lets distinct
             // apps that happen to share a display name survive — e.g. Chase US
             // (com.chase.sig.android) and Chase UK (com.chase.uk.*) both show up,
@@ -6121,6 +6168,36 @@ internal class LauncherViewModel(
             .applyCustomBadges()
             .applyIconOverrides()
             .applyDynamicCalendarToken()
+
+    /**
+     * Swaps the stored web links into the published list without rereading
+     * any app. Links are this launcher's own data, so an add or remove must
+     * show even while the app read is failing — a reload would decline to
+     * publish a degraded read, leaving an added link missing or a removed
+     * one still launchable.
+     */
+    private suspend fun refreshWebLinks() {
+        // Cold start publishes the links it reads itself; a change before
+        // then rides the reload it replays once it has.
+        if (!_uiState.value.isFreshAppLoadComplete) {
+            scheduleReload("webLinksChanged")
+            return
+        }
+        val links = withContext(ioDispatcher) { webLinkEntries() }
+            .applyRenameOverrides()
+            .applyCustomBadges()
+            .applyIconOverrides()
+        installedApps = (installedApps.filterNot { app -> app.isWebLink } + links)
+            .sortedWith(compareBy(displayNameOrder()) { app -> app.name })
+        persistAppMetadata(installedApps)
+        refreshLists()
+        // A reload already on the wire read the store before this change and
+        // would publish the old links; queuing one makes it discard that read.
+        if (runningReloadJob?.isActive == true) scheduleReload("webLinksChanged")
+    }
+
+    // A disk read: callers are on the IO dispatcher, like the rest of a load.
+    private fun webLinkEntries(): List<InstalledApp> = webLinkStore.links().map { link -> webLinkEntry(link) }
 
     /**
      * Mirror persisted [CustomBadgeStore] entries onto each [InstalledApp]
@@ -6743,4 +6820,11 @@ internal fun stripWorkPrefix(rawLabel: String, prefixWord: String): String {
         stripped = stripped.substring(prefixWord.length).trimStart()
     }
     return stripped
+}
+
+/** [app]'s package for a log line, or what it is when that would reveal a page the user keeps. */
+private fun loggedPackageOf(app: InstalledApp): String = when {
+    app.isShortcut -> "(shortcut)"
+    app.isWebLink -> "(web link)"
+    else -> app.packageName
 }

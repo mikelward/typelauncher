@@ -10,7 +10,7 @@ import org.json.JSONObject
 
 /**
  * Persists a small metadata snapshot for the personal-profile installed apps (and
- * pinned shortcuts) so the
+ * pinned shortcuts and web links) so the
  * dock and the app list can render on the very first frame after a cold start, ahead
  * of the IO load that calls into `LauncherApps`. Work-profile apps aren't cached
  * because reconstructing the corresponding `UserHandle` requires the live system, and
@@ -29,6 +29,14 @@ internal class AppMetadataStore(context: Context) {
                 for (i in 0 until array.length()) {
                     val obj = array.getJSONObject(i)
                     val packageName = obj.getString(KEY_PACKAGE)
+                    // A web link is rebuilt as the launcher builds it, so the
+                    // snapshot can't drift from what a load produces.
+                    val webLinkId = obj.optString(KEY_WEB_LINK_ID).takeIf { it.isNotEmpty() }
+                    val webLinkUrl = obj.optString(KEY_URL).takeIf { it.isNotEmpty() }
+                    if (webLinkId != null) {
+                        if (webLinkUrl != null) add(webLinkEntry(WebLink(webLinkId, obj.getString(KEY_NAME), webLinkUrl), personal))
+                        continue
+                    }
                     // A pinned shortcut is cached so it renders on the first
                     // frame like the apps around it; its component, when the
                     // system recorded one, is its publisher's activity.
@@ -70,6 +78,12 @@ internal class AppMetadataStore(context: Context) {
         val array = JSONArray()
         for (app in apps) {
             if (app.user != personal) continue
+            val webLinkId = app.webLinkId
+            if (webLinkId != null) {
+                val url = app.launchIntent.dataString ?: continue
+                array.put(JSONObject().put(KEY_NAME, app.name).put(KEY_PACKAGE, app.packageName).put(KEY_WEB_LINK_ID, webLinkId).put(KEY_URL, url))
+                continue
+            }
             val component = app.launchIntent.component
             if (component == null && app.shortcutId == null) continue
             val obj = JSONObject().apply {
@@ -102,5 +116,7 @@ internal class AppMetadataStore(context: Context) {
         const val KEY_ICON_CACHE_TOKEN = "iconCacheToken"
         const val KEY_DISAMBIGUATOR = "disambiguator"
         const val KEY_SHORTCUT_ID = "shortcutId"
+        const val KEY_WEB_LINK_ID = "webLinkId"
+        const val KEY_URL = "url"
     }
 }

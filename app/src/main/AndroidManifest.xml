@@ -140,6 +140,25 @@
         </activity>
 
         <!--
+            The "Add to app list" share target for web pages. Exported because
+            other apps start it; it adds nothing until the user confirms.
+        -->
+        <activity
+            android:name=".AddWebLinkActivity"
+            android:configChanges="colorMode|density|fontScale|grammaticalGender|keyboard|keyboardHidden|layoutDirection|locale|mcc|mnc|navigation|orientation|screenLayout|screenSize|smallestScreenSize|touchscreen|uiMode"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:label="@string/web_link_share_label"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <!--
             Applies the platform's old→new widget ID translation after a backup
             restore. Delivered even when the launcher isn't running, so it must
             be a manifest receiver. exported="true" is required for the system

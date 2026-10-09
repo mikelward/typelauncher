@@ -9,7 +9,8 @@
             The cold-start app-list snapshot. A cache the device rebuilds on
             its first load, so restoring it buys nothing, and it holds pinned
             shortcuts' raw ids, which a browser may set to the page's URL —
-            browsing data that must not leave the device.
+            browsing data that must not leave the device. (web_links.xml is
+            backed up: those are links the user chose to add.)
         -->
         <exclude domain="sharedpref" path="app_metadata.xml" />
     </cloud-backup>
