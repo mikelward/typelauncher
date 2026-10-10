@@ -18,15 +18,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.github.takahirom.roborazzi.captureRoboImage
+import java.time.LocalDate
+import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -35,9 +41,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
-import com.github.takahirom.roborazzi.captureRoboImage
-import java.time.LocalDate
-import java.time.ZoneId
 
 /**
  * Renders the Widgets and Agenda pages with the wallpaper backdrop active
@@ -164,6 +167,50 @@ class WallpaperAllPagesScreenshotTest {
         composeRule.onNodeWithTag(HOME_WIDGETS_DONE_TAG).assertExists()
 
         capture("compose_home_widgets_editing_robolectric.png")
+    }
+
+    // Two widgets sharing a row: each gets Move left / right beside Move up /
+    // down, grayed at the row's ends (and the list's, for up / down).
+    @Test
+    fun homeWidgets_editing_sharedRow() {
+        captureSharedRowEditing(LayoutDirection.Ltr, "compose_home_widgets_editing_shared_row_robolectric.png")
+    }
+
+    // The same row right-to-left: the row starts at the right, so the
+    // mirrored arrows and their labels swap sides.
+    @Test
+    fun homeWidgets_editing_sharedRow_rtl() {
+        captureSharedRowEditing(LayoutDirection.Rtl, "compose_home_widgets_editing_shared_row_rtl_robolectric.png")
+    }
+
+    private fun captureSharedRowEditing(direction: LayoutDirection, fileName: String) {
+        val host = LauncherAppWidgetHost(composeRule.activity, /* hostId = */ 0)
+        val providerInfo = AppWidgetProviderInfo().apply {
+            provider = ComponentName("com.example.widget", "SampleProvider")
+            minWidth = 200
+            minHeight = 300
+            targetCellWidth = 2
+            targetCellHeight = 2
+        }
+        composeRule.setContent {
+            CompositionLocalProvider(LocalLayoutDirection provides direction) {
+                TypeLauncherTheme(themeMode = ThemeMode.Light, dynamicColor = false) {
+                    GradientWallpaperStandIn {
+                        HomeWidgetsForCapture(
+                            widgetIds = listOf(1, 2, 3),
+                            isEditing = true,
+                            host = host,
+                            providerInfo = providerInfo,
+                            spans = mapOf(1 to 2, 2 to 2, 3 to 4),
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$MOVE_END_WIDGET_ACTION_TAG:1").assertExists()
+
+        capture(fileName)
     }
 
     @Test

@@ -146,6 +146,7 @@ internal fun HomeWidgets(
                             row.cells.forEach { cell ->
                                 val widgetId = cell.widgetId
                                 val index = widgetIds.indexOf(widgetId)
+                                val cellIndex = row.cells.indexOf(cell)
                                 key(widgetId) {
                                     HostedWidgetCard(
                                         widgetId = widgetId,
@@ -154,6 +155,9 @@ internal fun HomeWidgets(
                                         customHeightDp = widgetHeights[widgetId],
                                         canMoveUp = index > 0,
                                         canMoveDown = index < widgetIds.lastIndex,
+                                        showMoveSideways = row.cells.size > 1,
+                                        canMoveStart = cellIndex > 0,
+                                        canMoveEnd = cellIndex < row.cells.lastIndex,
                                         restoreLabel = widgetProviderLabels[widgetId]
                                             ?.takeIf { widgetId in strandedWidgetIds },
                                         onRemoveWidget = onRemoveWidget,
