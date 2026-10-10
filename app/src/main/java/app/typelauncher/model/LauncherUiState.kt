@@ -724,6 +724,12 @@ internal data class LauncherUiState(
     // minute and the front camera's motion (or a touch) brightens it. Only on
     // while the camera permission is granted. Defaults off.
     val isKioskDimWhenIdle: Boolean = false,
+    // Kiosk mode's "Blank at night": between these times (minutes after local
+    // midnight) the display goes black once nobody is there, and comes back on
+    // a touch or, with the camera on, on motion. Defaults off, midnight to 6am.
+    val isKioskBlankAtNight: Boolean = false,
+    val kioskBlankStartMinutes: Int = KIOSK_BLANK_DEFAULT_START_MINUTES,
+    val kioskBlankEndMinutes: Int = KIOSK_BLANK_DEFAULT_END_MINUTES,
     // True while Home's widget slot is in edit mode: the slot scrolls, every
     // widget shows inline Move / Resize / Remove controls, and an Add / Done
     // bar sits under the list. Transient — never persisted.

@@ -8,6 +8,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -41,9 +46,15 @@ class KioskScreenTest {
 
     private var exitHolds = 0
 
+    // The display's clock, as minutes after midnight; a test moves it.
+    private var minuteOfDay = 12 * 60
+
     private fun setKiosk(
         dimWhenIdle: Boolean = false,
         unlockThen: (action: () -> Unit) -> Unit = { it() },
+        blankAtNight: Boolean = false,
+        // Sees every pointer change after the display has handled it.
+        observeFinal: ((androidx.compose.ui.input.pointer.PointerInputChange) -> Unit)? = null,
     ) {
         composeRule.setContent {
             TypeLauncherTheme {
@@ -61,6 +72,16 @@ class KioskScreenTest {
                     dimWhenIdle = dimWhenIdle,
                     motionWatcher = {},
                     unlockThen = unlockThen,
+                    blankAtNight = blankAtNight,
+                    minuteOfDay = { minuteOfDay },
+                    modifier = if (observeFinal == null) Modifier else Modifier.pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Final)
+                                    .changes.forEach(observeFinal)
+                            }
+                        }
+                    },
                 )
             }
         }
@@ -224,6 +245,133 @@ class KioskScreenTest {
             // Within the display's 16 dp margin.
             assertTrue(abs(to.x.value) <= 4f && abs(to.y.value) <= 4f)
         }
+    }
+
+    @Test
+    fun blankAtNightBlanksAfterAQuietMinuteInsideTheWindow() {
+        composeRule.mainClock.autoAdvance = false
+        minuteOfDay = 2 * 60
+        setKiosk(blankAtNight = true)
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertDoesNotExist()
+
+        composeRule.mainClock.advanceTimeBy(KIOSK_DIM_AFTER_MS + 1_000)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertExists()
+        assertEquals(KIOSK_BLANK_BRIGHTNESS, brightness(), 0f)
+    }
+
+    @Test
+    fun aBlankHidesTheWidgetsFromScreenReadersUntilItEnds() {
+        composeRule.mainClock.autoAdvance = false
+        minuteOfDay = 2 * 60
+        setKiosk(blankAtNight = true)
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:$WIDGET_ID").assertExists()
+
+        composeRule.mainClock.advanceTimeBy(KIOSK_DIM_AFTER_MS + 1_000)
+        composeRule.waitForIdle()
+        // Nothing for TalkBack or Switch Access to land on and activate.
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:$WIDGET_ID").assertDoesNotExist()
+
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).performClick()
+        composeRule.mainClock.advanceTimeBy(1_000)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:$WIDGET_ID").assertExists()
+    }
+
+    @Test
+    fun aScreenReaderCanWakeTheBlankFromItsOneTarget() {
+        composeRule.mainClock.autoAdvance = false
+        minuteOfDay = 2 * 60
+        setKiosk(blankAtNight = true)
+        composeRule.mainClock.advanceTimeBy(KIOSK_DIM_AFTER_MS + 1_000)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG)
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+        composeRule.mainClock.advanceTimeBy(1_000)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:$WIDGET_ID").assertExists()
+    }
+
+    @Test
+    fun theBlankTakesKeyboardFocusAndAKeyWakesIt() {
+        composeRule.mainClock.autoAdvance = false
+        minuteOfDay = 2 * 60
+        setKiosk(blankAtNight = true)
+        composeRule.mainClock.advanceTimeBy(KIOSK_DIM_AFTER_MS + 1_000)
+        composeRule.waitForIdle()
+
+        // Focus moves off whatever held it, so a key can't reach a widget.
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertIsFocused()
+
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).performKeyInput { pressKey(Key.Enter) }
+        composeRule.mainClock.advanceTimeBy(1_000)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun blankAtNightLeavesTheDayAlone() {
+        composeRule.mainClock.autoAdvance = false
+        minuteOfDay = 12 * 60
+        setKiosk(blankAtNight = true)
+
+        composeRule.mainClock.advanceTimeBy(KIOSK_DIM_AFTER_MS * 3)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertDoesNotExist()
+        // Without "Wake up using camera" the day never dims either.
+        assertEquals(BRIGHTNESS_NONE, brightness(), 0f)
+    }
+
+    @Test
+    fun theBlankStartsWhenTheClockReachesTheWindowAndEndsWithIt() {
+        composeRule.mainClock.autoAdvance = false
+        minuteOfDay = 23 * 60 + 59
+        setKiosk(blankAtNight = true)
+        composeRule.mainClock.advanceTimeBy(KIOSK_DIM_AFTER_MS + 1_000)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertDoesNotExist()
+
+        minuteOfDay = 0
+        composeRule.mainClock.advanceTimeBy(KIOSK_BLANK_CHECK_INTERVAL_MS + 1_000)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertExists()
+
+        minuteOfDay = KIOSK_BLANK_DEFAULT_END_MINUTES
+        composeRule.mainClock.advanceTimeBy(KIOSK_BLANK_CHECK_INTERVAL_MS + 1_000)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertDoesNotExist()
+        assertEquals(BRIGHTNESS_NONE, brightness(), 0f)
+    }
+
+    @Test
+    fun aTouchEndsTheBlankWithoutReachingWhatIsUnderneath() {
+        val downsLeftForWidgets = mutableListOf<Boolean>()
+        composeRule.mainClock.autoAdvance = false
+        minuteOfDay = 2 * 60
+        setKiosk(blankAtNight = true, observeFinal = { change ->
+            if (change.pressed && !change.previousPressed) downsLeftForWidgets += !change.isConsumed
+        })
+        composeRule.mainClock.advanceTimeBy(KIOSK_DIM_AFTER_MS + 1_000)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertExists()
+
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).performClick()
+        composeRule.mainClock.advanceTimeBy(1_000)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertDoesNotExist()
+        // The blank took that touch: nothing else saw it as a tap to act on.
+        assertEquals(listOf(false), downsLeftForWidgets)
+        // Until the next quiet minute.
+        composeRule.mainClock.advanceTimeBy(KIOSK_DIM_AFTER_MS + 1_000)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertExists()
     }
 
     @Test

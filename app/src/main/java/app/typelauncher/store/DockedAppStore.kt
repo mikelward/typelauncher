@@ -620,6 +620,39 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * Kiosk mode's "Blank at night": the display goes black between
+     * [kioskBlankStartMinutes] and [kioskBlankEndMinutes] whenever nobody is
+     * there. Defaults off.
+     */
+    var isKioskBlankAtNight: Boolean
+        get() = sharedPreferences.getBoolean(KEY_KIOSK_BLANK_AT_NIGHT, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_KIOSK_BLANK_AT_NIGHT, value)
+                .apply()
+        }
+
+    /** Start of "Blank at night", in minutes after local midnight. */
+    var kioskBlankStartMinutes: Int
+        get() = sharedPreferences.getInt(KEY_KIOSK_BLANK_START_MINUTES, KIOSK_BLANK_DEFAULT_START_MINUTES)
+            .takeIf { it in 0 until KIOSK_MINUTES_PER_DAY } ?: KIOSK_BLANK_DEFAULT_START_MINUTES
+        set(value) {
+            sharedPreferences.edit()
+                .putInt(KEY_KIOSK_BLANK_START_MINUTES, value)
+                .apply()
+        }
+
+    /** End of "Blank at night", in minutes after local midnight. */
+    var kioskBlankEndMinutes: Int
+        get() = sharedPreferences.getInt(KEY_KIOSK_BLANK_END_MINUTES, KIOSK_BLANK_DEFAULT_END_MINUTES)
+            .takeIf { it in 0 until KIOSK_MINUTES_PER_DAY } ?: KIOSK_BLANK_DEFAULT_END_MINUTES
+        set(value) {
+            sharedPreferences.edit()
+                .putInt(KEY_KIOSK_BLANK_END_MINUTES, value)
+                .apply()
+        }
+
+    /**
      * Last non-navigation-bar-inclusive IME bottom inset reported while the
      * keyboard was opening, paired with the configuration it was measured
      * under and the source that produced it. Used to reserve Home's
@@ -912,6 +945,9 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_SHOW_HOME_WIDGETS = "show_home_widgets"
         const val KEY_KIOSK_MODE = "kiosk_mode"
         const val KEY_KIOSK_DIM_WHEN_IDLE = "kiosk_dim_when_idle"
+        const val KEY_KIOSK_BLANK_AT_NIGHT = "kiosk_blank_at_night"
+        const val KEY_KIOSK_BLANK_START_MINUTES = "kiosk_blank_start_minutes"
+        const val KEY_KIOSK_BLANK_END_MINUTES = "kiosk_blank_end_minutes"
         // Legacy wallpaper companions ("show_wallpaper_all_pages",
         // "card_opacity") may remain on disk after upgrade but are no longer
         // read: the wallpaper now always backs every page, at full card

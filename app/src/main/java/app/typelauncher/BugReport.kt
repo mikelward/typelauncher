@@ -391,6 +391,9 @@ internal fun bugReportSettingRows(settings: DockSettingsStore): List<Pair<String
         "Home widgets shown" to settings.isHomeWidgetsShown.toString(),
         "Kiosk mode" to settings.isKioskMode.toString(),
         "Kiosk dim when idle" to settings.isKioskDimWhenIdle.toString(),
+        "Kiosk blank at night" to settings.isKioskBlankAtNight.toString(),
+        "Kiosk blank from" to kioskClockTime(settings.kioskBlankStartMinutes),
+        "Kiosk blank until" to kioskClockTime(settings.kioskBlankEndMinutes),
         "Contact search enabled" to settings.isContactSearchEnabled.toString(),
         "Calendar search enabled" to settings.isCalendarSearchEnabled.toString(),
         "Call method" to settings.callMethod.name,
@@ -672,3 +675,7 @@ internal fun describeWidgetProvider(bound: String?, remembered: String?, lookupF
         else -> "$bound$rememberedSuffix"
     }
 }
+
+/** A minute of the day as 24-hour "HH:mm", whatever the device's own format. */
+internal fun kioskClockTime(minuteOfDay: Int): String =
+    "%02d:%02d".format(java.util.Locale.ROOT, minuteOfDay / 60, minuteOfDay % 60)

@@ -453,6 +453,9 @@ internal class LauncherViewModel(
             isHomeWidgetsShown = dockSettingsStore.isHomeWidgetsShown,
             isKioskMode = dockSettingsStore.isKioskMode,
             isKioskDimWhenIdle = dockSettingsStore.isKioskDimWhenIdle,
+            isKioskBlankAtNight = dockSettingsStore.isKioskBlankAtNight,
+            kioskBlankStartMinutes = dockSettingsStore.kioskBlankStartMinutes,
+            kioskBlankEndMinutes = dockSettingsStore.kioskBlankEndMinutes,
             keyboardReservation = dockSettingsStore.keyboardReservation,
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             isContactSearchEnabled = dockSettingsStore.isContactSearchEnabled,
@@ -1913,6 +1916,25 @@ internal class LauncherViewModel(
         dockSettingsStore.isKioskDimWhenIdle = enabled
         _uiState.update { it.copy(isKioskDimWhenIdle = enabled) }
         logState("setKioskDimWhenIdle=%s", enabled)
+    }
+
+    /** Turns kiosk mode's "Blank at night" on or off. */
+    fun setKioskBlankAtNight(enabled: Boolean) {
+        dockSettingsStore.isKioskBlankAtNight = enabled
+        _uiState.update { it.copy(isKioskBlankAtNight = enabled) }
+        logState("setKioskBlankAtNight=%s", enabled)
+    }
+
+    /** Sets when "Blank at night" starts and ends, in minutes after local midnight. */
+    fun setKioskBlankWindow(startMinutes: Int, endMinutes: Int) {
+        val start = startMinutes.coerceIn(0, KIOSK_MINUTES_PER_DAY - 1)
+        val end = endMinutes.coerceIn(0, KIOSK_MINUTES_PER_DAY - 1)
+        dockSettingsStore.kioskBlankStartMinutes = start
+        dockSettingsStore.kioskBlankEndMinutes = end
+        _uiState.update { it.copy(kioskBlankStartMinutes = start, kioskBlankEndMinutes = end) }
+        // The times stay in the log (maintainer's call): they are what explains
+        // a display that went dark when someone didn't expect it to.
+        logState("setKioskBlankWindow=%s-%s", start, end)
     }
 
     /**

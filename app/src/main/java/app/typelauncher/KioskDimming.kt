@@ -100,3 +100,24 @@ internal class KioskIdleDimmer(
         _dimmed.value = false
     }
 }
+
+/** Window brightness while the display is blanked for the night: the lowest the window can ask for. */
+internal const val KIOSK_BLANK_BRIGHTNESS = 0f
+
+/** "Blank at night" defaults: from midnight until 6am, as minutes after midnight. */
+internal const val KIOSK_BLANK_DEFAULT_START_MINUTES = 0
+internal const val KIOSK_BLANK_DEFAULT_END_MINUTES = 6 * 60
+
+internal const val KIOSK_MINUTES_PER_DAY = 24 * 60
+
+/**
+ * Whether [minuteOfDay] falls in the night window [startMinutes] (inclusive)
+ * to [endMinutes] (exclusive), all minutes after midnight. A window whose end
+ * is before its start runs past midnight (22:00–06:00), and one whose ends
+ * match is empty, since a whole day of blanking is never what was meant.
+ */
+internal fun isInKioskBlankWindow(minuteOfDay: Int, startMinutes: Int, endMinutes: Int): Boolean = when {
+    startMinutes == endMinutes -> false
+    startMinutes < endMinutes -> minuteOfDay in startMinutes until endMinutes
+    else -> minuteOfDay >= startMinutes || minuteOfDay < endMinutes
+}

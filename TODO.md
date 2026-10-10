@@ -118,7 +118,8 @@
        3. HA's websocket/webhook API: needs a stored long-lived HA token; heavier than MQTT for no gain.
        4. An HTTP endpoint on the tablet: avoid — an open port for a launcher.
      - **Shift the widgets a few pixels** — shipped. Still open: a device check that a step doesn't catch the eye.
-     - **OLED-only burn-in ideas, not needed on LCD:** a pure-black kiosk background in dark theme (the dark theme's near-black still lights OLED pixels faintly), hiding or dimming the wallpaper, blanking for a second every minute (removes only ~1/60 of on-time), and a nightly screen-off window (waking it again needs an alarm plus `setTurnScreenOn`).
+     - **Blank at night** — shipped, as a black screen at the lowest window brightness rather than the screen off, so camera wake keeps working. Still open: a device check of how dark the panel gets at that brightness, and whether a true screen-off for the night (no camera wake) is worth a separate option.
+     - **OLED-only burn-in ideas, not needed on LCD:** a pure-black kiosk background in dark theme (the dark theme's near-black still lights OLED pixels faintly), hiding or dimming the wallpaper, blanking for a second every minute (removes only ~1/60 of on-time).
   3. **Secure kiosk** (maintainer, 2026-10-10: build it, with device admin). A second mode beside the plain kiosk, which stays as it is: clean UI, widgets tappable, a long press anywhere opens Settings, no extra security.
      - **While locked, any touch only asks for an unlock.** The tap that triggered it is not replayed (by the time the unlock finishes, a widget may have refreshed or moved), so the user taps again unlocked. Widgets are inert to touch, TalkBack / Switch Access (`clearAndSetSemantics`) and keyboard / D-pad focus (`focusProperties { onEnter = { cancelFocusChange() } }` + `focusGroup()`), or a pointer-only layer still lets them be activated (Codex on PR #783).
      - **While unlocked, it behaves like the plain kiosk.**
