@@ -5,8 +5,10 @@ import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.SizeF
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.ViewConfiguration
@@ -16,7 +18,12 @@ import java.util.WeakHashMap
 import java.util.concurrent.Executor
 import kotlin.math.abs
 
-private const val WIDGET_SIZE_CACHE_PREFS = "widget_size_cache"
+// "_v2": entries written before size hints carried OPTION_APPWIDGET_SIZES
+// (see [sendSizeHint]) would short-circuit the first hint after an update,
+// leaving every placed widget with the empty size list the old call sent
+// until its size next changed. The old file is deleted on first load.
+private const val WIDGET_SIZE_CACHE_PREFS = "widget_size_cache_v2"
+private const val LEGACY_WIDGET_SIZE_CACHE_PREFS = "widget_size_cache"
 // Keys and values are built with string templates, never `String.format`:
 // the latter renders `%d` with the default locale's digit glyphs (e.g.
 // Eastern Arabic digits under an `fa` device language), and while
@@ -24,6 +31,26 @@ private const val WIDGET_SIZE_CACHE_PREFS = "widget_size_cache"
 // device-language change would then remove the ASCII key and orphan the
 // old-locale entry forever. Kotlin's `Int` interpolation is always ASCII.
 private const val WIDGET_SIZE_KEY_PREFIX = "size:"
+
+/**
+ * Tells the provider the widget's size, [widthDp] x [heightDp], as its one
+ * listed size: `OPTION_APPWIDGET_SIZES` plus the min/max pair derived from
+ * it. The deprecated min/max-int overload sends an *empty* size list (see
+ * `AppWidgetHostView`), so a provider that sizes itself from the list —
+ * Glance's `SizeMode.Exact`, for one — fell back to guessing from min/max
+ * and drew at the wrong shape. Also the seam the widget tests intercept.
+ */
+internal fun AppWidgetHostView.sendSizeHint(widthDp: Int, heightDp: Int) {
+    // The platform subtracts its default widget padding from each listed size, but
+    // LauncherAppWidgetHostView clears that padding (setAppWidget), so the content area is the
+    // whole measured size: add the padding back so the size the provider sees is the real one.
+    // A resource read, no IPC.
+    val padding = AppWidgetHostView.getDefaultPaddingForWidget(context, appWidgetInfo?.provider, null)
+    val density = resources.displayMetrics.density
+    val widthWithPadding = widthDp + (padding.left + padding.right) / density
+    val heightWithPadding = heightDp + (padding.top + padding.bottom) / density
+    updateAppWidgetSize(Bundle(), listOf(SizeF(widthWithPadding, heightWithPadding)))
+}
 
 internal class LauncherAppWidgetHost(
     context: Context,
@@ -49,8 +76,9 @@ internal class LauncherAppWidgetHost(
     // entry just degrades to the pre-cache behavior (one redundant size
     // IPC) — widget pages compose well after onCreate, so in practice the
     // merge wins the race.
+    private val appContext: Context = context.applicationContext
     private val sizePrefs: SharedPreferences =
-        context.applicationContext.getSharedPreferences(WIDGET_SIZE_CACHE_PREFS, Context.MODE_PRIVATE)
+        appContext.getSharedPreferences(WIDGET_SIZE_CACHE_PREFS, Context.MODE_PRIVATE)
 
     // Main-thread confined (apply / forget / the posted merge below).
     private val cachedSizes: MutableMap<Int, IntPairDp> = mutableMapOf()
@@ -150,12 +178,7 @@ internal class LauncherAppWidgetHost(
         val incoming = IntPairDp(widthDp, heightDp)
         val previous = cachedSizes[widgetId]
         if (previous == incoming) return
-        // The min/max-int overload is deprecated in favor of the List<SizeF>
-        // form it delegates to, but it stays the stable path the widget test
-        // suite intercepts as its size-hint seam, so the deprecation is
-        // suppressed rather than switched.
-        @Suppress("DEPRECATION")
-        view.updateAppWidgetSize(null, widthDp, heightDp, widthDp, heightDp)
+        view.sendSizeHint(widthDp, heightDp)
         cachedSizes[widgetId] = incoming
         sizePrefs.edit().putString(sizeKey(widgetId), incoming.serialize()).apply()
     }
@@ -176,6 +199,8 @@ internal class LauncherAppWidgetHost(
     }
 
     private fun loadCachedSizes(): LoadedSizes {
+        // Runs on the load executor, off the main thread, like the read below.
+        appContext.deleteSharedPreferences(LEGACY_WIDGET_SIZE_CACHE_PREFS)
         val out = mutableMapOf<Int, IntPairDp>()
         // Entries whose raw key doesn't match sizeKey(widgetId) were written
         // by older builds via String.format under a non-Latin-digit device

@@ -8,6 +8,7 @@ import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.os.Process
+import android.util.SizeF
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -199,13 +200,7 @@ class HostedWidgetCardAsyncResolveTest {
             onBound(appWidgetId)
         }
 
-        override fun updateAppWidgetSize(
-            newOptions: Bundle?,
-            minWidth: Int,
-            minHeight: Int,
-            maxWidth: Int,
-            maxHeight: Int,
-        ) {
+        override fun updateAppWidgetSize(newOptions: Bundle, sizes: List<SizeF>) {
         }
     }
 

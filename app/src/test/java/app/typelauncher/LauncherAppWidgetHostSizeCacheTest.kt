@@ -33,10 +33,11 @@ class LauncherAppWidgetHostSizeCacheTest {
 
     @After
     fun clearPersistedCache() {
+        context.applicationContext.deleteSharedPreferences(LEGACY_SIZE_CACHE)
         // Each test exercises persistence; clear the prefs file so tests
         // don't bleed into each other regardless of order.
         context.applicationContext
-            .getSharedPreferences("widget_size_cache", Context.MODE_PRIVATE)
+            .getSharedPreferences(SIZE_CACHE, Context.MODE_PRIVATE)
             .edit()
             .clear()
             .apply()
@@ -51,16 +52,22 @@ class LauncherAppWidgetHostSizeCacheTest {
         var lastWidthDp = 0
         var lastHeightDp = 0
 
-        override fun updateAppWidgetSize(
-            newOptions: android.os.Bundle?,
-            minWidth: Int,
-            minHeight: Int,
-            maxWidth: Int,
-            maxHeight: Int,
-        ) {
+        var lastSizes: List<android.util.SizeF> = emptyList()
+
+        // Records the sizes as the provider receives them: the platform subtracts its default
+        // widget padding from each one before sending it on.
+        override fun updateAppWidgetSize(newOptions: android.os.Bundle, sizes: List<android.util.SizeF>) {
             updateAppWidgetSizeCalls++
-            lastWidthDp = minWidth
-            lastHeightDp = minHeight
+            val padding = android.appwidget.AppWidgetHostView.getDefaultPaddingForWidget(context, null, null)
+            val density = resources.displayMetrics.density
+            lastSizes = sizes.map { size ->
+                android.util.SizeF(
+                    size.width - (padding.left + padding.right) / density,
+                    size.height - (padding.top + padding.bottom) / density,
+                )
+            }
+            lastWidthDp = Math.round(lastSizes.single().width)
+            lastHeightDp = Math.round(lastSizes.single().height)
             // Skip super to avoid the actual AppWidgetService IPC.
         }
 
@@ -218,7 +225,7 @@ class LauncherAppWidgetHostSizeCacheTest {
 
     private fun seedPersistedSize(widgetId: Int, value: String) {
         context.applicationContext
-            .getSharedPreferences("widget_size_cache", Context.MODE_PRIVATE)
+            .getSharedPreferences(SIZE_CACHE, Context.MODE_PRIVATE)
             .edit()
             .putString("size:$widgetId", value)
             .apply()
@@ -270,7 +277,7 @@ class LauncherAppWidgetHostSizeCacheTest {
         // forgetWidgetSize (ASCII-only) can never remove it and the orphan
         // could hand stale dimensions to a recycled widget id.
         val prefs = context.applicationContext
-            .getSharedPreferences("widget_size_cache", Context.MODE_PRIVATE)
+            .getSharedPreferences(SIZE_CACHE, Context.MODE_PRIVATE)
         prefs.edit().putString("size:۱۰۰", "320x240").apply()
 
         val host = newHost(hostId = 13)
@@ -293,7 +300,7 @@ class LauncherAppWidgetHostSizeCacheTest {
         // migration must not write the ASCII key back — that would resurrect
         // the forgotten entry on the next cold start.
         val prefs = context.applicationContext
-            .getSharedPreferences("widget_size_cache", Context.MODE_PRIVATE)
+            .getSharedPreferences(SIZE_CACHE, Context.MODE_PRIVATE)
         prefs.edit().putString("size:۱۰۰", "320x240").apply()
         val deferred = mutableListOf<Runnable>()
         val host = LauncherAppWidgetHost(context, hostId = 15, cacheLoadExecutor = Executor { deferred += it })
@@ -313,7 +320,7 @@ class LauncherAppWidgetHostSizeCacheTest {
         // widget id, the ASCII one was written by the current code path and
         // is fresher — the migration must keep its value.
         val prefs = context.applicationContext
-            .getSharedPreferences("widget_size_cache", Context.MODE_PRIVATE)
+            .getSharedPreferences(SIZE_CACHE, Context.MODE_PRIVATE)
         prefs.edit()
             .putString("size:۱۰۰", "111x111")
             .putString("size:100", "320x240")
@@ -331,7 +338,7 @@ class LauncherAppWidgetHostSizeCacheTest {
         // Pollute the prefs with a malformed value, then construct a host
         // and verify it loads cleanly without that entry.
         context.applicationContext
-            .getSharedPreferences("widget_size_cache", Context.MODE_PRIVATE)
+            .getSharedPreferences(SIZE_CACHE, Context.MODE_PRIVATE)
             .edit()
             .putString("size:100", "not-a-pair")
             .putString("size:101", "320x240")
@@ -343,5 +350,50 @@ class LauncherAppWidgetHostSizeCacheTest {
         assertNull("malformed pair string skipped", host.cachedSizeForTest(100))
         assertEquals(IntPairDp(320, 240), host.cachedSizeForTest(101))
         assertNull("partially-malformed pair string skipped", host.cachedSizeForTest(102))
+    }
+
+    @Test
+    fun sizeHint_listsTheWidgetSize() {
+        // The deprecated min/max overload sent an empty OPTION_APPWIDGET_SIZES,
+        // so a provider sizing itself from that list (Glance SizeMode.Exact)
+        // fell back to guessing from min/max.
+        val host = newHost(hostId = 20)
+        val view = CountingHostView(context, host)
+
+        host.applyAppWidgetSizeIfChanged(view, widgetId = 100, widthDp = 356, heightDp = 210)
+
+        // What the provider receives after the platform's padding subtraction is the measured size,
+        // since the launcher's host views carry no padding.
+        assertEquals(1, view.lastSizes.size)
+        assertEquals(356, view.lastWidthDp)
+        assertEquals(210, view.lastHeightDp)
+    }
+
+    @Test
+    fun cacheFromBeforeSizeLists_doesNotSuppressTheFirstHint() {
+        // An entry written while hints still sent an empty size list must not
+        // short-circuit the hint that finally carries one.
+        context.applicationContext
+            .getSharedPreferences(LEGACY_SIZE_CACHE, Context.MODE_PRIVATE)
+            .edit()
+            .putString("size:100", "320x240")
+            .commit()
+
+        val host = newHost(hostId = 21)
+        val view = CountingHostView(context, host)
+        host.applyAppWidgetSizeIfChanged(view, widgetId = 100, widthDp = 320, heightDp = 240)
+
+        assertEquals(1, view.updateAppWidgetSizeCalls)
+        assertNull(
+            "legacy cache file deleted",
+            context.applicationContext
+                .getSharedPreferences(LEGACY_SIZE_CACHE, Context.MODE_PRIVATE)
+                .getString("size:100", null),
+        )
+    }
+
+    private companion object {
+        const val SIZE_CACHE = "widget_size_cache_v2"
+        const val LEGACY_SIZE_CACHE = "widget_size_cache"
     }
 }

@@ -4,10 +4,11 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.ComponentName
 import android.content.Context
 import android.os.Bundle
+import android.util.SizeF
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.geometry.Offset
 import androidx.test.core.app.ApplicationProvider
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -37,7 +38,7 @@ class WidgetResizeDragTest {
 
     @After
     fun clearPersistedCache() {
-        context.getSharedPreferences("widget_size_cache", Context.MODE_PRIVATE)
+        context.getSharedPreferences("widget_size_cache_v2", Context.MODE_PRIVATE)
             .edit().clear().commit()
     }
 
@@ -52,13 +53,7 @@ class WidgetResizeDragTest {
             // Skip the platform binding; only the size pushes matter here.
         }
 
-        override fun updateAppWidgetSize(
-            newOptions: Bundle?,
-            minWidth: Int,
-            minHeight: Int,
-            maxWidth: Int,
-            maxHeight: Int,
-        ) {
+        override fun updateAppWidgetSize(newOptions: Bundle, sizes: List<SizeF>) {
             sizePushes += 1
         }
     }

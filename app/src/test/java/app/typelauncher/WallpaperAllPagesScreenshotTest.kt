@@ -6,6 +6,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.os.Bundle
+import android.util.SizeF
 import android.view.Gravity
 import android.widget.FrameLayout
 import android.widget.TextView
@@ -508,13 +509,7 @@ class WallpaperAllPagesScreenshotTest {
 
         override fun setAppWidget(appWidgetId: Int, info: AppWidgetProviderInfo?) = Unit
 
-        override fun updateAppWidgetSize(
-            newOptions: Bundle?,
-            minWidth: Int,
-            minHeight: Int,
-            maxWidth: Int,
-            maxHeight: Int,
-        ) = Unit
+        override fun updateAppWidgetSize(newOptions: Bundle, sizes: List<SizeF>) = Unit
     }
 
     @Composable

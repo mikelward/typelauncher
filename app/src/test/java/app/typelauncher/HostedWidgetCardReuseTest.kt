@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.ComponentName
 import android.content.Context
 import android.os.Bundle
+import android.util.SizeF
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -47,7 +48,7 @@ class HostedWidgetCardReuseTest {
         // HostedWidgetCard's size-hint path persists to this prefs file; clear
         // it so tests don't bleed into each other.
         context.applicationContext
-            .getSharedPreferences("widget_size_cache", Context.MODE_PRIVATE)
+            .getSharedPreferences("widget_size_cache_v2", Context.MODE_PRIVATE)
             .edit()
             .clear()
             .apply()
@@ -68,13 +69,7 @@ class HostedWidgetCardReuseTest {
             // Skip the platform binding; the test only cares which id we bound.
         }
 
-        override fun updateAppWidgetSize(
-            newOptions: Bundle?,
-            minWidth: Int,
-            minHeight: Int,
-            maxWidth: Int,
-            maxHeight: Int,
-        ) {
+        override fun updateAppWidgetSize(newOptions: Bundle, sizes: List<SizeF>) {
             // Skip the actual AppWidgetService IPC.
         }
     }
