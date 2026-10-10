@@ -202,6 +202,7 @@ internal fun TypeLauncherApp(
     // (previews, tests).
     onContactSearchEnabledChanged: (Boolean) -> Unit = viewModel::setContactSearchEnabled,
     onCalendarSearchEnabledChanged: (Boolean) -> Unit = viewModel::setCalendarSearchEnabled,
+    onKioskDimWhenIdleChanged: (Boolean) -> Unit = viewModel::setKioskDimWhenIdle,
     onTelemetryEnabledChanged: (Boolean) -> Unit = viewModel::setTelemetryEnabled,
     searchPlaceholderSuffix: String = BuildConfig.SEARCH_PLACEHOLDER_SUFFIX,
 ) {
@@ -315,6 +316,7 @@ internal fun TypeLauncherApp(
             onAgendaEnabledChanged = viewModel::setAgendaEnabled,
             onContactSearchEnabledChanged = onContactSearchEnabledChanged,
             onCalendarSearchEnabledChanged = onCalendarSearchEnabledChanged,
+            onKioskDimWhenIdleChanged = onKioskDimWhenIdleChanged,
             onTelemetryEnabledChanged = onTelemetryEnabledChanged,
             onThemeModeChanged = viewModel::setThemeMode,
             onIconShapeChanged = viewModel::setIconShape,
@@ -419,6 +421,7 @@ internal fun TypeLauncherApp(
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     onContactSearchEnabledChanged: (Boolean) -> Unit = {},
     onCalendarSearchEnabledChanged: (Boolean) -> Unit = {},
+    onKioskDimWhenIdleChanged: (Boolean) -> Unit = {},
     onTelemetryEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
@@ -904,6 +907,7 @@ internal fun TypeLauncherApp(
                         onAgendaEnabledChanged = onAgendaEnabledChanged,
                         onContactSearchEnabledChanged = onContactSearchEnabledChanged,
                         onCalendarSearchEnabledChanged = onCalendarSearchEnabledChanged,
+                        onKioskDimWhenIdleChanged = onKioskDimWhenIdleChanged,
                         onTelemetryEnabledChanged = onTelemetryEnabledChanged,
                         onThemeModeChanged = onThemeModeChanged,
                         onIconShapeChanged = onIconShapeChanged,
@@ -929,6 +933,7 @@ internal fun TypeLauncherApp(
                         widgetProviderLabels = state.widgetProviderLabels,
                         strandedWidgetIds = state.strandedWidgetIds,
                         workProfileWidgetRefreshToken = state.workProfileWidgetRefreshToken,
+                        dimWhenIdle = state.isKioskDimWhenIdle,
                         onExitHold = onOpenSettings,
                     )
                 } else {

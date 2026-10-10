@@ -163,6 +163,8 @@
     <string name="settings_kiosk_mode_title" tools:ignore="MissingTranslation">Kiosk mode</string>
     <!-- TODO: translate -->
     <string name="kiosk_mode_exit_hint" tools:ignore="MissingTranslation">Hold the screen for 2 seconds to open Settings</string>
+    <!-- TODO: translate -->
+    <string name="settings_kiosk_dim_when_idle_title" tools:ignore="MissingTranslation">Wake up using camera</string>
     <string name="settings_wallpaper_picker_unavailable">Wallpaper picker unavailable</string>
     <string name="settings_show_agenda_title">Show agenda</string>
     <string name="settings_search_contacts_title">Search contacts</string>

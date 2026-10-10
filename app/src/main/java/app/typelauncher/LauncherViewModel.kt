@@ -452,6 +452,7 @@ internal class LauncherViewModel(
             isWallpaperShown = dockSettingsStore.isWallpaperShown,
             isHomeWidgetsShown = dockSettingsStore.isHomeWidgetsShown,
             isKioskMode = dockSettingsStore.isKioskMode,
+            isKioskDimWhenIdle = dockSettingsStore.isKioskDimWhenIdle,
             keyboardReservation = dockSettingsStore.keyboardReservation,
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             isContactSearchEnabled = dockSettingsStore.isContactSearchEnabled,
@@ -1901,6 +1902,17 @@ internal class LauncherViewModel(
         }
         if (enabled && hadQuery) refreshFilteredApps()
         logState("setKioskMode=%s", enabled)
+    }
+
+    /**
+     * Turns kiosk mode's "Wake up using camera" on or off. MainActivity
+     * requests the camera permission first and only calls this with true once
+     * it is granted; a revoked permission turns it back off on resume.
+     */
+    fun setKioskDimWhenIdle(enabled: Boolean) {
+        dockSettingsStore.isKioskDimWhenIdle = enabled
+        _uiState.update { it.copy(isKioskDimWhenIdle = enabled) }
+        logState("setKioskDimWhenIdle=%s", enabled)
     }
 
     /**
@@ -4908,6 +4920,10 @@ internal class LauncherViewModel(
             LauncherDebugLog.event("calendar search disabled: permission not granted")
             setCalendarSearchEnabled(false)
         }
+        if (dockSettingsStore.isKioskDimWhenIdle && !hasCameraPermission()) {
+            LauncherDebugLog.event("kiosk dim when idle disabled: permission not granted")
+            setKioskDimWhenIdle(false)
+        }
     }
 
     /**
@@ -5500,6 +5516,9 @@ internal class LauncherViewModel(
 
     private fun hasCalendarPermission(): Boolean =
         ContextCompat.checkSelfPermission(app, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
+
+    private fun hasCameraPermission(): Boolean =
+        ContextCompat.checkSelfPermission(app, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
 
     private fun hasContactsPermission(): Boolean =
         ContextCompat.checkSelfPermission(app, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED

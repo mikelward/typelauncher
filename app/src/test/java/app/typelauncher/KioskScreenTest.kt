@@ -32,7 +32,7 @@ class KioskScreenTest {
 
     private var exitHolds = 0
 
-    private fun setKiosk() {
+    private fun setKiosk(dimWhenIdle: Boolean = false) {
         composeRule.setContent {
             TypeLauncherTheme {
                 KioskScreen(
@@ -46,6 +46,8 @@ class KioskScreenTest {
                     strandedWidgetIds = emptySet(),
                     workProfileWidgetRefreshToken = 0,
                     onExitHold = { exitHolds += 1 },
+                    dimWhenIdle = dimWhenIdle,
+                    motionWatcher = {},
                 )
             }
         }
@@ -160,6 +162,30 @@ class KioskScreenTest {
     }
 
     @Test
+    fun dimWhenIdleDimsTheWindowAfterAQuietMinute() {
+        composeRule.mainClock.autoAdvance = false
+        setKiosk(dimWhenIdle = true)
+        assertEquals(BRIGHTNESS_NONE, brightness(), 0f)
+
+        // The idle timer runs on the composition's clock.
+        composeRule.mainClock.advanceTimeBy(KIOSK_DIM_AFTER_MS + 1_000)
+        composeRule.waitForIdle()
+
+        assertEquals(KIOSK_DIM_BRIGHTNESS, brightness(), 0f)
+    }
+
+    @Test
+    fun withoutDimWhenIdleTheDisplayNeverDims() {
+        composeRule.mainClock.autoAdvance = false
+        setKiosk()
+        composeRule.mainClock.advanceTimeBy(KIOSK_DIM_AFTER_MS * 3)
+
+        assertEquals(BRIGHTNESS_NONE, brightness(), 0f)
+    }
+
+    private fun brightness(): Float = composeRule.activity.window.attributes.screenBrightness
+
+    @Test
     fun launcherShowsTheDisplayInsteadOfHome() {
         composeRule.setContent {
             TypeLauncherTheme {
@@ -222,6 +248,7 @@ class KioskScreenTest {
 
     private companion object {
         const val WIDGET_ID = 5
+        const val BRIGHTNESS_NONE = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
         const val TAPPABLE_TAG = "tappable"
     }
 }

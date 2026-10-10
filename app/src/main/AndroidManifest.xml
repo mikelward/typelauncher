@@ -20,6 +20,14 @@
          launcher still installs on tablets / ChromeOS with no phone radio (the
          Call action simply won't resolve there). -->
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
+    <!-- Requested only from Settings' kiosk-mode "Wake up using camera"
+         switch: the front camera looks for motion, on-device, while the kiosk
+         display shows. Frames are never stored or sent. Never requested at
+         first run. Optional hardware, so devices without a front camera still
+         install (the switch then stays off). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.front" android:required="false" />
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
     <!-- Backs the long-press menu's Uninstall action, which starts the system

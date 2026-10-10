@@ -6313,6 +6313,8 @@ internal fun HomeWidgetsSettingsRows(
     onEditHomeWidgets: () -> Unit,
     isKioskMode: Boolean = false,
     onKioskModeChanged: (Boolean) -> Unit = {},
+    isKioskDimWhenIdle: Boolean = false,
+    onKioskDimWhenIdleChanged: (Boolean) -> Unit = {},
 ) {
     val editDescription = stringResource(R.string.settings_home_widgets_edit_button_description)
     Row(
@@ -6381,6 +6383,27 @@ internal fun HomeWidgetsSettingsRows(
                 modifier = Modifier.testTag(KIOSK_MODE_SWITCH_TAG),
             )
         }
+        if (isKioskMode) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_kiosk_dim_when_idle_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                // Turning it on asks for the camera first (MainActivity); the
+                // switch flips only once that is granted.
+                Switch(
+                    checked = isKioskDimWhenIdle,
+                    onCheckedChange = onKioskDimWhenIdleChanged,
+                    modifier = Modifier.testTag(KIOSK_DIM_WHEN_IDLE_SWITCH_TAG),
+                )
+            }
+        }
     }
 }
 
@@ -6408,6 +6431,7 @@ internal fun SettingsScreen(
     // switch) only flips on once the permission is granted.
     onContactSearchEnabledChanged: (Boolean) -> Unit = {},
     onCalendarSearchEnabledChanged: (Boolean) -> Unit = {},
+    onKioskDimWhenIdleChanged: (Boolean) -> Unit = {},
     onTelemetryEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
@@ -6768,6 +6792,8 @@ internal fun SettingsScreen(
                     onEditHomeWidgets = onEditHomeWidgets,
                     isKioskMode = state.isKioskMode,
                     onKioskModeChanged = onKioskModeChanged,
+                    isKioskDimWhenIdle = state.isKioskDimWhenIdle,
+                    onKioskDimWhenIdleChanged = onKioskDimWhenIdleChanged,
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),

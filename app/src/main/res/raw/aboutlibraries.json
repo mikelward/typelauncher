@@ -242,6 +242,132 @@
             ]
         },
         {
+            "uniqueId": "androidx.camera.featurecombinationquery:featurecombinationquery",
+            "artifactVersion": "1.6.2",
+            "name": "Camera Feature Combination Query",
+            "description": "Camera feature combination components for the Camera Library, a library providing a seamless experience for querying camera features across all of Android.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/camera-featurecombinationquery#1.6.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.camera:camera-camera2",
+            "artifactVersion": "1.6.2",
+            "name": "Camera2",
+            "description": "A Camera2 Pipe implementation of CameraX, a library providing a consistent and reliable camera foundation that enables great camera driven experiences across all of Android.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/camera#1.6.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.camera:camera-camera2-pipe",
+            "artifactVersion": "1.6.2",
+            "name": "Camera2 Pipe",
+            "description": "A set of opinionated camera interfaces and implementations on top of Camera2 that will form a flexible shim layer to power Frameserver and CameraX.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/camera#1.6.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.camera:camera-core",
+            "artifactVersion": "1.6.2",
+            "name": "Camera Core",
+            "description": "Core components for the Jetpack Camera Library, a library providing a consistent and reliable camera foundation that enables great camera driven experiences across all of Android. This library includes code from libyuv, which is licensed under the BSD-3-Clause license.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/camera#1.6.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0",
+                "BSD-3-Clause"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.camera:camera-lifecycle",
+            "artifactVersion": "1.6.2",
+            "name": "Camera Lifecycle",
+            "description": "Lifecycle components for the Jetpack Camera Library, a library providing a consistent and reliable camera foundation that enables great camera driven experiences across all of Android.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/camera#1.6.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
             "uniqueId": "androidx.cardview:cardview",
             "artifactVersion": "1.0.0",
             "name": "Support CardView v7",
@@ -761,6 +887,28 @@
             ]
         },
         {
+            "uniqueId": "androidx.concurrent:concurrent-futures-ktx",
+            "artifactVersion": "1.1.0",
+            "name": "AndroidX Futures Kotlin Extensions",
+            "description": "Kotlin Extensions for Androidx implementation of Guava's ListenableFuture",
+            "website": "https://developer.android.com/topic/libraries/architecture/index.html",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "http://source.android.com"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
             "uniqueId": "androidx.constraintlayout:constraintlayout",
             "artifactVersion": "2.2.1",
             "name": "ConstraintLayout",
@@ -838,6 +986,31 @@
             "name": "Core",
             "description": "Provides backward-compatible implementations of Android platform APIs and features.",
             "website": "https://developer.android.com/jetpack/androidx/releases/core#1.19.1",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.core:core-backported-fixes",
+            "artifactVersion": "1.0.0",
+            "name": "androidx.core:core-backported-fixes",
+            "description": "This library makes it easy for developers to use check if a known critical issue is fixed on a device.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/core#1.0.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1253,6 +1426,31 @@
                     "name": "The Android Open Source Project"
                 }
             ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.exifinterface:exifinterface",
+            "artifactVersion": "1.4.2",
+            "name": "ExifInterface",
+            "description": "Android Support ExifInterface",
+            "website": "https://developer.android.com/jetpack/androidx/releases/exifinterface#1.4.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
             "scm": {
                 "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
                 "url": "https://cs.android.com/androidx/platform/frameworks/support"
@@ -2063,16 +2261,44 @@
             ]
         },
         {
-            "uniqueId": "androidx.tracing:tracing",
-            "artifactVersion": "1.2.0",
-            "name": "Android Tracing",
+            "uniqueId": "androidx.tracing:tracing-android",
+            "artifactVersion": "1.3.0",
+            "name": "Tracing",
             "description": "Android Tracing",
-            "website": "https://developer.android.com/jetpack/androidx/releases/tracing#1.2.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/tracing#1.3.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
                 }
             ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.tracing:tracing-ktx",
+            "artifactVersion": "1.3.0",
+            "name": "Tracing Kotlin Extensions",
+            "description": "Android Tracing",
+            "website": "https://developer.android.com/jetpack/androidx/releases/tracing#1.3.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
             "scm": {
                 "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
                 "url": "https://cs.android.com/androidx/platform/frameworks/support"
@@ -2567,6 +2793,31 @@
             ]
         },
         {
+            "uniqueId": "com.google.auto.value:auto-value-annotations",
+            "artifactVersion": "1.6.3",
+            "name": "AutoValue Annotations",
+            "description": "Immutable value-type code generation for Java 1.6+.",
+            "website": "https://github.com/google/auto/auto-value-parent/auto-value-annotations",
+            "developers": [
+                
+            ],
+            "organization": {
+                "name": "Google, Inc.",
+                "url": "http://www.google.com"
+            },
+            "scm": {
+                "connection": "scm:git:git://github.com/google/auto.git",
+                "developerConnection": "scm:git:ssh://git@github.com/google/auto.git",
+                "url": "http://github.com/google/auto"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
             "uniqueId": "com.google.code.findbugs:jsr305",
             "artifactVersion": "3.0.2",
             "name": "FindBugs-jsr305",
@@ -2589,7 +2840,7 @@
         },
         {
             "uniqueId": "com.google.dagger:dagger",
-            "artifactVersion": "2.57.2",
+            "artifactVersion": "2.59",
             "name": "Dagger",
             "description": "A fast dependency injector for Android and Java.",
             "website": "https://github.com/google/dagger",
@@ -3453,6 +3704,28 @@
                 "connection": "scm:git:https://github.com/JetBrains/kotlin.git",
                 "developerConnection": "scm:git:https://github.com/JetBrains/kotlin.git",
                 "url": "https://github.com/JetBrains/kotlin"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.kotlinx:atomicfu-jvm",
+            "artifactVersion": "0.28.0",
+            "name": "atomicfu",
+            "description": "AtomicFU utilities",
+            "website": "https://github.com/Kotlin/kotlinx.atomicfu",
+            "developers": [
+                {
+                    "name": "JetBrains Team",
+                    "organisationUrl": "https://www.jetbrains.com"
+                }
+            ],
+            "scm": {
+                "url": "https://github.com/Kotlin/kotlinx.atomicfu"
             },
             "licenses": [
                 "Apache-2.0"

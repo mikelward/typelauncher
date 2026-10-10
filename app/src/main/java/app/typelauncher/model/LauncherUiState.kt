@@ -720,6 +720,10 @@ internal data class LauncherUiState(
     // touches (a still two-second hold opens Settings), and keeps the screen on
     // while plugged in. Defaults off. See [isKioskActive].
     val isKioskMode: Boolean = false,
+    // Kiosk mode's "Wake up using camera": the display dims after a quiet
+    // minute and the front camera's motion (or a touch) brightens it. Only on
+    // while the camera permission is granted. Defaults off.
+    val isKioskDimWhenIdle: Boolean = false,
     // True while Home's widget slot is in edit mode: the slot scrolls, every
     // widget shows inline Move / Resize / Remove controls, and an Add / Done
     // bar sits under the list. Transient — never persisted.
