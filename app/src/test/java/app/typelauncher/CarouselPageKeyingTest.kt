@@ -50,7 +50,7 @@ class CarouselPageKeyingTest {
 
     @After
     fun clearPersistedCache() {
-        context.getSharedPreferences("widget_size_cache", Context.MODE_PRIVATE)
+        context.getSharedPreferences("widget_size_cache_v2", Context.MODE_PRIVATE)
             .edit().clear().commit()
     }
 

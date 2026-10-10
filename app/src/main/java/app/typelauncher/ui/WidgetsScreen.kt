@@ -1128,11 +1128,7 @@ internal fun HostedWidgetCard(
                                 if (launcherHost != null) {
                                     launcherHost.applyAppWidgetSizeIfChanged(view, widgetId, widthDp, heightDp)
                                 } else {
-                                    // Deprecated in favor of the List<SizeF> overload it
-                                    // delegates to, but kept as the size-hint seam the
-                                    // widget tests intercept; suppressed rather than switched.
-                                    @Suppress("DEPRECATION")
-                                    view.updateAppWidgetSize(null, widthDp, heightDp, widthDp, heightDp)
+                                    view.sendSizeHint(widthDp, heightDp)
                                 }
                             }
                         }
@@ -1562,7 +1558,7 @@ internal data class WidgetSizeHintDp(val widthDp: Int, val heightDp: Int)
 
 /**
  * Converts a hosted widget's measured pixel size into the dp values reported
- * to the provider via `AppWidgetHostView.updateAppWidgetSize`. Returns `null`
+ * to the provider via `sendSizeHint`. Returns `null`
  * for `IntSize.Zero`, so the caller skips the framework call before the host
  * view has been laid out.
  */

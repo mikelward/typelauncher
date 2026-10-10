@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.ComponentName
 import android.content.Context
 import android.os.Bundle
+import android.util.SizeF
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -57,13 +58,7 @@ class HomeWidgetsTest {
             onBound(appWidgetId)
         }
 
-        override fun updateAppWidgetSize(
-            newOptions: Bundle?,
-            minWidth: Int,
-            minHeight: Int,
-            maxWidth: Int,
-            maxHeight: Int,
-        ) = Unit
+        override fun updateAppWidgetSize(newOptions: Bundle, sizes: List<SizeF>) = Unit
     }
 
     private val providerInfo = AppWidgetProviderInfo().apply {
