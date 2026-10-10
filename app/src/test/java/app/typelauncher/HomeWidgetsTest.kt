@@ -5,11 +5,16 @@ import android.content.ComponentName
 import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.longClick
@@ -186,6 +191,71 @@ class HomeWidgetsTest {
         assertEquals(listOf(1 to 2), committed)
         // Resize mode ends with the drag.
         composeRule.onNodeWithTag(WIDGET_WIDTH_HANDLE_TAG).assertDoesNotExist()
+    }
+
+    /** What the launcher's page carousel sees: drag consumed by a child, through nested scroll. */
+    private class ConsumedRecorder : NestedScrollConnection {
+        var consumed = Offset.Zero
+            private set
+
+        override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+            if (source == NestedScrollSource.UserInput) this.consumed += consumed
+            return Offset.Zero
+        }
+    }
+
+    private fun setEditingWidgetUnder(recorder: ConsumedRecorder) {
+        val host = LauncherAppWidgetHost(context, /* hostId = */ 0)
+        composeRule.setContent {
+            TypeLauncherTheme {
+                Box(Modifier.fillMaxSize().nestedScroll(recorder)) {
+                    TestHomeWidgets(
+                        widgetIds = listOf(1),
+                        isEditing = true,
+                        host = host,
+                        providerInfoOverride = { providerInfo },
+                        createWidgetView = { viewContext, _ -> RecordingHostView(viewContext, host) {} },
+                    )
+                }
+            }
+        }
+        composeRule.onNodeWithTag("$RESIZE_WIDGET_ACTION_TAG:1").performClick()
+        composeRule.waitForIdle()
+    }
+
+    @Test
+    fun aWidthDragIsReportedAsConsumedSoThePageDoesNotSwipe() {
+        // The carousel only stays out of a horizontal drag once a child reports
+        // consuming it; before, the width handle reported nothing and a width
+        // drag swiped the page instead of resizing.
+        val recorder = ConsumedRecorder()
+        setEditingWidgetUnder(recorder)
+
+        composeRule.onNodeWithTag(WIDGET_WIDTH_HANDLE_TAG).performTouchInput {
+            down(center)
+            repeat(5) { moveBy(Offset(-40f, 0f)) }
+        }
+        composeRule.waitForIdle()
+
+        assertTrue("width drag must report horizontal consumption", recorder.consumed.x < 0f)
+        assertEquals(0f, recorder.consumed.y, 0f)
+        composeRule.onNodeWithTag(WIDGET_WIDTH_HANDLE_TAG).performTouchInput { up() }
+    }
+
+    @Test
+    fun aHeightDragIsReportedAsConsumedSoTheLauncherDoesNotPull() {
+        val recorder = ConsumedRecorder()
+        setEditingWidgetUnder(recorder)
+
+        composeRule.onNodeWithTag(WIDGET_RESIZE_HANDLE_TAG).performTouchInput {
+            down(center)
+            repeat(5) { moveBy(Offset(0f, 40f)) }
+        }
+        composeRule.waitForIdle()
+
+        assertTrue("height drag must report vertical consumption", recorder.consumed.y > 0f)
+        assertEquals(0f, recorder.consumed.x, 0f)
+        composeRule.onNodeWithTag(WIDGET_RESIZE_HANDLE_TAG).performTouchInput { up() }
     }
 
     @Test

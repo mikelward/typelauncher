@@ -9,19 +9,12 @@ import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Process
 import android.os.UserHandle
-import android.widget.FrameLayout
 import android.view.View
+import android.widget.FrameLayout
 import android.widget.RemoteViews
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
@@ -29,17 +22,21 @@ import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -54,6 +51,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,22 +61,28 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateMap
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollDispatcher
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -89,13 +93,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -1329,14 +1334,19 @@ private fun BoxScope.WidgetWidthHandle(
         )
     }
     val resizeWidthDescription = stringResource(R.string.widget_resize_width_handle_description)
+    val nestedScrollDispatcher = remember { NestedScrollDispatcher() }
     Box(
         modifier = modifier
             .fillMaxHeight()
             .width(WIDGET_RESIZE_HANDLE_HEIGHT_DP.dp)
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
+            .nestedScroll(NoOpNestedScrollConnection, nestedScrollDispatcher)
             .draggable(
                 orientation = Orientation.Horizontal,
-                state = rememberDraggableState { delta -> dragPx += if (isRtl) -delta else delta },
+                state = rememberDraggableState { delta ->
+                    dragPx += if (isRtl) -delta else delta
+                    nestedScrollDispatcher.reportHandleDrag(Offset(delta, 0f))
+                },
                 onDragStarted = {
                     dragPx = 0f
                     isDragging = true
@@ -1359,6 +1369,19 @@ private fun BoxScope.WidgetWidthHandle(
     }
 }
 
+/**
+ * Tells the ancestors that a resize handle took this drag, the way a scrolling
+ * child does. The launcher's page carousel (and its vertical pull) only stay
+ * out of a gesture once a child reports consuming it through nested scroll;
+ * a plain `draggable` reports nothing, so without this the carousel claimed a
+ * width drag and swiped the page instead of resizing.
+ */
+private fun NestedScrollDispatcher.reportHandleDrag(consumed: Offset) {
+    dispatchPostScroll(consumed = consumed, available = Offset.Zero, source = NestedScrollSource.UserInput)
+}
+
+private object NoOpNestedScrollConnection : NestedScrollConnection
+
 @Composable
 private fun WidgetResizeHandle(
     onDrag: (deltaPx: Float) -> Unit,
@@ -1366,14 +1389,19 @@ private fun WidgetResizeHandle(
     modifier: Modifier = Modifier,
 ) {
     val resizeHandleDescription = stringResource(R.string.widget_resize_handle_description)
+    val nestedScrollDispatcher = remember { NestedScrollDispatcher() }
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(WIDGET_RESIZE_HANDLE_HEIGHT_DP.dp)
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
+            .nestedScroll(NoOpNestedScrollConnection, nestedScrollDispatcher)
             .draggable(
                 orientation = Orientation.Vertical,
-                state = rememberDraggableState { delta -> onDrag(delta) },
+                state = rememberDraggableState { delta ->
+                    onDrag(delta)
+                    nestedScrollDispatcher.reportHandleDrag(Offset(0f, delta))
+                },
                 onDragStopped = { onDragEnd() },
             )
             .semantics { contentDescription = resizeHandleDescription }
