@@ -48,6 +48,10 @@ internal const val KIOSK_EXIT_HOLD_MS = 2_000L
  * a widget's own long-press is switched off here, haptic included, so the
  * half-second mark of that hold feels like nothing happened. The system bars are hidden
  * while the display shows (a swipe from the edge brings them back briefly).
+ *
+ * The display shows over the lock screen, so it stays up after a lock; the
+ * exit hold then asks for an unlock first, and Settings opens only once it
+ * succeeds.
  */
 @Composable
 internal fun KioskScreen(
@@ -68,11 +72,15 @@ internal fun KioskScreen(
     // Test seam: what watches for motion. Production uses the front camera;
     // Robolectric has none, so a test drives onMotion itself.
     motionWatcher: @Composable (onMotion: () -> Unit) -> Unit = { onMotion -> KioskMotionCamera(onMotion) },
+    // Test seam: how the exit hold gets past the lock screen. Production asks
+    // the system to unlock first when the device is locked.
+    unlockThen: (action: () -> Unit) -> Unit = rememberKioskUnlockThen(),
     // Test seams, forwarded to HomeWidgets.
     providerInfoOverride: ((Int) -> AppWidgetProviderInfo?)? = null,
     createWidgetView: ((Context, Int) -> AppWidgetHostView)? = null,
 ) {
     KioskImmersiveBars()
+    KioskOverLockScreen()
     // Arriving from Settings can leave the keyboard up; the display has
     // nothing to type into.
     val keyboard = LocalSoftwareKeyboardController.current
@@ -94,7 +102,7 @@ internal fun KioskScreen(
             .fillMaxSize()
             .testTag(KIOSK_SCREEN_TAG)
             // On the parent, so it sees every touch on its way to the widgets.
-            .pointerInput(onExitHold) { detectKioskExitHold(onExitHold) }
+            .pointerInput(onExitHold, unlockThen) { detectKioskExitHold { unlockThen(onExitHold) } }
             // Any touch counts as someone being there. Observed, not consumed.
             .pointerInput(Unit) {
                 awaitEachGesture {

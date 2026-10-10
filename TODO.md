@@ -109,7 +109,7 @@
 - **Launcher-owned web links.** A browser-agnostic complement to pinned shortcuts that needs no default-home status and survives a launcher switch: a name + URL entry opened with `ACTION_VIEW` (or a Custom Tab), added through a "Share → Type Launcher" target. Icon is a letter tile or the existing icon override; fetching a favicon would be the app's first network call (privacy + failure mode), so opt-in at most.
 
 - **Kiosk mode follow-ups.** The widget-only, screen-on-while-plugged-in display shipped; still to come, each its own PR:
-  1. **Show over the lock screen.** The display appears on the lock screen (`setShowWhenLocked` while kiosk mode is on), so a locked wall tablet still shows its widgets, and leaving it — the two-second hold — asks for unlock first (`requestDismissKeyguard`). Puts Home's widgets on view while locked; the setting's copy should say so.
+  1. **Show over the lock screen** — shipped. Still open: a device check that the display comes back over the lock screen after the power button, that the exit hold brings up the unlock prompt and opens Settings only on success, and that a widget tapped while locked asks to unlock before opening its app. Kiosk mode's switch needs no lock-screen subtitle (maintainer, 2026-10-10).
   2. **Dim until someone is nearby** — shipped as "Wake up using camera". Still open:
      - **Device checks:** motion sensitivity across a room and in low light, the camera's battery and heat on mains over days, and how a dark room reads (the motion test sees brightness changes, so a dark room sees little).
      - **Wake on a Home Assistant event** (maintainer, 2026-10-10). Options, cheapest first:
