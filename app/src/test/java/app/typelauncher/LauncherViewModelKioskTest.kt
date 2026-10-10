@@ -91,6 +91,29 @@ class LauncherViewModelKioskTest {
     }
 
     @Test
+    fun dimWhenIdlePersists() {
+        org.robolectric.Shadows.shadowOf(context as android.app.Application)
+            .grantPermissions(android.Manifest.permission.CAMERA)
+        newViewModel().setKioskDimWhenIdle(true)
+        idle()
+
+        assertTrue(newViewModel().uiState.value.isKioskDimWhenIdle)
+    }
+
+    @Test
+    fun aRevokedCameraTurnsDimWhenIdleOffOnResume() {
+        val viewModel = newViewModel()
+        viewModel.setKioskDimWhenIdle(true)
+        idle()
+        // Robolectric grants nothing by default: the camera is not granted.
+        viewModel.refreshPermissionDrivenUi()
+        idle()
+
+        assertFalse(viewModel.uiState.value.isKioskDimWhenIdle)
+        assertFalse(newViewModel().uiState.value.isKioskDimWhenIdle)
+    }
+
+    @Test
     fun enablingDropsAQueryAndOpenRecents() {
         val viewModel = newViewModel()
         viewModel.setQuery("ma")

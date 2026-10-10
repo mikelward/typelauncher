@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 2026-08-31_
+_Last updated: 2026-10-10_
 
 Type Launcher is an Android home screen launcher. This policy describes what
 the app does and does not do with your data.
@@ -75,6 +75,13 @@ transmitted off your device by the app.
   its own and dials nothing you didn't tap.
 - **Expand status bar** (`EXPAND_STATUS_BAR`): expand the system notification
   shade when you pull down on the home screen.
+- **Camera** (`CAMERA`): requested only if you turn on "Wake up using camera"
+  under Kiosk mode in Settings, and used only while the kiosk display
+  is on screen. The front camera takes a few small, low-resolution frames a
+  second, and the app compares each one with the last to tell whether anything
+  moved, so it can brighten the dimmed display. Frames are compared in memory
+  and discarded at once: nothing is saved, recognized, or sent off the device.
+  Android shows its camera-in-use indicator the whole time the camera is on.
 
 ## What the app does not do
 

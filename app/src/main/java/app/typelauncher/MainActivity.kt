@@ -185,6 +185,11 @@ class MainActivity : ComponentActivity() {
             LauncherDebugLog.event("requestContactSearchPermission result granted=%s", granted)
             if (granted) viewModel.setContactSearchEnabled(true)
         }
+    private val requestKioskCameraPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            LauncherDebugLog.event("requestKioskCameraPermission result granted=%s", granted)
+            if (granted) viewModel.setKioskDimWhenIdle(true)
+        }
     private val requestCalendarSearchPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             LauncherDebugLog.event("requestCalendarSearchPermission result granted=%s", granted)
@@ -583,6 +588,13 @@ class MainActivity : ComponentActivity() {
                                 requestContactSearchPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
                             } else {
                                 viewModel.setContactSearchEnabled(enabled)
+                            }
+                        },
+                        onKioskDimWhenIdleChanged = { enabled ->
+                            if (enabled && !hasPermission(Manifest.permission.CAMERA)) {
+                                requestKioskCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                            } else {
+                                viewModel.setKioskDimWhenIdle(enabled)
                             }
                         },
                         onCalendarSearchEnabledChanged = { enabled ->

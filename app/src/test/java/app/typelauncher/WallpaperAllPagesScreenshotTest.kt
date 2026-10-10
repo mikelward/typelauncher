@@ -328,6 +328,7 @@ class WallpaperAllPagesScreenshotTest {
                             onHomeWidgetsShownChanged = {},
                             onEditHomeWidgets = {},
                             isKioskMode = true,
+                            isKioskDimWhenIdle = true,
                         )
                     }
                 }
@@ -336,8 +337,10 @@ class WallpaperAllPagesScreenshotTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(EDIT_HOME_WIDGETS_BUTTON_TAG).assertExists()
         composeRule.onNodeWithTag(KIOSK_MODE_SWITCH_TAG).assertExists()
+        composeRule.onNodeWithTag(KIOSK_DIM_WHEN_IDLE_SWITCH_TAG).assertExists()
 
-        capture("compose_home_widgets_settings_light_robolectric.png", heightPx = 400)
+        // Tall enough for every row: the switch, Edit, and both kiosk rows.
+        capture("compose_home_widgets_settings_light_robolectric.png", heightPx = 800)
     }
 
     @Test

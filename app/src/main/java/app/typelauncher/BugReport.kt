@@ -352,6 +352,7 @@ internal fun bugReportSettingRows(settings: DockSettingsStore): List<Pair<String
         "Wallpaper shown" to settings.isWallpaperShown.toString(),
         "Home widgets shown" to settings.isHomeWidgetsShown.toString(),
         "Kiosk mode" to settings.isKioskMode.toString(),
+        "Kiosk dim when idle" to settings.isKioskDimWhenIdle.toString(),
         "Contact search enabled" to settings.isContactSearchEnabled.toString(),
         "Calendar search enabled" to settings.isCalendarSearchEnabled.toString(),
         "Call method" to settings.callMethod.name,

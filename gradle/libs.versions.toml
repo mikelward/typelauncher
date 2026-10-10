@@ -26,6 +26,9 @@ androidsvg = "1.4"
 # app/build.gradle.kts for why the export is committed to res/raw instead of
 # generated at build time.
 aboutlibraries = "12.2.4"
+# CameraX — kiosk mode's "Dim when nobody's there": low-resolution front
+# camera frames, analyzed on-device for motion only. Nothing is stored or sent.
+camerax = "1.6.2"
 
 [libraries]
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity" }
@@ -55,6 +58,8 @@ firebase-perf = { group = "com.google.firebase", name = "firebase-perf" }
 play-app-update = { group = "com.google.android.play", name = "app-update", version.ref = "playAppUpdate" }
 androidsvg = { group = "com.caverock", name = "androidsvg-aar", version.ref = "androidsvg" }
 aboutlibraries-compose-m3 = { group = "com.mikepenz", name = "aboutlibraries-compose-m3", version.ref = "aboutlibraries" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
 androidlog-logging-core = { group = "com.mikelward.androidlog", name = "logging-core", version.ref = "androidlog" }
 androidlog-logging-android = { group = "com.mikelward.androidlog", name = "logging-android", version.ref = "androidlog" }
 

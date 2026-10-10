@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
+import android.view.WindowManager
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
@@ -16,6 +17,10 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputScope
@@ -56,7 +61,13 @@ internal fun KioskScreen(
     strandedWidgetIds: Set<Int>,
     workProfileWidgetRefreshToken: Int,
     onExitHold: () -> Unit,
+    // "Wake up using camera": dim after a quiet minute, brighten on camera
+    // motion or a touch. The caller only passes true with the camera granted.
+    dimWhenIdle: Boolean = false,
     modifier: Modifier = Modifier,
+    // Test seam: what watches for motion. Production uses the front camera;
+    // Robolectric has none, so a test drives onMotion itself.
+    motionWatcher: @Composable (onMotion: () -> Unit) -> Unit = { onMotion -> KioskMotionCamera(onMotion) },
     // Test seams, forwarded to HomeWidgets.
     providerInfoOverride: ((Int) -> AppWidgetProviderInfo?)? = null,
     createWidgetView: ((Context, Int) -> AppWidgetHostView)? = null,
@@ -66,12 +77,31 @@ internal fun KioskScreen(
     // nothing to type into.
     val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(Unit) { keyboard?.hide() }
+    // The idle timer: dims after a quiet minute, brightens on motion or touch.
+    val scope = rememberCoroutineScope()
+    val dimmer = remember(scope) { KioskIdleDimmer(scope) }
+    val dimmed by dimmer.dimmed.collectAsState()
+    if (dimWhenIdle) {
+        DisposableEffect(dimmer) {
+            dimmer.start()
+            onDispose { dimmer.stop() }
+        }
+        motionWatcher { dimmer.onActivity() }
+    }
+    KioskWindowBrightness(dimmed = dimWhenIdle && dimmed)
     Box(
         modifier = modifier
             .fillMaxSize()
             .testTag(KIOSK_SCREEN_TAG)
             // On the parent, so it sees every touch on its way to the widgets.
-            .pointerInput(onExitHold) { detectKioskExitHold(onExitHold) },
+            .pointerInput(onExitHold) { detectKioskExitHold(onExitHold) }
+            // Any touch counts as someone being there. Observed, not consumed.
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    dimmer.onActivity()
+                }
+            },
     ) {
         // With no widgets the display is simply empty: HomeWidgets' own empty
         // state is an Add button, and adding belongs to the normal Home.
@@ -138,6 +168,26 @@ internal suspend fun PointerInputScope.detectKioskExitHold(onHold: () -> Unit) {
             event.changes.forEach { it.consume() }
             if (event.changes.none { it.pressed }) break
         }
+    }
+}
+
+/**
+ * Holds the window at [KIOSK_DIM_BRIGHTNESS] while [dimmed], and hands
+ * brightness back to the system (the user's own level) otherwise and on
+ * leaving the display. A window-only override: the system brightness setting
+ * is never changed.
+ */
+@Composable
+private fun KioskWindowBrightness(dimmed: Boolean) {
+    val context = LocalContext.current
+    DisposableEffect(context, dimmed) {
+        val window = context.findActivity()?.window
+        fun apply(brightness: Float) {
+            window?.attributes = window?.attributes?.also { it.screenBrightness = brightness }
+        }
+        apply(if (dimmed) KIOSK_DIM_BRIGHTNESS else WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE)
+        LauncherDebugLog.event("kioskDimmed=%s", dimmed)
+        onDispose { apply(WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE) }
     }
 }
 
