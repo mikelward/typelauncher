@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.dp
  * Every Material icon this launcher draws, held locally instead of pulled from
  * `material-icons-extended`.
  *
- * That library ships several thousand `ImageVector`s to supply the twenty-four
+ * That library ships several thousand `ImageVector`s to supply the twenty-seven
  * below. R8 strips the rest from the release build, so the shipped app is
  * unaffected — but the debug build never minifies, and it is the debug build a
  * developer installs on a phone.
@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
  * **All of them are here, including the ones `material-icons-core` would still
  * cover.** A split set leaves no way to tell by looking where a given icon came
  * from, and the next icon someone reaches for would quietly pull the dependency
- * back in. Vendored whole, adding a twenty-fifth is a deliberate act: copy its
+ * back in. Vendored whole, adding a twenty-eighth is a deliberate act: copy its
  * vector in here.
  *
  * The vectors were read out of the library itself rather than transcribed, and
@@ -51,6 +51,62 @@ object LauncherIcons {
                 lineTo(7.83f, 13f)
                 horizontalLineTo(20f)
                 verticalLineToRelative(-2f)
+                close()
+            }
+        }
+    }
+
+    /** Material Symbols `AutoMirrored.Filled.ArrowForward`. */
+    val ArrowForward: ImageVector by lazy {
+        icon("AutoMirrored.Filled.ArrowForward", autoMirror = true) {
+            materialPath {
+                moveTo(12f, 4f)
+                lineToRelative(-1.41f, 1.41f)
+                lineTo(16.17f, 11f)
+                horizontalLineTo(4f)
+                verticalLineToRelative(2f)
+                horizontalLineToRelative(12.17f)
+                lineToRelative(-5.58f, 5.59f)
+                lineTo(12f, 20f)
+                lineToRelative(8f, -8f)
+                close()
+            }
+        }
+    }
+
+    /** Material Symbols `Filled.ArrowDownward`. */
+    val ArrowDownward: ImageVector by lazy {
+        icon("Filled.ArrowDownward", autoMirror = false) {
+            materialPath {
+                moveTo(20f, 12f)
+                lineToRelative(-1.41f, -1.41f)
+                lineTo(13f, 16.17f)
+                verticalLineTo(4f)
+                horizontalLineToRelative(-2f)
+                verticalLineToRelative(12.17f)
+                lineToRelative(-5.58f, -5.59f)
+                lineTo(4f, 12f)
+                lineToRelative(8f, 8f)
+                lineToRelative(8f, -8f)
+                close()
+            }
+        }
+    }
+
+    /** Material Symbols `Filled.ArrowUpward`. */
+    val ArrowUpward: ImageVector by lazy {
+        icon("Filled.ArrowUpward", autoMirror = false) {
+            materialPath {
+                moveTo(4f, 12f)
+                lineToRelative(1.41f, 1.41f)
+                lineTo(11f, 7.83f)
+                verticalLineTo(20f)
+                horizontalLineToRelative(2f)
+                verticalLineTo(7.83f)
+                lineToRelative(5.58f, 5.59f)
+                lineTo(20f, 12f)
+                lineToRelative(-8f, -8f)
+                lineToRelative(-8f, 8f)
                 close()
             }
         }

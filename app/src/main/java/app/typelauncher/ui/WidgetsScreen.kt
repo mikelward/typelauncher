@@ -1256,7 +1256,7 @@ private fun WidgetInlineActions(
                 modifier = Modifier.testTag("$MOVE_UP_WIDGET_ACTION_TAG:$widgetId"),
             ) {
                 Icon(
-                    LauncherIcons.KeyboardArrowUp,
+                    LauncherIcons.ArrowUpward,
                     contentDescription = stringResource(R.string.widget_menu_move_up),
                 )
             }
@@ -1266,7 +1266,7 @@ private fun WidgetInlineActions(
                 modifier = Modifier.testTag("$MOVE_DOWN_WIDGET_ACTION_TAG:$widgetId"),
             ) {
                 Icon(
-                    LauncherIcons.KeyboardArrowDown,
+                    LauncherIcons.ArrowDownward,
                     contentDescription = stringResource(R.string.widget_menu_move_down),
                 )
             }
@@ -1276,14 +1276,14 @@ private fun WidgetInlineActions(
                     enabled = canMoveStart,
                     modifier = Modifier.testTag("$MOVE_START_WIDGET_ACTION_TAG:$widgetId"),
                 ) {
-                    Icon(LauncherIcons.KeyboardArrowLeft, contentDescription = moveStartLabel)
+                    Icon(LauncherIcons.ArrowBack, contentDescription = moveStartLabel)
                 }
                 IconButton(
                     onClick = { onMoveWidget(widgetId, WidgetMoveDirection.DOWN) },
                     enabled = canMoveEnd,
                     modifier = Modifier.testTag("$MOVE_END_WIDGET_ACTION_TAG:$widgetId"),
                 ) {
-                    Icon(LauncherIcons.KeyboardArrowRight, contentDescription = moveEndLabel)
+                    Icon(LauncherIcons.ArrowForward, contentDescription = moveEndLabel)
                 }
             }
             // Icons, like the moves beside them: words wrapped a narrow
