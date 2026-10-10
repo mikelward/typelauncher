@@ -19,6 +19,9 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.longClick
@@ -435,6 +438,32 @@ class HomeWidgetsTest {
         // A widget alone in its row gets no left / right.
         composeRule.onNodeWithTag("$MOVE_START_WIDGET_ACTION_TAG:3").assertDoesNotExist()
         composeRule.onNodeWithTag("$MOVE_END_WIDGET_ACTION_TAG:3").assertDoesNotExist()
+    }
+
+    @Test
+    fun editActionsAreIconsLabeledForScreenReaders() {
+        val host = LauncherAppWidgetHost(context, /* hostId = */ 0)
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TestHomeWidgets(
+                    widgetIds = listOf(1),
+                    isEditing = true,
+                    host = host,
+                    providerInfoOverride = { providerInfo },
+                    createWidgetView = { viewContext, _ -> RecordingHostView(viewContext, host) {} },
+                )
+            }
+        }
+        val remove = context.getString(R.string.widget_menu_remove)
+        val resize = context.getString(R.string.widget_menu_resize)
+
+        // No visible words, which wrapped a narrow widget's bar onto extra lines.
+        composeRule.onNodeWithTag("$REMOVE_WIDGET_ACTION_TAG:1")
+            .assert(hasContentDescription(remove))
+            .assert(hasText(remove).not())
+        composeRule.onNodeWithTag("$RESIZE_WIDGET_ACTION_TAG:1")
+            .assert(hasContentDescription(resize))
+            .assert(hasText(resize).not())
     }
 
     @Test

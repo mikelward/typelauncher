@@ -1286,19 +1286,27 @@ private fun WidgetInlineActions(
                     Icon(LauncherIcons.KeyboardArrowRight, contentDescription = moveEndLabel)
                 }
             }
+            // Icons, like the moves beside them: words wrapped a narrow
+            // widget's bar onto extra lines. The labels stay for screen readers.
             if (showResize) {
-                TextButton(
+                IconButton(
                     onClick = onStartResize,
                     modifier = Modifier.testTag("$RESIZE_WIDGET_ACTION_TAG:$widgetId"),
                 ) {
-                    Text(stringResource(R.string.widget_menu_resize))
+                    Icon(
+                        LauncherIcons.Resize,
+                        contentDescription = stringResource(R.string.widget_menu_resize),
+                    )
                 }
             }
-            TextButton(
+            IconButton(
                 onClick = { onRemoveWidget(widgetId) },
                 modifier = Modifier.testTag("$REMOVE_WIDGET_ACTION_TAG:$widgetId"),
             ) {
-                Text(stringResource(R.string.widget_menu_remove))
+                Icon(
+                    LauncherIcons.Delete,
+                    contentDescription = stringResource(R.string.widget_menu_remove),
+                )
             }
         }
     }

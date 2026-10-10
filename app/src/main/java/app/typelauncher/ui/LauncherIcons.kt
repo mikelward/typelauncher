@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.dp
  * Every Material icon this launcher draws, held locally instead of pulled from
  * `material-icons-extended`.
  *
- * That library ships several thousand `ImageVector`s to supply the twenty-two
+ * That library ships several thousand `ImageVector`s to supply the twenty-four
  * below. R8 strips the rest from the release build, so the shipped app is
  * unaffected — but the debug build never minifies, and it is the debug build a
  * developer installs on a phone.
@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
  * **All of them are here, including the ones `material-icons-core` would still
  * cover.** A split set leaves no way to tell by looking where a given icon came
  * from, and the next icon someone reaches for would quietly pull the dependency
- * back in. Vendored whole, adding a twenty-third is a deliberate act: copy its
+ * back in. Vendored whole, adding a twenty-fifth is a deliberate act: copy its
  * vector in here.
  *
  * The vectors were read out of the library itself rather than transcribed, and
@@ -198,6 +198,120 @@ object LauncherIcons {
                 lineTo(17.59f, 19f)
                 lineTo(19f, 17.59f)
                 lineTo(13.41f, 12f)
+                close()
+            }
+        }
+    }
+
+    /** Material Icons `Filled.Delete`. */
+    val Delete: ImageVector by lazy {
+        icon("Filled.Delete", autoMirror = false) {
+            materialPath {
+                moveTo(6f, 19f)
+                curveToRelative(0f, 1.1f, 0.9f, 2f, 2f, 2f)
+                horizontalLineToRelative(8f)
+                curveToRelative(1.1f, 0f, 2f, -0.9f, 2f, -2f)
+                verticalLineTo(7f)
+                horizontalLineTo(6f)
+                verticalLineToRelative(12f)
+                close()
+                moveTo(19f, 4f)
+                horizontalLineToRelative(-3.5f)
+                lineToRelative(-1f, -1f)
+                horizontalLineToRelative(-5f)
+                lineToRelative(-1f, 1f)
+                horizontalLineTo(5f)
+                verticalLineToRelative(2f)
+                horizontalLineToRelative(14f)
+                verticalLineTo(4f)
+                close()
+            }
+        }
+    }
+
+    /**
+     * Material Symbols `resize` (outlined): a dashed square with solid corners.
+     * From the same Apache-2.0 Material Design icon set as the rest, scaled
+     * from its 960-unit viewport to 24.
+     */
+    val Resize: ImageVector by lazy {
+        icon("Outlined.Resize", autoMirror = false) {
+            materialPath {
+                moveTo(19f, 9f)
+                lineTo(19f, 5f)
+                lineTo(15f, 5f)
+                lineTo(15f, 3f)
+                lineTo(21f, 3f)
+                lineTo(21f, 9f)
+                lineTo(19f, 9f)
+                close()
+                moveTo(3f, 21f)
+                lineTo(3f, 15f)
+                lineTo(5f, 15f)
+                lineTo(5f, 19f)
+                lineTo(9f, 19f)
+                lineTo(9f, 21f)
+                lineTo(3f, 21f)
+                close()
+                moveTo(3f, 13f)
+                lineTo(3f, 11f)
+                lineTo(5f, 11f)
+                lineTo(5f, 13f)
+                lineTo(3f, 13f)
+                close()
+                moveTo(3f, 9f)
+                lineTo(3f, 7f)
+                lineTo(5f, 7f)
+                lineTo(5f, 9f)
+                lineTo(3f, 9f)
+                close()
+                moveTo(3f, 5f)
+                lineTo(3f, 3f)
+                lineTo(5f, 3f)
+                lineTo(5f, 5f)
+                lineTo(3f, 5f)
+                close()
+                moveTo(7f, 5f)
+                lineTo(7f, 3f)
+                lineTo(9f, 3f)
+                lineTo(9f, 5f)
+                lineTo(7f, 5f)
+                close()
+                moveTo(11f, 21f)
+                lineTo(11f, 19f)
+                lineTo(13f, 19f)
+                lineTo(13f, 21f)
+                lineTo(11f, 21f)
+                close()
+                moveTo(11f, 5f)
+                lineTo(11f, 3f)
+                lineTo(13f, 3f)
+                lineTo(13f, 5f)
+                lineTo(11f, 5f)
+                close()
+                moveTo(15f, 21f)
+                lineTo(15f, 19f)
+                lineTo(17f, 19f)
+                lineTo(17f, 21f)
+                lineTo(15f, 21f)
+                close()
+                moveTo(19f, 21f)
+                lineTo(19f, 19f)
+                lineTo(21f, 19f)
+                lineTo(21f, 21f)
+                lineTo(19f, 21f)
+                close()
+                moveTo(19f, 17f)
+                lineTo(19f, 15f)
+                lineTo(21f, 15f)
+                lineTo(21f, 17f)
+                lineTo(19f, 17f)
+                close()
+                moveTo(19f, 13f)
+                lineTo(19f, 11f)
+                lineTo(21f, 11f)
+                lineTo(21f, 13f)
+                lineTo(19f, 13f)
                 close()
             }
         }
