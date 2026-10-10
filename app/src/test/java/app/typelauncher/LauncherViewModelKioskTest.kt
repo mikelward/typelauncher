@@ -40,6 +40,51 @@ class LauncherViewModelKioskTest {
     }
 
     @Test
+    fun blankAtNightDefaultsOffFromMidnightToSix() {
+        val state = newViewModel().uiState.value
+
+        assertFalse(state.isKioskBlankAtNight)
+        assertEquals(0, state.kioskBlankStartMinutes)
+        assertEquals(6 * 60, state.kioskBlankEndMinutes)
+    }
+
+    @Test
+    fun blankAtNightAndItsWindowPersistAcrossViewModels() {
+        val viewModel = newViewModel()
+        viewModel.setKioskBlankAtNight(true)
+        viewModel.setKioskBlankWindow(22 * 60 + 30, 7 * 60)
+        idle()
+
+        val state = newViewModel().uiState.value
+        assertTrue(state.isKioskBlankAtNight)
+        assertEquals(22 * 60 + 30, state.kioskBlankStartMinutes)
+        assertEquals(7 * 60, state.kioskBlankEndMinutes)
+    }
+
+    @Test
+    fun changingTheBlankWindowLogsItsTimes() {
+        val viewModel = newViewModel()
+        LauncherDebugLog.resetForTest()
+
+        viewModel.setKioskBlankWindow(22 * 60 + 30, 7 * 60)
+        idle()
+
+        // They explain a display that went dark when nobody expected it to.
+        val logged = LauncherDebugLog.entriesForTest().filter { "setKioskBlankWindow" in it }
+        assertEquals(1, logged.size)
+        assertTrue(logged.single(), "1350-420" in logged.single())
+    }
+
+    @Test
+    fun anOutOfRangeStoredTimeFallsBackToTheDefault() {
+        context.getSharedPreferences("dock_settings", Context.MODE_PRIVATE).edit()
+            .putInt("kiosk_blank_start_minutes", 99_999)
+            .commit()
+
+        assertEquals(0, newViewModel().uiState.value.kioskBlankStartMinutes)
+    }
+
+    @Test
     fun displayNeedsHomeWidgetsOn() {
         val viewModel = newViewModel()
         viewModel.setKioskMode(true)

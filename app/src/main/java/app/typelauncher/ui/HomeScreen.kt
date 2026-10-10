@@ -1,11 +1,13 @@
 package app.typelauncher
 
+import android.app.TimePickerDialog
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.text.format.DateFormat
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -6315,6 +6317,11 @@ internal fun HomeWidgetsSettingsRows(
     onKioskModeChanged: (Boolean) -> Unit = {},
     isKioskDimWhenIdle: Boolean = false,
     onKioskDimWhenIdleChanged: (Boolean) -> Unit = {},
+    isKioskBlankAtNight: Boolean = false,
+    onKioskBlankAtNightChanged: (Boolean) -> Unit = {},
+    kioskBlankStartMinutes: Int = KIOSK_BLANK_DEFAULT_START_MINUTES,
+    kioskBlankEndMinutes: Int = KIOSK_BLANK_DEFAULT_END_MINUTES,
+    onKioskBlankWindowChanged: (startMinutes: Int, endMinutes: Int) -> Unit = { _, _ -> },
 ) {
     val editDescription = stringResource(R.string.settings_home_widgets_edit_button_description)
     Row(
@@ -6403,6 +6410,97 @@ internal fun HomeWidgetsSettingsRows(
                     modifier = Modifier.testTag(KIOSK_DIM_WHEN_IDLE_SWITCH_TAG),
                 )
             }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_kiosk_blank_at_night_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Switch(
+                    checked = isKioskBlankAtNight,
+                    onCheckedChange = onKioskBlankAtNightChanged,
+                    modifier = Modifier.testTag(KIOSK_BLANK_AT_NIGHT_SWITCH_TAG),
+                )
+            }
+            if (isKioskBlankAtNight) {
+                KioskBlankTimeRow(
+                    label = stringResource(R.string.settings_kiosk_blank_from),
+                    minutes = kioskBlankStartMinutes,
+                    onMinutesChanged = { onKioskBlankWindowChanged(it, kioskBlankEndMinutes) },
+                    modifier = Modifier.testTag(KIOSK_BLANK_START_TAG),
+                )
+                KioskBlankTimeRow(
+                    label = stringResource(R.string.settings_kiosk_blank_until),
+                    minutes = kioskBlankEndMinutes,
+                    onMinutesChanged = { onKioskBlankWindowChanged(kioskBlankStartMinutes, it) },
+                    modifier = Modifier.testTag(KIOSK_BLANK_END_TAG),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * [minuteOfDay] in the device's 12- or 24-hour format. Formatted as an offset
+ * from the epoch in UTC rather than as a time on today's date, so a saved time
+ * in the hour a DST change skips (2:30 on the spring-forward night) still reads
+ * as itself instead of being moved an hour on.
+ */
+internal fun formatKioskBlankTime(context: android.content.Context, minuteOfDay: Int): String =
+    DateFormat.getTimeFormat(context)
+        .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
+        .format(java.util.Date(minuteOfDay * 60_000L))
+
+/**
+ * One end of "Blank at night": the label, and the time as a button that opens
+ * the platform's time picker, in the device's 12- or 24-hour format.
+ */
+@Composable
+private fun KioskBlankTimeRow(
+    label: String,
+    minutes: Int,
+    onMinutesChanged: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    // Re-read on each resume, so a 12/24-hour change made in system Settings
+    // shows on return rather than only after the row leaves composition.
+    var resumes by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) resumes++
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val time = remember(minutes, context, resumes) { formatKioskBlankTime(context, minutes) }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+        TextButton(
+            onClick = {
+                TimePickerDialog(
+                    context,
+                    { _, hour, minute -> onMinutesChanged(hour * 60 + minute) },
+                    minutes / 60,
+                    minutes % 60,
+                    DateFormat.is24HourFormat(context),
+                ).show()
+            },
+            // The row's label is its own node, so name the time it sets:
+            // "From, 12:00 AM", not a bare time a screen reader can't place.
+            modifier = modifier.semantics { contentDescription = "$label, $time" },
+        ) {
+            Text(time)
         }
     }
 }
@@ -6432,6 +6530,8 @@ internal fun SettingsScreen(
     onContactSearchEnabledChanged: (Boolean) -> Unit = {},
     onCalendarSearchEnabledChanged: (Boolean) -> Unit = {},
     onKioskDimWhenIdleChanged: (Boolean) -> Unit = {},
+    onKioskBlankAtNightChanged: (Boolean) -> Unit = {},
+    onKioskBlankWindowChanged: (startMinutes: Int, endMinutes: Int) -> Unit = { _, _ -> },
     onTelemetryEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
@@ -6794,6 +6894,11 @@ internal fun SettingsScreen(
                     onKioskModeChanged = onKioskModeChanged,
                     isKioskDimWhenIdle = state.isKioskDimWhenIdle,
                     onKioskDimWhenIdleChanged = onKioskDimWhenIdleChanged,
+                    isKioskBlankAtNight = state.isKioskBlankAtNight,
+                    onKioskBlankAtNightChanged = onKioskBlankAtNightChanged,
+                    kioskBlankStartMinutes = state.kioskBlankStartMinutes,
+                    kioskBlankEndMinutes = state.kioskBlankEndMinutes,
+                    onKioskBlankWindowChanged = onKioskBlankWindowChanged,
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
