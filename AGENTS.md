@@ -1,7 +1,7 @@
 ---
 trigger: always_on
 alwaysApply: true
-last_modified: 2026-10-06
+last_modified: 2026-10-10
 ---
 
 # Type Launcher
@@ -89,6 +89,10 @@ Android home screen launcher app (Kotlin, single `:app` module).
 ## Concise copy
 
 - Keep user-facing text short. A label, action, or title should carry only the words the user needs — drop framing verbs and prefixes the surrounding UI already implies. Prefer the shortest phrasing that stays unambiguous; when a longer form is genuinely needed for clarity, say why in the PR. Applies to strings, dialog and button text, and screen titles. (Same instinct as the ≤70-char commit-subject rule — say it in fewer words.)
+
+## Icons
+
+- **Use a standard Material icon by default** (Material Icons or Material Symbols, vendored into `LauncherIcons`), not a hand-drawn one: users already know what they mean. If no Material icon clearly fits, or two do, ask before picking or drawing one.
 
 ## Autonomy
 
