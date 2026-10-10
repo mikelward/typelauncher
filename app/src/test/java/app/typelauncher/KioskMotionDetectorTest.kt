@@ -17,19 +17,19 @@ class KioskMotionDetectorTest {
 
     @Test
     fun firstFrameOnlySetsTheBaseline() {
-        assertFalse(KioskMotionDetector().onFrame(frame(100), width, height, width))
+        assertFalse(KioskMotionDetector(warmupFrames = 0).onFrame(frame(100), width, height, width))
     }
 
     @Test
     fun anUnchangedSceneIsNotMotion() {
-        val detector = KioskMotionDetector()
+        val detector = KioskMotionDetector(warmupFrames = 0)
         detector.onFrame(frame(100), width, height, width)
         assertFalse(detector.onFrame(frame(100), width, height, width))
     }
 
     @Test
     fun aBrightPatchAppearingIsMotion() {
-        val detector = KioskMotionDetector()
+        val detector = KioskMotionDetector(warmupFrames = 0)
         detector.onFrame(frame(60), width, height, width)
         // Someone stepping into the left third of the frame.
         val withPerson = frame(60) { bytes ->
@@ -40,7 +40,7 @@ class KioskMotionDetectorTest {
 
     @Test
     fun aSmallEvenLightChangeIsNotMotion() {
-        val detector = KioskMotionDetector()
+        val detector = KioskMotionDetector(warmupFrames = 0)
         detector.onFrame(frame(100), width, height, width)
         assertFalse(detector.onFrame(frame(110), width, height, width))
     }
@@ -50,11 +50,28 @@ class KioskMotionDetectorTest {
         // A row stride wider than the image: the padding bytes change, the
         // image does not.
         val stride = width + 64
-        val detector = KioskMotionDetector()
+        val detector = KioskMotionDetector(warmupFrames = 0)
         detector.onFrame(frame(100, stride), width, height, stride)
         val paddingOnly = frame(100, stride) { bytes ->
             for (y in 0 until height) for (x in width until stride) bytes[y * stride + x] = 255.toByte()
         }
         assertFalse(detector.onFrame(paddingOnly, width, height, stride))
+    }
+
+    @Test
+    fun exposureSwingsWhileTheCameraStartsAreNotMotion() {
+        // A camera that has just started brightens and darkens as its
+        // auto-exposure settles; none of that may read as someone there.
+        val detector = KioskMotionDetector(warmupFrames = 3)
+        assertFalse(detector.onFrame(frame(20), width, height, width))
+        assertFalse(detector.onFrame(frame(200), width, height, width))
+        assertFalse(detector.onFrame(frame(60), width, height, width))
+        // The first settled frame is the baseline; motion counts from then.
+        assertFalse(detector.onFrame(frame(100), width, height, width))
+        assertFalse(detector.onFrame(frame(100), width, height, width))
+        val withPerson = frame(100) { bytes ->
+            for (y in 0 until height) for (x in 0 until width / 3) bytes[y * width + x] = 230.toByte()
+        }
+        assertTrue(detector.onFrame(withPerson, width, height, width))
     }
 }

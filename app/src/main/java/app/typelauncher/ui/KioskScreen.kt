@@ -134,7 +134,24 @@ internal fun KioskScreen(
             onDispose { dimmer.stop() }
         }
     }
-    if (dimWhenIdle) motionWatcher { dimmer.onActivity() }
+    if (dimWhenIdle) {
+        // Once the camera sees someone it switches off for a while, rather than
+        // watching around the clock: motion only restarts the idle minute, so
+        // the camera only needs to be back before that minute could run out.
+        var cameraResting by remember { mutableStateOf(false) }
+        LaunchedEffect(cameraResting) {
+            if (cameraResting) {
+                delay(KIOSK_MOTION_REST_MS)
+                cameraResting = false
+            }
+        }
+        if (!cameraResting) {
+            motionWatcher {
+                dimmer.onActivity()
+                cameraResting = true
+            }
+        }
+    }
     val currentMinuteOfDay by rememberUpdatedState(minuteOfDay)
     var inBlankWindow by remember { mutableStateOf(false) }
     LaunchedEffect(blankAtNight, blankStartMinutes, blankEndMinutes) {

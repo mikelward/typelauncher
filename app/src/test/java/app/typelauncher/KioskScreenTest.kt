@@ -54,6 +54,7 @@ class KioskScreenTest {
         unlockThen: (action: () -> Unit) -> Unit = { it() },
         blankAtNight: Boolean = false,
         blankWhenIdle: Boolean = false,
+        motionWatcher: @androidx.compose.runtime.Composable (onMotion: () -> Unit) -> Unit = {},
         // Sees every pointer change after the display has handled it.
         observeFinal: ((androidx.compose.ui.input.pointer.PointerInputChange) -> Unit)? = null,
     ) {
@@ -71,7 +72,7 @@ class KioskScreenTest {
                     workProfileWidgetRefreshToken = 0,
                     onExitHold = { exitHolds += 1 },
                     dimWhenIdle = dimWhenIdle,
-                    motionWatcher = {},
+                    motionWatcher = motionWatcher,
                     unlockThen = unlockThen,
                     blankAtNight = blankAtNight,
                     blankWhenIdle = blankWhenIdle,
@@ -208,6 +209,39 @@ class KioskScreenTest {
         composeRule.waitForIdle()
 
         assertEquals(KIOSK_DIM_BRIGHTNESS, brightness(), 0f)
+    }
+
+    @Test
+    fun theCameraRestsAfterSeeingMotionAndWatchesAgainInTime() {
+        composeRule.mainClock.autoAdvance = false
+        var watching = false
+        var sawMotion: () -> Unit = {}
+        setKiosk(
+            dimWhenIdle = true,
+            motionWatcher = { onMotion ->
+                sawMotion = onMotion
+                androidx.compose.runtime.DisposableEffect(Unit) {
+                    watching = true
+                    onDispose { watching = false }
+                }
+            },
+        )
+        assertTrue(watching)
+
+        composeRule.runOnIdle { sawMotion() }
+        // Outside a frame, with the clock paused, the write needs announcing by hand.
+        androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()
+        composeRule.mainClock.advanceTimeBy(1_000)
+        composeRule.waitForIdle()
+        // Off for the rest, so it isn't running around the clock...
+        assertFalse(watching)
+
+        composeRule.mainClock.advanceTimeBy(KIOSK_MOTION_REST_MS)
+        composeRule.waitForIdle()
+        // ...and back before the idle minute that motion restarted runs out.
+        assertTrue(watching)
+        assertEquals(BRIGHTNESS_NONE, brightness(), 0f)
+        assertTrue(KIOSK_MOTION_REST_MS < KIOSK_DIM_AFTER_MS)
     }
 
     @Test
