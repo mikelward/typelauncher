@@ -11,7 +11,9 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.performTouchInput
+import kotlin.math.abs
 import android.app.KeyguardManager
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -183,6 +185,45 @@ class KioskScreenTest {
         composeRule.waitForIdle()
 
         assertEquals(KIOSK_DIM_BRIGHTNESS, brightness(), 0f)
+    }
+
+    @Test
+    fun theDisplayShiftsAFewDpEveryInterval() {
+        composeRule.mainClock.autoAdvance = false
+        setKiosk()
+        val card = composeRule.onNodeWithTag("$WIDGET_CARD_TAG:$WIDGET_ID")
+        val start = card.getBoundsInRoot()
+
+        composeRule.mainClock.advanceTimeBy(KIOSK_PIXEL_SHIFT_INTERVAL_MS - 1_000)
+        composeRule.waitForIdle()
+        assertEquals(start, card.getBoundsInRoot())
+
+        composeRule.mainClock.advanceTimeBy(2_000)
+        composeRule.waitForIdle()
+        val moved = card.getBoundsInRoot()
+        val first = KIOSK_PIXEL_SHIFT_OFFSETS[0]
+        val second = KIOSK_PIXEL_SHIFT_OFFSETS[1]
+        assertEquals(start.left + (second.x - first.x), moved.left)
+        assertEquals(start.top + (second.y - first.y), moved.top)
+        // Only moved, never resized: the hosted widget keeps its size.
+        assertEquals(start.right - start.left, moved.right - moved.left)
+        assertEquals(start.bottom - start.top, moved.bottom - moved.top)
+    }
+
+    @Test
+    fun everyPixelShiftStepIsOneSmallMoveOnOneAxis() {
+        val offsets = KIOSK_PIXEL_SHIFT_OFFSETS
+        assertTrue(offsets.size > 1)
+        offsets.indices.forEach { i ->
+            val from = offsets[i]
+            val to = offsets[(i + 1) % offsets.size]
+            val dx = abs((to.x - from.x).value)
+            val dy = abs((to.y - from.y).value)
+            assertTrue("step $i moves on one axis only", (dx == 0f) != (dy == 0f))
+            assertEquals("step $i is one 4 dp step", 4f, dx + dy, 0f)
+            // Within the display's 16 dp margin.
+            assertTrue(abs(to.x.value) <= 4f && abs(to.y.value) <= 4f)
+        }
     }
 
     @Test

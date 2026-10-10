@@ -145,7 +145,10 @@ internal fun KioskScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .windowInsetsPadding(WindowInsets.safeDrawing)
-                    .padding(16.dp),
+                    .padding(16.dp)
+                    // A few dp at a time, within that 16 dp margin, so no
+                    // pixel shows the same thing all day (OLED burn-in).
+                    .kioskPixelShift(),
             )
         }
     }
