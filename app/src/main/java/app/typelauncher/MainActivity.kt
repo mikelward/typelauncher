@@ -8,6 +8,7 @@ import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
 import android.content.ComponentCallbacks2
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
 import android.content.pm.LauncherApps
@@ -35,6 +36,10 @@ import androidx.annotation.VisibleForTesting
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import androidx.core.content.getSystemService
 import androidx.core.view.doOnPreDraw
 import androidx.lifecycle.Lifecycle
@@ -386,6 +391,16 @@ class MainActivity : ComponentActivity() {
     // `observeWallpaperShownPreference`.
     private var appliedWallpaperShown = false
 
+    // Power-connected state for kiosk mode's screen-on hold. Fed by the sticky
+    // battery broadcast while the activity is started (see onStart / onStop);
+    // false while stopped, which is fine — the hold only matters on screen.
+    private val isPluggedInFlow = MutableStateFlow(false)
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            isPluggedInFlow.value = isPluggedIn(intent)
+        }
+    }
+
     // Set by `restartForWallpaperWindowMode` so onStop can tell that teardown
     // apart from the user actually leaving. Instance state, not persisted: it
     // only has to survive from finish() to this instance's own onStop.
@@ -519,7 +534,8 @@ class MainActivity : ComponentActivity() {
         val seedTier = computeHomeLandscapeTier()
         viewModel.setHomeLandscapeTier(seedTier)
         applyKeyboardAutoShownPreference(
-            viewModel.uiState.value.isKeyboardAutoShown && seedTier == HomeLandscapeTier.Full,
+            viewModel.uiState.value.isKeyboardAutoShown && seedTier == HomeLandscapeTier.Full &&
+                !viewModel.uiState.value.isKioskDisplayShowing,
         )
         observeKeyboardAutoShownPreference()
         // Apply edge-to-edge with system-bar styling that matches the persisted
@@ -534,6 +550,7 @@ class MainActivity : ComponentActivity() {
         applyWallpaperWindowMode(viewModel.uiState.value.isWallpaperShown)
         appliedWallpaperShown = viewModel.uiState.value.isWallpaperShown
         observeWallpaperShownPreference()
+        observeKioskKeepScreenOn()
         observeHomeReady()
         observeWorkProfileAvailability()
         checkPlayUpdate()
@@ -631,6 +648,16 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         LauncherDebugLog.activityCallback(this, "MainActivity.onStart")
+        // The battery broadcast is sticky, so registering returns the current
+        // status at once and the screen-on hold is right from the first frame.
+        isPluggedInFlow.value = isPluggedIn(
+            ContextCompat.registerReceiver(
+                this,
+                batteryReceiver,
+                IntentFilter(Intent.ACTION_BATTERY_CHANGED),
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            ),
+        )
         // Cancels a background trim that was deferred while the app inventory
         // loaded: the launcher is on screen again, so the cache is back to doing
         // the job its foreground budget is sized for.
@@ -797,6 +824,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        unregisterReceiver(batteryReceiver)
+        isPluggedInFlow.value = false
         LauncherDebugLog.activityCallback(this, "MainActivity.onStop")
         stopListeningSafely()
         if (::viewModel.isInitialized) {
@@ -891,7 +920,11 @@ class MainActivity : ComponentActivity() {
                 // stateAlwaysHidden so retained search focus can't resurrect the
                 // IME, matching Compose's suppressed auto-show. The tier is
                 // pushed into state by the Compose layer (and seeded in onCreate).
-                .map { it.isKeyboardAutoShown && it.homeLandscapeTier == HomeLandscapeTier.Full }
+                .map {
+                    it.isKeyboardAutoShown && it.homeLandscapeTier == HomeLandscapeTier.Full &&
+                        // The kiosk display has no search box to type into.
+                        !it.isKioskDisplayShowing
+                }
                 .distinctUntilChanged()
                 .collect(::applyKeyboardAutoShownPreference)
         }
@@ -956,6 +989,26 @@ class MainActivity : ComponentActivity() {
                 verticalSystemBarsPx = verticalSystemBarsPx,
             ),
         )
+    }
+
+    /**
+     * Holds the screen on while the kiosk display shows and the device is
+     * connected to power, and lets the normal screen timeout back the moment
+     * either stops being true.
+     */
+    private fun observeKioskKeepScreenOn() {
+        lifecycleScope.launch {
+            combine(viewModel.uiState.map { it.isKioskDisplayShowing }, isPluggedInFlow, ::kioskKeepsScreenOn)
+                .distinctUntilChanged()
+                .collect { keepOn ->
+                    if (keepOn) {
+                        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    } else {
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
+                    LauncherDebugLog.event("kioskKeepScreenOn=%s", keepOn)
+                }
+        }
     }
 
     private fun observeThemeModePreference() {

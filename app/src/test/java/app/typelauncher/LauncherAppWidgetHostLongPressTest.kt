@@ -69,6 +69,35 @@ class LauncherAppWidgetHostLongPressTest {
     }
 
     @Test
+    fun longPressWithNoListenerGivesNoHaptic() {
+        // The kiosk display turns widget long-press off (a hold there is the
+        // two-second exit gesture): the half-second timer must not buzz.
+        val view = attachedView()
+        view.setOnWidgetLongPressListener(null)
+
+        view.onInterceptTouchEvent(motionEvent(MotionEvent.ACTION_DOWN))
+        shadowOf(Looper.getMainLooper()).idleFor(longPressTimeout)
+
+        assertEquals(-1, shadowOf(view).lastHapticFeedbackPerformed())
+    }
+
+    @Test
+    fun longPressWithAListenerGivesTheHaptic() {
+        // Control for the test above: the haptic still fires when long-press
+        // is on, so that test can't pass by the shadow never recording one.
+        val view = attachedView()
+        view.setOnWidgetLongPressListener {}
+
+        view.onInterceptTouchEvent(motionEvent(MotionEvent.ACTION_DOWN))
+        shadowOf(Looper.getMainLooper()).idleFor(longPressTimeout)
+
+        assertEquals(
+            android.view.HapticFeedbackConstants.LONG_PRESS,
+            shadowOf(view).lastHapticFeedbackPerformed(),
+        )
+    }
+
+    @Test
     fun childClaimingGestureDisarmsLongPressTimerWhileFingerStaysDown() {
         // Regression: catch a fling and keep the finger down (hold, or drag
         // the caught list). The child claims the gesture at DOWN and every

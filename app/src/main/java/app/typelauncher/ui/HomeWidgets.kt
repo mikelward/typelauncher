@@ -83,6 +83,9 @@ internal fun HomeWidgets(
     onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit,
     onResizeWidgetSpan: (widgetId: Int, span: Int) -> Unit,
     modifier: Modifier = Modifier,
+    // False for the kiosk display: a hold there is the exit gesture, so the
+    // widgets' own long-press (and its haptic) must not fire.
+    widgetLongPressEnabled: Boolean = true,
     // Test seams, forwarded to each HostedWidgetCard (see its docs).
     providerInfoOverride: ((Int) -> AppWidgetProviderInfo?)? = null,
     createWidgetView: ((Context, Int) -> AppWidgetHostView)? = null,
@@ -163,6 +166,7 @@ internal fun HomeWidgets(
                                         resolvedProviderInfos = resolvedProviderInfos,
                                         isCurrentPage = isCurrentPage,
                                         onLongPressOverride = if (isEditing) ({}) else onStartEditing,
+                                        longPressEnabled = widgetLongPressEnabled,
                                         showInlineActions = isEditing,
                                         span = cell.span,
                                         onResizeSpan = { span -> onResizeWidgetSpan(widgetId, span) },

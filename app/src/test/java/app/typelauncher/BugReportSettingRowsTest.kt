@@ -25,6 +25,7 @@ class BugReportSettingRowsTest {
         val store = DockSettingsStore(context)
         store.isKeyboardAutoShown = false
         store.isHomeWidgetsShown = true
+        store.isKioskMode = true
         store.isWallpaperShown = true
         store.themeMode = ThemeMode.Dark
 
@@ -32,6 +33,7 @@ class BugReportSettingRowsTest {
 
         assertEquals("false", rows["Keyboard auto-shown"])
         assertEquals("true", rows["Home widgets shown"])
+        assertEquals("true", rows["Kiosk mode"])
         assertEquals("true", rows["Wallpaper shown"])
         assertEquals("Dark", rows["Theme"])
     }

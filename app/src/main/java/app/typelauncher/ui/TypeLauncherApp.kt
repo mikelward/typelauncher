@@ -309,6 +309,7 @@ internal fun TypeLauncherApp(
             onChangeWallpaper = viewModel::openWallpaperPicker,
             onHomeWidgetsShownChanged = viewModel::setHomeWidgetsShown,
             onEditHomeWidgets = viewModel::startEditingHomeWidgets,
+            onKioskModeChanged = viewModel::setKioskMode,
             onStopEditingHomeWidgets = viewModel::stopEditingHomeWidgets,
             onAddHomeWidget = viewModel::showHomeWidgetPicker,
             onAgendaEnabledChanged = viewModel::setAgendaEnabled,
@@ -412,6 +413,7 @@ internal fun TypeLauncherApp(
     onChangeWallpaper: () -> Unit = {},
     onHomeWidgetsShownChanged: (Boolean) -> Unit = {},
     onEditHomeWidgets: () -> Unit = {},
+    onKioskModeChanged: (Boolean) -> Unit = {},
     onStopEditingHomeWidgets: () -> Unit = {},
     onAddHomeWidget: () -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
@@ -521,7 +523,7 @@ internal fun TypeLauncherApp(
         // In a landscape viewport too short to fit the keyboard we suppress the
         // auto-show, so there is no IME to wait for — gating on the raw setting
         // would stall home-ready until the 1500ms timeout.
-        waitForIme = state.isKeyboardAutoShown && autoShowKeyboardFits,
+        waitForIme = state.isKeyboardAutoShown && autoShowKeyboardFits && !state.isKioskActive,
         onHomeReady = onHomeReady,
     )
     // Cold-start one-frame holdback for the home body (apps grid, dock,
@@ -898,6 +900,7 @@ internal fun TypeLauncherApp(
                         onChangeWallpaper = onChangeWallpaper,
                         onHomeWidgetsShownChanged = onHomeWidgetsShownChanged,
                         onEditHomeWidgets = onEditHomeWidgets,
+                        onKioskModeChanged = onKioskModeChanged,
                         onAgendaEnabledChanged = onAgendaEnabledChanged,
                         onContactSearchEnabledChanged = onContactSearchEnabledChanged,
                         onCalendarSearchEnabledChanged = onCalendarSearchEnabledChanged,
@@ -914,6 +917,19 @@ internal fun TypeLauncherApp(
                         showCrashBanner = state.isCrashBannerVisible,
                         onShareCrash = startCrashReport,
                         onDismissCrash = onDismissCrashBanner,
+                    )
+                } else if (state.isKioskActive) {
+                    KioskScreen(
+                        widgetIds = state.homeWidgetIds,
+                        isHomeReady = state.isHomeReady,
+                        appWidgetHost = appWidgetHost,
+                        appWidgetManager = appWidgetManager,
+                        widgetHeights = state.widgetHeights,
+                        widgetSpans = state.widgetSpans,
+                        widgetProviderLabels = state.widgetProviderLabels,
+                        strandedWidgetIds = state.strandedWidgetIds,
+                        workProfileWidgetRefreshToken = state.workProfileWidgetRefreshToken,
+                        onExitHold = onOpenSettings,
                     )
                 } else {
                     var homeAppListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }

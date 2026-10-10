@@ -716,6 +716,10 @@ internal data class LauncherUiState(
     // where the search box is visible. Defaults off. See `homeWidgetsActive`
     // in `HomeScreen`.
     val isHomeWidgetsShown: Boolean = false,
+    // "Kiosk mode": with Home widgets on, Home shows only its widgets, ignores
+    // touches (a still two-second hold opens Settings), and keeps the screen on
+    // while plugged in. Defaults off. See [isKioskActive].
+    val isKioskMode: Boolean = false,
     // True while Home's widget slot is in edit mode: the slot scrolls, every
     // widget shows inline Move / Resize / Remove controls, and an Add / Done
     // bar sits under the list. Transient — never persisted.
@@ -996,3 +1000,21 @@ internal data class WidgetAddRequest(
     val pageIndex: Int,
     val isCurrentPageScrollable: Boolean,
 )
+
+/**
+ * Whether Home is showing as the kiosk display right now: kiosk mode on, Home
+ * widgets on (they are what the display shows), and not mid-way through
+ * editing them — Settings' "Edit" for Home widgets drops back to the normal
+ * Home so the edit controls are reachable, and Done returns to the display.
+ */
+internal val LauncherUiState.isKioskActive: Boolean
+    get() = isKioskMode && isHomeWidgetsShown && !isEditingHomeWidgets
+
+/**
+ * Whether the kiosk display is on screen right now: [isKioskActive] and
+ * Settings not open over it. The screen-on hold and the hidden keyboard follow
+ * this, so leaving the display for Settings gives the screen its normal
+ * timeout back.
+ */
+internal val LauncherUiState.isKioskDisplayShowing: Boolean
+    get() = isKioskActive && !isSettingsOpen

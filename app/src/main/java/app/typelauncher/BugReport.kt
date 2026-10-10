@@ -351,6 +351,7 @@ internal fun bugReportSettingRows(settings: DockSettingsStore): List<Pair<String
         "Keyboard reservation" to "${reservation.bottomPx}px (${reservation.source.name})",
         "Wallpaper shown" to settings.isWallpaperShown.toString(),
         "Home widgets shown" to settings.isHomeWidgetsShown.toString(),
+        "Kiosk mode" to settings.isKioskMode.toString(),
         "Contact search enabled" to settings.isContactSearchEnabled.toString(),
         "Calendar search enabled" to settings.isCalendarSearchEnabled.toString(),
         "Call method" to settings.callMethod.name,
