@@ -308,6 +308,9 @@ internal open class LauncherAppWidgetHostView(
     internal var hasPendingUpdate: Boolean = false
         private set
     private val checkLongPress = Runnable {
+        // No listener means long-press is off for this widget (the kiosk
+        // display): no haptic, nothing claimed, the touch stays the widget's.
+        if (onWidgetLongPress == null) return@Runnable
         if (parent != null && !hasPerformedLongPress) {
             hasPerformedLongPress = true
             longPressTimerArmedForLogging = false

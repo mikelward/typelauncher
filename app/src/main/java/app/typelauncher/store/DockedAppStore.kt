@@ -594,6 +594,19 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * When on (and Home widgets are on), Home becomes a glanceable display:
+     * only Home's widgets, no touch interaction, screen kept on while plugged
+     * in. Opt-in, so it defaults off.
+     */
+    var isKioskMode: Boolean
+        get() = sharedPreferences.getBoolean(KEY_KIOSK_MODE, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_KIOSK_MODE, value)
+                .apply()
+        }
+
+    /**
      * Last non-navigation-bar-inclusive IME bottom inset reported while the
      * keyboard was opening, paired with the configuration it was measured
      * under and the source that produced it. Used to reserve Home's
@@ -884,6 +897,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
         const val KEY_SHOW_WALLPAPER = "show_wallpaper"
         const val KEY_SHOW_HOME_WIDGETS = "show_home_widgets"
+        const val KEY_KIOSK_MODE = "kiosk_mode"
         // Legacy wallpaper companions ("show_wallpaper_all_pages",
         // "card_opacity") may remain on disk after upgrade but are no longer
         // read: the wallpaper now always backs every page, at full card

@@ -811,6 +811,10 @@ internal fun HostedWidgetCard(
     // where the inline actions below stand in for the menu). Null keeps the
     // widget pages' menu.
     onLongPressOverride: (() -> Unit)? = null,
+    // False turns the widget's long-press off entirely — no menu, no haptic —
+    // for surfaces where a hold means something else (the kiosk display's
+    // two-second exit hold).
+    longPressEnabled: Boolean = true,
     // Shows Move / Resize / Remove as an always-visible row under the widget
     // instead of behind a long-press (Home's widget edit mode). The widget
     // box keeps its composition slot either way, so toggling this never
@@ -1060,7 +1064,9 @@ internal fun HostedWidgetCard(
                             ?: appWidgetHost.createView(context, widgetId, providerInfo)
                         hostView.apply {
                             setAppWidget(widgetId, providerInfo)
-                            if (this is LauncherAppWidgetHostView) {
+                            if (!longPressEnabled) {
+                                if (this is LauncherAppWidgetHostView) setOnWidgetLongPressListener(null)
+                            } else if (this is LauncherAppWidgetHostView) {
                                 setOnWidgetLongPressListener { onWidgetLongPress() }
                             } else {
                                 setOnLongClickListener {
@@ -1110,7 +1116,14 @@ internal fun HostedWidgetCard(
                                 }
                             }
                         }
-                        if (view is LauncherAppWidgetHostView) {
+                        if (!longPressEnabled) {
+                            if (view is LauncherAppWidgetHostView) {
+                                view.setOnWidgetLongPressListener(null)
+                            } else {
+                                view.setOnLongClickListener(null)
+                                view.isLongClickable = false
+                            }
+                        } else if (view is LauncherAppWidgetHostView) {
                             view.setOnWidgetLongPressListener { if (!isResizing) onWidgetLongPress() }
                         } else {
                             view.setOnLongClickListener {

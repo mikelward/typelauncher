@@ -451,6 +451,7 @@ internal class LauncherViewModel(
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
             isWallpaperShown = dockSettingsStore.isWallpaperShown,
             isHomeWidgetsShown = dockSettingsStore.isHomeWidgetsShown,
+            isKioskMode = dockSettingsStore.isKioskMode,
             keyboardReservation = dockSettingsStore.keyboardReservation,
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             isContactSearchEnabled = dockSettingsStore.isContactSearchEnabled,
@@ -1875,6 +1876,31 @@ internal class LauncherViewModel(
             )
         }
         logState("setHomeWidgetsShown=%s", isShown)
+    }
+
+    /**
+     * Turns kiosk mode on or off. Turning it on drops any typed query, open
+     * contact and open recents bar, so leaving kiosk mode later lands on a
+     * clean Home rather than on whatever was mid-way when it was enabled.
+     */
+    fun setKioskMode(enabled: Boolean) {
+        dockSettingsStore.isKioskMode = enabled
+        val hadQuery = _uiState.value.query.isNotEmpty()
+        if (enabled && _uiState.value.contactActionsMode != null) contactResolveToken++
+        _uiState.update {
+            if (enabled) {
+                it.copy(
+                    isKioskMode = true,
+                    query = "",
+                    contactActionsMode = null,
+                    isRecentsOpen = false,
+                )
+            } else {
+                it.copy(isKioskMode = false)
+            }
+        }
+        if (enabled && hadQuery) refreshFilteredApps()
+        logState("setKioskMode=%s", enabled)
     }
 
     /**

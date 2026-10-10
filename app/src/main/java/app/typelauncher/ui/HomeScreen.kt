@@ -6311,6 +6311,8 @@ internal fun HomeWidgetsSettingsRows(
     isHomeWidgetsShown: Boolean,
     onHomeWidgetsShownChanged: (Boolean) -> Unit,
     onEditHomeWidgets: () -> Unit,
+    isKioskMode: Boolean = false,
+    onKioskModeChanged: (Boolean) -> Unit = {},
 ) {
     val editDescription = stringResource(R.string.settings_home_widgets_edit_button_description)
     Row(
@@ -6353,6 +6355,32 @@ internal fun HomeWidgetsSettingsRows(
                 Text(stringResource(R.string.settings_home_widgets_edit_button))
             }
         }
+        // Kiosk mode turns Home into a display of these widgets, so it only
+        // exists while they are on.
+        val context = LocalContext.current
+        val exitHint = stringResource(R.string.kiosk_mode_exit_hint)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.settings_kiosk_mode_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+            Switch(
+                checked = isKioskMode,
+                onCheckedChange = { enabled ->
+                    onKioskModeChanged(enabled)
+                    // The display has no visible way out, so say once how to
+                    // leave it before it takes over.
+                    if (enabled) Toast.makeText(context, exitHint, Toast.LENGTH_LONG).show()
+                },
+                modifier = Modifier.testTag(KIOSK_MODE_SWITCH_TAG),
+            )
+        }
     }
 }
 
@@ -6373,6 +6401,7 @@ internal fun SettingsScreen(
     onChangeWallpaper: () -> Unit = {},
     onHomeWidgetsShownChanged: (Boolean) -> Unit = {},
     onEditHomeWidgets: () -> Unit = {},
+    onKioskModeChanged: (Boolean) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     // "Search contacts" / "Search calendar events". Enabling routes through
     // MainActivity's permission request first; the persisted flag (and this
@@ -6737,6 +6766,8 @@ internal fun SettingsScreen(
                     isHomeWidgetsShown = state.isHomeWidgetsShown,
                     onHomeWidgetsShownChanged = onHomeWidgetsShownChanged,
                     onEditHomeWidgets = onEditHomeWidgets,
+                    isKioskMode = state.isKioskMode,
+                    onKioskModeChanged = onKioskModeChanged,
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),

@@ -195,6 +195,42 @@ class WallpaperAllPagesScreenshotTest {
     }
 
     @Test
+    fun kioskScreen_showsOnlyTheHomeWidgets() {
+        val host = LauncherAppWidgetHost(composeRule.activity, /* hostId = */ 0)
+        val providerInfo = AppWidgetProviderInfo().apply {
+            provider = ComponentName("com.example.widget", "SampleProvider")
+            minWidth = 100
+            minHeight = 100
+            targetCellWidth = 2
+            targetCellHeight = 2
+        }
+        composeRule.setContent {
+            TypeLauncherTheme(themeMode = ThemeMode.Light, dynamicColor = false) {
+                GradientWallpaperStandIn {
+                    KioskScreen(
+                        widgetIds = listOf(1, 2, 3),
+                        isHomeReady = true,
+                        appWidgetHost = host,
+                        appWidgetManager = null,
+                        widgetHeights = mapOf(1 to 160, 2 to 160, 3 to 120),
+                        widgetSpans = mapOf(1 to 2, 2 to 2),
+                        widgetProviderLabels = emptyMap(),
+                        strandedWidgetIds = emptySet(),
+                        workProfileWidgetRefreshToken = 0,
+                        onExitHold = {},
+                        providerInfoOverride = { providerInfo },
+                        createWidgetView = { viewContext, widgetId -> StandInWidgetView(viewContext, host, widgetId) },
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:3").assertExists()
+
+        capture("compose_kiosk_screen_robolectric.png")
+    }
+
+    @Test
     fun homeWidgets_mixedWidths_overWallpaper() {
         val host = LauncherAppWidgetHost(composeRule.activity, /* hostId = */ 0)
         val providerInfo = AppWidgetProviderInfo().apply {
@@ -291,6 +327,7 @@ class WallpaperAllPagesScreenshotTest {
                             isHomeWidgetsShown = true,
                             onHomeWidgetsShownChanged = {},
                             onEditHomeWidgets = {},
+                            isKioskMode = true,
                         )
                     }
                 }
@@ -298,6 +335,7 @@ class WallpaperAllPagesScreenshotTest {
         }
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(EDIT_HOME_WIDGETS_BUTTON_TAG).assertExists()
+        composeRule.onNodeWithTag(KIOSK_MODE_SWITCH_TAG).assertExists()
 
         capture("compose_home_widgets_settings_light_robolectric.png", heightPx = 400)
     }
