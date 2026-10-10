@@ -12,7 +12,14 @@ import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
+import android.app.KeyguardManager
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.robolectric.Shadows.shadowOf
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -32,7 +39,10 @@ class KioskScreenTest {
 
     private var exitHolds = 0
 
-    private fun setKiosk(dimWhenIdle: Boolean = false) {
+    private fun setKiosk(
+        dimWhenIdle: Boolean = false,
+        unlockThen: (action: () -> Unit) -> Unit = { it() },
+    ) {
         composeRule.setContent {
             TypeLauncherTheme {
                 KioskScreen(
@@ -48,6 +58,7 @@ class KioskScreenTest {
                     onExitHold = { exitHolds += 1 },
                     dimWhenIdle = dimWhenIdle,
                     motionWatcher = {},
+                    unlockThen = unlockThen,
                 )
             }
         }
@@ -181,6 +192,75 @@ class KioskScreenTest {
         composeRule.mainClock.advanceTimeBy(KIOSK_DIM_AFTER_MS * 3)
 
         assertEquals(BRIGHTNESS_NONE, brightness(), 0f)
+    }
+
+    @Test
+    fun theDisplayShowsOverTheLockScreenOnlyWhileItIsUp() {
+        var showing by mutableStateOf(true)
+        composeRule.setContent {
+            TypeLauncherTheme {
+                if (showing) {
+                    KioskScreen(
+                        widgetIds = emptyList(),
+                        isHomeReady = true,
+                        appWidgetHost = null,
+                        appWidgetManager = null,
+                        widgetHeights = emptyMap(),
+                        widgetSpans = emptyMap(),
+                        widgetProviderLabels = emptyMap(),
+                        strandedWidgetIds = emptySet(),
+                        workProfileWidgetRefreshToken = 0,
+                        onExitHold = {},
+                        motionWatcher = {},
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        assertTrue(shadowOf(composeRule.activity).showWhenLocked)
+
+        showing = false
+        composeRule.waitForIdle()
+        assertFalse(shadowOf(composeRule.activity).showWhenLocked)
+    }
+
+    @Test
+    fun theHoldOpensSettingsOnlyOnceTheUnlockSucceeds() {
+        var pendingUnlock: (() -> Unit)? = null
+        setKiosk(unlockThen = { pendingUnlock = it })
+        composeRule.onNodeWithTag(KIOSK_SCREEN_TAG).performTouchInput {
+            down(center)
+            advanceEventTime(KIOSK_EXIT_HOLD_MS + 100)
+            up()
+        }
+        composeRule.waitForIdle()
+        assertEquals("Settings waits for the unlock", 0, exitHolds)
+
+        pendingUnlock!!.invoke()
+        assertEquals(1, exitHolds)
+    }
+
+    @Test
+    fun unlockThenRunsAtOnceWhenTheDeviceIsUnlocked() {
+        val keyguard = composeRule.activity.getSystemService(KeyguardManager::class.java)
+        shadowOf(keyguard).setKeyguardLocked(false)
+        var ran = 0
+
+        unlockThen(composeRule.activity) { ran += 1 }
+
+        assertEquals(1, ran)
+    }
+
+    @Test
+    fun unlockThenWaitsWhenTheDeviceIsLocked() {
+        val keyguard = composeRule.activity.getSystemService(KeyguardManager::class.java)
+        shadowOf(keyguard).setKeyguardLocked(true)
+        var ran = 0
+
+        unlockThen(composeRule.activity) { ran += 1 }
+        composeRule.waitForIdle()
+
+        assertEquals("nothing runs before the system reports the unlock", 0, ran)
     }
 
     private fun brightness(): Float = composeRule.activity.window.attributes.screenBrightness
