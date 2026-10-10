@@ -1,14 +1,17 @@
 package app.typelauncher
 
 import android.app.Activity
+import android.appwidget.AppWidgetManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.pm.LauncherApps
 import android.net.Uri
 import android.os.Build
+import android.os.Process
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.mikelward.androidlog.DebugLog
@@ -220,12 +223,47 @@ internal object BugReport {
             dockedAppIds = dockedApps,
             widgetPages = widgetStore.widgetPages,
             homeWidgetIds = widgetStore.homeWidgetIds,
+            widgetProviders = widgetProviderLines(context, widgetStore),
             log = log,
             iconCache = AppIconLoader.cacheStats(),
             previousRun = previousRun?.text,
             appListChanges = appListEvents.lines(),
         )
         return CollectedReport(text, previousRun)
+    }
+
+    /**
+     * Each tracked widget's provider, as the platform has it bound now — which
+     * is what decides what the widget shows — beside the provider the launcher
+     * remembered at add time where the two differ. Both name the profile kind
+     * as well as the component, so a work widget a restore bound to the
+     * personal copy of the same provider shows as the mismatch it is. Runs on
+     * the collection path (off the main thread): a `getAppWidgetInfo` IPC and a
+     * profile-kind lookup per widget.
+     */
+    private fun widgetProviderLines(context: Context, widgetStore: WidgetStore): Map<Int, String> {
+        val manager = AppWidgetManager.getInstance(context)
+        val launcherApps = context.getSystemService(LauncherApps::class.java)
+        val personalUser = Process.myUserHandle()
+        return widgetStore.widgetIds.associateWith { id ->
+            val remembered = widgetStore.providerRecord(id)?.let { record ->
+                widgetIdentity(record.component.flattenToShortString(), record.profileKind)
+            }
+            val bound = try {
+                manager?.getAppWidgetInfo(id)?.let { info ->
+                    widgetIdentity(
+                        info.provider.flattenToShortString(),
+                        launcherApps.widgetProfileKind(info.profile, personalUser),
+                    )
+                }
+            } catch (exception: RuntimeException) {
+                // A Binder or profile transition: say the lookup failed rather
+                // than reporting a binding state nobody observed.
+                LauncherDebugLog.failure(exception, "BugReport provider lookup failed id=%s", id)
+                return@associateWith describeWidgetProvider(bound = null, remembered = remembered, lookupFailed = true)
+            }
+            describeWidgetProvider(bound, remembered)
+        }
     }
 
     private suspend fun captureAndPersistScreenshot(activity: Activity): Uri? {
@@ -388,6 +426,7 @@ internal fun buildBugReportPayload(
     log: List<String>,
     otherSettings: List<Pair<String, String>> = emptyList(),
     homeWidgetIds: List<Int> = emptyList(),
+    widgetProviders: Map<Int, String> = emptyMap(),
     previousRun: String? = null,
     iconCache: AppIconLoader.CacheStats? = null,
     appListChanges: List<String> = emptyList(),
@@ -433,6 +472,10 @@ internal fun buildBugReportPayload(
             appendLine("  Page ${index + 1}: ${if (pageIds.isEmpty()) "(empty)" else pageIds.joinToString()}")
         }
         appendLine("Home widgets (${homeWidgetIds.size}): ${if (homeWidgetIds.isEmpty()) "(none)" else homeWidgetIds.joinToString()}")
+        if (widgetProviders.isNotEmpty()) {
+            appendLine("Widget providers:")
+            widgetProviders.forEach { (id, provider) -> appendLine("  $id: $provider") }
+        }
         // Read live at capture rather than recovered from the log: the counters
         // used to be flushed into the ring buffer every 50 lookups, which
         // dominated it and evicted the very context the report is read for.
@@ -601,3 +644,31 @@ private const val MAX_FAILURE_MESSAGE_CHARS = 300
  * — a settings dump reads fine truncated, a truncated log tail loses events.
  */
 private const val MAX_STRUCTURED_CHARS = 14_000
+
+/**
+ * A provider as the report names it: the flattened [component], plus the
+ * profile [kind] when it is anything but the personal user's. An unknown kind
+ * (a profile that couldn't be classified, or a record written before kinds
+ * existed) says so rather than reading as personal, which would hide a
+ * cross-profile misbinding behind a clean-looking match.
+ */
+internal fun widgetIdentity(component: String, kind: WidgetProfileKind?): String = when (kind) {
+    WidgetProfileKind.PERSONAL -> component
+    null -> "$component [profile unknown]"
+    else -> "$component [${kind.token}]"
+}
+
+/**
+ * One widget's line in the report: the [bound] provider, with the
+ * [remembered] one alongside when they differ; "unbound" when the platform
+ * has no binding for the ID, or "lookup failed" when asking it threw.
+ */
+internal fun describeWidgetProvider(bound: String?, remembered: String?, lookupFailed: Boolean = false): String {
+    val rememberedSuffix = remembered?.let { " (remembered $it)" } ?: ""
+    return when {
+        lookupFailed -> "lookup failed$rememberedSuffix"
+        bound == null -> "unbound$rememberedSuffix"
+        remembered == null || remembered == bound -> bound
+        else -> "$bound$rememberedSuffix"
+    }
+}
