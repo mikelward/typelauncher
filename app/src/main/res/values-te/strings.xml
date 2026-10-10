@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">హోమ్ విడ్జెట్‌లు</string>
     <string name="settings_home_widgets_edit_button">సవరించు</string>
     <string name="settings_home_widgets_edit_button_description">హోమ్ విడ్జెట్‌లను సవరించు</string>
+    <string name="settings_kiosk_mode_title">కియోస్క్ మోడ్</string>
+    <string name="kiosk_mode_exit_hint">సెట్టింగ్‌లను తెరవడానికి స్క్రీన్‌ను 2 సెకన్ల పాటు నొక్కి ఉంచండి</string>
+    <string name="settings_kiosk_dim_when_idle_title">కెమెరాతో మేల్కొలపండి</string>
     <string name="settings_wallpaper_picker_unavailable">వాల్‌పేపర్ ఎంపిక సాధనం అందుబాటులో లేదు</string>
     <string name="play_update_banner_restart_failed">ఇన్‌స్టాల్ చేయడానికి రీస్టార్ట్ చేయడం సాధ్యపడలేదు</string>
     <string name="scroll_up_for_more_hint">మరిన్నింటి కోసం పైకి స్క్రోల్ చేయండి</string>

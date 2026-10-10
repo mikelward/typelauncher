@@ -172,6 +172,9 @@
     <string name="settings_home_widgets_edit_title">Tiện ích màn hình chính</string>
     <string name="settings_home_widgets_edit_button">Chỉnh sửa</string>
     <string name="settings_home_widgets_edit_button_description">Chỉnh sửa tiện ích màn hình chính</string>
+    <string name="settings_kiosk_mode_title">Chế độ kiosk</string>
+    <string name="kiosk_mode_exit_hint">Nhấn giữ màn hình trong 2 giây để mở Cài đặt</string>
+    <string name="settings_kiosk_dim_when_idle_title">Đánh thức bằng camera</string>
     <string name="settings_wallpaper_picker_unavailable">Không có ứng dụng chọn hình nền</string>
     <string name="play_update_banner_restart_failed">Không thể khởi động lại để cài đặt</string>
     <string name="scroll_up_for_more_hint">Cuộn lên để xem thêm</string>

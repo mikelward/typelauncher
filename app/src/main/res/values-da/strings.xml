@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">Startskærmswidgets</string>
     <string name="settings_home_widgets_edit_button">Rediger</string>
     <string name="settings_home_widgets_edit_button_description">Rediger startskærmswidgets</string>
+    <string name="settings_kiosk_mode_title">Kiosktilstand</string>
+    <string name="kiosk_mode_exit_hint">Hold skærmen nede i 2 sekunder for at åbne Indstillinger</string>
+    <string name="settings_kiosk_dim_when_idle_title">Væk skærmen med kameraet</string>
     <string name="settings_wallpaper_picker_unavailable">Baggrundsvælger er ikke tilgængelig</string>
     <string name="play_update_banner_restart_failed">Kunne ikke genstarte for at installere</string>
     <string name="scroll_up_for_more_hint">Rul op for at se mere</string>

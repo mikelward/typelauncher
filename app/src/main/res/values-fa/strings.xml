@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">ابزارک‌های صفحه خانه</string>
     <string name="settings_home_widgets_edit_button">ویرایش</string>
     <string name="settings_home_widgets_edit_button_description">ویرایش ابزارک‌های صفحه خانه</string>
+    <string name="settings_kiosk_mode_title">حالت کیوسک</string>
+    <string name="kiosk_mode_exit_hint">برای باز کردن تنظیمات، صفحه را ۲ ثانیه نگه دارید</string>
+    <string name="settings_kiosk_dim_when_idle_title">بیدار شدن با دوربین</string>
     <string name="settings_wallpaper_picker_unavailable">انتخابگر کاغذدیواری در دسترس نیست</string>
     <string name="play_update_banner_restart_failed">راه‌اندازی مجدد برای نصب ممکن نشد</string>
     <string name="scroll_up_for_more_hint">برای دیدن موارد بیشتر به بالا بروید</string>

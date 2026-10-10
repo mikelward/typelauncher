@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">முகப்பு விட்ஜெட்டுகள்</string>
     <string name="settings_home_widgets_edit_button">திருத்து</string>
     <string name="settings_home_widgets_edit_button_description">முகப்பு விட்ஜெட்டுகளைத் திருத்து</string>
+    <string name="settings_kiosk_mode_title">கியோஸ்க் பயன்முறை</string>
+    <string name="kiosk_mode_exit_hint">அமைப்புகளைத் திறக்க திரையை 2 விநாடிகள் அழுத்திப் பிடிக்கவும்</string>
+    <string name="settings_kiosk_dim_when_idle_title">கேமரா மூலம் எழுப்பு</string>
     <string name="settings_wallpaper_picker_unavailable">வால்பேப்பர் தேர்வி கிடைக்கவில்லை</string>
     <string name="play_update_banner_restart_failed">நிறுவுவதற்கு மறுதொடக்கம் செய்ய முடியவில்லை</string>
     <string name="scroll_up_for_more_hint">மேலும் பார்க்க மேலே ஸ்க்ரோல் செய்யவும்</string>

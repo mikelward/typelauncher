@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">Джаджи на началния екран</string>
     <string name="settings_home_widgets_edit_button">Редактирай</string>
     <string name="settings_home_widgets_edit_button_description">Редактирай джаджите на началния екран</string>
+    <string name="settings_kiosk_mode_title">Режим на павилион</string>
+    <string name="kiosk_mode_exit_hint">Задръжте екрана за 2 секунди, за да отворите Настройки</string>
+    <string name="settings_kiosk_dim_when_idle_title">Събуждане чрез камерата</string>
     <string name="settings_wallpaper_picker_unavailable">Няма приложение за тапети</string>
     <string name="play_update_banner_restart_failed">Рестартирането за инсталиране не бе успешно</string>
     <string name="scroll_up_for_more_hint">Превъртете нагоре за още</string>

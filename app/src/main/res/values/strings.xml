@@ -159,12 +159,9 @@
     <string name="settings_home_widgets_edit_title">Home widgets</string>
     <string name="settings_home_widgets_edit_button">Edit</string>
     <string name="settings_home_widgets_edit_button_description">Edit home widgets</string>
-    <!-- TODO: translate -->
-    <string name="settings_kiosk_mode_title" tools:ignore="MissingTranslation">Kiosk mode</string>
-    <!-- TODO: translate -->
-    <string name="kiosk_mode_exit_hint" tools:ignore="MissingTranslation">Hold the screen for 2 seconds to open Settings</string>
-    <!-- TODO: translate -->
-    <string name="settings_kiosk_dim_when_idle_title" tools:ignore="MissingTranslation">Wake up using camera</string>
+    <string name="settings_kiosk_mode_title">Kiosk mode</string>
+    <string name="kiosk_mode_exit_hint">Hold the screen for 2 seconds to open Settings</string>
+    <string name="settings_kiosk_dim_when_idle_title">Wake up using camera</string>
     <string name="settings_wallpaper_picker_unavailable">Wallpaper picker unavailable</string>
     <string name="settings_show_agenda_title">Show agenda</string>
     <string name="settings_search_contacts_title">Search contacts</string>

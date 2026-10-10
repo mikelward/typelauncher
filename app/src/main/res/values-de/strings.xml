@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">Startbildschirm-Widgets</string>
     <string name="settings_home_widgets_edit_button">Bearbeiten</string>
     <string name="settings_home_widgets_edit_button_description">Startbildschirm-Widgets bearbeiten</string>
+    <string name="settings_kiosk_mode_title">Kioskmodus</string>
+    <string name="kiosk_mode_exit_hint">Bildschirm 2 Sekunden gedrückt halten, um die Einstellungen zu öffnen</string>
+    <string name="settings_kiosk_dim_when_idle_title">Mit Kamera aufwecken</string>
     <string name="settings_wallpaper_picker_unavailable">Keine App für Hintergrundbilder</string>
     <string name="play_update_banner_restart_failed">Neustart zur Installation nicht möglich</string>
     <string name="scroll_up_for_more_hint">Nach oben scrollen für mehr</string>

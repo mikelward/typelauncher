@@ -175,6 +175,9 @@
     <string name="settings_home_widgets_edit_title">Виджеты главного экрана</string>
     <string name="settings_home_widgets_edit_button">Изменить</string>
     <string name="settings_home_widgets_edit_button_description">Изменить виджеты главного экрана</string>
+    <string name="settings_kiosk_mode_title">Режим киоска</string>
+    <string name="kiosk_mode_exit_hint">Удерживайте экран 2 секунды, чтобы открыть Настройки</string>
+    <string name="settings_kiosk_dim_when_idle_title">Пробуждение по камере</string>
     <string name="settings_wallpaper_picker_unavailable">Приложение для обоев недоступно</string>
     <string name="play_update_banner_restart_failed">Не удалось перезапустить для установки</string>
     <string name="scroll_up_for_more_hint">Прокрутите вверх, чтобы увидеть больше</string>

@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">Γραφικά στοιχεία αρχικής οθόνης</string>
     <string name="settings_home_widgets_edit_button">Επεξεργασία</string>
     <string name="settings_home_widgets_edit_button_description">Επεξεργασία γραφικών στοιχείων αρχικής οθόνης</string>
+    <string name="settings_kiosk_mode_title">Λειτουργία περιπτέρου</string>
+    <string name="kiosk_mode_exit_hint">Πατήστε παρατεταμένα την οθόνη για 2 δευτερόλεπτα για να ανοίξουν οι Ρυθμίσεις</string>
+    <string name="settings_kiosk_dim_when_idle_title">Αφύπνιση με την κάμερα</string>
     <string name="settings_wallpaper_picker_unavailable">Η επιλογή ταπετσαρίας δεν είναι διαθέσιμη</string>
     <string name="play_update_banner_restart_failed">Δεν ήταν δυνατή η επανεκκίνηση για εγκατάσταση</string>
     <string name="scroll_up_for_more_hint">Κάντε κύλιση προς τα πάνω για περισσότερα</string>

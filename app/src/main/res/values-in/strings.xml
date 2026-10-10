@@ -172,6 +172,9 @@
     <string name="settings_home_widgets_edit_title">Widget layar beranda</string>
     <string name="settings_home_widgets_edit_button">Ubah</string>
     <string name="settings_home_widgets_edit_button_description">Ubah widget layar beranda</string>
+    <string name="settings_kiosk_mode_title">Mode kios</string>
+    <string name="kiosk_mode_exit_hint">Tahan layar selama 2 detik untuk membuka Pengaturan</string>
+    <string name="settings_kiosk_dim_when_idle_title">Bangunkan dengan kamera</string>
     <string name="settings_wallpaper_picker_unavailable">Pemilih wallpaper tidak tersedia</string>
     <string name="play_update_banner_restart_failed">Tidak dapat memulai ulang untuk menginstal</string>
     <string name="scroll_up_for_more_hint">Scroll ke atas untuk melihat lainnya</string>

@@ -172,6 +172,9 @@
     <string name="settings_home_widgets_edit_title">主畫面小工具</string>
     <string name="settings_home_widgets_edit_button">編輯</string>
     <string name="settings_home_widgets_edit_button_description">編輯主畫面小工具</string>
+    <string name="settings_kiosk_mode_title">Kiosk 模式</string>
+    <string name="kiosk_mode_exit_hint">按住螢幕 2 秒即可開啟設定</string>
+    <string name="settings_kiosk_dim_when_idle_title">使用相機喚醒</string>
     <string name="settings_wallpaper_picker_unavailable">桌布選擇器無法使用</string>
     <string name="play_update_banner_restart_failed">無法重新啟動以安裝</string>
     <string name="scroll_up_for_more_hint">向上捲動即可查看更多</string>

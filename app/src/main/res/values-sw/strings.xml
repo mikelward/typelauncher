@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">Wijeti za skrini ya nyumbani</string>
     <string name="settings_home_widgets_edit_button">Hariri</string>
     <string name="settings_home_widgets_edit_button_description">Hariri wijeti za skrini ya nyumbani</string>
+    <string name="settings_kiosk_mode_title">Hali ya kioski</string>
+    <string name="kiosk_mode_exit_hint">Shikilia skrini kwa sekunde 2 ili kufungua Mipangilio</string>
+    <string name="settings_kiosk_dim_when_idle_title">Amsha kwa kamera</string>
     <string name="settings_wallpaper_picker_unavailable">Kichagua mandharinyuma hakipatikani</string>
     <string name="play_update_banner_restart_failed">Imeshindwa kuwasha upya ili kusakinisha</string>
     <string name="scroll_up_for_more_hint">Sogeza juu ili uone zaidi</string>

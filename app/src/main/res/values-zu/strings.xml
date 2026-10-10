@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">Amawijethi asekhaya</string>
     <string name="settings_home_widgets_edit_button">Hlela</string>
     <string name="settings_home_widgets_edit_button_description">Hlela amawijethi asekhaya</string>
+    <string name="settings_kiosk_mode_title">Imodi yekhiyoski</string>
+    <string name="kiosk_mode_exit_hint">Bamba isikrini imizuzwana emi-2 ukuze uvule Izilungiselelo</string>
+    <string name="settings_kiosk_dim_when_idle_title">Vusa usebenzisa ikhamera</string>
     <string name="settings_wallpaper_picker_unavailable">Isikhethi sesithombe sangemuva asitholakali</string>
     <string name="play_update_banner_restart_failed">Ayikwazanga ukuqala kabusha ukuze ifakwe</string>
     <string name="scroll_up_for_more_hint">Skrolela phezulu ukuze ubone okwengeziwe</string>

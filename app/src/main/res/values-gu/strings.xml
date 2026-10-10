@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">હોમ વિજેટ</string>
     <string name="settings_home_widgets_edit_button">ફેરફાર કરો</string>
     <string name="settings_home_widgets_edit_button_description">હોમ વિજેટમાં ફેરફાર કરો</string>
+    <string name="settings_kiosk_mode_title">કિઓસ્ક મોડ</string>
+    <string name="kiosk_mode_exit_hint">સેટિંગ્સ ખોલવા માટે સ્ક્રીનને 2 સેકન્ડ દબાવી રાખો</string>
+    <string name="settings_kiosk_dim_when_idle_title">કૅમેરા વડે જાગૃત કરો</string>
     <string name="settings_wallpaper_picker_unavailable">વૉલપેપર પિકર ઉપલબ્ધ નથી</string>
     <string name="play_update_banner_restart_failed">ઇન્સ્ટૉલ કરવા ફરી ચાલુ કરી શકાયું નથી</string>
     <string name="scroll_up_for_more_hint">વધુ માટે ઉપર સ્ક્રોલ કરો</string>

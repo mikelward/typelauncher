@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">ಮುಖಪುಟ ವಿಜೆಟ್‌ಗಳು</string>
     <string name="settings_home_widgets_edit_button">ಸಂಪಾದಿಸಿ</string>
     <string name="settings_home_widgets_edit_button_description">ಮುಖಪುಟ ವಿಜೆಟ್‌ಗಳನ್ನು ಸಂಪಾದಿಸಿ</string>
+    <string name="settings_kiosk_mode_title">ಕಿಯೋಸ್ಕ್ ಮೋಡ್</string>
+    <string name="kiosk_mode_exit_hint">ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ತೆರೆಯಲು ಸ್ಕ್ರೀನ್ ಅನ್ನು 2 ಸೆಕೆಂಡುಗಳ ಕಾಲ ಒತ್ತಿ ಹಿಡಿಯಿರಿ</string>
+    <string name="settings_kiosk_dim_when_idle_title">ಕ್ಯಾಮರಾ ಬಳಸಿ ಎಚ್ಚರಗೊಳಿಸಿ</string>
     <string name="settings_wallpaper_picker_unavailable">ವಾಲ್‌ಪೇಪರ್ ಆಯ್ಕೆಗಾರ ಲಭ್ಯವಿಲ್ಲ</string>
     <string name="play_update_banner_restart_failed">ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲು ಮರುಪ್ರಾರಂಭಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ</string>
     <string name="scroll_up_for_more_hint">ಇನ್ನಷ್ಟಕ್ಕಾಗಿ ಮೇಲಕ್ಕೆ ಸ್ಕ್ರಾಲ್ ಮಾಡಿ</string>
