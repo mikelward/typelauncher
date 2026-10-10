@@ -12,6 +12,13 @@ import kotlin.math.abs
 internal const val KIOSK_DIM_AFTER_MS = 60_000L
 
 /**
+ * After the camera sees motion it turns off for this long: half the dim
+ * timeout, so it is back watching well before the display would dim, and the
+ * camera is off about half the time while someone is around.
+ */
+internal const val KIOSK_MOTION_REST_MS = KIOSK_DIM_AFTER_MS / 2
+
+/**
  * Window brightness while dimmed: low enough to stop lighting the room, high
  * enough that the widgets stay faintly readable up close. A fraction of the
  * panel's range, as `WindowManager.LayoutParams.screenBrightness` takes it.
@@ -33,15 +40,25 @@ internal class KioskMotionDetector(
     private val cellThreshold: Int = 24,
     // Motion when at least this share of cells changed at once.
     private val changedFraction: Float = 0.04f,
+    // Frames ignored after the camera starts, while its auto-exposure settles:
+    // the brightness swings then would read as motion, and since the camera
+    // restarts after every rest, that would keep the display awake for good.
+    private val warmupFrames: Int = 5,
 ) {
     private var previous: IntArray? = null
+    private var framesSeen = 0
 
     /**
      * Feeds one frame's luma plane: [width]×[height] samples, each row
      * [rowStride] bytes apart. Returns true when it differs enough from the
-     * previous frame to count as motion. The first frame only sets a baseline.
+     * previous frame to count as motion. The first [warmupFrames] frames are
+     * skipped and the next one only sets a baseline.
      */
     fun onFrame(luma: ByteArray, width: Int, height: Int, rowStride: Int): Boolean {
+        if (framesSeen < warmupFrames) {
+            framesSeen++
+            return false
+        }
         val grid = cellAverages(luma, width, height, rowStride)
         val last = previous
         previous = grid
