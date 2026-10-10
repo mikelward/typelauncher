@@ -175,6 +175,9 @@
     <string name="settings_home_widgets_edit_title">Pagrindinio ekrano valdikliai</string>
     <string name="settings_home_widgets_edit_button">Redaguoti</string>
     <string name="settings_home_widgets_edit_button_description">Redaguoti pagrindinio ekrano valdiklius</string>
+    <string name="settings_kiosk_mode_title">Kiosko režimas</string>
+    <string name="kiosk_mode_exit_hint">Palaikykite ekraną 2 sekundes, kad atidarytumėte Nustatymus</string>
+    <string name="settings_kiosk_dim_when_idle_title">Pažadinti fotoaparatu</string>
     <string name="settings_wallpaper_picker_unavailable">Fono parinkiklis nepasiekiamas</string>
     <string name="play_update_banner_restart_failed">Nepavyko paleisti iš naujo, kad būtų įdiegta</string>
     <string name="scroll_up_for_more_hint">Slinkite aukštyn, kad pamatytumėte daugiau</string>

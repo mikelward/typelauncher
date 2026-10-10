@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">Aloitusnäytön widgetit</string>
     <string name="settings_home_widgets_edit_button">Muokkaa</string>
     <string name="settings_home_widgets_edit_button_description">Muokkaa aloitusnäytön widgetejä</string>
+    <string name="settings_kiosk_mode_title">Kioskitila</string>
+    <string name="kiosk_mode_exit_hint">Avaa Asetukset painamalla näyttöä 2 sekunnin ajan</string>
+    <string name="settings_kiosk_dim_when_idle_title">Herätä kameralla</string>
     <string name="settings_wallpaper_picker_unavailable">Taustakuvan valitsin ei ole käytettävissä</string>
     <string name="play_update_banner_restart_failed">Uudelleenkäynnistys asennusta varten epäonnistui</string>
     <string name="scroll_up_for_more_hint">Vieritä ylös nähdäksesi lisää</string>

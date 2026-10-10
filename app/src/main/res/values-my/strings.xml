@@ -172,6 +172,9 @@
     <string name="settings_home_widgets_edit_title">ပင်မ ဝစ်ဂျက်များ</string>
     <string name="settings_home_widgets_edit_button">တည်းဖြတ်မည်</string>
     <string name="settings_home_widgets_edit_button_description">ပင်မ ဝစ်ဂျက်များကို တည်းဖြတ်မည်</string>
+    <string name="settings_kiosk_mode_title">ကီယော့စ်မုဒ်</string>
+    <string name="kiosk_mode_exit_hint">ဆက်တင်များ ဖွင့်ရန် စခရင်ကို ၂ စက္ကန့် ဖိထားပါ</string>
+    <string name="settings_kiosk_dim_when_idle_title">ကင်မရာဖြင့် နှိုးပါ</string>
     <string name="settings_wallpaper_picker_unavailable">နောက်ခံပုံ ရွေးချယ်စနစ် မရနိုင်ပါ</string>
     <string name="play_update_banner_restart_failed">ထည့်သွင်းရန် ပြန်စတင်၍ မရပါ</string>
     <string name="scroll_up_for_more_hint">နောက်ထပ်ကြည့်ရန် အပေါ်သို့ ရွှေ့ပါ</string>

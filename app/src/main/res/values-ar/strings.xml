@@ -177,6 +177,9 @@
     <string name="settings_home_widgets_edit_title">أدوات الشاشة الرئيسية</string>
     <string name="settings_home_widgets_edit_button">تعديل</string>
     <string name="settings_home_widgets_edit_button_description">تعديل أدوات الشاشة الرئيسية</string>
+    <string name="settings_kiosk_mode_title">وضع الكشك</string>
+    <string name="kiosk_mode_exit_hint">اضغط مع الاستمرار على الشاشة لمدة ثانيتين لفتح الإعدادات</string>
+    <string name="settings_kiosk_dim_when_idle_title">التنشيط باستخدام الكاميرا</string>
     <string name="settings_wallpaper_picker_unavailable">منتقي الخلفية غير متوفر</string>
     <string name="play_update_banner_restart_failed">تعذّرت إعادة التشغيل للتثبيت</string>
     <string name="scroll_up_for_more_hint">مرِّر لأعلى لعرض المزيد</string>

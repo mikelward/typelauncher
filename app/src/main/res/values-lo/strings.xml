@@ -172,6 +172,9 @@
     <string name="settings_home_widgets_edit_title">ວິດເຈັດໜ້າຈໍຫຼັກ</string>
     <string name="settings_home_widgets_edit_button">ແກ້ໄຂ</string>
     <string name="settings_home_widgets_edit_button_description">ແກ້ໄຂວິດເຈັດໜ້າຈໍຫຼັກ</string>
+    <string name="settings_kiosk_mode_title">ໂໝດຄີອອສ</string>
+    <string name="kiosk_mode_exit_hint">ກົດໜ້າຈໍຄ້າງໄວ້ 2 ວິນາທີເພື່ອເປີດການຕັ້ງຄ່າ</string>
+    <string name="settings_kiosk_dim_when_idle_title">ປຸກດ້ວຍກ້ອງຖ່າຍຮູບ</string>
     <string name="settings_wallpaper_picker_unavailable">ບໍ່ມີຕົວເລືອກພາບພື້ນຫຼັງ</string>
     <string name="play_update_banner_restart_failed">ບໍ່ສາມາດເລີ່ມຕົ້ນໃໝ່ເພື່ອຕິດຕັ້ງໄດ້</string>
     <string name="scroll_up_for_more_hint">ເລື່ອນຂຶ້ນເພື່ອເບິ່ງເພີ່ມເຕີມ</string>

@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">Hasiera-pantailako widgetak</string>
     <string name="settings_home_widgets_edit_button">Editatu</string>
     <string name="settings_home_widgets_edit_button_description">Editatu hasiera-pantailako widgetak</string>
+    <string name="settings_kiosk_mode_title">Kiosko modua</string>
+    <string name="kiosk_mode_exit_hint">Ezarpenak irekitzeko, eduki sakatuta pantaila 2 segundoz</string>
+    <string name="settings_kiosk_dim_when_idle_title">Esnatu kamerarekin</string>
     <string name="settings_wallpaper_picker_unavailable">Horma-paper hautatzailea ez dago erabilgarri</string>
     <string name="play_update_banner_restart_failed">Ezin izan da berrabiarazi instalatzeko</string>
     <string name="scroll_up_for_more_hint">Egin gora gehiago ikusteko</string>

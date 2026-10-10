@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">Tuisskerm-legstukke</string>
     <string name="settings_home_widgets_edit_button">Wysig</string>
     <string name="settings_home_widgets_edit_button_description">Wysig tuisskerm-legstukke</string>
+    <string name="settings_kiosk_mode_title">Kioskmodus</string>
+    <string name="kiosk_mode_exit_hint">Hou die skerm 2 sekondes lank om Instellings oop te maak</string>
+    <string name="settings_kiosk_dim_when_idle_title">Word wakker met kamera</string>
     <string name="settings_wallpaper_picker_unavailable">Muurpapierkieser nie beskikbaar nie</string>
     <string name="play_update_banner_restart_failed">Kon nie herbegin om te installeer nie</string>
     <string name="scroll_up_for_more_hint">Rollees op vir meer</string>

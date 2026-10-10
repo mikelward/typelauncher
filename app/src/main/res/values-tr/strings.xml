@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">Ana ekran pencere öğeleri</string>
     <string name="settings_home_widgets_edit_button">Düzenle</string>
     <string name="settings_home_widgets_edit_button_description">Ana ekran pencere öğelerini düzenle</string>
+    <string name="settings_kiosk_mode_title">Kiosk modu</string>
+    <string name="kiosk_mode_exit_hint">Ayarlar\'ı açmak için ekrana 2 saniye basılı tutun</string>
+    <string name="settings_kiosk_dim_when_idle_title">Kamerayla uyandır</string>
     <string name="settings_wallpaper_picker_unavailable">Duvar kağıdı seçici kullanılamıyor</string>
     <string name="play_update_banner_restart_failed">Yüklemek için yeniden başlatılamadı</string>
     <string name="scroll_up_for_more_hint">Daha fazlası için yukarı kaydırın</string>

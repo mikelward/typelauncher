@@ -175,6 +175,9 @@
     <string name="settings_home_widgets_edit_title">Widgety domovské obrazovky</string>
     <string name="settings_home_widgets_edit_button">Upravit</string>
     <string name="settings_home_widgets_edit_button_description">Upravit widgety domovské obrazovky</string>
+    <string name="settings_kiosk_mode_title">Režim kiosku</string>
+    <string name="kiosk_mode_exit_hint">Podržením obrazovky na 2 sekundy otevřete Nastavení</string>
+    <string name="settings_kiosk_dim_when_idle_title">Probudit pomocí fotoaparátu</string>
     <string name="settings_wallpaper_picker_unavailable">Výběr tapety není k dispozici</string>
     <string name="play_update_banner_restart_failed">Restart kvůli instalaci se nezdařil</string>
     <string name="scroll_up_for_more_hint">Přejděte nahoru pro další</string>

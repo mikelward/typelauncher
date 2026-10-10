@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">Startschermwidgets</string>
     <string name="settings_home_widgets_edit_button">Bewerken</string>
     <string name="settings_home_widgets_edit_button_description">Startschermwidgets bewerken</string>
+    <string name="settings_kiosk_mode_title">Kioskmodus</string>
+    <string name="kiosk_mode_exit_hint">Houd het scherm 2 seconden ingedrukt om Instellingen te openen</string>
+    <string name="settings_kiosk_dim_when_idle_title">Wekken met camera</string>
     <string name="settings_wallpaper_picker_unavailable">Achtergrondkiezer niet beschikbaar</string>
     <string name="play_update_banner_restart_failed">Opnieuw opstarten om te installeren is mislukt</string>
     <string name="scroll_up_for_more_hint">Scroll omhoog voor meer</string>

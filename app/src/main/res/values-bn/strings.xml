@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">হোম উইজেট</string>
     <string name="settings_home_widgets_edit_button">সম্পাদনা করুন</string>
     <string name="settings_home_widgets_edit_button_description">হোম উইজেট সম্পাদনা করুন</string>
+    <string name="settings_kiosk_mode_title">কিয়স্ক মোড</string>
+    <string name="kiosk_mode_exit_hint">সেটিংস খুলতে স্ক্রিনটি ২ সেকেন্ড ধরে রাখুন</string>
+    <string name="settings_kiosk_dim_when_idle_title">ক্যামেরা দিয়ে জাগান</string>
     <string name="settings_wallpaper_picker_unavailable">ওয়ালপেপার পিকার উপলব্ধ নেই</string>
     <string name="play_update_banner_restart_failed">ইনস্টল করার জন্য রিস্টার্ট করা যায়নি</string>
     <string name="scroll_up_for_more_hint">আরও দেখতে উপরে স্ক্রল করুন</string>

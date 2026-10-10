@@ -174,6 +174,9 @@
     <string name="settings_home_widgets_edit_title">Widgets de inicio</string>
     <string name="settings_home_widgets_edit_button">Editar</string>
     <string name="settings_home_widgets_edit_button_description">Editar widgets de inicio</string>
+    <string name="settings_kiosk_mode_title">Modo quiosco</string>
+    <string name="kiosk_mode_exit_hint">Mantén pulsada la pantalla 2 segundos para abrir Ajustes</string>
+    <string name="settings_kiosk_dim_when_idle_title">Activar con la cámara</string>
     <string name="settings_wallpaper_picker_unavailable">Selector de fondos no disponible</string>
     <string name="play_update_banner_restart_failed">No se ha podido reiniciar para instalar</string>
     <string name="scroll_up_for_more_hint">Desliza hacia arriba para ver más</string>

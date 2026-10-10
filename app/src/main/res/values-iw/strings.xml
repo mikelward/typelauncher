@@ -175,6 +175,9 @@
     <string name="settings_home_widgets_edit_title">ווידג\'טים במסך הבית</string>
     <string name="settings_home_widgets_edit_button">עריכה</string>
     <string name="settings_home_widgets_edit_button_description">עריכת הווידג\'טים במסך הבית</string>
+    <string name="settings_kiosk_mode_title">מצב קיוסק</string>
+    <string name="kiosk_mode_exit_hint">יש ללחוץ לחיצה ארוכה על המסך למשך 2 שניות כדי לפתוח את ההגדרות</string>
+    <string name="settings_kiosk_dim_when_idle_title">התעוררות באמצעות המצלמה</string>
     <string name="settings_wallpaper_picker_unavailable">בורר הטפטים אינו זמין</string>
     <string name="play_update_banner_restart_failed">לא ניתן היה להפעיל מחדש כדי להתקין</string>
     <string name="scroll_up_for_more_hint">גלול למעלה לעוד</string>

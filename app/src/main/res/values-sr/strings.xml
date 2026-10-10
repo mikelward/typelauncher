@@ -174,6 +174,9 @@
     <string name="settings_home_widgets_edit_title">Виџети почетног екрана</string>
     <string name="settings_home_widgets_edit_button">Измени</string>
     <string name="settings_home_widgets_edit_button_description">Измени виџете почетног екрана</string>
+    <string name="settings_kiosk_mode_title">Режим киоска</string>
+    <string name="kiosk_mode_exit_hint">Задржите екран 2 секунде да бисте отворили Подешавања</string>
+    <string name="settings_kiosk_dim_when_idle_title">Буђење помоћу камере</string>
     <string name="settings_wallpaper_picker_unavailable">Бирач позадине није доступан</string>
     <string name="play_update_banner_restart_failed">Поновно покретање ради инсталирања није успело</string>
     <string name="scroll_up_for_more_hint">Скролујте нагоре за још</string>

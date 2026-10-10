@@ -172,6 +172,9 @@
     <string name="settings_home_widgets_edit_title">ホームのウィジェット</string>
     <string name="settings_home_widgets_edit_button">編集</string>
     <string name="settings_home_widgets_edit_button_description">ホームのウィジェットを編集</string>
+    <string name="settings_kiosk_mode_title">キオスクモード</string>
+    <string name="kiosk_mode_exit_hint">画面を 2 秒間長押しすると設定が開きます</string>
+    <string name="settings_kiosk_dim_when_idle_title">カメラでスリープ解除</string>
     <string name="settings_wallpaper_picker_unavailable">壁紙の選択アプリがありません</string>
     <string name="play_update_banner_restart_failed">インストールのため再起動できませんでした</string>
     <string name="scroll_up_for_more_hint">上にスクロールするとさらに表示されます</string>

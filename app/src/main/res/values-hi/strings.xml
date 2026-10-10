@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">होम विजेट</string>
     <string name="settings_home_widgets_edit_button">एडिट करें</string>
     <string name="settings_home_widgets_edit_button_description">होम विजेट एडिट करें</string>
+    <string name="settings_kiosk_mode_title">कियोस्क मोड</string>
+    <string name="kiosk_mode_exit_hint">सेटिंग खोलने के लिए स्क्रीन को 2 सेकंड तक दबाकर रखें</string>
+    <string name="settings_kiosk_dim_when_idle_title">कैमरे से जगाएं</string>
     <string name="settings_wallpaper_picker_unavailable">वॉलपेपर पिकर उपलब्ध नहीं है</string>
     <string name="play_update_banner_restart_failed">इंस्टॉल करने के लिए रीस्टार्ट नहीं किया जा सका</string>
     <string name="scroll_up_for_more_hint">ज़्यादा देखने के लिए ऊपर स्क्रोल करें</string>

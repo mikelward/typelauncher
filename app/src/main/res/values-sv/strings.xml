@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">Startskärmswidgetar</string>
     <string name="settings_home_widgets_edit_button">Redigera</string>
     <string name="settings_home_widgets_edit_button_description">Redigera startskärmswidgetar</string>
+    <string name="settings_kiosk_mode_title">Kioskläge</string>
+    <string name="kiosk_mode_exit_hint">Håll ned skärmen i 2 sekunder för att öppna Inställningar</string>
+    <string name="settings_kiosk_dim_when_idle_title">Väck skärmen med kameran</string>
     <string name="settings_wallpaper_picker_unavailable">Bakgrundsväljaren är inte tillgänglig</string>
     <string name="play_update_banner_restart_failed">Det gick inte att starta om för att installera</string>
     <string name="scroll_up_for_more_hint">Rulla uppåt för att se mer</string>

@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">Avakuva vidinad</string>
     <string name="settings_home_widgets_edit_button">Muuda</string>
     <string name="settings_home_widgets_edit_button_description">Muuda avakuva vidinaid</string>
+    <string name="settings_kiosk_mode_title">Kioskirežiim</string>
+    <string name="kiosk_mode_exit_hint">Seadete avamiseks hoidke ekraani 2 sekundit all</string>
+    <string name="settings_kiosk_dim_when_idle_title">Ärata kaameraga</string>
     <string name="settings_wallpaper_picker_unavailable">Taustapildi valija pole saadaval</string>
     <string name="play_update_banner_restart_failed">Installimiseks ei õnnestunud taaskäivitada</string>
     <string name="scroll_up_for_more_hint">Kerige üles, et näha rohkem</string>

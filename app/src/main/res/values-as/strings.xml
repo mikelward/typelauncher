@@ -173,6 +173,9 @@
     <string name="settings_home_widgets_edit_title">হোম উইজেট</string>
     <string name="settings_home_widgets_edit_button">সম্পাদনা কৰক</string>
     <string name="settings_home_widgets_edit_button_description">হোম উইজেট সম্পাদনা কৰক</string>
+    <string name="settings_kiosk_mode_title">কিয়স্ক মোড</string>
+    <string name="kiosk_mode_exit_hint">ছেটিংছ খুলিবলৈ স্ক্ৰীনখন ২ ছেকেণ্ডৰ বাবে হেঁচি ধৰি ৰাখক</string>
+    <string name="settings_kiosk_dim_when_idle_title">কেমেৰাৰে সাৰ পাওক</string>
     <string name="settings_wallpaper_picker_unavailable">ৱালপেপাৰ বাছনিকৰ্তা উপলব্ধ নহয়</string>
     <string name="play_update_banner_restart_failed">ইনষ্টল কৰিবলৈ ৰিষ্টাৰ্ট কৰিব পৰা নগ’ল</string>
     <string name="scroll_up_for_more_hint">অধিক চাবলৈ ওপৰলৈ স্ক্ৰল কৰক</string>
