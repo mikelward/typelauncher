@@ -167,6 +167,8 @@
     <string name="kiosk_mode_exit_hint">Hold the screen for 2 seconds to open Settings</string>
     <string name="settings_kiosk_dim_when_idle_title">Wake up using camera</string>
     <!-- TODO: translate -->
+    <string name="settings_kiosk_blank_when_idle_title" tools:ignore="MissingTranslation">Blank when idle</string>
+    <!-- TODO: translate -->
     <string name="settings_kiosk_blank_at_night_title" tools:ignore="MissingTranslation">Blank at night</string>
     <!-- TODO: translate -->
     <string name="kiosk_blank_wake_action" tools:ignore="MissingTranslation">Show widgets</string>

@@ -728,6 +728,9 @@ internal data class LauncherUiState(
     // midnight) the display goes black once nobody is there, and comes back on
     // a touch or, with the camera on, on motion. Defaults off, midnight to 6am.
     val isKioskBlankAtNight: Boolean = false,
+    // Kiosk mode's "Blank when idle": the same blank after any quiet minute,
+    // day or night. Defaults off.
+    val isKioskBlankWhenIdle: Boolean = false,
     val kioskBlankStartMinutes: Int = KIOSK_BLANK_DEFAULT_START_MINUTES,
     val kioskBlankEndMinutes: Int = KIOSK_BLANK_DEFAULT_END_MINUTES,
     // True while Home's widget slot is in edit mode: the slot scrolls, every

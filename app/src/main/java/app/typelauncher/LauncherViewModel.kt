@@ -454,6 +454,7 @@ internal class LauncherViewModel(
             isKioskMode = dockSettingsStore.isKioskMode,
             isKioskDimWhenIdle = dockSettingsStore.isKioskDimWhenIdle,
             isKioskBlankAtNight = dockSettingsStore.isKioskBlankAtNight,
+            isKioskBlankWhenIdle = dockSettingsStore.isKioskBlankWhenIdle,
             kioskBlankStartMinutes = dockSettingsStore.kioskBlankStartMinutes,
             kioskBlankEndMinutes = dockSettingsStore.kioskBlankEndMinutes,
             keyboardReservation = dockSettingsStore.keyboardReservation,
@@ -1923,6 +1924,13 @@ internal class LauncherViewModel(
         dockSettingsStore.isKioskBlankAtNight = enabled
         _uiState.update { it.copy(isKioskBlankAtNight = enabled) }
         logState("setKioskBlankAtNight=%s", enabled)
+    }
+
+    /** Turns kiosk mode's "Blank when idle" on or off. */
+    fun setKioskBlankWhenIdle(enabled: Boolean) {
+        dockSettingsStore.isKioskBlankWhenIdle = enabled
+        _uiState.update { it.copy(isKioskBlankWhenIdle = enabled) }
+        logState("setKioskBlankWhenIdle=%s", enabled)
     }
 
     /** Sets when "Blank at night" starts and ends, in minutes after local midnight. */

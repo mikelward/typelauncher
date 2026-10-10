@@ -9,6 +9,7 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -123,5 +124,26 @@ class KioskBlankSettingsTest {
             }
         }
         composeRule.onNodeWithTag(KIOSK_BLANK_AT_NIGHT_SWITCH_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(KIOSK_BLANK_WHEN_IDLE_SWITCH_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun blankWhenIdleTogglesUnderKioskMode() {
+        val changes = mutableListOf<Boolean>()
+        composeRule.setContent {
+            TypeLauncherTheme {
+                HomeWidgetsSettingsRows(
+                    isHomeWidgetsShown = true,
+                    onHomeWidgetsShownChanged = {},
+                    onEditHomeWidgets = {},
+                    isKioskMode = true,
+                    onKioskBlankWhenIdleChanged = { changes += it },
+                )
+            }
+        }
+        composeRule.onNodeWithTag(KIOSK_BLANK_WHEN_IDLE_SWITCH_TAG)
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+
+        assertEquals(listOf(true), changes)
     }
 }

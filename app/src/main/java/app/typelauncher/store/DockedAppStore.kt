@@ -632,6 +632,18 @@ internal class DockSettingsStore(context: Context) {
                 .apply()
         }
 
+    /**
+     * Kiosk mode's "Blank when idle": the display goes black after a quiet
+     * minute at any hour. Defaults off.
+     */
+    var isKioskBlankWhenIdle: Boolean
+        get() = sharedPreferences.getBoolean(KEY_KIOSK_BLANK_WHEN_IDLE, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_KIOSK_BLANK_WHEN_IDLE, value)
+                .apply()
+        }
+
     /** Start of "Blank at night", in minutes after local midnight. */
     var kioskBlankStartMinutes: Int
         get() = sharedPreferences.getInt(KEY_KIOSK_BLANK_START_MINUTES, KIOSK_BLANK_DEFAULT_START_MINUTES)
@@ -946,6 +958,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_KIOSK_MODE = "kiosk_mode"
         const val KEY_KIOSK_DIM_WHEN_IDLE = "kiosk_dim_when_idle"
         const val KEY_KIOSK_BLANK_AT_NIGHT = "kiosk_blank_at_night"
+        const val KEY_KIOSK_BLANK_WHEN_IDLE = "kiosk_blank_when_idle"
         const val KEY_KIOSK_BLANK_START_MINUTES = "kiosk_blank_start_minutes"
         const val KEY_KIOSK_BLANK_END_MINUTES = "kiosk_blank_end_minutes"
         // Legacy wallpaper companions ("show_wallpaper_all_pages",
