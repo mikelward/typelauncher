@@ -44,6 +44,7 @@ class LauncherViewModelKioskTest {
         val state = newViewModel().uiState.value
 
         assertFalse(state.isKioskBlankAtNight)
+        assertFalse(state.isKioskBlankWhenIdle)
         assertEquals(0, state.kioskBlankStartMinutes)
         assertEquals(6 * 60, state.kioskBlankEndMinutes)
     }
@@ -52,11 +53,13 @@ class LauncherViewModelKioskTest {
     fun blankAtNightAndItsWindowPersistAcrossViewModels() {
         val viewModel = newViewModel()
         viewModel.setKioskBlankAtNight(true)
+        viewModel.setKioskBlankWhenIdle(true)
         viewModel.setKioskBlankWindow(22 * 60 + 30, 7 * 60)
         idle()
 
         val state = newViewModel().uiState.value
         assertTrue(state.isKioskBlankAtNight)
+        assertTrue(state.isKioskBlankWhenIdle)
         assertEquals(22 * 60 + 30, state.kioskBlankStartMinutes)
         assertEquals(7 * 60, state.kioskBlankEndMinutes)
     }

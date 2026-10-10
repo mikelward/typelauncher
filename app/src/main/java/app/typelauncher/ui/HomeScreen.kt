@@ -6319,6 +6319,8 @@ internal fun HomeWidgetsSettingsRows(
     onKioskDimWhenIdleChanged: (Boolean) -> Unit = {},
     isKioskBlankAtNight: Boolean = false,
     onKioskBlankAtNightChanged: (Boolean) -> Unit = {},
+    isKioskBlankWhenIdle: Boolean = false,
+    onKioskBlankWhenIdleChanged: (Boolean) -> Unit = {},
     kioskBlankStartMinutes: Int = KIOSK_BLANK_DEFAULT_START_MINUTES,
     kioskBlankEndMinutes: Int = KIOSK_BLANK_DEFAULT_END_MINUTES,
     onKioskBlankWindowChanged: (startMinutes: Int, endMinutes: Int) -> Unit = { _, _ -> },
@@ -6408,6 +6410,23 @@ internal fun HomeWidgetsSettingsRows(
                     checked = isKioskDimWhenIdle,
                     onCheckedChange = onKioskDimWhenIdleChanged,
                     modifier = Modifier.testTag(KIOSK_DIM_WHEN_IDLE_SWITCH_TAG),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_kiosk_blank_when_idle_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Switch(
+                    checked = isKioskBlankWhenIdle,
+                    onCheckedChange = onKioskBlankWhenIdleChanged,
+                    modifier = Modifier.testTag(KIOSK_BLANK_WHEN_IDLE_SWITCH_TAG),
                 )
             }
             Row(
@@ -6531,6 +6550,7 @@ internal fun SettingsScreen(
     onCalendarSearchEnabledChanged: (Boolean) -> Unit = {},
     onKioskDimWhenIdleChanged: (Boolean) -> Unit = {},
     onKioskBlankAtNightChanged: (Boolean) -> Unit = {},
+    onKioskBlankWhenIdleChanged: (Boolean) -> Unit = {},
     onKioskBlankWindowChanged: (startMinutes: Int, endMinutes: Int) -> Unit = { _, _ -> },
     onTelemetryEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
@@ -6896,6 +6916,8 @@ internal fun SettingsScreen(
                     onKioskDimWhenIdleChanged = onKioskDimWhenIdleChanged,
                     isKioskBlankAtNight = state.isKioskBlankAtNight,
                     onKioskBlankAtNightChanged = onKioskBlankAtNightChanged,
+                    isKioskBlankWhenIdle = state.isKioskBlankWhenIdle,
+                    onKioskBlankWhenIdleChanged = onKioskBlankWhenIdleChanged,
                     kioskBlankStartMinutes = state.kioskBlankStartMinutes,
                     kioskBlankEndMinutes = state.kioskBlankEndMinutes,
                     onKioskBlankWindowChanged = onKioskBlankWindowChanged,

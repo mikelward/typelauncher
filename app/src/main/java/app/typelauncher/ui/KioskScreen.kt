@@ -76,7 +76,8 @@ internal const val KIOSK_BLANK_CHECK_INTERVAL_MS = 30_000L
  * succeeds.
  *
  * "Blank at night" turns the display black, at the window's lowest
- * brightness, inside its nightly window once a quiet minute passes. The
+ * brightness, inside its nightly window once a quiet minute passes; "Blank
+ * when idle" does the same at any hour. The
  * screen stays on rather than off, so the camera (when "Wake up using camera"
  * is on) keeps watching: motion, or a touch, brings the widgets back until the
  * next quiet minute. The touch that ends a blank only does that, so a widget
@@ -99,6 +100,8 @@ internal fun KioskScreen(
     dimWhenIdle: Boolean = false,
     // "Blank at night" and its window, in minutes after local midnight.
     blankAtNight: Boolean = false,
+    // "Blank when idle": the same blank after any quiet minute, day or night.
+    blankWhenIdle: Boolean = false,
     blankStartMinutes: Int = KIOSK_BLANK_DEFAULT_START_MINUTES,
     blankEndMinutes: Int = KIOSK_BLANK_DEFAULT_END_MINUTES,
     modifier: Modifier = Modifier,
@@ -125,7 +128,7 @@ internal fun KioskScreen(
     val dimmer = remember(scope) { KioskIdleDimmer(scope) }
     val dimmed by dimmer.dimmed.collectAsState()
     // Night blanking needs the same quiet-minute timer as dimming, camera or no.
-    if (dimWhenIdle || blankAtNight) {
+    if (dimWhenIdle || blankAtNight || blankWhenIdle) {
         DisposableEffect(dimmer) {
             dimmer.start()
             onDispose { dimmer.stop() }
@@ -145,7 +148,7 @@ internal fun KioskScreen(
             delay(KIOSK_BLANK_CHECK_INTERVAL_MS)
         }
     }
-    val blanked = inBlankWindow && dimmed
+    val blanked = (blankWhenIdle || inBlankWindow) && dimmed
     KioskWindowBrightness(
         brightness = when {
             blanked -> KIOSK_BLANK_BRIGHTNESS

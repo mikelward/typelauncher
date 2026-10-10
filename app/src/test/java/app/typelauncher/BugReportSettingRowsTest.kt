@@ -28,6 +28,7 @@ class BugReportSettingRowsTest {
         store.isKioskMode = true
         store.isKioskDimWhenIdle = true
         store.isKioskBlankAtNight = true
+        store.isKioskBlankWhenIdle = true
         store.kioskBlankStartMinutes = 22 * 60
         store.kioskBlankEndMinutes = 6 * 60
         store.isWallpaperShown = true
@@ -40,6 +41,7 @@ class BugReportSettingRowsTest {
         assertEquals("true", rows["Kiosk mode"])
         assertEquals("true", rows["Kiosk dim when idle"])
         assertEquals("true", rows["Kiosk blank at night"])
+        assertEquals("true", rows["Kiosk blank when idle"])
         assertEquals("22:00", rows["Kiosk blank from"])
         assertEquals("06:00", rows["Kiosk blank until"])
         assertEquals("true", rows["Wallpaper shown"])

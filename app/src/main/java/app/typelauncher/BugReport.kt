@@ -394,6 +394,7 @@ internal fun bugReportSettingRows(settings: DockSettingsStore): List<Pair<String
         "Kiosk blank at night" to settings.isKioskBlankAtNight.toString(),
         "Kiosk blank from" to kioskClockTime(settings.kioskBlankStartMinutes),
         "Kiosk blank until" to kioskClockTime(settings.kioskBlankEndMinutes),
+        "Kiosk blank when idle" to settings.isKioskBlankWhenIdle.toString(),
         "Contact search enabled" to settings.isContactSearchEnabled.toString(),
         "Calendar search enabled" to settings.isCalendarSearchEnabled.toString(),
         "Call method" to settings.callMethod.name,

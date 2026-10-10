@@ -391,7 +391,7 @@ class WallpaperAllPagesScreenshotTest {
 
         // Tall enough for every row: the switch, Edit, the kiosk rows, and
         // the night window's two times.
-        capture("compose_home_widgets_settings_light_robolectric.png", heightPx = 1200)
+        capture("compose_home_widgets_settings_light_robolectric.png", heightPx = 1400)
     }
 
     @Test

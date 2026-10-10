@@ -53,6 +53,7 @@ class KioskScreenTest {
         dimWhenIdle: Boolean = false,
         unlockThen: (action: () -> Unit) -> Unit = { it() },
         blankAtNight: Boolean = false,
+        blankWhenIdle: Boolean = false,
         // Sees every pointer change after the display has handled it.
         observeFinal: ((androidx.compose.ui.input.pointer.PointerInputChange) -> Unit)? = null,
     ) {
@@ -73,6 +74,7 @@ class KioskScreenTest {
                     motionWatcher = {},
                     unlockThen = unlockThen,
                     blankAtNight = blankAtNight,
+                    blankWhenIdle = blankWhenIdle,
                     minuteOfDay = { minuteOfDay },
                     modifier = if (observeFinal == null) Modifier else Modifier.pointerInput(Unit) {
                         awaitPointerEventScope {
@@ -312,6 +314,27 @@ class KioskScreenTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun blankWhenIdleBlanksAfterAQuietMinuteAtAnyHour() {
+        composeRule.mainClock.autoAdvance = false
+        minuteOfDay = 12 * 60
+        setKiosk(blankWhenIdle = true)
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertDoesNotExist()
+
+        composeRule.mainClock.advanceTimeBy(KIOSK_DIM_AFTER_MS + 1_000)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertExists()
+        assertEquals(KIOSK_BLANK_BRIGHTNESS, brightness(), 0f)
+
+        // A touch brings the widgets back.
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).performClick()
+        composeRule.mainClock.advanceTimeBy(1_000)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertDoesNotExist()
+        assertEquals(BRIGHTNESS_NONE, brightness(), 0f)
     }
 
     @Test
