@@ -15,6 +15,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.longClick
@@ -96,9 +99,11 @@ class HomeWidgetsTest {
         isEditing = true
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("$WIDGET_INLINE_ACTIONS_TAG:1").assertExists()
-        // The top widget can't move up, the bottom one can't move down.
-        composeRule.onNodeWithTag("$MOVE_UP_WIDGET_ACTION_TAG:1").assertDoesNotExist()
-        composeRule.onNodeWithTag("$MOVE_DOWN_WIDGET_ACTION_TAG:2").assertDoesNotExist()
+        // The top widget can't move up, the bottom one can't move down: both
+        // stay in place, grayed out. Neither shares a row, so no left / right.
+        composeRule.onNodeWithTag("$MOVE_UP_WIDGET_ACTION_TAG:1").assertIsNotEnabled()
+        composeRule.onNodeWithTag("$MOVE_DOWN_WIDGET_ACTION_TAG:2").assertIsNotEnabled()
+        composeRule.onNodeWithTag("$MOVE_START_WIDGET_ACTION_TAG:1").assertDoesNotExist()
 
         isEditing = false
         composeRule.waitForIdle()
@@ -294,13 +299,11 @@ class HomeWidgetsTest {
         assertEquals(listOf(1 to 2), committed)
     }
 
-    @Test
-    fun widerAndNarrowerStepAnEndOfRowWidgetsWidth() {
+    private fun setEndOfRowWidgets(committed: MutableList<Pair<Int, Int>>) {
         val host = LauncherAppWidgetHost(context, /* hostId = */ 0)
-        val committed = mutableListOf<Pair<Int, Int>>()
         composeRule.setContent {
             TypeLauncherTheme {
-                // Widget 2 ends its row at the screen edge, where the width
+                // Widget 2 ends its row at the screen edge, where its end-edge
                 // handle has no room to be dragged outward.
                 TestHomeWidgets(
                     widgetIds = listOf(1, 2, 3),
@@ -313,14 +316,130 @@ class HomeWidgetsTest {
                 )
             }
         }
+        composeRule.onNodeWithTag("$RESIZE_WIDGET_ACTION_TAG:2").performClick()
+        composeRule.waitForIdle()
+    }
 
-        composeRule.onNodeWithTag("$WIDER_WIDGET_ACTION_TAG:2").performClick()
-        composeRule.onNodeWithTag("$NARROWER_WIDGET_ACTION_TAG:2").performClick()
+    @Test
+    fun anEndOfRowWidgetWidensByDraggingItsStartHandleOutward() {
+        val committed = mutableListOf<Pair<Int, Int>>()
+        setEndOfRowWidgets(committed)
+        val cardBounds = composeRule.onNodeWithTag("$WIDGET_CARD_TAG:2").getBoundsInRoot()
+        val cardWidthPx = with(composeRule.density) { (cardBounds.right - cardBounds.left).toPx() }
 
-        assertEquals(listOf(2 to 3, 2 to 1), committed)
-        // A full-row widget can't get wider.
-        composeRule.onNodeWithTag("$WIDER_WIDGET_ACTION_TAG:3").assertDoesNotExist()
-        composeRule.onNodeWithTag("$NARROWER_WIDGET_ACTION_TAG:3").assertExists()
+        // Toward the start (left in LTR) is outward for the start handle: half
+        // the card's two columns is one more column, so 2 snaps to 3.
+        composeRule.onNodeWithTag(WIDGET_START_WIDTH_HANDLE_TAG).performTouchInput {
+            swipe(start = center, end = center.copy(x = center.x - cardWidthPx * 0.5f), durationMillis = 300)
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(2 to 3), committed)
+    }
+
+    @Test
+    fun theStartHandleNarrowsWhenDraggedInward() {
+        val committed = mutableListOf<Pair<Int, Int>>()
+        setEndOfRowWidgets(committed)
+        val cardBounds = composeRule.onNodeWithTag("$WIDGET_CARD_TAG:2").getBoundsInRoot()
+        val cardWidthPx = with(composeRule.density) { (cardBounds.right - cardBounds.left).toPx() }
+
+        composeRule.onNodeWithTag(WIDGET_START_WIDTH_HANDLE_TAG).performTouchInput {
+            swipe(start = center, end = center.copy(x = center.x + cardWidthPx * 0.5f), durationMillis = 300)
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(2 to 1), committed)
+    }
+
+    @Test
+    fun screenReadersStepTheWidthFromTheHandle() {
+        val committed = mutableListOf<Pair<Int, Int>>()
+        setEndOfRowWidgets(committed)
+        val actions = composeRule.onNodeWithTag(WIDGET_WIDTH_HANDLE_TAG).fetchSemanticsNode()
+            .config[SemanticsActions.CustomActions]
+            .associateBy { it.label }
+
+        actions.getValue(context.getString(R.string.widget_menu_wider)).action()
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(2 to 3), committed)
+        // Like a released drag, the step ends resize mode, so the settled size
+        // reaches the provider instead of staying withheld.
+        composeRule.onNodeWithTag(WIDGET_WIDTH_HANDLE_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun theNarrowerStepCommitsAndEndsResizeMode() {
+        val committed = mutableListOf<Pair<Int, Int>>()
+        setEndOfRowWidgets(committed)
+        composeRule.onNodeWithTag(WIDGET_START_WIDTH_HANDLE_TAG).fetchSemanticsNode()
+            .config[SemanticsActions.CustomActions]
+            .single { it.label == context.getString(R.string.widget_menu_narrower) }
+            .action()
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(2 to 1), committed)
+        composeRule.onNodeWithTag(WIDGET_START_WIDTH_HANDLE_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun aFullRowWidgetOffersNoWiderStep() {
+        val committed = mutableListOf<Pair<Int, Int>>()
+        val host = LauncherAppWidgetHost(context, /* hostId = */ 0)
+        composeRule.setContent {
+            TypeLauncherTheme {
+                TestHomeWidgets(
+                    widgetIds = listOf(1),
+                    isEditing = true,
+                    host = host,
+                    providerInfoOverride = { providerInfo },
+                    createWidgetView = { viewContext, _ -> RecordingHostView(viewContext, host) {} },
+                    onResizeWidgetSpan = { id, span -> committed += id to span },
+                )
+            }
+        }
+        composeRule.onNodeWithTag("$RESIZE_WIDGET_ACTION_TAG:1").performClick()
+        composeRule.waitForIdle()
+
+        val labels = composeRule.onNodeWithTag(WIDGET_WIDTH_HANDLE_TAG).fetchSemanticsNode()
+            .config[SemanticsActions.CustomActions].map { it.label }
+
+        assertEquals(listOf(context.getString(R.string.widget_menu_narrower)), labels)
+    }
+
+    @Test
+    fun leftAndRightShowOnlyForWidgetsSharingARow() {
+        val host = LauncherAppWidgetHost(context, /* hostId = */ 0)
+        val moves = mutableListOf<Pair<Int, WidgetMoveDirection>>()
+        composeRule.setContent {
+            TypeLauncherTheme {
+                // Widgets 1 and 2 share the first row; 3 has the second.
+                TestHomeWidgets(
+                    widgetIds = listOf(1, 2, 3),
+                    isEditing = true,
+                    host = host,
+                    providerInfoOverride = { providerInfo },
+                    createWidgetView = { viewContext, _ -> RecordingHostView(viewContext, host) {} },
+                    spans = mapOf(1 to 2, 2 to 2),
+                    onMoveWidget = { id, direction -> moves += id to direction },
+                )
+            }
+        }
+
+        // Right on the row's first widget and left on its second swap the pair.
+        composeRule.onNodeWithTag("$MOVE_END_WIDGET_ACTION_TAG:1").performClick()
+        composeRule.onNodeWithTag("$MOVE_START_WIDGET_ACTION_TAG:2").performClick()
+        assertEquals(listOf(1 to WidgetMoveDirection.DOWN, 2 to WidgetMoveDirection.UP), moves)
+        // At the row's ends they gray out rather than disappear.
+        composeRule.onNodeWithTag("$MOVE_START_WIDGET_ACTION_TAG:1").assertIsNotEnabled()
+        composeRule.onNodeWithTag("$MOVE_END_WIDGET_ACTION_TAG:2").assertIsNotEnabled()
+        // Up and down stay for every widget.
+        composeRule.onNodeWithTag("$MOVE_DOWN_WIDGET_ACTION_TAG:1").assertIsEnabled()
+        composeRule.onNodeWithTag("$MOVE_UP_WIDGET_ACTION_TAG:2").assertIsEnabled()
+        // A widget alone in its row gets no left / right.
+        composeRule.onNodeWithTag("$MOVE_START_WIDGET_ACTION_TAG:3").assertDoesNotExist()
+        composeRule.onNodeWithTag("$MOVE_END_WIDGET_ACTION_TAG:3").assertDoesNotExist()
     }
 
     @Test
@@ -404,6 +523,7 @@ class HomeWidgetsTest {
         onAddWidget: () -> Unit = {},
         spans: Map<Int, Int> = emptyMap(),
         onResizeWidgetSpan: (Int, Int) -> Unit = { _, _ -> },
+        onMoveWidget: (Int, WidgetMoveDirection) -> Unit = { _, _ -> },
     ) {
         HomeWidgets(
             widgetIds = widgetIds,
@@ -428,7 +548,7 @@ class HomeWidgetsTest {
             onRemoveWidget = {},
             onRestoreWidget = {},
             onResizeWidget = { _, _ -> },
-            onMoveWidget = { _, _ -> },
+            onMoveWidget = onMoveWidget,
             onResizeWidgetSpan = onResizeWidgetSpan,
             modifier = Modifier.fillMaxSize(),
             providerInfoOverride = providerInfoOverride,

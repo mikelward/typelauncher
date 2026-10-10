@@ -994,7 +994,7 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
-    fun widgetLongPress_hidesMoveActionsAtPageEdges() {
+    fun widgetLongPress_graysOutMoveActionsAtPageEdges() {
         val viewModel = composeRule.activity.viewModel
         listOf(10, 20).forEach(viewModel::addWidget)
         viewModel.showWidgets()
@@ -1002,16 +1002,17 @@ class MainActivityRobolectricScreenshotTest {
         awaitUnavailableWidgetCards(count = 2)
 
         // The top widget cannot move up; the bottom widget cannot move down.
+        // Both stay in the menu, grayed out, so the items never shift.
         composeRule.onNodeWithTag("$WIDGET_CARD_TAG:10").performTouchInput { longClick() }
-        composeRule.onNodeWithTag("$MOVE_UP_WIDGET_ACTION_TAG:10").assertDoesNotExist()
-        composeRule.onNodeWithTag("$MOVE_DOWN_WIDGET_ACTION_TAG:10").assertIsDisplayed()
+        composeRule.onNodeWithTag("$MOVE_UP_WIDGET_ACTION_TAG:10").assertIsNotEnabled()
+        composeRule.onNodeWithTag("$MOVE_DOWN_WIDGET_ACTION_TAG:10").assertIsEnabled()
         composeRule.onNodeWithTag("$MOVE_DOWN_WIDGET_ACTION_TAG:10").performClick()
         composeRule.waitForIdle()
 
         // 10 is now at the bottom (order is [20, 10]); it can move up but not down.
         composeRule.onNodeWithTag("$WIDGET_CARD_TAG:10").performTouchInput { longClick() }
-        composeRule.onNodeWithTag("$MOVE_UP_WIDGET_ACTION_TAG:10").assertIsDisplayed()
-        composeRule.onNodeWithTag("$MOVE_DOWN_WIDGET_ACTION_TAG:10").assertDoesNotExist()
+        composeRule.onNodeWithTag("$MOVE_UP_WIDGET_ACTION_TAG:10").assertIsEnabled()
+        composeRule.onNodeWithTag("$MOVE_DOWN_WIDGET_ACTION_TAG:10").assertIsNotEnabled()
     }
 
     @Test

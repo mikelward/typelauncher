@@ -86,8 +86,10 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Density
@@ -188,6 +190,7 @@ internal fun WidgetsScreen(
                 row.cells.forEach { cell ->
                     val widgetId = cell.widgetId
                     val index = widgetIds.indexOf(widgetId)
+                    val cellIndex = row.cells.indexOf(cell)
                     key(widgetId) {
                         HostedWidgetCard(
                             widgetId = widgetId,
@@ -196,6 +199,9 @@ internal fun WidgetsScreen(
                             customHeightDp = widgetHeights[widgetId],
                             canMoveUp = index > 0,
                             canMoveDown = index < widgetIds.lastIndex,
+                            showMoveSideways = row.cells.size > 1,
+                            canMoveStart = cellIndex > 0,
+                            canMoveEnd = cellIndex < row.cells.lastIndex,
                             // Only stranded widgets (no live binding) offer restore; a widget
                             // merely waiting for its provider to reinstall keeps its binding
                             // and self-heals, so it isn't re-bound.
@@ -763,6 +769,13 @@ internal fun HostedWidgetCard(
     customHeightDp: Int?,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
+    // Move left / right (mirrored in RTL) show only for a widget sharing its
+    // grid row, enabled while it has a neighbor on that side; like Move up /
+    // down they swap it with its list neighbor. Up / down always show and
+    // gray out at the list's ends, so the buttons never shift position.
+    showMoveSideways: Boolean = false,
+    canMoveStart: Boolean = false,
+    canMoveEnd: Boolean = false,
     // Non-null when this widget lost its binding in a backup restore but its
     // provider is remembered: the unavailable card becomes a tappable "Restore
     // <label> widget" placeholder that re-binds it in place.
@@ -957,12 +970,13 @@ internal fun HostedWidgetCard(
                     showResize = false,
                     canMoveUp = canMoveUp,
                     canMoveDown = canMoveDown,
+                    showMoveSideways = showMoveSideways,
+                    canMoveStart = canMoveStart,
+                    canMoveEnd = canMoveEnd,
                     onDismiss = { menuExpanded = false },
                     onRemoveWidget = onRemoveWidget,
                     onStartResize = {},
                     onMoveWidget = onMoveWidget,
-                    span = span,
-                    onResizeSpan = onResizeSpan,
                 )
             }
             if (showInlineActions) {
@@ -970,12 +984,13 @@ internal fun HostedWidgetCard(
                     widgetId = widgetId,
                     canMoveUp = canMoveUp,
                     canMoveDown = canMoveDown,
+                    showMoveSideways = showMoveSideways,
+                    canMoveStart = canMoveStart,
+                    canMoveEnd = canMoveEnd,
                     showResize = false,
                     onRemoveWidget = onRemoveWidget,
                     onStartResize = {},
                     onMoveWidget = onMoveWidget,
-                    span = span,
-                    onResizeSpan = onResizeSpan,
                 )
             }
         }
@@ -1145,12 +1160,13 @@ internal fun HostedWidgetCard(
                 widgetId = widgetId,
                 canMoveUp = canMoveUp,
                 canMoveDown = canMoveDown,
+                showMoveSideways = showMoveSideways,
+                canMoveStart = canMoveStart,
+                canMoveEnd = canMoveEnd,
                 onDismiss = { menuExpanded = false },
                 onRemoveWidget = onRemoveWidget,
                 onStartResize = startResize,
                 onMoveWidget = onMoveWidget,
-                span = span,
-                onResizeSpan = onResizeSpan,
             )
             if (isResizing) {
                 WidgetResizeHandle(
@@ -1164,17 +1180,24 @@ internal fun HostedWidgetCard(
                     },
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
-                WidgetWidthHandle(
-                    span = span,
-                    cardWidthPx = measuredSize.width,
-                    onDragEnd = { newSpan ->
-                        if (newSpan != span) onResizeSpan(newSpan)
-                        isResizing = false
-                    },
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(bottom = WIDGET_RESIZE_HANDLE_HEIGHT_DP.dp),
-                )
+                // A handle on each side edge, so a widget at either screen edge
+                // can still be dragged wider: whichever handle has room to move
+                // outward. The grid packs in list order, so a widget that no
+                // longer fits its row moves down to the next one.
+                for (atStart in listOf(true, false)) {
+                    WidgetWidthHandle(
+                        span = span,
+                        cardWidthPx = measuredSize.width,
+                        atStart = atStart,
+                        onDragEnd = { newSpan ->
+                            if (newSpan != span) onResizeSpan(newSpan)
+                            isResizing = false
+                        },
+                        modifier = Modifier
+                            .align(if (atStart) Alignment.TopStart else Alignment.TopEnd)
+                            .padding(bottom = WIDGET_RESIZE_HANDLE_HEIGHT_DP.dp),
+                    )
+                }
             }
         }
         if (showInlineActions) {
@@ -1182,12 +1205,13 @@ internal fun HostedWidgetCard(
                 widgetId = widgetId,
                 canMoveUp = canMoveUp,
                 canMoveDown = canMoveDown,
+                showMoveSideways = showMoveSideways,
+                canMoveStart = canMoveStart,
+                canMoveEnd = canMoveEnd,
                 showResize = !isResizing,
                 onRemoveWidget = onRemoveWidget,
                 onStartResize = startResize,
                 onMoveWidget = onMoveWidget,
-                span = span,
-                onResizeSpan = onResizeSpan,
             )
         }
     }
@@ -1204,13 +1228,15 @@ private fun WidgetInlineActions(
     widgetId: Int,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
+    showMoveSideways: Boolean,
+    canMoveStart: Boolean,
+    canMoveEnd: Boolean,
     showResize: Boolean,
     onRemoveWidget: (Int) -> Unit,
     onStartResize: () -> Unit,
     onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit,
-    span: Int,
-    onResizeSpan: (Int) -> Unit,
 ) {
+    val (moveStartLabel, moveEndLabel) = moveStartEndLabels()
     // On the launcher's opaque card surface, so the actions stay legible over
     // any wallpaper (Home's slot is transparent while the wallpaper shows).
     SectionCard(
@@ -1228,26 +1254,40 @@ private fun WidgetInlineActions(
             horizontalArrangement = Arrangement.End,
             itemVerticalAlignment = Alignment.CenterVertically,
         ) {
-            if (canMoveUp) {
+            IconButton(
+                onClick = { onMoveWidget(widgetId, WidgetMoveDirection.UP) },
+                enabled = canMoveUp,
+                modifier = Modifier.testTag("$MOVE_UP_WIDGET_ACTION_TAG:$widgetId"),
+            ) {
+                Icon(
+                    LauncherIcons.KeyboardArrowUp,
+                    contentDescription = stringResource(R.string.widget_menu_move_up),
+                )
+            }
+            IconButton(
+                onClick = { onMoveWidget(widgetId, WidgetMoveDirection.DOWN) },
+                enabled = canMoveDown,
+                modifier = Modifier.testTag("$MOVE_DOWN_WIDGET_ACTION_TAG:$widgetId"),
+            ) {
+                Icon(
+                    LauncherIcons.KeyboardArrowDown,
+                    contentDescription = stringResource(R.string.widget_menu_move_down),
+                )
+            }
+            if (showMoveSideways) {
                 IconButton(
                     onClick = { onMoveWidget(widgetId, WidgetMoveDirection.UP) },
-                    modifier = Modifier.testTag("$MOVE_UP_WIDGET_ACTION_TAG:$widgetId"),
+                    enabled = canMoveStart,
+                    modifier = Modifier.testTag("$MOVE_START_WIDGET_ACTION_TAG:$widgetId"),
                 ) {
-                    Icon(
-                        LauncherIcons.KeyboardArrowUp,
-                        contentDescription = stringResource(R.string.widget_menu_move_up),
-                    )
+                    Icon(LauncherIcons.KeyboardArrowLeft, contentDescription = moveStartLabel)
                 }
-            }
-            if (canMoveDown) {
                 IconButton(
                     onClick = { onMoveWidget(widgetId, WidgetMoveDirection.DOWN) },
-                    modifier = Modifier.testTag("$MOVE_DOWN_WIDGET_ACTION_TAG:$widgetId"),
+                    enabled = canMoveEnd,
+                    modifier = Modifier.testTag("$MOVE_END_WIDGET_ACTION_TAG:$widgetId"),
                 ) {
-                    Icon(
-                        LauncherIcons.KeyboardArrowDown,
-                        contentDescription = stringResource(R.string.widget_menu_move_down),
-                    )
+                    Icon(LauncherIcons.KeyboardArrowRight, contentDescription = moveEndLabel)
                 }
             }
             if (showResize) {
@@ -1256,22 +1296,6 @@ private fun WidgetInlineActions(
                     modifier = Modifier.testTag("$RESIZE_WIDGET_ACTION_TAG:$widgetId"),
                 ) {
                     Text(stringResource(R.string.widget_menu_resize))
-                }
-            }
-            if (span < WIDGET_GRID_COLUMNS) {
-                TextButton(
-                    onClick = { onResizeSpan(span + 1) },
-                    modifier = Modifier.testTag("$WIDER_WIDGET_ACTION_TAG:$widgetId"),
-                ) {
-                    Text(stringResource(R.string.widget_menu_wider))
-                }
-            }
-            if (span > 1) {
-                TextButton(
-                    onClick = { onResizeSpan(span - 1) },
-                    modifier = Modifier.testTag("$NARROWER_WIDGET_ACTION_TAG:$widgetId"),
-                ) {
-                    Text(stringResource(R.string.widget_menu_narrower))
                 }
             }
             TextButton(
@@ -1289,16 +1313,21 @@ private fun WidgetInlineActions(
 internal val WIDGET_ACTION_BAR_PADDING = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
 
 /**
- * The right-edge (end-edge in RTL) handle that resizes a widget's width in
- * whole grid columns. While dragging, an outline previews the snapped width —
- * drawn past the card's own bounds when growing — and the new span commits
- * only on release, so the grid reflows (and a widget that changes rows is
- * re-hosted) once per drag rather than on every frame.
+ * A side-edge handle that resizes a widget's width in whole grid columns:
+ * dragging it outward (away from the card) widens, inward narrows. There is
+ * one on each edge, so a widget at either screen edge still has a handle with
+ * room to be dragged outward. While dragging, an outline previews the snapped
+ * width — drawn past the card's own bounds when growing, from the edge
+ * opposite the handle — and the new span commits only on release, so the grid
+ * reflows (and a widget that changes rows is re-hosted) once per drag rather
+ * than on every frame. Screen readers get the same one-column steps as
+ * actions on the handle.
  */
 @Composable
 private fun BoxScope.WidgetWidthHandle(
     span: Int,
     cardWidthPx: Int,
+    atStart: Boolean,
     onDragEnd: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1323,18 +1352,26 @@ private fun BoxScope.WidgetWidthHandle(
     val targetSpan = snappedSpan()
     if (isDragging) {
         val previewWidth = with(density) { (columnStepPx * targetSpan - gapPx).toDp() }
+        // Anchored on the edge that stays put, so the outline grows toward the
+        // handle being dragged.
+        val anchor = if (atStart) Alignment.End else Alignment.Start
         Box(
             modifier = Modifier
-                .align(Alignment.TopStart)
+                .align(if (atStart) Alignment.TopEnd else Alignment.TopStart)
                 .fillMaxHeight()
-                .wrapContentWidth(Alignment.Start, unbounded = true)
+                .wrapContentWidth(anchor, unbounded = true)
                 .width(previewWidth)
                 .border(2.dp, MaterialTheme.colorScheme.primary, MaterialTheme.shapes.medium)
                 .testTag(WIDGET_WIDTH_PREVIEW_TAG),
         )
     }
     val resizeWidthDescription = stringResource(R.string.widget_resize_width_handle_description)
+    val widerLabel = stringResource(R.string.widget_menu_wider)
+    val narrowerLabel = stringResource(R.string.widget_menu_narrower)
     val nestedScrollDispatcher = remember { NestedScrollDispatcher() }
+    // Outward is toward the handle's own edge: the end edge is right in LTR
+    // and left in RTL, the start edge the reverse.
+    val outwardSign = if (atStart == isRtl) 1f else -1f
     Box(
         modifier = modifier
             .fillMaxHeight()
@@ -1344,7 +1381,7 @@ private fun BoxScope.WidgetWidthHandle(
             .draggable(
                 orientation = Orientation.Horizontal,
                 state = rememberDraggableState { delta ->
-                    dragPx += if (isRtl) -delta else delta
+                    dragPx += outwardSign * delta
                     nestedScrollDispatcher.reportHandleDrag(Offset(delta, 0f))
                 },
                 onDragStarted = {
@@ -1356,8 +1393,20 @@ private fun BoxScope.WidgetWidthHandle(
                     onDragEnd(snappedSpan())
                 },
             )
-            .semantics { contentDescription = resizeWidthDescription }
-            .testTag(WIDGET_WIDTH_HANDLE_TAG),
+            .semantics {
+                contentDescription = resizeWidthDescription
+                // Through the release path, like a drag: the step commits and
+                // resize mode ends, so the settled size reaches the provider.
+                customActions = buildList {
+                    if (span < WIDGET_GRID_COLUMNS) {
+                        add(CustomAccessibilityAction(widerLabel) { onDragEnd(span + 1); true })
+                    }
+                    if (span > 1) {
+                        add(CustomAccessibilityAction(narrowerLabel) { onDragEnd(span - 1); true })
+                    }
+                }
+            }
+            .testTag(if (atStart) WIDGET_START_WIDTH_HANDLE_TAG else WIDGET_WIDTH_HANDLE_TAG),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -1416,19 +1465,31 @@ private fun WidgetResizeHandle(
     }
 }
 
+/**
+ * Labels for the same-row moves, by where they go on screen: the row's start
+ * is the left in LTR and the right in RTL, matching the auto-mirrored arrows.
+ */
+@Composable
+private fun moveStartEndLabels(): Pair<String, String> {
+    val left = stringResource(R.string.widget_menu_move_left)
+    val right = stringResource(R.string.widget_menu_move_right)
+    return if (LocalLayoutDirection.current == LayoutDirection.Rtl) right to left else left to right
+}
+
 @Composable
 private fun WidgetActionsMenu(
     expanded: Boolean,
     widgetId: Int,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
+    showMoveSideways: Boolean,
+    canMoveStart: Boolean,
+    canMoveEnd: Boolean,
     showResize: Boolean = true,
     onDismiss: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onStartResize: () -> Unit,
     onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit,
-    span: Int,
-    onResizeSpan: (Int) -> Unit,
 ) {
     LauncherDropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         if (showResize) {
@@ -1441,43 +1502,39 @@ private fun WidgetActionsMenu(
                 },
             )
         }
-        // One-column steps: these work wherever the widget sits, including at
-        // the screen edge where the width handle has no room to be dragged
-        // outward, and give screen readers a non-drag way to change width.
-        if (span < WIDGET_GRID_COLUMNS) {
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.widget_menu_move_up)) },
+            enabled = canMoveUp,
+            modifier = Modifier.testTag("$MOVE_UP_WIDGET_ACTION_TAG:$widgetId"),
+            onClick = {
+                onDismiss()
+                onMoveWidget(widgetId, WidgetMoveDirection.UP)
+            },
+        )
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.widget_menu_move_down)) },
+            enabled = canMoveDown,
+            modifier = Modifier.testTag("$MOVE_DOWN_WIDGET_ACTION_TAG:$widgetId"),
+            onClick = {
+                onDismiss()
+                onMoveWidget(widgetId, WidgetMoveDirection.DOWN)
+            },
+        )
+        if (showMoveSideways) {
+            val (moveStartLabel, moveEndLabel) = moveStartEndLabels()
             DropdownMenuItem(
-                text = { LauncherMenuItemText(stringResource(R.string.widget_menu_wider)) },
-                modifier = Modifier.testTag("$WIDER_WIDGET_ACTION_TAG:$widgetId"),
-                onClick = {
-                    onDismiss()
-                    onResizeSpan(span + 1)
-                },
-            )
-        }
-        if (span > 1) {
-            DropdownMenuItem(
-                text = { LauncherMenuItemText(stringResource(R.string.widget_menu_narrower)) },
-                modifier = Modifier.testTag("$NARROWER_WIDGET_ACTION_TAG:$widgetId"),
-                onClick = {
-                    onDismiss()
-                    onResizeSpan(span - 1)
-                },
-            )
-        }
-        if (canMoveUp) {
-            DropdownMenuItem(
-                text = { LauncherMenuItemText(stringResource(R.string.widget_menu_move_up)) },
-                modifier = Modifier.testTag("$MOVE_UP_WIDGET_ACTION_TAG:$widgetId"),
+                text = { LauncherMenuItemText(moveStartLabel) },
+                enabled = canMoveStart,
+                modifier = Modifier.testTag("$MOVE_START_WIDGET_ACTION_TAG:$widgetId"),
                 onClick = {
                     onDismiss()
                     onMoveWidget(widgetId, WidgetMoveDirection.UP)
                 },
             )
-        }
-        if (canMoveDown) {
             DropdownMenuItem(
-                text = { LauncherMenuItemText(stringResource(R.string.widget_menu_move_down)) },
-                modifier = Modifier.testTag("$MOVE_DOWN_WIDGET_ACTION_TAG:$widgetId"),
+                text = { LauncherMenuItemText(moveEndLabel) },
+                enabled = canMoveEnd,
+                modifier = Modifier.testTag("$MOVE_END_WIDGET_ACTION_TAG:$widgetId"),
                 onClick = {
                     onDismiss()
                     onMoveWidget(widgetId, WidgetMoveDirection.DOWN)

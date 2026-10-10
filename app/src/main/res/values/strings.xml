@@ -113,6 +113,10 @@
     <string name="widget_menu_resize">Resize</string>
     <string name="widget_menu_move_up">Move up</string>
     <string name="widget_menu_move_down">Move down</string>
+    <!-- TODO: translate -->
+    <string name="widget_menu_move_left" tools:ignore="MissingTranslation">Move left</string>
+    <!-- TODO: translate -->
+    <string name="widget_menu_move_right" tools:ignore="MissingTranslation">Move right</string>
     <string name="widget_menu_wider">Wider</string>
     <string name="widget_menu_narrower">Narrower</string>
     <string name="widget_menu_remove">Remove</string>
