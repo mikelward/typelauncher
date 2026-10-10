@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">Muuta kokoa</string>
     <string name="widget_menu_move_up">Siirrä ylös</string>
     <string name="widget_menu_move_down">Siirrä alas</string>
+    <string name="widget_menu_move_left">Siirrä vasemmalle</string>
+    <string name="widget_menu_move_right">Siirrä oikealle</string>
     <string name="widget_menu_wider">Leveämmäksi</string>
     <string name="widget_menu_narrower">Kapeammaksi</string>
     <string name="widget_menu_remove">Poista</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">Kioskitila</string>
     <string name="kiosk_mode_exit_hint">Avaa Asetukset painamalla näyttöä 2 sekunnin ajan</string>
     <string name="settings_kiosk_dim_when_idle_title">Herätä kameralla</string>
+    <string name="settings_kiosk_blank_when_idle_title">Pimennä, kun ei käytössä</string>
+    <string name="settings_kiosk_blank_at_night_title">Pimennä yöllä</string>
+    <string name="kiosk_blank_wake_action">Näytä widgetit</string>
+    <string name="settings_kiosk_blank_from">Alkaen</string>
+    <string name="settings_kiosk_blank_until">Asti</string>
     <string name="settings_wallpaper_picker_unavailable">Taustakuvan valitsin ei ole käytettävissä</string>
     <string name="play_update_banner_restart_failed">Uudelleenkäynnistys asennusta varten epäonnistui</string>
     <string name="scroll_up_for_more_hint">Vieritä ylös nähdäksesi lisää</string>

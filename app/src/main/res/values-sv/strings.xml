@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">Ändra storlek</string>
     <string name="widget_menu_move_up">Flytta upp</string>
     <string name="widget_menu_move_down">Flytta ned</string>
+    <string name="widget_menu_move_left">Flytta åt vänster</string>
+    <string name="widget_menu_move_right">Flytta åt höger</string>
     <string name="widget_menu_wider">Bredare</string>
     <string name="widget_menu_narrower">Smalare</string>
     <string name="widget_menu_remove">Ta bort</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">Kioskläge</string>
     <string name="kiosk_mode_exit_hint">Håll ned skärmen i 2 sekunder för att öppna Inställningar</string>
     <string name="settings_kiosk_dim_when_idle_title">Väck skärmen med kameran</string>
+    <string name="settings_kiosk_blank_when_idle_title">Släck skärmen vid inaktivitet</string>
+    <string name="settings_kiosk_blank_at_night_title">Släck skärmen på natten</string>
+    <string name="kiosk_blank_wake_action">Visa widgetar</string>
+    <string name="settings_kiosk_blank_from">Från</string>
+    <string name="settings_kiosk_blank_until">Till</string>
     <string name="settings_wallpaper_picker_unavailable">Bakgrundsväljaren är inte tillgänglig</string>
     <string name="play_update_banner_restart_failed">Det gick inte att starta om för att installera</string>
     <string name="scroll_up_for_more_hint">Rulla uppåt för att se mer</string>

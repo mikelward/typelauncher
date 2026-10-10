@@ -86,6 +86,8 @@
     <string name="widget_menu_resize">Redimensionar</string>
     <string name="widget_menu_move_up">Mover arriba</string>
     <string name="widget_menu_move_down">Mover abajo</string>
+    <string name="widget_menu_move_left">Mover a la izquierda</string>
+    <string name="widget_menu_move_right">Mover a la derecha</string>
     <string name="widget_menu_wider">Más ancho</string>
     <string name="widget_menu_narrower">Más estrecho</string>
     <string name="widget_menu_remove">Eliminar</string>
@@ -177,6 +179,11 @@
     <string name="settings_kiosk_mode_title">Modo quiosco</string>
     <string name="kiosk_mode_exit_hint">Mantén pulsada la pantalla 2 segundos para abrir Ajustes</string>
     <string name="settings_kiosk_dim_when_idle_title">Activar con la cámara</string>
+    <string name="settings_kiosk_blank_when_idle_title">Apagar si está inactivo</string>
+    <string name="settings_kiosk_blank_at_night_title">Apagar por la noche</string>
+    <string name="kiosk_blank_wake_action">Mostrar widgets</string>
+    <string name="settings_kiosk_blank_from">De</string>
+    <string name="settings_kiosk_blank_until">Hasta</string>
     <string name="settings_wallpaper_picker_unavailable">Selector de fondos no disponible</string>
     <string name="play_update_banner_restart_failed">No se ha podido reiniciar para instalar</string>
     <string name="scroll_up_for_more_hint">Desliza hacia arriba para ver más</string>

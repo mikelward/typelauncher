@@ -84,6 +84,8 @@
     <string name="widget_menu_resize">Đổi kích thước</string>
     <string name="widget_menu_move_up">Di chuyển lên</string>
     <string name="widget_menu_move_down">Di chuyển xuống</string>
+    <string name="widget_menu_move_left">Di chuyển sang trái</string>
+    <string name="widget_menu_move_right">Di chuyển sang phải</string>
     <string name="widget_menu_wider">Rộng hơn</string>
     <string name="widget_menu_narrower">Hẹp hơn</string>
     <string name="widget_menu_remove">Xóa</string>
@@ -175,6 +177,11 @@
     <string name="settings_kiosk_mode_title">Chế độ kiosk</string>
     <string name="kiosk_mode_exit_hint">Nhấn giữ màn hình trong 2 giây để mở Cài đặt</string>
     <string name="settings_kiosk_dim_when_idle_title">Đánh thức bằng camera</string>
+    <string name="settings_kiosk_blank_when_idle_title">Tắt màn hình khi không dùng</string>
+    <string name="settings_kiosk_blank_at_night_title">Tắt màn hình vào ban đêm</string>
+    <string name="kiosk_blank_wake_action">Hiện tiện ích</string>
+    <string name="settings_kiosk_blank_from">Từ</string>
+    <string name="settings_kiosk_blank_until">Đến</string>
     <string name="settings_wallpaper_picker_unavailable">Không có ứng dụng chọn hình nền</string>
     <string name="play_update_banner_restart_failed">Không thể khởi động lại để cài đặt</string>
     <string name="scroll_up_for_more_hint">Cuộn lên để xem thêm</string>

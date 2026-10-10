@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">ଆକାର ବଦଳାନ୍ତୁ</string>
     <string name="widget_menu_move_up">ଉପରକୁ ନିଅନ୍ତୁ</string>
     <string name="widget_menu_move_down">ତଳକୁ ନିଅନ୍ତୁ</string>
+    <string name="widget_menu_move_left">ବାମକୁ ନିଅନ୍ତୁ</string>
+    <string name="widget_menu_move_right">ଡାହାଣକୁ ନିଅନ୍ତୁ</string>
     <string name="widget_menu_wider">ଅଧିକ ଚଉଡ଼ା</string>
     <string name="widget_menu_narrower">କମ୍ ଚଉଡ଼ା</string>
     <string name="widget_menu_remove">ହଟାନ୍ତୁ</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">କିଓସ୍କ ମୋଡ୍</string>
     <string name="kiosk_mode_exit_hint">ସେଟିଂସ୍ ଖୋଲିବାକୁ ସ୍କ୍ରିନକୁ 2 ସେକେଣ୍ଡ ଦବାଇ ରଖନ୍ତୁ</string>
     <string name="settings_kiosk_dim_when_idle_title">କ୍ୟାମେରା ବ୍ୟବହାର କରି ଜାଗ୍ରତ କରନ୍ତୁ</string>
+    <string name="settings_kiosk_blank_when_idle_title">ନିଷ୍କ୍ରିୟ ଥିବାବେଳେ ସ୍କ୍ରିନ କଳା କରନ୍ତୁ</string>
+    <string name="settings_kiosk_blank_at_night_title">ରାତିରେ ସ୍କ୍ରିନ କଳା କରନ୍ତୁ</string>
+    <string name="kiosk_blank_wake_action">ୱିଜେଟ୍ ଦେଖାନ୍ତୁ</string>
+    <string name="settings_kiosk_blank_from">ଠାରୁ</string>
+    <string name="settings_kiosk_blank_until">ପର୍ଯ୍ୟନ୍ତ</string>
     <string name="settings_wallpaper_picker_unavailable">ୱାଲପେପର ଚୟନକାରୀ ଉପଲବ୍ଧ ନାହିଁ</string>
     <string name="play_update_banner_restart_failed">ଇନଷ୍ଟଲ୍ କରିବା ପାଇଁ ରିଷ୍ଟାର୍ଟ କରାଯାଇପାରିଲା ନାହିଁ</string>
     <string name="scroll_up_for_more_hint">ଅଧିକ ପାଇଁ ଉପରକୁ ସ୍କ୍ରୋଲ୍ କରନ୍ତୁ</string>

@@ -84,6 +84,8 @@
     <string name="widget_menu_resize">ប្តូរទំហំ</string>
     <string name="widget_menu_move_up">ផ្លាស់ទីឡើងលើ</string>
     <string name="widget_menu_move_down">ផ្លាស់ទីចុះក្រោម</string>
+    <string name="widget_menu_move_left">ផ្លាស់ទីទៅឆ្វេង</string>
+    <string name="widget_menu_move_right">ផ្លាស់ទីទៅស្ដាំ</string>
     <string name="widget_menu_wider">ធំទូលាយជាង</string>
     <string name="widget_menu_narrower">តូចចង្អៀតជាង</string>
     <string name="widget_menu_remove">លុប</string>
@@ -175,6 +177,11 @@
     <string name="settings_kiosk_mode_title">មុខងារ​គីអូស</string>
     <string name="kiosk_mode_exit_hint">ចុចអេក្រង់​ឱ្យ​ជាប់ 2 វិនាទី ដើម្បី​បើក​ការកំណត់</string>
     <string name="settings_kiosk_dim_when_idle_title">ដាស់​ដោយ​ប្រើ​កាមេរ៉ា</string>
+    <string name="settings_kiosk_blank_when_idle_title">ធ្វើឱ្យអេក្រង់ងងឹតពេលទំនេរ</string>
+    <string name="settings_kiosk_blank_at_night_title">ធ្វើឱ្យអេក្រង់ងងឹតពេលយប់</string>
+    <string name="kiosk_blank_wake_action">បង្ហាញវិដជិត</string>
+    <string name="settings_kiosk_blank_from">ពី</string>
+    <string name="settings_kiosk_blank_until">ដល់</string>
     <string name="settings_wallpaper_picker_unavailable">មិនមានកម្មវិធីជ្រើសរើសផ្ទាំងខាងក្រោយ</string>
     <string name="play_update_banner_restart_failed">មិនអាចចាប់ផ្ដើមឡើងវិញដើម្បីដំឡើងបានទេ</string>
     <string name="scroll_up_for_more_hint">រំកិលឡើងលើដើម្បីមើលបន្ថែម</string>

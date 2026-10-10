@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">કદ બદલો</string>
     <string name="widget_menu_move_up">ઉપર ખસેડો</string>
     <string name="widget_menu_move_down">નીચે ખસેડો</string>
+    <string name="widget_menu_move_left">ડાબે ખસેડો</string>
+    <string name="widget_menu_move_right">જમણે ખસેડો</string>
     <string name="widget_menu_wider">વધુ પહોળું</string>
     <string name="widget_menu_narrower">વધુ સાંકડું</string>
     <string name="widget_menu_remove">દૂર કરો</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">કિઓસ્ક મોડ</string>
     <string name="kiosk_mode_exit_hint">સેટિંગ્સ ખોલવા માટે સ્ક્રીનને 2 સેકન્ડ દબાવી રાખો</string>
     <string name="settings_kiosk_dim_when_idle_title">કૅમેરા વડે જાગૃત કરો</string>
+    <string name="settings_kiosk_blank_when_idle_title">નિષ્ક્રિય હોય ત્યારે સ્ક્રીન કાળી કરો</string>
+    <string name="settings_kiosk_blank_at_night_title">રાત્રે સ્ક્રીન કાળી કરો</string>
+    <string name="kiosk_blank_wake_action">વિજેટ બતાવો</string>
+    <string name="settings_kiosk_blank_from">થી</string>
+    <string name="settings_kiosk_blank_until">સુધી</string>
     <string name="settings_wallpaper_picker_unavailable">વૉલપેપર પિકર ઉપલબ્ધ નથી</string>
     <string name="play_update_banner_restart_failed">ઇન્સ્ટૉલ કરવા ફરી ચાલુ કરી શકાયું નથી</string>
     <string name="scroll_up_for_more_hint">વધુ માટે ઉપર સ્ક્રોલ કરો</string>

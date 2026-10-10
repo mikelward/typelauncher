@@ -84,6 +84,8 @@
     <string name="widget_menu_resize">ปรับขนาด</string>
     <string name="widget_menu_move_up">ย้ายขึ้น</string>
     <string name="widget_menu_move_down">ย้ายลง</string>
+    <string name="widget_menu_move_left">ย้ายไปทางซ้าย</string>
+    <string name="widget_menu_move_right">ย้ายไปทางขวา</string>
     <string name="widget_menu_wider">กว้างขึ้น</string>
     <string name="widget_menu_narrower">แคบลง</string>
     <string name="widget_menu_remove">ลบ</string>
@@ -175,6 +177,11 @@
     <string name="settings_kiosk_mode_title">โหมดคีออสก์</string>
     <string name="kiosk_mode_exit_hint">กดหน้าจอค้างไว้ 2 วินาทีเพื่อเปิดการตั้งค่า</string>
     <string name="settings_kiosk_dim_when_idle_title">ปลุกด้วยกล้อง</string>
+    <string name="settings_kiosk_blank_when_idle_title">ดับหน้าจอเมื่อไม่ได้ใช้งาน</string>
+    <string name="settings_kiosk_blank_at_night_title">ดับหน้าจอตอนกลางคืน</string>
+    <string name="kiosk_blank_wake_action">แสดงวิดเจ็ต</string>
+    <string name="settings_kiosk_blank_from">ตั้งแต่</string>
+    <string name="settings_kiosk_blank_until">ถึง</string>
     <string name="settings_wallpaper_picker_unavailable">ไม่มีแอปเลือกวอลเปเปอร์</string>
     <string name="play_update_banner_restart_failed">รีสตาร์ทเพื่อติดตั้งไม่ได้</string>
     <string name="scroll_up_for_more_hint">เลื่อนขึ้นเพื่อดูเพิ่มเติม</string>

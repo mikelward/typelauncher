@@ -84,6 +84,8 @@
     <string name="widget_menu_resize">크기 조절</string>
     <string name="widget_menu_move_up">위로 이동</string>
     <string name="widget_menu_move_down">아래로 이동</string>
+    <string name="widget_menu_move_left">왼쪽으로 이동</string>
+    <string name="widget_menu_move_right">오른쪽으로 이동</string>
     <string name="widget_menu_wider">넓게</string>
     <string name="widget_menu_narrower">좁게</string>
     <string name="widget_menu_remove">삭제</string>
@@ -175,6 +177,11 @@
     <string name="settings_kiosk_mode_title">키오스크 모드</string>
     <string name="kiosk_mode_exit_hint">화면을 2초 동안 길게 누르면 설정이 열립니다</string>
     <string name="settings_kiosk_dim_when_idle_title">카메라로 깨우기</string>
+    <string name="settings_kiosk_blank_when_idle_title">유휴 시 화면 끄기</string>
+    <string name="settings_kiosk_blank_at_night_title">야간에 화면 끄기</string>
+    <string name="kiosk_blank_wake_action">위젯 표시</string>
+    <string name="settings_kiosk_blank_from">시작</string>
+    <string name="settings_kiosk_blank_until">종료</string>
     <string name="settings_wallpaper_picker_unavailable">배경화면 선택기를 사용할 수 없음</string>
     <string name="play_update_banner_restart_failed">설치를 위해 다시 시작할 수 없습니다</string>
     <string name="scroll_up_for_more_hint">위로 스크롤하면 더 볼 수 있습니다</string>

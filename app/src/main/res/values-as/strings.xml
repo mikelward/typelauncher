@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">আকাৰ সলনি কৰক</string>
     <string name="widget_menu_move_up">ওপৰলৈ নিয়ক</string>
     <string name="widget_menu_move_down">তললৈ নিয়ক</string>
+    <string name="widget_menu_move_left">বাওঁফালে নিয়ক</string>
+    <string name="widget_menu_move_right">সোঁফালে নিয়ক</string>
     <string name="widget_menu_wider">বহল কৰক</string>
     <string name="widget_menu_narrower">ঠেক কৰক</string>
     <string name="widget_menu_remove">আঁতৰাওক</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">কিয়স্ক মোড</string>
     <string name="kiosk_mode_exit_hint">ছেটিংছ খুলিবলৈ স্ক্ৰীনখন ২ ছেকেণ্ডৰ বাবে হেঁচি ধৰি ৰাখক</string>
     <string name="settings_kiosk_dim_when_idle_title">কেমেৰাৰে সাৰ পাওক</string>
+    <string name="settings_kiosk_blank_when_idle_title">নিষ্ক্ৰিয় হ\'লে স্ক্ৰীন ক\'লা কৰক</string>
+    <string name="settings_kiosk_blank_at_night_title">ৰাতি স্ক্ৰীন ক\'লা কৰক</string>
+    <string name="kiosk_blank_wake_action">উইজেটসমূহ দেখুৱাওক</string>
+    <string name="settings_kiosk_blank_from">পৰা</string>
+    <string name="settings_kiosk_blank_until">লৈ</string>
     <string name="settings_wallpaper_picker_unavailable">ৱালপেপাৰ বাছনিকৰ্তা উপলব্ধ নহয়</string>
     <string name="play_update_banner_restart_failed">ইনষ্টল কৰিবলৈ ৰিষ্টাৰ্ট কৰিব পৰা নগ’ল</string>
     <string name="scroll_up_for_more_hint">অধিক চাবলৈ ওপৰলৈ স্ক্ৰল কৰক</string>

@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">Yeniden boyutlandır</string>
     <string name="widget_menu_move_up">Yukarı taşı</string>
     <string name="widget_menu_move_down">Aşağı taşı</string>
+    <string name="widget_menu_move_left">Sola taşı</string>
+    <string name="widget_menu_move_right">Sağa taşı</string>
     <string name="widget_menu_wider">Daha geniş</string>
     <string name="widget_menu_narrower">Daha dar</string>
     <string name="widget_menu_remove">Kaldır</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">Kiosk modu</string>
     <string name="kiosk_mode_exit_hint">Ayarlar\'ı açmak için ekrana 2 saniye basılı tutun</string>
     <string name="settings_kiosk_dim_when_idle_title">Kamerayla uyandır</string>
+    <string name="settings_kiosk_blank_when_idle_title">Boştayken ekranı karart</string>
+    <string name="settings_kiosk_blank_at_night_title">Gece ekranı karart</string>
+    <string name="kiosk_blank_wake_action">Pencere öğelerini göster</string>
+    <string name="settings_kiosk_blank_from">Başlangıç</string>
+    <string name="settings_kiosk_blank_until">Bitiş</string>
     <string name="settings_wallpaper_picker_unavailable">Duvar kağıdı seçici kullanılamıyor</string>
     <string name="play_update_banner_restart_failed">Yüklemek için yeniden başlatılamadı</string>
     <string name="scroll_up_for_more_hint">Daha fazlası için yukarı kaydırın</string>

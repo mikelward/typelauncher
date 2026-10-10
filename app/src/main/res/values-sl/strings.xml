@@ -87,6 +87,8 @@
     <string name="widget_menu_resize">Spremeni velikost</string>
     <string name="widget_menu_move_up">Premakni navzgor</string>
     <string name="widget_menu_move_down">Premakni navzdol</string>
+    <string name="widget_menu_move_left">Premakni levo</string>
+    <string name="widget_menu_move_right">Premakni desno</string>
     <string name="widget_menu_wider">Širše</string>
     <string name="widget_menu_narrower">Ožje</string>
     <string name="widget_menu_remove">Odstrani</string>
@@ -178,6 +180,11 @@
     <string name="settings_kiosk_mode_title">Način kioska</string>
     <string name="kiosk_mode_exit_hint">Za odpiranje Nastavitev pridržite zaslon 2 sekundi</string>
     <string name="settings_kiosk_dim_when_idle_title">Prebujanje s kamero</string>
+    <string name="settings_kiosk_blank_when_idle_title">Zatemni ob neaktivnosti</string>
+    <string name="settings_kiosk_blank_at_night_title">Zatemni ponoči</string>
+    <string name="kiosk_blank_wake_action">Pokaži pripomočke</string>
+    <string name="settings_kiosk_blank_from">Od</string>
+    <string name="settings_kiosk_blank_until">Do</string>
     <string name="settings_wallpaper_picker_unavailable">Izbirnik ozadij ni na voljo</string>
     <string name="play_update_banner_restart_failed">Vnovičnega zagona za namestitev ni bilo mogoče izvesti</string>
     <string name="scroll_up_for_more_hint">Pomaknite se navzgor za več</string>

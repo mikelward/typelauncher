@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">ಗಾತ್ರ ಬದಲಿಸಿ</string>
     <string name="widget_menu_move_up">ಮೇಲಕ್ಕೆ ಸರಿಸಿ</string>
     <string name="widget_menu_move_down">ಕೆಳಕ್ಕೆ ಸರಿಸಿ</string>
+    <string name="widget_menu_move_left">ಎಡಕ್ಕೆ ಸರಿಸಿ</string>
+    <string name="widget_menu_move_right">ಬಲಕ್ಕೆ ಸರಿಸಿ</string>
     <string name="widget_menu_wider">ಹೆಚ್ಚು ಅಗಲ</string>
     <string name="widget_menu_narrower">ಕಡಿಮೆ ಅಗಲ</string>
     <string name="widget_menu_remove">ತೆಗೆದುಹಾಕಿ</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">ಕಿಯೋಸ್ಕ್ ಮೋಡ್</string>
     <string name="kiosk_mode_exit_hint">ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ತೆರೆಯಲು ಸ್ಕ್ರೀನ್ ಅನ್ನು 2 ಸೆಕೆಂಡುಗಳ ಕಾಲ ಒತ್ತಿ ಹಿಡಿಯಿರಿ</string>
     <string name="settings_kiosk_dim_when_idle_title">ಕ್ಯಾಮರಾ ಬಳಸಿ ಎಚ್ಚರಗೊಳಿಸಿ</string>
+    <string name="settings_kiosk_blank_when_idle_title">ನಿಷ್ಕ್ರಿಯವಾಗಿದ್ದಾಗ ಪರದೆ ಕಪ್ಪಾಗಿಸಿ</string>
+    <string name="settings_kiosk_blank_at_night_title">ರಾತ್ರಿಯಲ್ಲಿ ಪರದೆ ಕಪ್ಪಾಗಿಸಿ</string>
+    <string name="kiosk_blank_wake_action">ವಿಜೆಟ್‌ಗಳನ್ನು ತೋರಿಸಿ</string>
+    <string name="settings_kiosk_blank_from">ಇಂದ</string>
+    <string name="settings_kiosk_blank_until">ವರೆಗೆ</string>
     <string name="settings_wallpaper_picker_unavailable">ವಾಲ್‌ಪೇಪರ್ ಆಯ್ಕೆಗಾರ ಲಭ್ಯವಿಲ್ಲ</string>
     <string name="play_update_banner_restart_failed">ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲು ಮರುಪ್ರಾರಂಭಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ</string>
     <string name="scroll_up_for_more_hint">ಇನ್ನಷ್ಟಕ್ಕಾಗಿ ಮೇಲಕ್ಕೆ ಸ್ಕ್ರಾಲ್ ಮಾಡಿ</string>

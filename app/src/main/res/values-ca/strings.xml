@@ -86,6 +86,8 @@
     <string name="widget_menu_resize">Redimensiona</string>
     <string name="widget_menu_move_up">Mou amunt</string>
     <string name="widget_menu_move_down">Mou avall</string>
+    <string name="widget_menu_move_left">Mou a l\'esquerra</string>
+    <string name="widget_menu_move_right">Mou a la dreta</string>
     <string name="widget_menu_wider">Més ample</string>
     <string name="widget_menu_narrower">Més estret</string>
     <string name="widget_menu_remove">Elimina</string>
@@ -177,6 +179,11 @@
     <string name="settings_kiosk_mode_title">Mode quiosc</string>
     <string name="kiosk_mode_exit_hint">Mantén premuda la pantalla 2 segons per obrir Configuració</string>
     <string name="settings_kiosk_dim_when_idle_title">Activa amb la càmera</string>
+    <string name="settings_kiosk_blank_when_idle_title">Enfosqueix en repòs</string>
+    <string name="settings_kiosk_blank_at_night_title">Enfosqueix a la nit</string>
+    <string name="kiosk_blank_wake_action">Mostra els widgets</string>
+    <string name="settings_kiosk_blank_from">De</string>
+    <string name="settings_kiosk_blank_until">Fins a</string>
     <string name="settings_wallpaper_picker_unavailable">El selector de fons de pantalla no està disponible</string>
     <string name="play_update_banner_restart_failed">No s\'ha pogut reiniciar per instal·lar</string>
     <string name="scroll_up_for_more_hint">Desplaça amunt per veure\'n més</string>

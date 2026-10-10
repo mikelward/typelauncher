@@ -84,6 +84,8 @@
     <string name="widget_menu_resize">အရွယ်အစားပြောင်းမည်</string>
     <string name="widget_menu_move_up">အပေါ်သို့ ရွှေ့ရန်</string>
     <string name="widget_menu_move_down">အောက်သို့ ရွှေ့ရန်</string>
+    <string name="widget_menu_move_left">ဘယ်သို့ ရွှေ့ရန်</string>
+    <string name="widget_menu_move_right">ညာသို့ ရွှေ့ရန်</string>
     <string name="widget_menu_wider">ပိုကျယ်ရန်</string>
     <string name="widget_menu_narrower">ပိုကျဉ်းရန်</string>
     <string name="widget_menu_remove">ဖယ်ရှားမည်</string>
@@ -175,6 +177,11 @@
     <string name="settings_kiosk_mode_title">ကီယော့စ်မုဒ်</string>
     <string name="kiosk_mode_exit_hint">ဆက်တင်များ ဖွင့်ရန် စခရင်ကို ၂ စက္ကန့် ဖိထားပါ</string>
     <string name="settings_kiosk_dim_when_idle_title">ကင်မရာဖြင့် နှိုးပါ</string>
+    <string name="settings_kiosk_blank_when_idle_title">အသုံးမပြုချိန် ဖန်သားပြင် မှောင်ရန်</string>
+    <string name="settings_kiosk_blank_at_night_title">ညဘက် ဖန်သားပြင် မှောင်ရန်</string>
+    <string name="kiosk_blank_wake_action">ဝစ်ဂျက်များ ပြရန်</string>
+    <string name="settings_kiosk_blank_from">မှ</string>
+    <string name="settings_kiosk_blank_until">အထိ</string>
     <string name="settings_wallpaper_picker_unavailable">နောက်ခံပုံ ရွေးချယ်စနစ် မရနိုင်ပါ</string>
     <string name="play_update_banner_restart_failed">ထည့်သွင်းရန် ပြန်စတင်၍ မရပါ</string>
     <string name="scroll_up_for_more_hint">နောက်ထပ်ကြည့်ရန် အပေါ်သို့ ရွှေ့ပါ</string>

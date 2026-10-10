@@ -84,6 +84,8 @@
     <string name="widget_menu_resize">Ubah saiz</string>
     <string name="widget_menu_move_up">Alih ke atas</string>
     <string name="widget_menu_move_down">Alih ke bawah</string>
+    <string name="widget_menu_move_left">Alih ke kiri</string>
+    <string name="widget_menu_move_right">Alih ke kanan</string>
     <string name="widget_menu_wider">Lebih lebar</string>
     <string name="widget_menu_narrower">Lebih sempit</string>
     <string name="widget_menu_remove">Buang</string>
@@ -175,6 +177,11 @@
     <string name="settings_kiosk_mode_title">Mod kiosk</string>
     <string name="kiosk_mode_exit_hint">Tahan skrin selama 2 saat untuk membuka Tetapan</string>
     <string name="settings_kiosk_dim_when_idle_title">Bangunkan menggunakan kamera</string>
+    <string name="settings_kiosk_blank_when_idle_title">Gelapkan apabila melahu</string>
+    <string name="settings_kiosk_blank_at_night_title">Gelapkan pada waktu malam</string>
+    <string name="kiosk_blank_wake_action">Tunjukkan widget</string>
+    <string name="settings_kiosk_blank_from">Dari</string>
+    <string name="settings_kiosk_blank_until">Hingga</string>
     <string name="settings_wallpaper_picker_unavailable">Pemilih kertas dinding tidak tersedia</string>
     <string name="play_update_banner_restart_failed">Tidak dapat dimulakan semula untuk memasang</string>
     <string name="scroll_up_for_more_hint">Tatal ke atas untuk lihat lagi</string>

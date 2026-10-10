@@ -87,6 +87,8 @@
     <string name="widget_menu_resize">Изменить размер</string>
     <string name="widget_menu_move_up">Переместить вверх</string>
     <string name="widget_menu_move_down">Переместить вниз</string>
+    <string name="widget_menu_move_left">Переместить влево</string>
+    <string name="widget_menu_move_right">Переместить вправо</string>
     <string name="widget_menu_wider">Шире</string>
     <string name="widget_menu_narrower">Уже</string>
     <string name="widget_menu_remove">Удалить</string>
@@ -178,6 +180,11 @@
     <string name="settings_kiosk_mode_title">Режим киоска</string>
     <string name="kiosk_mode_exit_hint">Удерживайте экран 2 секунды, чтобы открыть Настройки</string>
     <string name="settings_kiosk_dim_when_idle_title">Пробуждение по камере</string>
+    <string name="settings_kiosk_blank_when_idle_title">Гасить экран при бездействии</string>
+    <string name="settings_kiosk_blank_at_night_title">Гасить экран ночью</string>
+    <string name="kiosk_blank_wake_action">Показать виджеты</string>
+    <string name="settings_kiosk_blank_from">С</string>
+    <string name="settings_kiosk_blank_until">До</string>
     <string name="settings_wallpaper_picker_unavailable">Приложение для обоев недоступно</string>
     <string name="play_update_banner_restart_failed">Не удалось перезапустить для установки</string>
     <string name="scroll_up_for_more_hint">Прокрутите вверх, чтобы увидеть больше</string>

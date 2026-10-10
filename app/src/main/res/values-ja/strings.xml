@@ -84,6 +84,8 @@
     <string name="widget_menu_resize">サイズ変更</string>
     <string name="widget_menu_move_up">上に移動</string>
     <string name="widget_menu_move_down">下に移動</string>
+    <string name="widget_menu_move_left">左に移動</string>
+    <string name="widget_menu_move_right">右に移動</string>
     <string name="widget_menu_wider">幅を広く</string>
     <string name="widget_menu_narrower">幅を狭く</string>
     <string name="widget_menu_remove">削除</string>
@@ -175,6 +177,11 @@
     <string name="settings_kiosk_mode_title">キオスクモード</string>
     <string name="kiosk_mode_exit_hint">画面を 2 秒間長押しすると設定が開きます</string>
     <string name="settings_kiosk_dim_when_idle_title">カメラでスリープ解除</string>
+    <string name="settings_kiosk_blank_when_idle_title">アイドル時に画面を消す</string>
+    <string name="settings_kiosk_blank_at_night_title">夜間に画面を消す</string>
+    <string name="kiosk_blank_wake_action">ウィジェットを表示</string>
+    <string name="settings_kiosk_blank_from">開始</string>
+    <string name="settings_kiosk_blank_until">終了</string>
     <string name="settings_wallpaper_picker_unavailable">壁紙の選択アプリがありません</string>
     <string name="play_update_banner_restart_failed">インストールのため再起動できませんでした</string>
     <string name="scroll_up_for_more_hint">上にスクロールするとさらに表示されます</string>

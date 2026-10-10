@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">Baguhin ang laki</string>
     <string name="widget_menu_move_up">Ilipat pataas</string>
     <string name="widget_menu_move_down">Ilipat pababa</string>
+    <string name="widget_menu_move_left">Ilipat pakaliwa</string>
+    <string name="widget_menu_move_right">Ilipat pakanan</string>
     <string name="widget_menu_wider">Mas malapad</string>
     <string name="widget_menu_narrower">Mas makitid</string>
     <string name="widget_menu_remove">Tanggalin</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">Kiosk mode</string>
     <string name="kiosk_mode_exit_hint">Pindutin nang matagal ang screen nang 2 segundo para buksan ang Settings</string>
     <string name="settings_kiosk_dim_when_idle_title">Gisingin gamit ang camera</string>
+    <string name="settings_kiosk_blank_when_idle_title">Padilimin kapag idle</string>
+    <string name="settings_kiosk_blank_at_night_title">Padilimin sa gabi</string>
+    <string name="kiosk_blank_wake_action">Ipakita ang mga widget</string>
+    <string name="settings_kiosk_blank_from">Mula</string>
+    <string name="settings_kiosk_blank_until">Hanggang</string>
     <string name="settings_wallpaper_picker_unavailable">Walang wallpaper picker</string>
     <string name="play_update_banner_restart_failed">Hindi ma-restart para mag-install</string>
     <string name="scroll_up_for_more_hint">Mag-scroll pataas para sa iba pa</string>

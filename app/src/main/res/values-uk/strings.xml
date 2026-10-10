@@ -87,6 +87,8 @@
     <string name="widget_menu_resize">Змінити розмір</string>
     <string name="widget_menu_move_up">Перемістити вгору</string>
     <string name="widget_menu_move_down">Перемістити вниз</string>
+    <string name="widget_menu_move_left">Перемістити вліво</string>
+    <string name="widget_menu_move_right">Перемістити вправо</string>
     <string name="widget_menu_wider">Ширше</string>
     <string name="widget_menu_narrower">Вужче</string>
     <string name="widget_menu_remove">Видалити</string>
@@ -178,6 +180,11 @@
     <string name="settings_kiosk_mode_title">Режим кіоску</string>
     <string name="kiosk_mode_exit_hint">Утримуйте екран 2 секунди, щоб відкрити Налаштування</string>
     <string name="settings_kiosk_dim_when_idle_title">Пробудження камерою</string>
+    <string name="settings_kiosk_blank_when_idle_title">Гасити екран у разі бездіяльності</string>
+    <string name="settings_kiosk_blank_at_night_title">Гасити екран уночі</string>
+    <string name="kiosk_blank_wake_action">Показати віджети</string>
+    <string name="settings_kiosk_blank_from">З</string>
+    <string name="settings_kiosk_blank_until">До</string>
     <string name="settings_wallpaper_picker_unavailable">Засіб вибору шпалер недоступний</string>
     <string name="play_update_banner_restart_failed">Не вдалося перезапустити для встановлення</string>
     <string name="scroll_up_for_more_hint">Прокрутіть угору, щоб побачити більше</string>

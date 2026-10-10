@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">Промени размер</string>
     <string name="widget_menu_move_up">Преместване нагоре</string>
     <string name="widget_menu_move_down">Преместване надолу</string>
+    <string name="widget_menu_move_left">Преместване наляво</string>
+    <string name="widget_menu_move_right">Преместване надясно</string>
     <string name="widget_menu_wider">По-широко</string>
     <string name="widget_menu_narrower">По-тясно</string>
     <string name="widget_menu_remove">Премахни</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">Режим на павилион</string>
     <string name="kiosk_mode_exit_hint">Задръжте екрана за 2 секунди, за да отворите Настройки</string>
     <string name="settings_kiosk_dim_when_idle_title">Събуждане чрез камерата</string>
+    <string name="settings_kiosk_blank_when_idle_title">Затъмняване при бездействие</string>
+    <string name="settings_kiosk_blank_at_night_title">Затъмняване през нощта</string>
+    <string name="kiosk_blank_wake_action">Показване на джаджите</string>
+    <string name="settings_kiosk_blank_from">От</string>
+    <string name="settings_kiosk_blank_until">До</string>
     <string name="settings_wallpaper_picker_unavailable">Няма приложение за тапети</string>
     <string name="play_update_banner_restart_failed">Рестартирането за инсталиране не бе успешно</string>
     <string name="scroll_up_for_more_hint">Превъртете нагоре за още</string>

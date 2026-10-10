@@ -84,6 +84,8 @@
     <string name="widget_menu_resize">调整大小</string>
     <string name="widget_menu_move_up">上移</string>
     <string name="widget_menu_move_down">下移</string>
+    <string name="widget_menu_move_left">左移</string>
+    <string name="widget_menu_move_right">右移</string>
     <string name="widget_menu_wider">加宽</string>
     <string name="widget_menu_narrower">变窄</string>
     <string name="widget_menu_remove">移除</string>
@@ -175,6 +177,11 @@
     <string name="settings_kiosk_mode_title">展台模式</string>
     <string name="kiosk_mode_exit_hint">按住屏幕 2 秒即可打开设置</string>
     <string name="settings_kiosk_dim_when_idle_title">使用摄像头唤醒</string>
+    <string name="settings_kiosk_blank_when_idle_title">闲置时关闭屏幕</string>
+    <string name="settings_kiosk_blank_at_night_title">夜间关闭屏幕</string>
+    <string name="kiosk_blank_wake_action">显示小部件</string>
+    <string name="settings_kiosk_blank_from">开始</string>
+    <string name="settings_kiosk_blank_until">结束</string>
     <string name="settings_wallpaper_picker_unavailable">壁纸选择器不可用</string>
     <string name="play_update_banner_restart_failed">无法重启以安装</string>
     <string name="scroll_up_for_more_hint">向上滑动查看更多</string>
