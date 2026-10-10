@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">Badilisha ukubwa</string>
     <string name="widget_menu_move_up">Sogeza juu</string>
     <string name="widget_menu_move_down">Sogeza chini</string>
+    <string name="widget_menu_move_left">Sogeza kushoto</string>
+    <string name="widget_menu_move_right">Sogeza kulia</string>
     <string name="widget_menu_wider">Pana zaidi</string>
     <string name="widget_menu_narrower">Embamba zaidi</string>
     <string name="widget_menu_remove">Ondoa</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">Hali ya kioski</string>
     <string name="kiosk_mode_exit_hint">Shikilia skrini kwa sekunde 2 ili kufungua Mipangilio</string>
     <string name="settings_kiosk_dim_when_idle_title">Amsha kwa kamera</string>
+    <string name="settings_kiosk_blank_when_idle_title">Zima skrini isipotumika</string>
+    <string name="settings_kiosk_blank_at_night_title">Zima skrini usiku</string>
+    <string name="kiosk_blank_wake_action">Onyesha wijeti</string>
+    <string name="settings_kiosk_blank_from">Kuanzia</string>
+    <string name="settings_kiosk_blank_until">Hadi</string>
     <string name="settings_wallpaper_picker_unavailable">Kichagua mandharinyuma hakipatikani</string>
     <string name="play_update_banner_restart_failed">Imeshindwa kuwasha upya ili kusakinisha</string>
     <string name="scroll_up_for_more_hint">Sogeza juu ili uone zaidi</string>

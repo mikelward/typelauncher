@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">تغییر اندازه</string>
     <string name="widget_menu_move_up">انتقال به بالا</string>
     <string name="widget_menu_move_down">انتقال به پایین</string>
+    <string name="widget_menu_move_left">انتقال به چپ</string>
+    <string name="widget_menu_move_right">انتقال به راست</string>
     <string name="widget_menu_wider">پهن‌تر</string>
     <string name="widget_menu_narrower">باریک‌تر</string>
     <string name="widget_menu_remove">حذف</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">حالت کیوسک</string>
     <string name="kiosk_mode_exit_hint">برای باز کردن تنظیمات، صفحه را ۲ ثانیه نگه دارید</string>
     <string name="settings_kiosk_dim_when_idle_title">بیدار شدن با دوربین</string>
+    <string name="settings_kiosk_blank_when_idle_title">خاموش کردن صفحه در حالت بیکار</string>
+    <string name="settings_kiosk_blank_at_night_title">خاموش کردن صفحه در شب</string>
+    <string name="kiosk_blank_wake_action">نمایش ابزارک‌ها</string>
+    <string name="settings_kiosk_blank_from">از</string>
+    <string name="settings_kiosk_blank_until">تا</string>
     <string name="settings_wallpaper_picker_unavailable">انتخابگر کاغذدیواری در دسترس نیست</string>
     <string name="play_update_banner_restart_failed">راه‌اندازی مجدد برای نصب ممکن نشد</string>
     <string name="scroll_up_for_more_hint">برای دیدن موارد بیشتر به بالا بروید</string>

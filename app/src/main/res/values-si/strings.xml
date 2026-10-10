@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">ප්‍රමාණය වෙනස් කරන්න</string>
     <string name="widget_menu_move_up">ඉහළට ගෙන යන්න</string>
     <string name="widget_menu_move_down">පහළට ගෙන යන්න</string>
+    <string name="widget_menu_move_left">වමට ගෙන යන්න</string>
+    <string name="widget_menu_move_right">දකුණට ගෙන යන්න</string>
     <string name="widget_menu_wider">පළල් කරන්න</string>
     <string name="widget_menu_narrower">පටු කරන්න</string>
     <string name="widget_menu_remove">ඉවත් කරන්න</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">කියොස්ක් ප්‍රකාරය</string>
     <string name="kiosk_mode_exit_hint">සැකසුම් විවෘත කිරීමට තිරය තත්පර 2ක් ඔබාගෙන සිටින්න</string>
     <string name="settings_kiosk_dim_when_idle_title">කැමරාව භාවිතයෙන් අවදි කරන්න</string>
+    <string name="settings_kiosk_blank_when_idle_title">අක්‍රිය විට තිරය අඳුරු කරන්න</string>
+    <string name="settings_kiosk_blank_at_night_title">රාත්‍රියේ තිරය අඳුරු කරන්න</string>
+    <string name="kiosk_blank_wake_action">විජට් පෙන්වන්න</string>
+    <string name="settings_kiosk_blank_from">සිට</string>
+    <string name="settings_kiosk_blank_until">දක්වා</string>
     <string name="settings_wallpaper_picker_unavailable">බිතුපත තෝරනය නොමැත</string>
     <string name="play_update_banner_restart_failed">ස්ථාපනය කිරීමට යළි ආරම්භ කළ නොහැකි විය</string>
     <string name="scroll_up_for_more_hint">තව බැලීමට ඉහළට අනුචලනය කරන්න</string>

@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">Sauya girma</string>
     <string name="widget_menu_move_up">Matsar sama</string>
     <string name="widget_menu_move_down">Matsar ƙasa</string>
+    <string name="widget_menu_move_left">Matsar hagu</string>
+    <string name="widget_menu_move_right">Matsar dama</string>
     <string name="widget_menu_wider">Ƙara faɗi</string>
     <string name="widget_menu_narrower">Rage faɗi</string>
     <string name="widget_menu_remove">Cire</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">Yanayin kiosk</string>
     <string name="kiosk_mode_exit_hint">Riƙe allon na daƙiƙa 2 don buɗe Saituna</string>
     <string name="settings_kiosk_dim_when_idle_title">Tashi ta amfani da kyamara</string>
+    <string name="settings_kiosk_blank_when_idle_title">Duhunta allo idan babu aiki</string>
+    <string name="settings_kiosk_blank_at_night_title">Duhunta allo da dare</string>
+    <string name="kiosk_blank_wake_action">Nuna widget</string>
+    <string name="settings_kiosk_blank_from">Daga</string>
+    <string name="settings_kiosk_blank_until">Zuwa</string>
     <string name="settings_wallpaper_picker_unavailable">Babu mai zaɓen bangon waya</string>
     <string name="play_update_banner_restart_failed">An kasa sake farawa don shigarwa</string>
     <string name="scroll_up_for_more_hint">Gungura sama don ƙarin</string>

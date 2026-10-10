@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">Shintsha usayizi</string>
     <string name="widget_menu_move_up">Khuphukela phezulu</string>
     <string name="widget_menu_move_down">Yehlisela phansi</string>
+    <string name="widget_menu_move_left">Yisa kwesobunxele</string>
+    <string name="widget_menu_move_right">Yisa kwesokudla</string>
     <string name="widget_menu_wider">Yandisa ububanzi</string>
     <string name="widget_menu_narrower">Nciphisa ububanzi</string>
     <string name="widget_menu_remove">Susa</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">Imodi yekhiyoski</string>
     <string name="kiosk_mode_exit_hint">Bamba isikrini imizuzwana emi-2 ukuze uvule Izilungiselelo</string>
     <string name="settings_kiosk_dim_when_idle_title">Vusa usebenzisa ikhamera</string>
+    <string name="settings_kiosk_blank_when_idle_title">Fiphalisa isikrini uma singasetshenziswa</string>
+    <string name="settings_kiosk_blank_at_night_title">Fiphalisa isikrini ebusuku</string>
+    <string name="kiosk_blank_wake_action">Bonisa amawijethi</string>
+    <string name="settings_kiosk_blank_from">Kusukela</string>
+    <string name="settings_kiosk_blank_until">Kuze kube</string>
     <string name="settings_wallpaper_picker_unavailable">Isikhethi sesithombe sangemuva asitholakali</string>
     <string name="play_update_banner_restart_failed">Ayikwazanga ukuqala kabusha ukuze ifakwe</string>
     <string name="scroll_up_for_more_hint">Skrolela phezulu ukuze ubone okwengeziwe</string>

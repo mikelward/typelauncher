@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">আকার পরিবর্তন করুন</string>
     <string name="widget_menu_move_up">উপরে সরান</string>
     <string name="widget_menu_move_down">নিচে সরান</string>
+    <string name="widget_menu_move_left">বাঁয়ে সরান</string>
+    <string name="widget_menu_move_right">ডানে সরান</string>
     <string name="widget_menu_wider">আরও চওড়া</string>
     <string name="widget_menu_narrower">আরও সরু</string>
     <string name="widget_menu_remove">সরান</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">কিয়স্ক মোড</string>
     <string name="kiosk_mode_exit_hint">সেটিংস খুলতে স্ক্রিনটি ২ সেকেন্ড ধরে রাখুন</string>
     <string name="settings_kiosk_dim_when_idle_title">ক্যামেরা দিয়ে জাগান</string>
+    <string name="settings_kiosk_blank_when_idle_title">নিষ্ক্রিয় থাকলে স্ক্রিন কালো করুন</string>
+    <string name="settings_kiosk_blank_at_night_title">রাতে স্ক্রিন কালো করুন</string>
+    <string name="kiosk_blank_wake_action">উইজেট দেখান</string>
+    <string name="settings_kiosk_blank_from">থেকে</string>
+    <string name="settings_kiosk_blank_until">পর্যন্ত</string>
     <string name="settings_wallpaper_picker_unavailable">ওয়ালপেপার পিকার উপলব্ধ নেই</string>
     <string name="play_update_banner_restart_failed">ইনস্টল করার জন্য রিস্টার্ট করা যায়নি</string>
     <string name="scroll_up_for_more_hint">আরও দেখতে উপরে স্ক্রল করুন</string>

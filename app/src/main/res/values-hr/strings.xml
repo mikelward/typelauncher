@@ -86,6 +86,8 @@
     <string name="widget_menu_resize">Promijeni veličinu</string>
     <string name="widget_menu_move_up">Pomakni gore</string>
     <string name="widget_menu_move_down">Pomakni dolje</string>
+    <string name="widget_menu_move_left">Pomakni lijevo</string>
+    <string name="widget_menu_move_right">Pomakni desno</string>
     <string name="widget_menu_wider">Šire</string>
     <string name="widget_menu_narrower">Uže</string>
     <string name="widget_menu_remove">Ukloni</string>
@@ -177,6 +179,11 @@
     <string name="settings_kiosk_mode_title">Način kioska</string>
     <string name="kiosk_mode_exit_hint">Držite zaslon 2 sekunde da biste otvorili Postavke</string>
     <string name="settings_kiosk_dim_when_idle_title">Buđenje kamerom</string>
+    <string name="settings_kiosk_blank_when_idle_title">Zatamni u mirovanju</string>
+    <string name="settings_kiosk_blank_at_night_title">Zatamni noću</string>
+    <string name="kiosk_blank_wake_action">Prikaži widgete</string>
+    <string name="settings_kiosk_blank_from">Od</string>
+    <string name="settings_kiosk_blank_until">Do</string>
     <string name="settings_wallpaper_picker_unavailable">Odabir pozadine nije dostupan</string>
     <string name="play_update_banner_restart_failed">Ponovno pokretanje radi instalacije nije uspjelo</string>
     <string name="scroll_up_for_more_hint">Pomaknite se gore za više</string>

@@ -87,6 +87,8 @@
     <string name="widget_menu_resize">Keisti dydį</string>
     <string name="widget_menu_move_up">Perkelti aukštyn</string>
     <string name="widget_menu_move_down">Perkelti žemyn</string>
+    <string name="widget_menu_move_left">Perkelti kairėn</string>
+    <string name="widget_menu_move_right">Perkelti dešinėn</string>
     <string name="widget_menu_wider">Platesnis</string>
     <string name="widget_menu_narrower">Siauresnis</string>
     <string name="widget_menu_remove">Pašalinti</string>
@@ -178,6 +180,11 @@
     <string name="settings_kiosk_mode_title">Kiosko režimas</string>
     <string name="kiosk_mode_exit_hint">Palaikykite ekraną 2 sekundes, kad atidarytumėte Nustatymus</string>
     <string name="settings_kiosk_dim_when_idle_title">Pažadinti fotoaparatu</string>
+    <string name="settings_kiosk_blank_when_idle_title">Užtamsinti neveikiant</string>
+    <string name="settings_kiosk_blank_at_night_title">Užtamsinti naktį</string>
+    <string name="kiosk_blank_wake_action">Rodyti valdiklius</string>
+    <string name="settings_kiosk_blank_from">Nuo</string>
+    <string name="settings_kiosk_blank_until">Iki</string>
     <string name="settings_wallpaper_picker_unavailable">Fono parinkiklis nepasiekiamas</string>
     <string name="play_update_banner_restart_failed">Nepavyko paleisti iš naujo, kad būtų įdiegta</string>
     <string name="scroll_up_for_more_hint">Slinkite aukštyn, kad pamatytumėte daugiau</string>

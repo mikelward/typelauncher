@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">വലുപ്പം മാറ്റുക</string>
     <string name="widget_menu_move_up">മുകളിലേക്ക് നീക്കുക</string>
     <string name="widget_menu_move_down">താഴേക്ക് നീക്കുക</string>
+    <string name="widget_menu_move_left">ഇടത്തേക്ക് നീക്കുക</string>
+    <string name="widget_menu_move_right">വലത്തേക്ക് നീക്കുക</string>
     <string name="widget_menu_wider">കൂടുതൽ വീതി</string>
     <string name="widget_menu_narrower">കുറഞ്ഞ വീതി</string>
     <string name="widget_menu_remove">നീക്കം ചെയ്യുക</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">കിയോസ്‌ക് മോഡ്</string>
     <string name="kiosk_mode_exit_hint">ക്രമീകരണങ്ങൾ തുറക്കാൻ സ്ക്രീൻ 2 സെക്കൻഡ് അമർത്തിപ്പിടിക്കുക</string>
     <string name="settings_kiosk_dim_when_idle_title">ക്യാമറ ഉപയോഗിച്ച് ഉണർത്തുക</string>
+    <string name="settings_kiosk_blank_when_idle_title">നിഷ്‌ക്രിയമാകുമ്പോൾ സ്ക്രീൻ കറുപ്പിക്കുക</string>
+    <string name="settings_kiosk_blank_at_night_title">രാത്രിയിൽ സ്ക്രീൻ കറുപ്പിക്കുക</string>
+    <string name="kiosk_blank_wake_action">വിജറ്റുകൾ കാണിക്കുക</string>
+    <string name="settings_kiosk_blank_from">മുതൽ</string>
+    <string name="settings_kiosk_blank_until">വരെ</string>
     <string name="settings_wallpaper_picker_unavailable">വാൾപേപ്പർ പിക്കർ ലഭ്യമല്ല</string>
     <string name="play_update_banner_restart_failed">ഇൻസ്റ്റാൾ ചെയ്യാൻ റീസ്റ്റാർട്ട് ചെയ്യാനായില്ല</string>
     <string name="scroll_up_for_more_hint">കൂടുതലിന് മുകളിലേക്ക് സ്ക്രോൾ ചെയ്യുക</string>

@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">Aldatu tamaina</string>
     <string name="widget_menu_move_up">Eraman gora</string>
     <string name="widget_menu_move_down">Eraman behera</string>
+    <string name="widget_menu_move_left">Eraman ezkerrera</string>
+    <string name="widget_menu_move_right">Eraman eskuinera</string>
     <string name="widget_menu_wider">Zabalagoa</string>
     <string name="widget_menu_narrower">Estuagoa</string>
     <string name="widget_menu_remove">Kendu</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">Kiosko modua</string>
     <string name="kiosk_mode_exit_hint">Ezarpenak irekitzeko, eduki sakatuta pantaila 2 segundoz</string>
     <string name="settings_kiosk_dim_when_idle_title">Esnatu kamerarekin</string>
+    <string name="settings_kiosk_blank_when_idle_title">Ilundu inaktibo dagoenean</string>
+    <string name="settings_kiosk_blank_at_night_title">Ilundu gauez</string>
+    <string name="kiosk_blank_wake_action">Erakutsi widgetak</string>
+    <string name="settings_kiosk_blank_from">Noiztik</string>
+    <string name="settings_kiosk_blank_until">Noiz arte</string>
     <string name="settings_wallpaper_picker_unavailable">Horma-paper hautatzailea ez dago erabilgarri</string>
     <string name="play_update_banner_restart_failed">Ezin izan da berrabiarazi instalatzeko</string>
     <string name="scroll_up_for_more_hint">Egin gora gehiago ikusteko</string>

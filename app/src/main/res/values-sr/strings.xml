@@ -86,6 +86,8 @@
     <string name="widget_menu_resize">Промени величину</string>
     <string name="widget_menu_move_up">Помери нагоре</string>
     <string name="widget_menu_move_down">Помери надоле</string>
+    <string name="widget_menu_move_left">Помери налево</string>
+    <string name="widget_menu_move_right">Помери надесно</string>
     <string name="widget_menu_wider">Шире</string>
     <string name="widget_menu_narrower">Уже</string>
     <string name="widget_menu_remove">Уклони</string>
@@ -177,6 +179,11 @@
     <string name="settings_kiosk_mode_title">Режим киоска</string>
     <string name="kiosk_mode_exit_hint">Задржите екран 2 секунде да бисте отворили Подешавања</string>
     <string name="settings_kiosk_dim_when_idle_title">Буђење помоћу камере</string>
+    <string name="settings_kiosk_blank_when_idle_title">Затамни у мировању</string>
+    <string name="settings_kiosk_blank_at_night_title">Затамни ноћу</string>
+    <string name="kiosk_blank_wake_action">Прикажи виџете</string>
+    <string name="settings_kiosk_blank_from">Од</string>
+    <string name="settings_kiosk_blank_until">До</string>
     <string name="settings_wallpaper_picker_unavailable">Бирач позадине није доступан</string>
     <string name="play_update_banner_restart_failed">Поновно покретање ради инсталирања није успело</string>
     <string name="scroll_up_for_more_hint">Скролујте нагоре за још</string>

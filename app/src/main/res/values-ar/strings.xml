@@ -89,6 +89,8 @@
     <string name="widget_menu_resize">تغيير الحجم</string>
     <string name="widget_menu_move_up">نقل لأعلى</string>
     <string name="widget_menu_move_down">نقل لأسفل</string>
+    <string name="widget_menu_move_left">نقل لليسار</string>
+    <string name="widget_menu_move_right">نقل لليمين</string>
     <string name="widget_menu_wider">أعرض</string>
     <string name="widget_menu_narrower">أضيق</string>
     <string name="widget_menu_remove">إزالة</string>
@@ -180,6 +182,11 @@
     <string name="settings_kiosk_mode_title">وضع الكشك</string>
     <string name="kiosk_mode_exit_hint">اضغط مع الاستمرار على الشاشة لمدة ثانيتين لفتح الإعدادات</string>
     <string name="settings_kiosk_dim_when_idle_title">التنشيط باستخدام الكاميرا</string>
+    <string name="settings_kiosk_blank_when_idle_title">إطفاء الشاشة عند الخمول</string>
+    <string name="settings_kiosk_blank_at_night_title">إطفاء الشاشة ليلًا</string>
+    <string name="kiosk_blank_wake_action">عرض الأدوات</string>
+    <string name="settings_kiosk_blank_from">من</string>
+    <string name="settings_kiosk_blank_until">إلى</string>
     <string name="settings_wallpaper_picker_unavailable">منتقي الخلفية غير متوفر</string>
     <string name="play_update_banner_restart_failed">تعذّرت إعادة التشغيل للتثبيت</string>
     <string name="scroll_up_for_more_hint">مرِّر لأعلى لعرض المزيد</string>

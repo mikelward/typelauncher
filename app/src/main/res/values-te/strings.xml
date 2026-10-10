@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">పరిమాణం మార్చు</string>
     <string name="widget_menu_move_up">పైకి జరుపు</string>
     <string name="widget_menu_move_down">కిందికి జరుపు</string>
+    <string name="widget_menu_move_left">ఎడమకు జరుపు</string>
+    <string name="widget_menu_move_right">కుడికి జరుపు</string>
     <string name="widget_menu_wider">వెడల్పు పెంచు</string>
     <string name="widget_menu_narrower">వెడల్పు తగ్గించు</string>
     <string name="widget_menu_remove">తీసివేయి</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">కియోస్క్ మోడ్</string>
     <string name="kiosk_mode_exit_hint">సెట్టింగ్‌లను తెరవడానికి స్క్రీన్‌ను 2 సెకన్ల పాటు నొక్కి ఉంచండి</string>
     <string name="settings_kiosk_dim_when_idle_title">కెమెరాతో మేల్కొలపండి</string>
+    <string name="settings_kiosk_blank_when_idle_title">నిష్క్రియంగా ఉన్నప్పుడు స్క్రీన్ నల్లగా చేయి</string>
+    <string name="settings_kiosk_blank_at_night_title">రాత్రి స్క్రీన్ నల్లగా చేయి</string>
+    <string name="kiosk_blank_wake_action">విడ్జెట్‌లను చూపు</string>
+    <string name="settings_kiosk_blank_from">నుండి</string>
+    <string name="settings_kiosk_blank_until">వరకు</string>
     <string name="settings_wallpaper_picker_unavailable">వాల్‌పేపర్ ఎంపిక సాధనం అందుబాటులో లేదు</string>
     <string name="play_update_banner_restart_failed">ఇన్‌స్టాల్ చేయడానికి రీస్టార్ట్ చేయడం సాధ్యపడలేదు</string>
     <string name="scroll_up_for_more_hint">మరిన్నింటి కోసం పైకి స్క్రోల్ చేయండి</string>

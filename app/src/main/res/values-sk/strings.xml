@@ -87,6 +87,8 @@
     <string name="widget_menu_resize">Zmeniť veľkosť</string>
     <string name="widget_menu_move_up">Posunúť nahor</string>
     <string name="widget_menu_move_down">Posunúť nadol</string>
+    <string name="widget_menu_move_left">Posunúť doľava</string>
+    <string name="widget_menu_move_right">Posunúť doprava</string>
     <string name="widget_menu_wider">Širší</string>
     <string name="widget_menu_narrower">Užší</string>
     <string name="widget_menu_remove">Odstrániť</string>
@@ -178,6 +180,11 @@
     <string name="settings_kiosk_mode_title">Režim kiosku</string>
     <string name="kiosk_mode_exit_hint">Podržaním obrazovky na 2 sekundy otvoríte Nastavenia</string>
     <string name="settings_kiosk_dim_when_idle_title">Prebudiť pomocou fotoaparátu</string>
+    <string name="settings_kiosk_blank_when_idle_title">Zatemniť pri nečinnosti</string>
+    <string name="settings_kiosk_blank_at_night_title">Zatemniť v noci</string>
+    <string name="kiosk_blank_wake_action">Zobraziť widgety</string>
+    <string name="settings_kiosk_blank_from">Od</string>
+    <string name="settings_kiosk_blank_until">Do</string>
     <string name="settings_wallpaper_picker_unavailable">Výber tapety nie je k dispozícii</string>
     <string name="play_update_banner_restart_failed">Reštart na inštaláciu sa nepodaril</string>
     <string name="scroll_up_for_more_hint">Posunutím nahor zobrazíte viac</string>

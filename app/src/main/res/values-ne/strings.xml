@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">आकार बदल्नुहोस्</string>
     <string name="widget_menu_move_up">माथि सार्नुहोस्</string>
     <string name="widget_menu_move_down">तल सार्नुहोस्</string>
+    <string name="widget_menu_move_left">बायाँ सार्नुहोस्</string>
+    <string name="widget_menu_move_right">दायाँ सार्नुहोस्</string>
     <string name="widget_menu_wider">अझ चौडा</string>
     <string name="widget_menu_narrower">अझ साँघुरो</string>
     <string name="widget_menu_remove">हटाउनुहोस्</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">किओस्क मोड</string>
     <string name="kiosk_mode_exit_hint">सेटिङ खोल्न स्क्रिनलाई २ सेकेन्डसम्म थिचिराख्नुहोस्</string>
     <string name="settings_kiosk_dim_when_idle_title">क्यामेराबाट ब्युँझाउनुहोस्</string>
+    <string name="settings_kiosk_blank_when_idle_title">निष्क्रिय हुँदा स्क्रिन कालो पार्नुहोस्</string>
+    <string name="settings_kiosk_blank_at_night_title">राति स्क्रिन कालो पार्नुहोस्</string>
+    <string name="kiosk_blank_wake_action">विजेटहरू देखाउनुहोस्</string>
+    <string name="settings_kiosk_blank_from">देखि</string>
+    <string name="settings_kiosk_blank_until">सम्म</string>
     <string name="settings_wallpaper_picker_unavailable">वालपेपर छनोटकर्ता उपलब्ध छैन</string>
     <string name="play_update_banner_restart_failed">इन्स्टल गर्न रिस्टार्ट गर्न सकिएन</string>
     <string name="scroll_up_for_more_hint">थप हेर्न माथि स्क्रोल गर्नुहोस्</string>

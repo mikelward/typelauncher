@@ -85,6 +85,8 @@
     <string name="widget_menu_resize">Tilpas størrelse</string>
     <string name="widget_menu_move_up">Flyt op</string>
     <string name="widget_menu_move_down">Flyt ned</string>
+    <string name="widget_menu_move_left">Flyt til venstre</string>
+    <string name="widget_menu_move_right">Flyt til højre</string>
     <string name="widget_menu_wider">Bredere</string>
     <string name="widget_menu_narrower">Smallere</string>
     <string name="widget_menu_remove">Fjern</string>
@@ -176,6 +178,11 @@
     <string name="settings_kiosk_mode_title">Kiosktilstand</string>
     <string name="kiosk_mode_exit_hint">Hold skærmen nede i 2 sekunder for at åbne Indstillinger</string>
     <string name="settings_kiosk_dim_when_idle_title">Væk skærmen med kameraet</string>
+    <string name="settings_kiosk_blank_when_idle_title">Sluk skærmen ved inaktivitet</string>
+    <string name="settings_kiosk_blank_at_night_title">Sluk skærmen om natten</string>
+    <string name="kiosk_blank_wake_action">Vis widgets</string>
+    <string name="settings_kiosk_blank_from">Fra</string>
+    <string name="settings_kiosk_blank_until">Til</string>
     <string name="settings_wallpaper_picker_unavailable">Baggrundsvælger er ikke tilgængelig</string>
     <string name="play_update_banner_restart_failed">Kunne ikke genstarte for at installere</string>
     <string name="scroll_up_for_more_hint">Rul op for at se mere</string>
