@@ -1241,7 +1241,7 @@ private fun WidgetInlineActions(
         modifier = Modifier
             .padding(top = 4.dp)
             .testTag("$WIDGET_INLINE_ACTIONS_TAG:$widgetId"),
-        contentPadding = WIDGET_ACTION_BAR_PADDING,
+        contentPadding = WIDGET_INLINE_ACTIONS_PADDING,
     ) {
         // Wraps onto a second line in a narrow (one- or two-column) widget,
         // where the four actions don't fit side by side.
@@ -1315,6 +1315,11 @@ private fun WidgetInlineActions(
 // A compact card around a row of 48dp buttons: the shared 16dp card sides,
 // 4dp top and bottom so the bar stays one button tall plus a hairline frame.
 internal val WIDGET_ACTION_BAR_PADDING = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
+
+// The per-widget edit bar takes 8dp sides instead: a 48dp icon button already
+// insets its 24dp icon by 12dp, so the icons still sit 20dp in from the card's
+// edge, and a two-column widget's bar fits two buttons per line instead of one.
+internal val WIDGET_INLINE_ACTIONS_PADDING = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
 
 /**
  * A side-edge handle that resizes a widget's width in whole grid columns:
