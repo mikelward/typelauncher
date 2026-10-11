@@ -131,6 +131,12 @@
   4. **Device checks for the shipped part:** the screen staying on across a battery-protection charging pause, the immersive bars, and the exit hold over a widget that has its own long-press, on a real device.
 - **Home widgets follow-ups.** Shipped without these:
   - The keyboard is left as it is in edit mode rather than hidden, to keep the Home keyboard / layout machinery untouched; the edit area sits above the reserved keyboard space either way. Revisit if editing feels cramped on device.
+- **Decide one widget-editing model for Home and the widget pages** (maintainer, 2026-10-11). Today they differ: Home has an edit mode (every widget shows its icon bar, with Add widget and Done in a bar below), while a widget page's long-press opens a text menu for that one widget. Leanings so far, none settled:
+  - The maintainer likes the widget pages' simplicity: only the pressed widget gets actions, with no mode to enter or leave. Home would match, showing the bar for just the pressed widget.
+  - **A long-press anywhere should offer Add widget**, on a widget or on empty space, so adding no longer needs an edit mode.
+  - **Unsure: resize ending on lift.** Ending a resize when the finger lifts removes the need for Done, but may feel abrupt. The alternative is a sticky bar at the top of the screen while editing, holding Add widget and Done.
+  - **Hide the dock and bottom bars while editing**, to give the widgets the room.
+  - A first cut of the widget pages showing Home's icon bar for the pressed widget is parked on `claude/widget-page-icon-bar` (WIP, tests not updated), waiting on this decision.
 
 ### Decisions needing review
 
