@@ -17,6 +17,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasContentDescription
@@ -467,6 +468,28 @@ class HomeWidgetsTest {
     }
 
     @Test
+    fun addingOpensThePickerOverTheWidgets() {
+        val host = LauncherAppWidgetHost(context, /* hostId = */ 0)
+        composeRule.setContent {
+            TypeLauncherTheme {
+                // Tall enough that a picker below them would open off screen.
+                TestHomeWidgets(
+                    widgetIds = listOf(1, 2, 3),
+                    isEditing = true,
+                    host = host,
+                    providerInfoOverride = { providerInfo },
+                    createWidgetView = { viewContext, _ -> RecordingHostView(viewContext, host) {} },
+                    isAddingWidget = true,
+                    heights = mapOf(1 to 400, 2 to 400, 3 to 400),
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(WIDGET_PICKER_TAG).assertIsDisplayed()
+    }
+
+    @Test
     fun emptyAreaShowsAddButtonThatOpensThePicker() {
         var adds = 0
         composeRule.setContent {
@@ -548,16 +571,18 @@ class HomeWidgetsTest {
         spans: Map<Int, Int> = emptyMap(),
         onResizeWidgetSpan: (Int, Int) -> Unit = { _, _ -> },
         onMoveWidget: (Int, WidgetMoveDirection) -> Unit = { _, _ -> },
+        isAddingWidget: Boolean = false,
+        heights: Map<Int, Int> = emptyMap(),
     ) {
         HomeWidgets(
             widgetIds = widgetIds,
             isEditing = isEditing,
-            isAddingWidget = false,
+            isAddingWidget = isAddingWidget,
             isLoadingAvailableWidgets = false,
             availableWidgets = emptyList(),
             appWidgetHost = host,
             appWidgetManager = null,
-            widgetHeights = emptyMap(),
+            widgetHeights = heights,
             widgetSpans = spans,
             widgetProviderLabels = emptyMap(),
             strandedWidgetIds = emptySet(),

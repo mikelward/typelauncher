@@ -892,7 +892,8 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onNodeWithTag("$WIDGET_PREVIEW_TAG:${schedule.id}", useUnmergedTree = true)
             .assertExists()
 
-        saveScreenshot("compose_widget_picker_inline_previews_robolectric.png")
+        // The picker is a bottom sheet in its own window; see captureScreen.
+        captureScreen("compose_widget_picker_inline_previews_robolectric.png")
     }
 
     @Test
@@ -927,7 +928,7 @@ class MainActivityRobolectricScreenshotTest {
         composeRule.onAllNodesWithTag(WIDGET_WORK_BADGE_TAG, useUnmergedTree = true)
             .assertCountEquals(1)
 
-        saveScreenshot("compose_widget_picker_work_profile_prefix_and_badge_robolectric.png")
+        captureScreen("compose_widget_picker_work_profile_prefix_and_badge_robolectric.png")
         AppIconLoader.evictAll()
     }
 
