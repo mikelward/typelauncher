@@ -1,6 +1,9 @@
 package app.typelauncher
 
 import android.app.Activity
+import com.mikelward.androidlog.android.CollectedReport
+import com.mikelward.androidlog.android.DebugReport
+import com.mikelward.androidlog.android.ShareOutcome
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -21,9 +24,9 @@ import org.robolectric.shadows.ShadowToast
  * another crash — the report is most useful right after something has already
  * gone wrong — and must say so when neither delivery route landed, instead of
  * leaving the tap looking like it did nothing. The payload build, the screenshot
- * capture, the clipboard write, the chooser launch, and the main-thread hop are
- * all injected, so every outcome is drivable without a real window,
- * `ClipboardManager`, or share target.
+ * capture, the delivery, and the main-thread hop are all injected, so every
+ * outcome is drivable without a real window, `ClipboardManager`, or share
+ * target.
  */
 @RunWith(RobolectricTestRunner::class)
 class BugReportShareTest {
@@ -52,8 +55,7 @@ class BugReportShareTest {
             includeScreenshot = false,
             mainDispatcher = Dispatchers.Unconfined,
             payloadCollect = { _, _ -> throw IllegalStateException("settings store unreadable") },
-            clipboardWrite = { _, text -> shared = text; true },
-            chooserLaunch = { _, _, _ -> true },
+            deliverReport = { _, report, _ -> shared = report.text; ShareOutcome.SHARED },
         )
 
         assertNotNull("a report is still shared", shared)
@@ -72,8 +74,7 @@ class BugReportShareTest {
             includeScreenshot = false,
             mainDispatcher = Dispatchers.Unconfined,
             payloadCollect = { _, _ -> throw OutOfMemoryError("simulated") },
-            clipboardWrite = { _, _ -> true },
-            chooserLaunch = { _, _, _ -> true },
+            deliverReport = { _, _, _ -> ShareOutcome.SHARED },
         )
     }
 
@@ -83,9 +84,8 @@ class BugReportShareTest {
             activity,
             includeScreenshot = false,
             mainDispatcher = Dispatchers.Unconfined,
-            payloadCollect = { _, _ -> CollectedReport("report", previousRun = null) },
-            clipboardWrite = { _, _ -> false },
-            chooserLaunch = { _, _, _ -> false },
+            payloadCollect = { _, _ -> plainReport() },
+            deliverReport = { _, _, _ -> ShareOutcome.FAILED },
         )
 
         assertNotNull("the user is told the share failed", ShadowToast.getLatestToast())
@@ -97,14 +97,13 @@ class BugReportShareTest {
     }
 
     @Test
-    fun `a throwing clipboard or chooser is survivable and still reported`() = runBlocking {
+    fun `a throwing delivery is survivable and still reported`() = runBlocking {
         BugReport.share(
             activity,
             includeScreenshot = false,
             mainDispatcher = Dispatchers.Unconfined,
-            payloadCollect = { _, _ -> CollectedReport("report", previousRun = null) },
-            clipboardWrite = { _, _ -> throw SecurityException("no clipboard access") },
-            chooserLaunch = { _, _, _ -> throw IllegalStateException("no share target") },
+            payloadCollect = { _, _ -> plainReport() },
+            deliverReport = { _, _, _ -> throw SecurityException("no clipboard access") },
         )
 
         assertNotNull("the user is told the share failed", ShadowToast.getLatestToast())
@@ -112,16 +111,17 @@ class BugReportShareTest {
 
     @Test
     fun `one route landing is not reported as a failure`() = runBlocking {
-        BugReport.share(
-            activity,
-            includeScreenshot = false,
-            mainDispatcher = Dispatchers.Unconfined,
-            payloadCollect = { _, _ -> CollectedReport("report", previousRun = null) },
-            clipboardWrite = { _, _ -> false },
-            chooserLaunch = { _, _, _ -> true },
-        )
+        for (outcome in listOf(ShareOutcome.SHARED, ShareOutcome.COPIED_ONLY)) {
+            BugReport.share(
+                activity,
+                includeScreenshot = false,
+                mainDispatcher = Dispatchers.Unconfined,
+                payloadCollect = { _, _ -> plainReport() },
+                deliverReport = { _, _, _ -> outcome },
+            )
 
-        assertNull("the chooser opened, so there is nothing to warn about", ShadowToast.getLatestToast())
+            assertNull("$outcome landed somewhere, so there is nothing to warn about", ShadowToast.getLatestToast())
+        }
     }
 
     @Test
@@ -136,8 +136,7 @@ class BugReportShareTest {
             activity,
             includeScreenshot = false,
             mainDispatcher = Dispatchers.Unconfined,
-            payloadCollect = { _, _ -> CollectedReport("report", previousRun = null) },
-            clipboardWrite = { _, _ -> false },
+            payloadCollect = { _, _ -> plainReport() },
         )
 
         val started = shadowOf(activity.application).nextStartedActivity
@@ -153,12 +152,14 @@ class BugReportShareTest {
             activity,
             includeScreenshot = false,
             mainDispatcher = Dispatchers.Unconfined,
-            payloadCollect = { _, _ -> CollectedReport("report", previousRun = null) },
+            payloadCollect = { _, _ -> plainReport() },
             screenshotCapture = { captured = true; null },
-            clipboardWrite = { _, _ -> true },
-            chooserLaunch = { _, _, _ -> true },
+            deliverReport = { _, _, _ -> ShareOutcome.SHARED },
         )
 
         assertFalse("the post-crash banner's text-only share stays text-only", captured)
     }
+
+    /** A report with no earlier runs: a null sink reads none. */
+    private fun plainReport(): CollectedReport = DebugReport.collect(LauncherDebugLog, sink = null) { "report" }
 }

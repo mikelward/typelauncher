@@ -1,12 +1,23 @@
 package app.typelauncher
 
+import com.mikelward.androidlog.DebugLog
+import com.mikelward.androidlog.android.DebugFileSink
+import com.mikelward.androidlog.android.DebugReport
+import com.mikelward.androidlog.android.ProcessExits
+import com.mikelward.androidlog.boundedLogTail
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
+import java.io.File
 import java.time.ZoneId
 import java.util.Locale
 
 class BugReportPayloadTest {
+    @get:Rule
+    val folder = TemporaryFolder()
+
     @Test
     fun payloadIncludesBuildDeviceSettingsAndLogSections() {
         val payload = buildBugReportPayload(
@@ -29,7 +40,7 @@ class BugReportPayloadTest {
             isAgendaEnabled = true,
             dockedAppIds = listOf("0:com.example/.LaunchActivity", "0:com.example2/.LaunchActivity"),
             widgetPages = listOf(listOf(11), listOf(22)),
-            log = listOf("11-04 09:00:00.000 D TypeLauncherDebug: hello"),
+            log = fixedLog(listOf("11-04 09:00:00.000 D TypeLauncherDebug: hello")),
         )
 
         assertTrue("includes header", payload.startsWith("Type Launcher bug report"))
@@ -81,7 +92,7 @@ class BugReportPayloadTest {
             isAgendaEnabled = false,
             dockedAppIds = emptyList(),
             widgetPages = listOf(emptyList()),
-            log = emptyList(),
+            log = fixedLog(emptyList()),
         )
 
         assertTrue("notes empty dock", payload.contains("Docked apps (0):"))
@@ -91,35 +102,8 @@ class BugReportPayloadTest {
     }
 
     @Test
-    fun payloadIncludesPreviousRunOnlyWhenPresent() {
-        assertTrue(
-            "no previous-run section without a prior run",
-            !basePayload(previousRun = null).contains("Previous run"),
-        )
-        val withPrevious = basePayload(
-            previousRun = "11-04 08:59:59.000 D TypeLauncherDebug: home ready\n" +
-                "11-04 09:00:00.000 W TypeLauncherDebug: Uncaught exception in thread main",
-        )
-        assertTrue(withPrevious.contains("--- Previous run (ended without a clean exit) ---"))
-        assertTrue(withPrevious.contains("Uncaught exception in thread main"))
-        // The current run's log still follows the previous-run section.
-        assertTrue(withPrevious.contains("--- Log ("))
-        assertTrue(withPrevious.contains("current hello"))
-    }
-
-    @Test
-    fun oversizedPreviousRunKeepsItsNewestLines() {
-        // The file is oldest-first and the crash entry is last; an over-cap
-        // previous run must keep the tail, not the head.
-        val big = (0 until 400).joinToString("\n") { "line-$it " + "x".repeat(600) } +
-            "\n11-04 09:00:00.000 W TypeLauncherDebug: Uncaught exception in thread main"
-        val payload = basePayload(previousRun = big)
-        assertTrue("the crash entry at the end survives", payload.contains("Uncaught exception in thread main"))
-        assertTrue("the oldest line is dropped", !payload.contains("line-0 "))
-    }
-
-    @Test
     fun oversizedSettingsSectionStillLeavesRoomForTheLog() {
+        var logBudget = 0
         // A long docked-app list used to push the whole report past the Binder
         // limit, and prefix-truncating it would drop the log that is appended
         // last — exactly the diagnostic the report exists for.
@@ -143,12 +127,16 @@ class BugReportPayloadTest {
             isAgendaEnabled = false,
             dockedAppIds = (0 until 2_000).map { "0:com.example.package$it/.LaunchActivity" },
             widgetPages = listOf(emptyList()),
-            log = listOf("11-04 09:00:01.000 D TypeLauncherDebug: current hello"),
+            log = { budget -> logBudget = budget; listOf("11-04 09:00:01.000 D TypeLauncherDebug: current hello") },
         )
 
         assertTrue("the settings section is truncated", payload.contains("details truncated"))
         assertTrue("the log survives", payload.contains("current hello"))
-        assertTrue("stays shareable", payload.length <= MAX_SHARE_PAYLOAD_CHARS)
+        // The log's budget still holds a whole process-exit batch with room for
+        // recent lines: a smaller one would drop the oldest exits, which are
+        // what explains how the last run ended.
+        assertTrue("budget $logBudget", logBudget > ProcessExits.maxBatchChars())
+        assertTrue("fits the app's share", payload.length <= DebugReport.APP_SECTION_CHARS)
     }
 
     @Test
@@ -174,7 +162,7 @@ class BugReportPayloadTest {
             isAgendaEnabled = false,
             dockedAppIds = emptyList(),
             widgetPages = listOf(emptyList()),
-            log = log,
+            log = fixedLog(log),
         )
 
         assertTrue("the newest line survives", payload.contains("the newest event"))
@@ -183,19 +171,7 @@ class BugReportPayloadTest {
         // whether any were is not knowable here: the log bounds itself before
         // the report sees it.
         assertTrue("and says so", payload.contains("older lines are dropped"))
-        assertTrue("stays shareable", payload.length <= MAX_SHARE_PAYLOAD_CHARS)
-    }
-
-    @Test
-    fun aSingleOversizedPreviousRunLineIsClampedNotPassedThrough() {
-        // `cacheDir` survives app upgrades, so a prior-run file written before
-        // the per-entry cap existed can hold one arbitrarily long line. Keeping
-        // it whole (the old "always keep the newest line" rule) would blow the
-        // ceiling this bounding exists to enforce.
-        val payload = basePayload(previousRun = "x".repeat(500_000))
-
-        assertTrue("the line is clamped", payload.contains("…(truncated)"))
-        assertTrue("stays shareable", payload.length <= MAX_SHARE_PAYLOAD_CHARS)
+        assertTrue("fits the app's share", payload.length <= DebugReport.APP_SECTION_CHARS)
     }
 
     @Test
@@ -220,22 +196,22 @@ class BugReportPayloadTest {
             isAgendaEnabled = false,
             dockedAppIds = (0 until 2_000).map { "0:com.example.package$it/.LaunchActivity" },
             widgetPages = listOf(emptyList()),
-            log = (0 until 300).map { "line-$it " + "x".repeat(600) },
-            previousRun = (0 until 400).joinToString("\n") { "prev-$it " + "x".repeat(600) },
+            log = fixedLog((0 until 300).map { "line-$it " + "x".repeat(600) }),
+            appListChanges = (0 until 200).map { "change-$it " + "y".repeat(100) },
         )
 
-        assertTrue("stays shareable", payload.length <= MAX_SHARE_PAYLOAD_CHARS)
+        // Within the app's share, so the library never has to cut it from the
+        // middle to make room for the earlier runs.
+        assertTrue("fits the app's share", payload.length <= DebugReport.APP_SECTION_CHARS)
     }
 
     @Test
-    fun theLogIsOneSectionAndFollowsThePreviousRun() {
+    fun theLogIsOneSection() {
         // Startup context used to get its own "Process start" section, because
         // the ring buffer had always evicted those lines by the time a report
         // was captured. The log restores them ahead of its kept tail now, in
-        // order, so the report reads as one sequence: last run, then this one
-        // from its start.
+        // order, so the report reads as one sequence: this run from its start.
         val payload = basePayload(
-            previousRun = "11-04 08:59:59.000 D home ready",
             log = listOf(
                 "11-04 09:00:00.000 D processExit reason=packageUpdated",
                 "11-04 09:00:01.000 D current hello",
@@ -244,10 +220,6 @@ class BugReportPayloadTest {
 
         assertTrue(payload.contains("processExit reason=packageUpdated"))
         assertTrue(payload.contains("current hello"))
-        assertTrue(
-            "one log section, after the previous run",
-            payload.indexOf("--- Previous run") < payload.indexOf("--- Log ("),
-        )
         assertEquals(
             "one log section",
             1,
@@ -269,7 +241,6 @@ class BugReportPayloadTest {
         // (Codex on PR #706). It now counts what is present and says the log
         // is bounded, with no total to be wrong about.
         val payload = basePayload(
-            previousRun = null,
             log = (0 until 120).map { "11-04 09:00:00.000 D line-$it" },
         )
 
@@ -285,7 +256,7 @@ class BugReportPayloadTest {
         // picture of the moment share was tapped and nothing more. An earlier
         // version read it as "the startup diagnostic never ran", and keeping
         // that claim true drew eight review findings in a row.
-        val payload = basePayload(previousRun = null, log = emptyList())
+        val payload = basePayload(log = emptyList())
 
         assertTrue(payload.contains("--- Log (0 lines, newest last"))
         assertTrue(payload.contains("(no captured log lines)"))
@@ -299,7 +270,6 @@ class BugReportPayloadTest {
     @Test
     fun payloadListsOtherSettingsAndHomeWidgets() {
         val payload = basePayload(
-            previousRun = null,
             otherSettings = listOf("Keyboard auto-shown" to "true", "Home widgets shown" to "false"),
             homeWidgetIds = listOf(31, 32),
         )
@@ -307,17 +277,16 @@ class BugReportPayloadTest {
         assertTrue("keyboard setting in Settings", settings.contains("Keyboard auto-shown: true"))
         assertTrue("home widgets setting in Settings", settings.contains("Home widgets shown: false"))
         assertTrue("home widget ids", payload.contains("Home widgets (2): 31, 32"))
-        assertTrue("no home widgets", basePayload(previousRun = null).contains("Home widgets (0): (none)"))
+        assertTrue("no home widgets", basePayload().contains("Home widgets (0): (none)"))
     }
 
     @Test
     fun payloadIncludesIconCacheCountersOnlyWhenSupplied() {
         assertTrue(
             "no section without stats",
-            !basePayload(previousRun = null).contains("--- Icon cache ---"),
+            !basePayload().contains("--- Icon cache ---"),
         )
         val payload = basePayload(
-            previousRun = null,
             iconCache = AppIconLoader.CacheStats(entries = 128, bytes = 6_458_904, hits = 32_949, misses = 15_301),
         )
         assertTrue(payload.contains("--- Icon cache ---"))
@@ -328,7 +297,6 @@ class BugReportPayloadTest {
     @Test
     fun appListChangesGetTheirOwnSectionAheadOfTheLog() {
         val payload = basePayload(
-            previousRun = null,
             appListChanges = listOf("10-06 09:08:35.000 installed com.example.app user=0"),
         )
 
@@ -340,24 +308,22 @@ class BugReportPayloadTest {
 
     @Test
     fun anEmptyAppListHistorySaysSo() {
-        assertTrue(basePayload(previousRun = null).contains("(none since the launcher started)"))
+        assertTrue(basePayload().contains("(none since the launcher started)"))
     }
 
     @Test
     fun aLongAppListHistoryKeepsItsNewestLinesAndStaysShareable() {
         val payload = basePayload(
-            previousRun = "x".repeat(500_000),
             log = (0 until 300).map { "line-$it " + "x".repeat(600) },
             appListChanges = (0 until 200).map { "change-$it " + "y".repeat(100) } + "the newest change",
         )
 
         assertTrue(payload.contains("the newest change"))
         assertTrue("the oldest is dropped", !payload.contains("change-0 "))
-        assertTrue("stays shareable", payload.length <= MAX_SHARE_PAYLOAD_CHARS)
+        assertTrue("fits the app's share", payload.length <= DebugReport.APP_SECTION_CHARS)
     }
 
     private fun basePayload(
-        previousRun: String?,
         log: List<String> = listOf("11-04 09:00:01.000 D TypeLauncherDebug: current hello"),
         iconCache: AppIconLoader.CacheStats? = null,
         otherSettings: List<Pair<String, String>> = emptyList(),
@@ -383,11 +349,36 @@ class BugReportPayloadTest {
         isAgendaEnabled = false,
         dockedAppIds = emptyList(),
         widgetPages = listOf(emptyList()),
-        log = log,
-        previousRun = previousRun,
+        log = fixedLog(log),
         iconCache = iconCache,
         otherSettings = otherSettings,
         homeWidgetIds = homeWidgetIds,
         appListChanges = appListChanges,
     )
+
+    @Test
+    fun theWholeReportCarriesTheEarlierRunsUncutAndStaysShareable() {
+        // The library appends the earlier runs after this app's section and
+        // holds the whole report to its ceiling; a section that stays inside
+        // its share is never cut from the middle to make room.
+        val dir = folder.newFolder()
+        File(dir, "androidlog-prev-1.log").writeText(
+            (0 until 400).joinToString("\n") { "prev-$it " + "x".repeat(600) } + "\nUncaught exception in thread main\n",
+        )
+        val sink = DebugFileSink(DebugLog(), dir)
+        val section = basePayload(
+            log = (0 until 300).map { "line-$it " + "x".repeat(600) },
+            appListChanges = (0 until 200).map { "change-$it " + "y".repeat(100) },
+        )
+
+        val report = DebugReport.collect(DebugLog(), sink, heading = PREVIOUS_RUN_HEADING) { section }
+
+        assertTrue("stays shareable", report.text.length <= MAX_SHARE_PAYLOAD_CHARS)
+        assertTrue("the app's section is whole", report.text.startsWith(section))
+        assertTrue(report.text.contains(PREVIOUS_RUN_HEADING))
+        assertTrue("the crash at the end of the run survives", report.text.contains("Uncaught exception in thread main"))
+    }
+
+    /** The log as [reportLogLines] hands it over: the newest lines within the budget it is given. */
+    private fun fixedLog(lines: List<String>): (Int) -> List<String> = { budget -> boundedLogTail(lines, budget) }
 }

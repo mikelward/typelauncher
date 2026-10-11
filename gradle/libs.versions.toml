@@ -1,5 +1,5 @@
 [versions]
-androidlog = "3.1.76"
+androidlog = "5.0.80"
 agp = "9.4.1"
 kotlin = "2.4.20"
 activity = "1.13.0"

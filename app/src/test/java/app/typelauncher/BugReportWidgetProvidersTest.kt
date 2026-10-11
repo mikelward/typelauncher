@@ -30,7 +30,7 @@ class BugReportWidgetProvidersTest {
         widgetPages = listOf(listOf(11)),
         homeWidgetIds = listOf(22),
         widgetProviders = widgetProviders,
-        log = emptyList(),
+        log = { emptyList() },
     )
 
     @Test

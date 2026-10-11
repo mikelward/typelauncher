@@ -1027,10 +1027,11 @@ internal class LauncherViewModel(
     }
 
     /**
-     * Re-evaluates the banner after a share attempt. A successful share consumes
-     * the prior run it carried ([DebugFileSink.clearPreviousRun] inside [BugReport.share]),
-     * so the banner hides; if the share was canceled or both handoffs failed the
-     * crash file survives and the banner stays up for a retry.
+     * Re-evaluates the banner after a share attempt. A share whose clipboard
+     * copy landed lowers the banner ([BugReport.share], through androidlog's
+     * `DebugReport.deliver`); it deletes nothing, so the crash log stays on disk
+     * and still shareable. If both hand-offs failed the banner stays up for a
+     * retry.
      */
     fun refreshCrashBanner() {
         val sink = debugFileSink ?: run {

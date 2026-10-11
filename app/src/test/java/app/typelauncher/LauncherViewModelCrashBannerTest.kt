@@ -3,6 +3,7 @@ package app.typelauncher
 import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import com.mikelward.androidlog.android.DebugFileSink
+import com.mikelward.androidlog.android.DebugReport
 import kotlinx.coroutines.Dispatchers
 import org.junit.After
 import org.junit.Assert.assertFalse
@@ -76,21 +77,32 @@ class LauncherViewModelCrashBannerTest {
     }
 
     @Test
-    fun `refresh clears the banner once the crash was shared`() {
+    fun `a share that lands clears the banner and keeps the crash log`() {
         val sink = sinkAfterPriorRun(crashed = true)
         val viewModel = newViewModel(sink)
         settle(sink)
         assertTrue(viewModel.uiState.value.isCrashBannerVisible)
 
-        // A successful share consumes the prior run it was handed, as
-        // BugReport.share does — the handle, not whatever the sink last read.
-        val consumed = sink.readPreviousRun()
-        assertTrue("the share must actually have surfaced the crashed run", consumed != null)
-        sink.clearPreviousRun(consumed!!)
+        // The same library path BugReport.share delivers through: collect with
+        // the sink, so the report carries the crashed run, then deliver — the
+        // clipboard copy landing is what lowers the banner.
+        val report = DebugReport.collect(LauncherDebugLog, sink, heading = PREVIOUS_RUN_HEADING) { "report" }
+        assertTrue("the share must actually have carried the crashed run", report.text.contains("IllegalStateException: boom"))
+        DebugReport.deliver(
+            ApplicationProvider.getApplicationContext(),
+            LauncherDebugLog,
+            report,
+            subject = "subject",
+            chooserTitle = "title",
+            clipboardLabel = "label",
+        )
         viewModel.refreshCrashBanner()
         settle(sink)
 
         assertFalse("a shared crash leaves no banner", viewModel.uiState.value.isCrashBannerVisible)
+        // Sharing deletes nothing: a later report can still carry the run.
+        val again = sink.readPreviousRun()
+        assertTrue("the crashed run is still on disk", again?.text?.contains("IllegalStateException: boom") == true)
     }
 
     /**
