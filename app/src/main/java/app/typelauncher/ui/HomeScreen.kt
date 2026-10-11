@@ -686,8 +686,11 @@ internal fun HomeScreen(
     // list — see `excludedFromAppList`). `dockSuppressedByKeyboard` is only
     // ever true in DockNoKeyboard, so Full and portrait keep the dock with the
     // IME up.
+    // Editing Home's widgets hides the dock and the recents bar, so the
+    // widgets get the room and nothing else on screen invites a tap.
+    val isEditingWidgetsOnHome = state.isEditingHomeWidgets && state.destination is LauncherDestination.Home
     val isDockSlotPresent =
-        bodyReady && state.query.isBlank() &&
+        bodyReady && state.query.isBlank() && !isEditingWidgetsOnHome &&
             // The contact-actions mode clears the query but is a focused
             // "acting on this contact" surface like an active search, so the dock
             // stays hidden — otherwise it would reappear and take height from the
@@ -1231,15 +1234,19 @@ internal fun HomeScreen(
             // bar at all. When the bar opens it takes the bottom-most slot and
             // the search / apps / dock above it all shift up to make room —
             // "everything moves up".
-            HomeBottomBar(
-                state = state,
-                dockIconSizeDp = dockIconSizeDp,
-                onLaunchApp = onLaunchApp,
-                onOpenAppInfo = onOpenAppInfo,
-                onToggleDock = onToggleDock,
-                onDismissRecent = onDismissRecent,
-                onBarScrollRegionChanged = onBarScrollRegionChanged,
-            )
+            if (isEditingWidgetsOnHome) {
+                Spacer(modifier = Modifier.size(0.dp))
+            } else {
+                HomeBottomBar(
+                    state = state,
+                    dockIconSizeDp = dockIconSizeDp,
+                    onLaunchApp = onLaunchApp,
+                    onOpenAppInfo = onOpenAppInfo,
+                    onToggleDock = onToggleDock,
+                    onDismissRecent = onDismissRecent,
+                    onBarScrollRegionChanged = onBarScrollRegionChanged,
+                )
+            }
             // Index 4: the search-time dock reveal — the same dock cards the
             // slot above renders, floated over the space the hidden keyboard
             // reserved (below this layout's bottom edge; see the placement in
