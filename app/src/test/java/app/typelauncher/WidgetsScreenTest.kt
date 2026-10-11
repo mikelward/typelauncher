@@ -43,6 +43,34 @@ class WidgetsScreenTest {
     val composeRule = createComposeRule()
 
     @Test
+    fun openingThePickerScrollsItIntoView() {
+        var adding by mutableStateOf(false)
+        composeRule.setContent {
+            TypeLauncherTheme {
+                // Enough widgets that the picker would open below the fold.
+                WidgetsScreen(
+                    widgetIds = (10..29).toList(),
+                    availableWidgets = emptyList(),
+                    isAddingWidget = adding,
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    innerPadding = PaddingValues(),
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        adding = true
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(WIDGET_PICKER_TAG).assertIsDisplayed()
+    }
+
+    @Test
     fun strandedWidget_showsRestorePlaceholderAndRebindsOnTap() {
         var restoredId = -1
         composeRule.setContent {

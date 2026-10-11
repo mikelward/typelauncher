@@ -24,21 +24,30 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.math.roundToInt
 
 /**
  * Home's own widget set ("Widgets on home screen"), rendered in the app-list
@@ -96,6 +105,19 @@ internal fun HomeWidgets(
     // scroll position editing left behind.
     LaunchedEffect(isEditing) {
         if (!isEditing) scrollState.scrollTo(0)
+    }
+    // Opening the picker scrolls it to the top of the slot, so its list has the
+    // room the widgets above it would otherwise take. Waits for the picker's
+    // first placement, since it only exists once the add is under way.
+    var pickerTop by remember { mutableStateOf<Int?>(null) }
+    val pickerShown = isEditing && isAddingWidget
+    LaunchedEffect(pickerShown) {
+        if (pickerShown) {
+            val top = snapshotFlow { pickerTop }.filterNotNull().first()
+            scrollState.animateScrollTo(top)
+        } else {
+            pickerTop = null
+        }
     }
     Box(
         modifier = modifier
@@ -180,14 +202,16 @@ internal fun HomeWidgets(
                         }
                     }
                 }
-                if (isEditing && isAddingWidget) {
-                    WidgetPickerCard(
+                if (pickerShown) {
+                    Box(Modifier.onPlaced { pickerTop = it.positionInParent().y.roundToInt() }) {
+                        WidgetPickerCard(
                         availableWidgets = availableWidgets,
                         isLoading = isLoadingAvailableWidgets,
                         appWidgetManager = appWidgetManager,
                         onDismissWidgetPicker = onDismissWidgetPicker,
-                        onSelectWidget = onSelectWidget,
-                    )
+                            onSelectWidget = onSelectWidget,
+                        )
+                    }
                 }
             }
             if (isEditing) {

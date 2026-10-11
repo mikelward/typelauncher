@@ -17,6 +17,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasContentDescription
@@ -467,6 +468,38 @@ class HomeWidgetsTest {
     }
 
     @Test
+    fun openingThePickerScrollsItToTheTop() {
+        val host = LauncherAppWidgetHost(context, /* hostId = */ 0)
+        var adding by mutableStateOf(false)
+        composeRule.setContent {
+            TypeLauncherTheme {
+                // Tall enough that the picker would open below the fold.
+                TestHomeWidgets(
+                    widgetIds = listOf(1, 2, 3),
+                    isEditing = true,
+                    host = host,
+                    providerInfoOverride = { providerInfo },
+                    createWidgetView = { viewContext, _ -> RecordingHostView(viewContext, host) {} },
+                    isAddingWidget = adding,
+                    heights = mapOf(1 to 400, 2 to 400, 3 to 400),
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        adding = true
+        composeRule.waitForIdle()
+
+        val area = composeRule.onNodeWithTag(HOME_WIDGETS_TAG).getBoundsInRoot()
+        val picker = composeRule.onNodeWithTag(WIDGET_PICKER_TAG).getBoundsInRoot()
+        // The picker is as high as the content lets it go: at the top, or with
+        // a short list like this one's, wholly in view at the bottom.
+        composeRule.onNodeWithTag(WIDGET_PICKER_TAG).assertIsDisplayed()
+        assertTrue(picker.top >= area.top)
+        assertTrue(picker.bottom <= area.bottom)
+    }
+
+    @Test
     fun emptyAreaShowsAddButtonThatOpensThePicker() {
         var adds = 0
         composeRule.setContent {
@@ -548,16 +581,18 @@ class HomeWidgetsTest {
         spans: Map<Int, Int> = emptyMap(),
         onResizeWidgetSpan: (Int, Int) -> Unit = { _, _ -> },
         onMoveWidget: (Int, WidgetMoveDirection) -> Unit = { _, _ -> },
+        isAddingWidget: Boolean = false,
+        heights: Map<Int, Int> = emptyMap(),
     ) {
         HomeWidgets(
             widgetIds = widgetIds,
             isEditing = isEditing,
-            isAddingWidget = false,
+            isAddingWidget = isAddingWidget,
             isLoadingAvailableWidgets = false,
             availableWidgets = emptyList(),
             appWidgetHost = host,
             appWidgetManager = null,
-            widgetHeights = emptyMap(),
+            widgetHeights = heights,
             widgetSpans = spans,
             widgetProviderLabels = emptyMap(),
             strandedWidgetIds = emptySet(),

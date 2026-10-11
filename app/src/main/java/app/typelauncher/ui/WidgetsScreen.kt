@@ -159,6 +159,16 @@ internal fun WidgetsScreen(
             listState.scrollToItem(0)
         }
     }
+    // Opening the picker brings it to the top of the page, so its list has the
+    // whole screen rather than whatever sliver was left below the widgets.
+    val pickerRowColumns = currentWidgetGridRowColumns()
+    val pickerIndex = remember(widgetIds, widgetSpans, pickerRowColumns) {
+        widgetGridRows(widgetIds, widgetSpans, pickerRowColumns).size
+    }
+    val currentPickerIndex by rememberUpdatedState(pickerIndex)
+    LaunchedEffect(isAddingWidget) {
+        if (isAddingWidget) listState.animateScrollToItem(currentPickerIndex)
+    }
     val widgetScreenTag = if (isCurrentPage) WIDGETS_SCREEN_TAG else "$WIDGETS_SCREEN_TAG:offscreen"
     val addWidgetCardTag = if (isCurrentPage) ADD_WIDGET_CARD_TAG else "$ADD_WIDGET_CARD_TAG:offscreen"
     // Screen-scoped so a card whose LazyColumn slot was recycled re-enters
