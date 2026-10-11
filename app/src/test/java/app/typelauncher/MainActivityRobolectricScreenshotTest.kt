@@ -1052,6 +1052,26 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun screenshot_homeWidgetsEditing_hidesDockAndRecents() {
+        // Editing Home's widgets gives the screen to the widgets and their
+        // Add widget / Done bar: the dock and the recents bar step aside.
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
+
+        val viewModel = composeRule.activity.viewModel
+        composeRule.runOnUiThread {
+            viewModel.onHomeReady()
+            viewModel.setHomeWidgetsShown(true)
+            viewModel.startEditingHomeWidgets()
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(HOME_WIDGETS_TAG).assertIsDisplayed()
+        saveScreenshot("compose_home_widgets_editing_full_robolectric.png")
+    }
+
+    @Test
     fun firstVisibleAppInTextList_isSelectedAsActiveLaunchTarget() {
         composeRule.onNodeWithTag("$APP_ROW_TAG:Browser").assertIsNotSelected()
         composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertIsNotSelected()

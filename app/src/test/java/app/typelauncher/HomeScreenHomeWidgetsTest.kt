@@ -57,6 +57,28 @@ class HomeScreenHomeWidgetsTest {
     }
 
     @Test
+    fun editingHidesTheDocksAndRecents() {
+        var state by mutableStateOf(baseState.copy(isDockEnabled = true, isRecentsOpen = true))
+        setHome { state }
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertExists()
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertExists()
+
+        state = state.copy(isEditingHomeWidgets = true)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag("$WIDGET_CARD_TAG:$WIDGET_ID").assertExists()
+
+        // Done brings them back.
+        state = state.copy(isEditingHomeWidgets = false)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertExists()
+        composeRule.onNodeWithTag(DOCK_RECENTS_CARD_TAG).assertExists()
+    }
+
+    @Test
     fun widgetsWaitForHomeReady() {
         setHome { baseState.copy(isHomeReady = false) }
 

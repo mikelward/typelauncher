@@ -1011,6 +1011,7 @@ internal fun TypeLauncherApp(
                         widgetPageCount = state.widgetPages.size,
                         isAgendaEnabled = state.isAgendaEnabled,
                         isRecentsOpen = state.isRecentsOpen,
+                        isEditingHomeWidgets = state.isEditingHomeWidgets,
                         onShowAgenda = onShowAgenda,
                         onShowWidgets = onShowWidgets,
                         onShowHome = onShowHome,
@@ -1394,6 +1395,7 @@ private fun SwipeNavigationBox(
     isAgendaEnabled: Boolean,
     isRecentsOpen: Boolean,
     appListBoundsInRoot: Rect?,
+    isEditingHomeWidgets: Boolean = false,
     recentsScrollRegionState: State<BarScrollRegion?> = mutableStateOf<BarScrollRegion?>(null),
     onShowAgenda: () -> Unit,
     onShowWidgets: (Int) -> Unit,
@@ -1420,6 +1422,7 @@ private fun SwipeNavigationBox(
     val currentScreen by rememberUpdatedState(destination.screen)
     val currentLauncherPage by rememberUpdatedState(destination.toLauncherPage())
     val currentRecentsOpen by rememberUpdatedState(isRecentsOpen)
+    val currentEditingHomeWidgets by rememberUpdatedState(isEditingHomeWidgets)
     val currentSetRecentsOpen by rememberUpdatedState(onSetRecentsOpen)
     val currentRequestShowKeyboard by rememberUpdatedState(onRequestShowKeyboard)
     val currentOnSwipeDown by rememberUpdatedState(onSwipeDown)
@@ -1436,36 +1439,28 @@ private fun SwipeNavigationBox(
     val currentKeyboard by rememberUpdatedState(keyboard)
     val focusManager = LocalFocusManager.current
     val currentFocusManager by rememberUpdatedState(focusManager)
-    // The bottom-bar state machine for the recents bar:
-    //
-    //            pull up                         pull down
-    //   None  -> open Recents            None  -> system shade
-    //   Recents -> re-show keyboard      Recents -> close (opposite gesture)
-    //
-    // i.e. pull-down opens the real system notification shade unless the
-    // recents bar is open (the opposite gesture hides it first), and a second
-    // pull-up on recents re-shows the search keyboard.
-    val swipeDownDispatch = remember<() -> Unit> {
-        {
-            if (currentScreen == LauncherScreen.Home && currentRecentsOpen) {
-                currentSetRecentsOpen(false)
-            } else {
-                currentOnSwipeDown()
+    // The bottom-bar state machine for the recents bar lives in
+    // resolveVerticalLauncherSwipe.
+    val dispatchVerticalSwipe = remember<(Boolean) -> Unit> {
+        { isUp ->
+            when (
+                resolveVerticalLauncherSwipe(
+                    isHome = currentScreen == LauncherScreen.Home,
+                    isRecentsOpen = currentRecentsOpen,
+                    isEditingHomeWidgets = currentEditingHomeWidgets,
+                    isUp = isUp,
+                )
+            ) {
+                VerticalLauncherSwipe.OpenRecents -> currentSetRecentsOpen(true)
+                VerticalLauncherSwipe.CloseRecents -> currentSetRecentsOpen(false)
+                VerticalLauncherSwipe.ShowKeyboard -> currentRequestShowKeyboard()
+                VerticalLauncherSwipe.SystemShade -> currentOnSwipeDown()
+                VerticalLauncherSwipe.None -> Unit
             }
         }
     }
-    val swipeUpDispatch = remember<() -> Unit> {
-        {
-            // Pull-up only does anything on Home.
-            if (currentScreen == LauncherScreen.Home) {
-                if (currentRecentsOpen) {
-                    currentRequestShowKeyboard()
-                } else {
-                    currentSetRecentsOpen(true)
-                }
-            }
-        }
-    }
+    val swipeDownDispatch = remember<() -> Unit> { { dispatchVerticalSwipe(false) } }
+    val swipeUpDispatch = remember<() -> Unit> { { dispatchVerticalSwipe(true) } }
     var currentPage by remember {
         mutableStateOf(
             LauncherScreen.initialCarouselPage(
@@ -1782,8 +1777,12 @@ private fun SwipeNavigationBox(
                                 // an exiting bar's stale region can never reserve
                                 // a drag meant for the page.
                                 barReservedGesture = shouldReserveGestureForBar(
-                                    isBarOpen = currentRecentsOpen,
-                                    region = if (currentRecentsOpen) recentsScrollRegionState.value else null,
+                                    isBarOpen = currentRecentsOpen && !currentEditingHomeWidgets,
+                                    region = if (currentRecentsOpen && !currentEditingHomeWidgets) {
+                                        recentsScrollRegionState.value
+                                    } else {
+                                        null
+                                    },
                                     downPosition = downChange.position,
                                     rawDragX = rawDragX,
                                 )
@@ -2475,6 +2474,35 @@ internal fun shouldReserveGestureForBar(
         region != null &&
         region.boundsInRoot.contains(downPosition) &&
         region.canScrollInDirection(rawDragX)
+
+internal enum class VerticalLauncherSwipe { OpenRecents, CloseRecents, ShowKeyboard, SystemShade, None }
+
+/**
+ * The bottom-bar state machine for a committed vertical launcher swipe:
+ *
+ *            pull up                         pull down
+ *   None  -> open Recents            None  -> system shade
+ *   Recents -> re-show keyboard      Recents -> close (opposite gesture)
+ *
+ * Pull-up only does anything on Home. While Home's widgets are being edited the
+ * recents bar is hidden, so a swipe leaves its open/closed state alone: Done
+ * brings the bar back exactly as it was. Pull-down still opens the shade.
+ */
+internal fun resolveVerticalLauncherSwipe(
+    isHome: Boolean,
+    isRecentsOpen: Boolean,
+    isEditingHomeWidgets: Boolean,
+    isUp: Boolean,
+): VerticalLauncherSwipe {
+    val barHidden = isHome && isEditingHomeWidgets
+    return when {
+        isUp && (!isHome || barHidden) -> VerticalLauncherSwipe.None
+        isUp && isRecentsOpen -> VerticalLauncherSwipe.ShowKeyboard
+        isUp -> VerticalLauncherSwipe.OpenRecents
+        isHome && isRecentsOpen && !barHidden -> VerticalLauncherSwipe.CloseRecents
+        else -> VerticalLauncherSwipe.SystemShade
+    }
+}
 
 internal fun resolveLauncherGestureOwner(
     rawDragX: Float,
