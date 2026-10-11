@@ -38,8 +38,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -220,17 +225,6 @@ internal fun WidgetsScreen(
                 }
             }
         }
-        if (isAddingWidget) {
-            item {
-                WidgetPickerCard(
-                    availableWidgets = availableWidgets,
-                    isLoading = isLoadingAvailableWidgets,
-                    appWidgetManager = appWidgetManager,
-                    onDismissWidgetPicker = onDismissWidgetPicker,
-                    onSelectWidget = onSelectWidget,
-                )
-            }
-        }
         item {
             AddWidgetCard(
                 testTag = addWidgetCardTag,
@@ -240,31 +234,89 @@ internal fun WidgetsScreen(
             )
         }
     }
+    if (isAddingWidget) {
+        WidgetPickerSheet(
+            availableWidgets = availableWidgets,
+            isLoading = isLoadingAvailableWidgets,
+            appWidgetManager = appWidgetManager,
+            onDismissWidgetPicker = onDismissWidgetPicker,
+            onSelectWidget = onSelectWidget,
+        )
+    }
 }
 
+/**
+ * The add-widget picker, as a modal bottom sheet over whatever page opened it:
+ * it slides up to full height over a dimmed page, and a drag down, a tap
+ * outside, back, or Done closes it. An overlay rather than a
+ * card in the page, so the list gets the screen instead of whatever room was
+ * left below the widgets.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun WidgetPickerCard(
+internal fun WidgetPickerSheet(
     availableWidgets: List<WidgetProvider>,
     isLoading: Boolean,
     appWidgetManager: AppWidgetManager?,
     onDismissWidgetPicker: () -> Unit,
     onSelectWidget: (WidgetProvider) -> Unit,
 ) {
+    // Straight to full height: room for the list is the point of the sheet.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    // Full height whatever the list holds, so a short or still-loading list
+    // doesn't open a short sheet that then jumps taller as providers arrive.
+    ModalBottomSheet(
+        onDismissRequest = onDismissWidgetPicker,
+        sheetState = sheetState,
+        modifier = Modifier.fillMaxHeight(),
+    ) {
+        WidgetPicker(
+            availableWidgets = availableWidgets,
+            isLoading = isLoading,
+            appWidgetManager = appWidgetManager,
+            // Done slides the sheet away before closing it, like a drag would.
+            onDismissWidgetPicker = {
+                scope.launch { sheetState.hide() }.invokeOnCompletion { onDismissWidgetPicker() }
+            },
+            onSelectWidget = onSelectWidget,
+            modifier = Modifier
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+        )
+    }
+}
+
+/** The picker's content: title and Done, the filter, and the provider list. */
+@Composable
+internal fun WidgetPicker(
+    availableWidgets: List<WidgetProvider>,
+    isLoading: Boolean,
+    appWidgetManager: AppWidgetManager?,
+    onDismissWidgetPicker: () -> Unit,
+    onSelectWidget: (WidgetProvider) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val iconCache = remember(availableWidgets) { WidgetPickerIconCache() }
     CompositionLocalProvider(LocalWidgetPickerIconCache provides iconCache) {
-        WidgetPickerCardContent(availableWidgets, isLoading, appWidgetManager, onDismissWidgetPicker, onSelectWidget)
+        WidgetPickerContent(availableWidgets, isLoading, appWidgetManager, onDismissWidgetPicker, onSelectWidget, modifier)
     }
 }
 
 @Composable
-private fun WidgetPickerCardContent(
+private fun WidgetPickerContent(
     availableWidgets: List<WidgetProvider>,
     isLoading: Boolean,
     appWidgetManager: AppWidgetManager?,
     onDismissWidgetPicker: () -> Unit,
     onSelectWidget: (WidgetProvider) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    SectionCard(Modifier.testTag(WIDGET_PICKER_TAG)) {
+    Column(
+        modifier = modifier.fillMaxWidth().testTag(WIDGET_PICKER_TAG),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         var expandedGroupKey by remember { mutableStateOf<WidgetGroupKey?>(null) }
         var filterQuery by remember { mutableStateOf("") }
 
@@ -1673,7 +1725,7 @@ private fun WidgetProvider.icon(): Drawable? = icon ?: appIcon
  * emits its rows positionally, so filtering recomposes a row with a different
  * provider and a row-scoped `remember` would rasterize every visible icon again
  * on each keystroke. One instance lives for one picker composition and one
- * provider list (see [WidgetPickerCard]): closing the picker, or a reload that
+ * provider list (see [WidgetPicker]): closing the picker, or a reload that
  * replaces the list, drops it and its bitmaps, so nothing outlives the picker.
  * Keyed by drawable instance (drawables use identity equality). Rasterizes at
  * the drawable's intrinsic size, as before. Main thread only: read from

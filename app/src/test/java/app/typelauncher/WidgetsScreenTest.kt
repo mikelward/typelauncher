@@ -14,6 +14,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -41,6 +42,64 @@ import kotlin.math.roundToInt
 class WidgetsScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun widgetPicker_fillsTheScreenWhileLoading() {
+        composeRule.setContent {
+            TypeLauncherTheme {
+                WidgetsScreen(
+                    widgetIds = emptyList(),
+                    availableWidgets = emptyList(),
+                    isAddingWidget = true,
+                    isLoadingAvailableWidgets = true,
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    innerPadding = PaddingValues(),
+                    onAddWidget = {},
+                    onDismissWidgetPicker = {},
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        // A short list still opens a full-height sheet, so nothing jumps as
+        // providers arrive.
+        val picker = composeRule.onNodeWithTag(WIDGET_PICKER_TAG).getBoundsInRoot()
+        val screenHeight = ApplicationProvider.getApplicationContext<Context>()
+            .resources.configuration.screenHeightDp
+        assertTrue((picker.bottom - picker.top).value > screenHeight * 0.7f)
+    }
+
+    @Test
+    fun widgetPicker_opensOverAFullPage() {
+        var dismissals = 0
+        composeRule.setContent {
+            TypeLauncherTheme {
+                // Enough widgets that a picker below them would open off screen.
+                WidgetsScreen(
+                    widgetIds = (10..29).toList(),
+                    availableWidgets = emptyList(),
+                    isAddingWidget = true,
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    innerPadding = PaddingValues(),
+                    onAddWidget = {},
+                    onDismissWidgetPicker = { dismissals++ },
+                    onSelectWidget = {},
+                    onRemoveWidget = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(WIDGET_PICKER_TAG).assertIsDisplayed()
+        // Done slides the sheet away, then closes the picker.
+        composeRule.onNodeWithText("Done").performClick()
+        composeRule.waitForIdle()
+        assertEquals(1, dismissals)
+    }
 
     @Test
     fun strandedWidget_showsRestorePlaceholderAndRebindsOnTap() {

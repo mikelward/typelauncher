@@ -180,15 +180,15 @@ internal fun HomeWidgets(
                         }
                     }
                 }
-                if (isEditing && isAddingWidget) {
-                    WidgetPickerCard(
-                        availableWidgets = availableWidgets,
-                        isLoading = isLoadingAvailableWidgets,
-                        appWidgetManager = appWidgetManager,
-                        onDismissWidgetPicker = onDismissWidgetPicker,
-                        onSelectWidget = onSelectWidget,
-                    )
-                }
+            }
+            if (isEditing && isAddingWidget) {
+                WidgetPickerSheet(
+                    availableWidgets = availableWidgets,
+                    isLoading = isLoadingAvailableWidgets,
+                    appWidgetManager = appWidgetManager,
+                    onDismissWidgetPicker = onDismissWidgetPicker,
+                    onSelectWidget = onSelectWidget,
+                )
             }
             if (isEditing) {
                 // The edit bar sits on the launcher's opaque card surface, like
