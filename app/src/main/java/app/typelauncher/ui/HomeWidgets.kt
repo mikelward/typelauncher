@@ -128,7 +128,7 @@ internal fun HomeWidgets(
                     .fillMaxWidth()
                     // Long-press on the empty space below the widgets enters
                     // edit mode (a long-press on a widget itself arrives through
-                    // its host view, see onLongPressOverride).
+                    // its host view, see HostedWidgetCard's onLongPress).
                     .pointerInput(isEditing) {
                         if (!isEditing) detectStillLongPress(onLongPress = onStartEditing)
                     }
@@ -169,7 +169,7 @@ internal fun HomeWidgets(
                                         createWidgetView = createWidgetView,
                                         resolvedProviderInfos = resolvedProviderInfos,
                                         isCurrentPage = isCurrentPage,
-                                        onLongPressOverride = if (isEditing) ({}) else onStartEditing,
+                                        onLongPress = if (isEditing) null else onStartEditing,
                                         longPressEnabled = widgetLongPressEnabled,
                                         showInlineActions = isEditing,
                                         span = cell.span,

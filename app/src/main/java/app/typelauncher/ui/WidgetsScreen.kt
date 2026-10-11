@@ -18,6 +18,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
@@ -77,6 +78,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollDispatcher
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -154,8 +156,13 @@ internal fun WidgetsScreen(
     // off-screen, so the snap is invisible and the page is at the top before it
     // is ever translated back on. Keyed on isCurrentPage alone so adding or
     // removing a widget while the page is open doesn't move the scroll position.
+    // The widget whose edit bar is showing: a long-press shows one widget's
+    // bar at a time, and a tap elsewhere on the page or leaving the page
+    // hides it.
+    var editingWidgetId by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(isCurrentPage) {
         if (!isCurrentPage) {
+            editingWidgetId = null
             listState.scrollToItem(0)
         }
     }
@@ -177,6 +184,8 @@ internal fun WidgetsScreen(
             )
             .padding(innerPadding)
             .padding(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 8.dp)
+            // A tap the widgets and buttons don't take hides the edit bar.
+            .pointerInput(Unit) { detectTapGestures { editingWidgetId = null } }
             .testTag(widgetScreenTag),
         verticalArrangement = Arrangement.spacedBy(HOME_CARD_SPACING_DP.dp),
     ) {
@@ -215,6 +224,8 @@ internal fun WidgetsScreen(
                             isCurrentPage = isCurrentPage,
                             span = cell.span,
                             onResizeSpan = { span -> onResizeWidgetSpan(widgetId, span) },
+                            onLongPress = { editingWidgetId = widgetId },
+                            showInlineActions = editingWidgetId == widgetId,
                         )
                     }
                 }
@@ -795,19 +806,11 @@ internal fun HostedWidgetCard(
     providerInfoOverride: AppWidgetProviderInfo? = null,
     createWidgetView: ((Context, Int) -> AppWidgetHostView)? = null,
     // Starts the card in resize mode. Test seam: the production entry point
-    // is the long-press menu's Resize item, which Robolectric can't drive
-    // through the host view's View-level long-press detection.
+    // is the edit bar's Resize button, shown only after a long-press, which
+    // Robolectric can't drive through the host view's View-level detection.
     initiallyResizing: Boolean = false,
-    // Starts the card with its actions menu open. Test seam: the production
-    // entry point is the host view's View-level long-press detection, which
-    // Robolectric can't drive directly.
-    initiallyMenuExpanded: Boolean = false,
     // Whether this card's page is the carousel's current page. False once the
-    // page has settled off-screen (see WidgetsScreen's `isCurrentPage` doc) —
-    // used to close the actions menu so a `DropdownMenu` popup, which does
-    // not track its anchor's carousel `graphicsLayer` translation, can never
-    // freeze at a stale screen position and reappear over whichever page
-    // later settles under it.
+    // page has settled off-screen (see WidgetsScreen's `isCurrentPage` doc).
     isCurrentPage: Boolean = true,
     // Test seam: replaces the initial provider-info lookup so a test can hold
     // the card in its resolving state deterministically. Default null = the
@@ -824,19 +827,17 @@ internal fun HostedWidgetCard(
     // activity recreation the cards just re-resolve asynchronously. The
     // default gives standalone (test/preview) callers a private cache.
     resolvedProviderInfos: SnapshotStateMap<Int, AppWidgetProviderInfo?> = remember { mutableStateMapOf() },
-    // Replaces the long-press actions menu: Home's widget slot routes a
-    // long-press to entering edit mode (or to nothing while already editing,
-    // where the inline actions below stand in for the menu). Null keeps the
-    // widget pages' menu.
-    onLongPressOverride: (() -> Unit)? = null,
-    // False turns the widget's long-press off entirely — no menu, no haptic —
+    // What a long-press on the widget does: Home's slot enters edit mode, a
+    // widget page shows this widget's edit bar. Null does nothing.
+    onLongPress: (() -> Unit)? = null,
+    // False turns the widget's long-press off entirely — no action, no haptic —
     // for surfaces where a hold means something else (the kiosk display's
     // two-second exit hold).
     longPressEnabled: Boolean = true,
-    // Shows Move / Resize / Remove as an always-visible row under the widget
-    // instead of behind a long-press (Home's widget edit mode). The widget
-    // box keeps its composition slot either way, so toggling this never
-    // recreates the hosted view.
+    // Shows the Move / Resize / Remove bar under the widget: every widget in
+    // Home's edit mode, the long-pressed one on a widget page. The widget box
+    // keeps its composition slot either way, so toggling this never recreates
+    // the hosted view.
     showInlineActions: Boolean = false,
     // How many of the WIDGET_GRID_COLUMNS columns this card spans, and where
     // a width drag in resize mode commits a new span. The card fills whatever
@@ -844,7 +845,7 @@ internal fun HostedWidgetCard(
     span: Int = WIDGET_GRID_COLUMNS,
     onResizeSpan: (Int) -> Unit = {},
 ) {
-    val currentLongPressOverride by rememberUpdatedState(onLongPressOverride)
+    val currentOnLongPress by rememberUpdatedState(onLongPress)
     // Resolved asynchronously: `AppWidgetManager.getAppWidgetInfo` is a Binder
     // IPC, and this card first composes mid carousel drag (widget pages are
     // warmed the moment the gesture is claimed, precisely to spread the heavy
@@ -925,21 +926,7 @@ internal fun HostedWidgetCard(
         )
         return
     }
-    var menuExpanded by remember { mutableStateOf(initiallyMenuExpanded) }
-    // Close the menu the moment this card's page stops being current. A
-    // `DropdownMenu` popup positions itself once from the anchor's
-    // `LayoutCoordinates` and does not re-track a later `graphicsLayer`-only
-    // translation (the carousel's page-slide is exactly that: a draw-phase
-    // transform with no new layout pass), so a menu left open while paging
-    // away stays frozen at its original screen position — then reappears,
-    // looking like a spurious long-press menu, once another page settles
-    // under that stale spot. Keyed on isCurrentPage alone, matching the
-    // scroll-position reset above, so opening the menu while the page stays
-    // current is unaffected.
-    LaunchedEffect(isCurrentPage) {
-        if (!isCurrentPage) menuExpanded = false
-    }
-    val onWidgetLongPress = { currentLongPressOverride?.invoke() ?: run { menuExpanded = true } }
+    val onWidgetLongPress: () -> Unit = { currentOnLongPress?.invoke() }
     if (appWidgetHost == null || providerInfo == null) {
         Column {
             Box {
@@ -964,20 +951,6 @@ internal fun HostedWidgetCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                WidgetActionsMenu(
-                    expanded = menuExpanded,
-                    widgetId = widgetId,
-                    showResize = false,
-                    canMoveUp = canMoveUp,
-                    canMoveDown = canMoveDown,
-                    showMoveSideways = showMoveSideways,
-                    canMoveStart = canMoveStart,
-                    canMoveEnd = canMoveEnd,
-                    onDismiss = { menuExpanded = false },
-                    onRemoveWidget = onRemoveWidget,
-                    onStartResize = {},
-                    onMoveWidget = onMoveWidget,
-                )
             }
             if (showInlineActions) {
                 WidgetInlineActions(
@@ -1019,11 +992,10 @@ internal fun HostedWidgetCard(
     val density = LocalDensity.current
     val defaultHeightDp = widgetCardHeight(providerInfo.minHeight, providerInfo.targetCellHeightCompat, density)
     var isResizing by remember { mutableStateOf(initiallyResizing) }
-    // Leaving Home's widget edit mode (Done, Back, HOME) hides an open
-    // resize handle along with the other inline actions. Nothing is lost: a
-    // finished drag has already committed its height via onResizeWidget.
-    // Keyed on the inline flag's on → off edge, so the widget pages, which
-    // never show inline actions, keep their menu-driven resize untouched.
+    // Hiding the edit bar (Home's Done, Back or HOME; a widget page's tap
+    // elsewhere or page change) hides an open resize handle with it. Nothing
+    // is lost: a finished drag has already committed its height via
+    // onResizeWidget. Keyed on the bar's on → off edge.
     var wasShowingInlineActions by remember { mutableStateOf(showInlineActions) }
     LaunchedEffect(showInlineActions) {
         if (wasShowingInlineActions && !showInlineActions) isResizing = false
@@ -1151,19 +1123,6 @@ internal fun HostedWidgetCard(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
-            WidgetActionsMenu(
-                expanded = menuExpanded,
-                widgetId = widgetId,
-                canMoveUp = canMoveUp,
-                canMoveDown = canMoveDown,
-                showMoveSideways = showMoveSideways,
-                canMoveStart = canMoveStart,
-                canMoveEnd = canMoveEnd,
-                onDismiss = { menuExpanded = false },
-                onRemoveWidget = onRemoveWidget,
-                onStartResize = startResize,
-                onMoveWidget = onMoveWidget,
-            )
             if (isResizing) {
                 WidgetResizeHandle(
                     onDrag = { deltaPx ->
@@ -1483,82 +1442,6 @@ private fun moveStartEndLabels(): Pair<String, String> {
     val left = stringResource(R.string.widget_menu_move_left)
     val right = stringResource(R.string.widget_menu_move_right)
     return if (LocalLayoutDirection.current == LayoutDirection.Rtl) right to left else left to right
-}
-
-@Composable
-private fun WidgetActionsMenu(
-    expanded: Boolean,
-    widgetId: Int,
-    canMoveUp: Boolean,
-    canMoveDown: Boolean,
-    showMoveSideways: Boolean,
-    canMoveStart: Boolean,
-    canMoveEnd: Boolean,
-    showResize: Boolean = true,
-    onDismiss: () -> Unit,
-    onRemoveWidget: (Int) -> Unit,
-    onStartResize: () -> Unit,
-    onMoveWidget: (widgetId: Int, direction: WidgetMoveDirection) -> Unit,
-) {
-    LauncherDropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
-        if (showResize) {
-            DropdownMenuItem(
-                text = { LauncherMenuItemText(stringResource(R.string.widget_menu_resize)) },
-                modifier = Modifier.testTag("$RESIZE_WIDGET_ACTION_TAG:$widgetId"),
-                onClick = {
-                    onDismiss()
-                    onStartResize()
-                },
-            )
-        }
-        DropdownMenuItem(
-            text = { LauncherMenuItemText(stringResource(R.string.widget_menu_move_up)) },
-            enabled = canMoveUp,
-            modifier = Modifier.testTag("$MOVE_UP_WIDGET_ACTION_TAG:$widgetId"),
-            onClick = {
-                onDismiss()
-                onMoveWidget(widgetId, WidgetMoveDirection.UP)
-            },
-        )
-        DropdownMenuItem(
-            text = { LauncherMenuItemText(stringResource(R.string.widget_menu_move_down)) },
-            enabled = canMoveDown,
-            modifier = Modifier.testTag("$MOVE_DOWN_WIDGET_ACTION_TAG:$widgetId"),
-            onClick = {
-                onDismiss()
-                onMoveWidget(widgetId, WidgetMoveDirection.DOWN)
-            },
-        )
-        if (showMoveSideways) {
-            val (moveStartLabel, moveEndLabel) = moveStartEndLabels()
-            DropdownMenuItem(
-                text = { LauncherMenuItemText(moveStartLabel) },
-                enabled = canMoveStart,
-                modifier = Modifier.testTag("$MOVE_START_WIDGET_ACTION_TAG:$widgetId"),
-                onClick = {
-                    onDismiss()
-                    onMoveWidget(widgetId, WidgetMoveDirection.UP)
-                },
-            )
-            DropdownMenuItem(
-                text = { LauncherMenuItemText(moveEndLabel) },
-                enabled = canMoveEnd,
-                modifier = Modifier.testTag("$MOVE_END_WIDGET_ACTION_TAG:$widgetId"),
-                onClick = {
-                    onDismiss()
-                    onMoveWidget(widgetId, WidgetMoveDirection.DOWN)
-                },
-            )
-        }
-        DropdownMenuItem(
-            text = { LauncherMenuItemText(stringResource(R.string.widget_menu_remove)) },
-            modifier = Modifier.testTag("$REMOVE_WIDGET_ACTION_TAG:$widgetId"),
-            onClick = {
-                onDismiss()
-                onRemoveWidget(widgetId)
-            },
-        )
-    }
 }
 
 internal fun widgetCardHeight(minHeightPx: Int, targetCellHeight: Int, density: Density): Dp {
