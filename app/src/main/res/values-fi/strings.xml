@@ -178,6 +178,11 @@
     <string name="settings_kiosk_mode_title">Kioskitila</string>
     <string name="kiosk_mode_exit_hint">Avaa Asetukset painamalla näyttöä 2 sekunnin ajan</string>
     <string name="settings_kiosk_dim_when_idle_title">Herätä kameralla</string>
+    <string name="settings_kiosk_wake_on_light_title">Herätä valoisuuden mukaan</string>
+    <string name="settings_kiosk_light_level_title">Valoisuus</string>
+    <string name="settings_kiosk_light_level_value">%1$d lx</string>
+    <string name="settings_kiosk_light_level_now">Nyt %1$d lx</string>
+    <string name="settings_kiosk_light_sensor_missing">Ei valoanturia</string>
     <string name="settings_kiosk_blank_when_idle_title">Pimennä, kun ei käytössä</string>
     <string name="settings_kiosk_blank_at_night_title">Pimennä yöllä</string>
     <string name="kiosk_blank_wake_action">Näytä widgetit</string>

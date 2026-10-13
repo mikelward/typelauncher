@@ -178,6 +178,11 @@
     <string name="settings_kiosk_mode_title">Λειτουργία περιπτέρου</string>
     <string name="kiosk_mode_exit_hint">Πατήστε παρατεταμένα την οθόνη για 2 δευτερόλεπτα για να ανοίξουν οι Ρυθμίσεις</string>
     <string name="settings_kiosk_dim_when_idle_title">Αφύπνιση με την κάμερα</string>
+    <string name="settings_kiosk_wake_on_light_title">Αφύπνιση με το επίπεδο φωτός</string>
+    <string name="settings_kiosk_light_level_title">Επίπεδο φωτός</string>
+    <string name="settings_kiosk_light_level_value">%1$d lx</string>
+    <string name="settings_kiosk_light_level_now">Τώρα %1$d lx</string>
+    <string name="settings_kiosk_light_sensor_missing">Δεν υπάρχει αισθητήρας φωτός</string>
     <string name="settings_kiosk_blank_when_idle_title">Σβήσιμο σε αδράνεια</string>
     <string name="settings_kiosk_blank_at_night_title">Σβήσιμο τη νύχτα</string>
     <string name="kiosk_blank_wake_action">Εμφάνιση γραφικών στοιχείων</string>

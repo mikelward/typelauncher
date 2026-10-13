@@ -178,6 +178,11 @@
     <string name="settings_kiosk_mode_title">Kioskmodus</string>
     <string name="kiosk_mode_exit_hint">Bildschirm 2 Sekunden gedrückt halten, um die Einstellungen zu öffnen</string>
     <string name="settings_kiosk_dim_when_idle_title">Mit Kamera aufwecken</string>
+    <string name="settings_kiosk_wake_on_light_title">Mit Beleuchtungsstärke aufwecken</string>
+    <string name="settings_kiosk_light_level_title">Beleuchtungsstärke</string>
+    <string name="settings_kiosk_light_level_value">%1$d Lux</string>
+    <string name="settings_kiosk_light_level_now">Jetzt %1$d Lux</string>
+    <string name="settings_kiosk_light_sensor_missing">Kein Lichtsensor</string>
     <string name="settings_kiosk_blank_when_idle_title">Bei Inaktivität abdunkeln</string>
     <string name="settings_kiosk_blank_at_night_title">Nachts abdunkeln</string>
     <string name="kiosk_blank_wake_action">Widgets anzeigen</string>

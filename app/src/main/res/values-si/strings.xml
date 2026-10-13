@@ -178,6 +178,11 @@
     <string name="settings_kiosk_mode_title">කියොස්ක් ප්‍රකාරය</string>
     <string name="kiosk_mode_exit_hint">සැකසුම් විවෘත කිරීමට තිරය තත්පර 2ක් ඔබාගෙන සිටින්න</string>
     <string name="settings_kiosk_dim_when_idle_title">කැමරාව භාවිතයෙන් අවදි කරන්න</string>
+    <string name="settings_kiosk_wake_on_light_title">ආලෝක මට්ටම භාවිතයෙන් අවදි කරන්න</string>
+    <string name="settings_kiosk_light_level_title">ආලෝක මට්ටම</string>
+    <string name="settings_kiosk_light_level_value">%1$d ලක්ස්</string>
+    <string name="settings_kiosk_light_level_now">දැන් %1$d ලක්ස්</string>
+    <string name="settings_kiosk_light_sensor_missing">ආලෝක සංවේදකයක් නැත</string>
     <string name="settings_kiosk_blank_when_idle_title">අක්‍රිය විට තිරය අඳුරු කරන්න</string>
     <string name="settings_kiosk_blank_at_night_title">රාත්‍රියේ තිරය අඳුරු කරන්න</string>
     <string name="kiosk_blank_wake_action">විජට් පෙන්වන්න</string>

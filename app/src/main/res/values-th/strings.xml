@@ -177,6 +177,11 @@
     <string name="settings_kiosk_mode_title">โหมดคีออสก์</string>
     <string name="kiosk_mode_exit_hint">กดหน้าจอค้างไว้ 2 วินาทีเพื่อเปิดการตั้งค่า</string>
     <string name="settings_kiosk_dim_when_idle_title">ปลุกด้วยกล้อง</string>
+    <string name="settings_kiosk_wake_on_light_title">ปลุกด้วยระดับแสง</string>
+    <string name="settings_kiosk_light_level_title">ระดับแสง</string>
+    <string name="settings_kiosk_light_level_value">%1$d ลักซ์</string>
+    <string name="settings_kiosk_light_level_now">ขณะนี้ %1$d ลักซ์</string>
+    <string name="settings_kiosk_light_sensor_missing">ไม่มีเซ็นเซอร์แสง</string>
     <string name="settings_kiosk_blank_when_idle_title">ดับหน้าจอเมื่อไม่ได้ใช้งาน</string>
     <string name="settings_kiosk_blank_at_night_title">ดับหน้าจอตอนกลางคืน</string>
     <string name="kiosk_blank_wake_action">แสดงวิดเจ็ต</string>

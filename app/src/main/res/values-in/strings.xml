@@ -177,6 +177,11 @@
     <string name="settings_kiosk_mode_title">Mode kios</string>
     <string name="kiosk_mode_exit_hint">Tahan layar selama 2 detik untuk membuka Pengaturan</string>
     <string name="settings_kiosk_dim_when_idle_title">Bangunkan dengan kamera</string>
+    <string name="settings_kiosk_wake_on_light_title">Bangunkan dengan tingkat cahaya</string>
+    <string name="settings_kiosk_light_level_title">Tingkat cahaya</string>
+    <string name="settings_kiosk_light_level_value">%1$d lux</string>
+    <string name="settings_kiosk_light_level_now">Sekarang %1$d lux</string>
+    <string name="settings_kiosk_light_sensor_missing">Tidak ada sensor cahaya</string>
     <string name="settings_kiosk_blank_when_idle_title">Gelapkan saat tidak aktif</string>
     <string name="settings_kiosk_blank_at_night_title">Gelapkan saat malam</string>
     <string name="kiosk_blank_wake_action">Tampilkan widget</string>

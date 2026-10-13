@@ -179,6 +179,11 @@
     <string name="settings_kiosk_mode_title">Mode quiosc</string>
     <string name="kiosk_mode_exit_hint">Mantén premuda la pantalla 2 segons per obrir Configuració</string>
     <string name="settings_kiosk_dim_when_idle_title">Activa amb la càmera</string>
+    <string name="settings_kiosk_wake_on_light_title">Activa amb el nivell de llum</string>
+    <string name="settings_kiosk_light_level_title">Nivell de llum</string>
+    <string name="settings_kiosk_light_level_value">%1$d lux</string>
+    <string name="settings_kiosk_light_level_now">Ara %1$d lux</string>
+    <string name="settings_kiosk_light_sensor_missing">No hi ha sensor de llum</string>
     <string name="settings_kiosk_blank_when_idle_title">Enfosqueix en repòs</string>
     <string name="settings_kiosk_blank_at_night_title">Enfosqueix a la nit</string>
     <string name="kiosk_blank_wake_action">Mostra els widgets</string>

@@ -178,6 +178,11 @@
     <string name="settings_kiosk_mode_title">Imodi yekhiyoski</string>
     <string name="kiosk_mode_exit_hint">Bamba isikrini imizuzwana emi-2 ukuze uvule Izilungiselelo</string>
     <string name="settings_kiosk_dim_when_idle_title">Vusa usebenzisa ikhamera</string>
+    <string name="settings_kiosk_wake_on_light_title">Vusa usebenzisa izinga lokukhanya</string>
+    <string name="settings_kiosk_light_level_title">Izinga lokukhanya</string>
+    <string name="settings_kiosk_light_level_value">%1$d lux</string>
+    <string name="settings_kiosk_light_level_now">Manje %1$d lux</string>
+    <string name="settings_kiosk_light_sensor_missing">Ayikho inzwa yokukhanya</string>
     <string name="settings_kiosk_blank_when_idle_title">Fiphalisa isikrini uma singasetshenziswa</string>
     <string name="settings_kiosk_blank_at_night_title">Fiphalisa isikrini ebusuku</string>
     <string name="kiosk_blank_wake_action">Bonisa amawijethi</string>

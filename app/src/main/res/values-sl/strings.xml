@@ -180,6 +180,11 @@
     <string name="settings_kiosk_mode_title">Način kioska</string>
     <string name="kiosk_mode_exit_hint">Za odpiranje Nastavitev pridržite zaslon 2 sekundi</string>
     <string name="settings_kiosk_dim_when_idle_title">Prebujanje s kamero</string>
+    <string name="settings_kiosk_wake_on_light_title">Prebujanje z ravnjo svetlobe</string>
+    <string name="settings_kiosk_light_level_title">Raven svetlobe</string>
+    <string name="settings_kiosk_light_level_value">%1$d lx</string>
+    <string name="settings_kiosk_light_level_now">Zdaj %1$d lx</string>
+    <string name="settings_kiosk_light_sensor_missing">Ni senzorja svetlobe</string>
     <string name="settings_kiosk_blank_when_idle_title">Zatemni ob neaktivnosti</string>
     <string name="settings_kiosk_blank_at_night_title">Zatemni ponoči</string>
     <string name="kiosk_blank_wake_action">Pokaži pripomočke</string>

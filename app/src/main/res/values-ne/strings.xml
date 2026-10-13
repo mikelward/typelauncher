@@ -178,6 +178,11 @@
     <string name="settings_kiosk_mode_title">किओस्क मोड</string>
     <string name="kiosk_mode_exit_hint">सेटिङ खोल्न स्क्रिनलाई २ सेकेन्डसम्म थिचिराख्नुहोस्</string>
     <string name="settings_kiosk_dim_when_idle_title">क्यामेराबाट ब्युँझाउनुहोस्</string>
+    <string name="settings_kiosk_wake_on_light_title">प्रकाशको स्तरबाट ब्युँझाउनुहोस्</string>
+    <string name="settings_kiosk_light_level_title">प्रकाशको स्तर</string>
+    <string name="settings_kiosk_light_level_value">%1$d लक्स</string>
+    <string name="settings_kiosk_light_level_now">अहिले %1$d लक्स</string>
+    <string name="settings_kiosk_light_sensor_missing">प्रकाश सेन्सर छैन</string>
     <string name="settings_kiosk_blank_when_idle_title">निष्क्रिय हुँदा स्क्रिन कालो पार्नुहोस्</string>
     <string name="settings_kiosk_blank_at_night_title">राति स्क्रिन कालो पार्नुहोस्</string>
     <string name="kiosk_blank_wake_action">विजेटहरू देखाउनुहोस्</string>

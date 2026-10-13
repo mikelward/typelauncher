@@ -182,6 +182,11 @@
     <string name="settings_kiosk_mode_title">وضع الكشك</string>
     <string name="kiosk_mode_exit_hint">اضغط مع الاستمرار على الشاشة لمدة ثانيتين لفتح الإعدادات</string>
     <string name="settings_kiosk_dim_when_idle_title">التنشيط باستخدام الكاميرا</string>
+    <string name="settings_kiosk_wake_on_light_title">التنشيط باستخدام مستوى الإضاءة</string>
+    <string name="settings_kiosk_light_level_title">مستوى الإضاءة</string>
+    <string name="settings_kiosk_light_level_value">%1$d لوكس</string>
+    <string name="settings_kiosk_light_level_now">الآن %1$d لوكس</string>
+    <string name="settings_kiosk_light_sensor_missing">لا يوجد مستشعر إضاءة</string>
     <string name="settings_kiosk_blank_when_idle_title">إطفاء الشاشة عند الخمول</string>
     <string name="settings_kiosk_blank_at_night_title">إطفاء الشاشة ليلًا</string>
     <string name="kiosk_blank_wake_action">عرض الأدوات</string>

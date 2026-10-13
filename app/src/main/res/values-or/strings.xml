@@ -178,6 +178,11 @@
     <string name="settings_kiosk_mode_title">କିଓସ୍କ ମୋଡ୍</string>
     <string name="kiosk_mode_exit_hint">ସେଟିଂସ୍ ଖୋଲିବାକୁ ସ୍କ୍ରିନକୁ 2 ସେକେଣ୍ଡ ଦବାଇ ରଖନ୍ତୁ</string>
     <string name="settings_kiosk_dim_when_idle_title">କ୍ୟାମେରା ବ୍ୟବହାର କରି ଜାଗ୍ରତ କରନ୍ତୁ</string>
+    <string name="settings_kiosk_wake_on_light_title">ଆଲୋକ ସ୍ତର ବ୍ୟବହାର କରି ଜାଗ୍ରତ କରନ୍ତୁ</string>
+    <string name="settings_kiosk_light_level_title">ଆଲୋକ ସ୍ତର</string>
+    <string name="settings_kiosk_light_level_value">%1$d ଲକ୍ସ</string>
+    <string name="settings_kiosk_light_level_now">ବର୍ତ୍ତମାନ %1$d ଲକ୍ସ</string>
+    <string name="settings_kiosk_light_sensor_missing">ଆଲୋକ ସେନ୍ସର ନାହିଁ</string>
     <string name="settings_kiosk_blank_when_idle_title">ନିଷ୍କ୍ରିୟ ଥିବାବେଳେ ସ୍କ୍ରିନ କଳା କରନ୍ତୁ</string>
     <string name="settings_kiosk_blank_at_night_title">ରାତିରେ ସ୍କ୍ରିନ କଳା କରନ୍ତୁ</string>
     <string name="kiosk_blank_wake_action">ୱିଜେଟ୍ ଦେଖାନ୍ତୁ</string>

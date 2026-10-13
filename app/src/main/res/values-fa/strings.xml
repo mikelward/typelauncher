@@ -178,6 +178,11 @@
     <string name="settings_kiosk_mode_title">حالت کیوسک</string>
     <string name="kiosk_mode_exit_hint">برای باز کردن تنظیمات، صفحه را ۲ ثانیه نگه دارید</string>
     <string name="settings_kiosk_dim_when_idle_title">بیدار شدن با دوربین</string>
+    <string name="settings_kiosk_wake_on_light_title">بیدار شدن با سطح نور</string>
+    <string name="settings_kiosk_light_level_title">سطح نور</string>
+    <string name="settings_kiosk_light_level_value">%1$d لوکس</string>
+    <string name="settings_kiosk_light_level_now">اکنون %1$d لوکس</string>
+    <string name="settings_kiosk_light_sensor_missing">حسگر نور وجود ندارد</string>
     <string name="settings_kiosk_blank_when_idle_title">خاموش کردن صفحه در حالت بیکار</string>
     <string name="settings_kiosk_blank_at_night_title">خاموش کردن صفحه در شب</string>
     <string name="kiosk_blank_wake_action">نمایش ابزارک‌ها</string>
