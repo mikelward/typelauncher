@@ -178,6 +178,11 @@
     <string name="settings_kiosk_mode_title">Kiosk modu</string>
     <string name="kiosk_mode_exit_hint">Ayarlar\'ı açmak için ekrana 2 saniye basılı tutun</string>
     <string name="settings_kiosk_dim_when_idle_title">Kamerayla uyandır</string>
+    <string name="settings_kiosk_wake_on_light_title">Işık düzeyiyle uyandır</string>
+    <string name="settings_kiosk_light_level_title">Işık düzeyi</string>
+    <string name="settings_kiosk_light_level_value">%1$d lüks</string>
+    <string name="settings_kiosk_light_level_now">Şu an %1$d lüks</string>
+    <string name="settings_kiosk_light_sensor_missing">Işık sensörü yok</string>
     <string name="settings_kiosk_blank_when_idle_title">Boştayken ekranı karart</string>
     <string name="settings_kiosk_blank_at_night_title">Gece ekranı karart</string>
     <string name="kiosk_blank_wake_action">Widget\'ları göster</string>

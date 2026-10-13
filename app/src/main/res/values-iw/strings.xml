@@ -180,6 +180,11 @@
     <string name="settings_kiosk_mode_title">מצב קיוסק</string>
     <string name="kiosk_mode_exit_hint">יש ללחוץ לחיצה ארוכה על המסך למשך 2 שניות כדי לפתוח את ההגדרות</string>
     <string name="settings_kiosk_dim_when_idle_title">התעוררות באמצעות המצלמה</string>
+    <string name="settings_kiosk_wake_on_light_title">התעוררות לפי רמת האור</string>
+    <string name="settings_kiosk_light_level_title">רמת אור</string>
+    <string name="settings_kiosk_light_level_value">%1$d לוקס</string>
+    <string name="settings_kiosk_light_level_now">כעת %1$d לוקס</string>
+    <string name="settings_kiosk_light_sensor_missing">אין חיישן אור</string>
     <string name="settings_kiosk_blank_when_idle_title">החשכה במצב לא פעיל</string>
     <string name="settings_kiosk_blank_at_night_title">החשכה בלילה</string>
     <string name="kiosk_blank_wake_action">הצגת ווידג\'טים</string>

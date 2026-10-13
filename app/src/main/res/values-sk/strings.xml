@@ -180,6 +180,11 @@
     <string name="settings_kiosk_mode_title">Režim kiosku</string>
     <string name="kiosk_mode_exit_hint">Podržaním obrazovky na 2 sekundy otvoríte Nastavenia</string>
     <string name="settings_kiosk_dim_when_idle_title">Prebudiť pomocou fotoaparátu</string>
+    <string name="settings_kiosk_wake_on_light_title">Prebudiť podľa úrovne svetla</string>
+    <string name="settings_kiosk_light_level_title">Úroveň svetla</string>
+    <string name="settings_kiosk_light_level_value">%1$d lx</string>
+    <string name="settings_kiosk_light_level_now">Teraz %1$d lx</string>
+    <string name="settings_kiosk_light_sensor_missing">Chýba senzor svetla</string>
     <string name="settings_kiosk_blank_when_idle_title">Zatemniť pri nečinnosti</string>
     <string name="settings_kiosk_blank_at_night_title">Zatemniť v noci</string>
     <string name="kiosk_blank_wake_action">Zobraziť miniaplikácie</string>

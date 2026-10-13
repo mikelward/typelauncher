@@ -178,6 +178,11 @@
     <string name="settings_kiosk_mode_title">കിയോസ്‌ക് മോഡ്</string>
     <string name="kiosk_mode_exit_hint">ക്രമീകരണങ്ങൾ തുറക്കാൻ സ്ക്രീൻ 2 സെക്കൻഡ് അമർത്തിപ്പിടിക്കുക</string>
     <string name="settings_kiosk_dim_when_idle_title">ക്യാമറ ഉപയോഗിച്ച് ഉണർത്തുക</string>
+    <string name="settings_kiosk_wake_on_light_title">വെളിച്ചത്തിന്റെ അളവ് ഉപയോഗിച്ച് ഉണർത്തുക</string>
+    <string name="settings_kiosk_light_level_title">വെളിച്ചത്തിന്റെ അളവ്</string>
+    <string name="settings_kiosk_light_level_value">%1$d ലക്സ്</string>
+    <string name="settings_kiosk_light_level_now">ഇപ്പോൾ %1$d ലക്സ്</string>
+    <string name="settings_kiosk_light_sensor_missing">ലൈറ്റ് സെൻസർ ഇല്ല</string>
     <string name="settings_kiosk_blank_when_idle_title">നിഷ്‌ക്രിയമാകുമ്പോൾ സ്ക്രീൻ കറുപ്പിക്കുക</string>
     <string name="settings_kiosk_blank_at_night_title">രാത്രിയിൽ സ്ക്രീൻ കറുപ്പിക്കുക</string>
     <string name="kiosk_blank_wake_action">വിജറ്റുകൾ കാണിക്കുക</string>

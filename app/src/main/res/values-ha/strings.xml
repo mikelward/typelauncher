@@ -178,6 +178,11 @@
     <string name="settings_kiosk_mode_title">Yanayin kiosk</string>
     <string name="kiosk_mode_exit_hint">Riƙe allon na daƙiƙa 2 don buɗe Saituna</string>
     <string name="settings_kiosk_dim_when_idle_title">Tashi ta amfani da kyamara</string>
+    <string name="settings_kiosk_wake_on_light_title">Tashi ta amfani da matakin haske</string>
+    <string name="settings_kiosk_light_level_title">Matakin haske</string>
+    <string name="settings_kiosk_light_level_value">%1$d lux</string>
+    <string name="settings_kiosk_light_level_now">Yanzu %1$d lux</string>
+    <string name="settings_kiosk_light_sensor_missing">Babu na\'urar auna haske</string>
     <string name="settings_kiosk_blank_when_idle_title">Duhunta allo idan babu aiki</string>
     <string name="settings_kiosk_blank_at_night_title">Duhunta allo da dare</string>
     <string name="kiosk_blank_wake_action">Nuna widget</string>

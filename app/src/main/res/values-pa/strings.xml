@@ -178,6 +178,11 @@
     <string name="settings_kiosk_mode_title">ਕਿਓਸਕ ਮੋਡ</string>
     <string name="kiosk_mode_exit_hint">ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹਣ ਲਈ ਸਕ੍ਰੀਨ ਨੂੰ 2 ਸਕਿੰਟਾਂ ਲਈ ਦਬਾ ਕੇ ਰੱਖੋ</string>
     <string name="settings_kiosk_dim_when_idle_title">ਕੈਮਰੇ ਨਾਲ ਜਗਾਓ</string>
+    <string name="settings_kiosk_wake_on_light_title">ਰੋਸ਼ਨੀ ਦੇ ਪੱਧਰ ਨਾਲ ਜਗਾਓ</string>
+    <string name="settings_kiosk_light_level_title">ਰੋਸ਼ਨੀ ਦਾ ਪੱਧਰ</string>
+    <string name="settings_kiosk_light_level_value">%1$d ਲਕਸ</string>
+    <string name="settings_kiosk_light_level_now">ਹੁਣ %1$d ਲਕਸ</string>
+    <string name="settings_kiosk_light_sensor_missing">ਲਾਈਟ ਸੈਂਸਰ ਨਹੀਂ ਹੈ</string>
     <string name="settings_kiosk_blank_when_idle_title">ਵਿਹਲਾ ਹੋਣ \'ਤੇ ਸਕ੍ਰੀਨ ਕਾਲੀ ਕਰੋ</string>
     <string name="settings_kiosk_blank_at_night_title">ਰਾਤ ਨੂੰ ਸਕ੍ਰੀਨ ਕਾਲੀ ਕਰੋ</string>
     <string name="kiosk_blank_wake_action">ਵਿਜੇਟ ਦਿਖਾਓ</string>

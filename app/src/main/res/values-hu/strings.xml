@@ -178,6 +178,11 @@
     <string name="settings_kiosk_mode_title">Kioszk mód</string>
     <string name="kiosk_mode_exit_hint">A Beállítások megnyitásához tartsa lenyomva a képernyőt 2 másodpercig</string>
     <string name="settings_kiosk_dim_when_idle_title">Ébresztés kamerával</string>
+    <string name="settings_kiosk_wake_on_light_title">Ébresztés fényszinttel</string>
+    <string name="settings_kiosk_light_level_title">Fényszint</string>
+    <string name="settings_kiosk_light_level_value">%1$d lux</string>
+    <string name="settings_kiosk_light_level_now">Most %1$d lux</string>
+    <string name="settings_kiosk_light_sensor_missing">Nincs fényérzékelő</string>
     <string name="settings_kiosk_blank_when_idle_title">Elsötétítés tétlenségkor</string>
     <string name="settings_kiosk_blank_at_night_title">Elsötétítés éjjel</string>
     <string name="kiosk_blank_wake_action">Modulok megjelenítése</string>

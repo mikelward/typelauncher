@@ -178,6 +178,11 @@
     <string name="settings_kiosk_mode_title">कियॉस्क मोड</string>
     <string name="kiosk_mode_exit_hint">सेटिंग्ज उघडण्यासाठी स्क्रीन 2 सेकंद दाबून ठेवा</string>
     <string name="settings_kiosk_dim_when_idle_title">कॅमेऱ्याने जागे करा</string>
+    <string name="settings_kiosk_wake_on_light_title">प्रकाशाच्या पातळीने जागे करा</string>
+    <string name="settings_kiosk_light_level_title">प्रकाशाची पातळी</string>
+    <string name="settings_kiosk_light_level_value">%1$d लक्स</string>
+    <string name="settings_kiosk_light_level_now">आता %1$d लक्स</string>
+    <string name="settings_kiosk_light_sensor_missing">लाइट सेन्सर नाही</string>
     <string name="settings_kiosk_blank_when_idle_title">निष्क्रिय असताना स्क्रीन काळी करा</string>
     <string name="settings_kiosk_blank_at_night_title">रात्री स्क्रीन काळी करा</string>
     <string name="kiosk_blank_wake_action">विजेट दाखवा</string>

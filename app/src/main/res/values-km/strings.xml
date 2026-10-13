@@ -177,6 +177,11 @@
     <string name="settings_kiosk_mode_title">មុខងារ​គីអូស</string>
     <string name="kiosk_mode_exit_hint">ចុចអេក្រង់​ឱ្យ​ជាប់ 2 វិនាទី ដើម្បី​បើក​ការកំណត់</string>
     <string name="settings_kiosk_dim_when_idle_title">ដាស់​ដោយ​ប្រើ​កាមេរ៉ា</string>
+    <string name="settings_kiosk_wake_on_light_title">ដាស់​ដោយ​ប្រើ​កម្រិត​ពន្លឺ</string>
+    <string name="settings_kiosk_light_level_title">កម្រិត​ពន្លឺ</string>
+    <string name="settings_kiosk_light_level_value">%1$d lx</string>
+    <string name="settings_kiosk_light_level_now">ឥឡូវ %1$d lx</string>
+    <string name="settings_kiosk_light_sensor_missing">គ្មាន​ឧបករណ៍​ចាប់​ពន្លឺ</string>
     <string name="settings_kiosk_blank_when_idle_title">ធ្វើឱ្យអេក្រង់ងងឹតពេលទំនេរ</string>
     <string name="settings_kiosk_blank_at_night_title">ធ្វើឱ្យអេក្រង់ងងឹតពេលយប់</string>
     <string name="kiosk_blank_wake_action">បង្ហាញធាតុក្រាហ្វិក</string>

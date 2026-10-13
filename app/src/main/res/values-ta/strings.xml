@@ -178,6 +178,11 @@
     <string name="settings_kiosk_mode_title">கியோஸ்க் பயன்முறை</string>
     <string name="kiosk_mode_exit_hint">அமைப்புகளைத் திறக்க திரையை 2 விநாடிகள் அழுத்திப் பிடிக்கவும்</string>
     <string name="settings_kiosk_dim_when_idle_title">கேமரா மூலம் எழுப்பு</string>
+    <string name="settings_kiosk_wake_on_light_title">ஒளி அளவு மூலம் எழுப்பு</string>
+    <string name="settings_kiosk_light_level_title">ஒளி அளவு</string>
+    <string name="settings_kiosk_light_level_value">%1$d லக்ஸ்</string>
+    <string name="settings_kiosk_light_level_now">இப்போது %1$d லக்ஸ்</string>
+    <string name="settings_kiosk_light_sensor_missing">ஒளி சென்சார் இல்லை</string>
     <string name="settings_kiosk_blank_when_idle_title">செயலற்ற நிலையில் திரையை இருட்டாக்கு</string>
     <string name="settings_kiosk_blank_at_night_title">இரவில் திரையை இருட்டாக்கு</string>
     <string name="kiosk_blank_wake_action">விட்ஜெட்டுகளைக் காட்டு</string>
