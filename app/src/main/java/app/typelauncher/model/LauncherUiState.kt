@@ -726,8 +726,8 @@ internal data class LauncherUiState(
     val isKioskDimWhenIdle: Boolean = false,
     // Kiosk mode's "Blank at night": between these times (minutes after local
     // midnight) the display goes black once nobody is there, and comes back on
-    // a touch or, with the camera on, on motion. Defaults off, midnight to 6am.
-    val isKioskBlankAtNight: Boolean = false,
+    // a touch or, with the camera on, on motion. Defaults on, midnight to 6am.
+    val isKioskBlankAtNight: Boolean = true,
     // Kiosk mode's "Blank when idle": the same blank after any quiet minute,
     // day or night. Defaults off.
     val isKioskBlankWhenIdle: Boolean = false,

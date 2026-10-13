@@ -622,10 +622,11 @@ internal class DockSettingsStore(context: Context) {
     /**
      * Kiosk mode's "Blank at night": the display goes black between
      * [kioskBlankStartMinutes] and [kioskBlankEndMinutes] whenever nobody is
-     * there. Defaults off.
+     * there. Defaults on: a display nobody is watching overnight is where most
+     * of an OLED's burn-in would come from.
      */
     var isKioskBlankAtNight: Boolean
-        get() = sharedPreferences.getBoolean(KEY_KIOSK_BLANK_AT_NIGHT, false)
+        get() = sharedPreferences.getBoolean(KEY_KIOSK_BLANK_AT_NIGHT, true)
         set(value) {
             sharedPreferences.edit()
                 .putBoolean(KEY_KIOSK_BLANK_AT_NIGHT, value)
