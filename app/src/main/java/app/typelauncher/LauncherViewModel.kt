@@ -457,6 +457,8 @@ internal class LauncherViewModel(
             isKioskBlankWhenIdle = dockSettingsStore.isKioskBlankWhenIdle,
             kioskBlankStartMinutes = dockSettingsStore.kioskBlankStartMinutes,
             kioskBlankEndMinutes = dockSettingsStore.kioskBlankEndMinutes,
+            isKioskWakeOnLight = dockSettingsStore.isKioskWakeOnLight,
+            kioskLightWakeLux = dockSettingsStore.kioskLightWakeLux,
             keyboardReservation = dockSettingsStore.keyboardReservation,
             isAgendaEnabled = dockSettingsStore.isAgendaEnabled,
             isContactSearchEnabled = dockSettingsStore.isContactSearchEnabled,
@@ -1932,6 +1934,21 @@ internal class LauncherViewModel(
         dockSettingsStore.isKioskBlankWhenIdle = enabled
         _uiState.update { it.copy(isKioskBlankWhenIdle = enabled) }
         logState("setKioskBlankWhenIdle=%s", enabled)
+    }
+
+    /** Turns kiosk mode's "Wake up using light level" on or off. */
+    fun setKioskWakeOnLight(enabled: Boolean) {
+        dockSettingsStore.isKioskWakeOnLight = enabled
+        _uiState.update { it.copy(isKioskWakeOnLight = enabled) }
+        logState("setKioskWakeOnLight=%s", enabled)
+    }
+
+    /** Sets the light level, in lux, that "Wake up using light level" counts as lit; kept in range, in whole lux. */
+    fun setKioskLightWakeLux(lux: Float) {
+        val level = kioskLightWakeLux(lux)
+        dockSettingsStore.kioskLightWakeLux = level
+        _uiState.update { it.copy(kioskLightWakeLux = level) }
+        logState("setKioskLightWakeLux=%s", level)
     }
 
     /** Sets when "Blank at night" starts and ends, in minutes after local midnight. */

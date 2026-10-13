@@ -99,6 +99,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -149,6 +150,7 @@ import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -6331,6 +6333,13 @@ internal fun HomeWidgetsSettingsRows(
     kioskBlankStartMinutes: Int = KIOSK_BLANK_DEFAULT_START_MINUTES,
     kioskBlankEndMinutes: Int = KIOSK_BLANK_DEFAULT_END_MINUTES,
     onKioskBlankWindowChanged: (startMinutes: Int, endMinutes: Int) -> Unit = { _, _ -> },
+    isKioskWakeOnLight: Boolean = false,
+    onKioskWakeOnLightChanged: (Boolean) -> Unit = {},
+    kioskLightWakeLux: Float = KIOSK_LIGHT_WAKE_DEFAULT_LUX,
+    onKioskLightWakeLuxChanged: (Float) -> Unit = {},
+    // Test seam: the light sensor's live reading. Only read while the light
+    // level row shows, so the sensor runs only then.
+    kioskLightReading: @Composable () -> KioskLightReading = { rememberKioskLightReading().value },
 ) {
     val editDescription = stringResource(R.string.settings_home_widgets_edit_button_description)
     Row(
@@ -6426,6 +6435,30 @@ internal fun HomeWidgetsSettingsRows(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
+                        stringResource(R.string.settings_kiosk_wake_on_light_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                Switch(
+                    checked = isKioskWakeOnLight,
+                    onCheckedChange = onKioskWakeOnLightChanged,
+                    modifier = Modifier.testTag(KIOSK_WAKE_ON_LIGHT_SWITCH_TAG),
+                )
+            }
+            if (isKioskWakeOnLight) {
+                KioskLightLevelRows(
+                    lux = kioskLightWakeLux,
+                    onLuxChanged = onKioskLightWakeLuxChanged,
+                    reading = kioskLightReading(),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
                         stringResource(R.string.settings_kiosk_blank_when_idle_title),
                         style = MaterialTheme.typography.titleMedium,
                     )
@@ -6469,6 +6502,56 @@ internal fun HomeWidgetsSettingsRows(
             }
         }
     }
+}
+
+/**
+ * The light level that "Wake up using light level" counts as lit: its value, a slider
+ * to set it, and what the sensor reads now, so it can be set between the room
+ * dark and the room lit.
+ */
+@Composable
+private fun KioskLightLevelRows(
+    lux: Float,
+    onLuxChanged: (Float) -> Unit,
+    reading: KioskLightReading,
+) {
+    // Follows a drag here and saves once it ends, rather than writing the
+    // setting on every frame of the drag.
+    var position by remember(lux) { mutableFloatStateOf(kioskLightWakeSliderPosition(lux)) }
+    val levelText = stringResource(R.string.settings_kiosk_light_level_value, kioskLightWakeLuxAt(position).roundToInt())
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(
+            stringResource(R.string.settings_kiosk_light_level_title),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f),
+        )
+        Text(levelText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    Slider(
+        value = position,
+        onValueChange = { position = it },
+        onValueChangeFinished = { onLuxChanged(kioskLightWakeLuxAt(position)) },
+        // The slider's own description is a percentage of its range, which
+        // means nothing here; the level in lux does.
+        modifier = Modifier
+            .testTag(KIOSK_LIGHT_LEVEL_SLIDER_TAG)
+            .semantics { stateDescription = levelText },
+    )
+    Text(
+        // Empty while waiting for the first reading, so the row keeps its height.
+        text = when (reading) {
+            is KioskLightReading.Lux -> stringResource(R.string.settings_kiosk_light_level_now, reading.lux.roundToInt())
+            KioskLightReading.NoSensor -> stringResource(R.string.settings_kiosk_light_sensor_missing)
+            KioskLightReading.Waiting -> ""
+        },
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.testTag(KIOSK_LIGHT_READING_TAG),
+    )
 }
 
 /**
@@ -6559,6 +6642,8 @@ internal fun SettingsScreen(
     onKioskBlankAtNightChanged: (Boolean) -> Unit = {},
     onKioskBlankWhenIdleChanged: (Boolean) -> Unit = {},
     onKioskBlankWindowChanged: (startMinutes: Int, endMinutes: Int) -> Unit = { _, _ -> },
+    onKioskWakeOnLightChanged: (Boolean) -> Unit = {},
+    onKioskLightWakeLuxChanged: (Float) -> Unit = {},
     onTelemetryEnabledChanged: (Boolean) -> Unit = {},
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     onIconShapeChanged: (IconShape) -> Unit = {},
@@ -6928,6 +7013,10 @@ internal fun SettingsScreen(
                     kioskBlankStartMinutes = state.kioskBlankStartMinutes,
                     kioskBlankEndMinutes = state.kioskBlankEndMinutes,
                     onKioskBlankWindowChanged = onKioskBlankWindowChanged,
+                    isKioskWakeOnLight = state.isKioskWakeOnLight,
+                    onKioskWakeOnLightChanged = onKioskWakeOnLightChanged,
+                    kioskLightWakeLux = state.kioskLightWakeLux,
+                    onKioskLightWakeLuxChanged = onKioskLightWakeLuxChanged,
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),

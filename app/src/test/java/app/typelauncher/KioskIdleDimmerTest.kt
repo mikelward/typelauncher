@@ -46,6 +46,43 @@ class KioskIdleDimmerTest {
     }
 
     @Test
+    fun aHoldKeepsItBrightAndReleasingItStartsTheQuietPeriod() = runTest {
+        val dimmer = KioskIdleDimmer(backgroundScope, dimAfterMs = 60_000)
+        dimmer.start()
+        advanceTimeBy(61_000)
+        runCurrent()
+        assertTrue(dimmer.dimmed.value)
+
+        // A lit room: bright at once, and for as long as it stays lit.
+        dimmer.setHeld(true)
+        assertFalse(dimmer.dimmed.value)
+        dimmer.onActivity()
+        advanceTimeBy(600_000)
+        runCurrent()
+        assertFalse(dimmer.dimmed.value)
+
+        // The lights go off: a full quiet period from then.
+        dimmer.setHeld(false)
+        advanceTimeBy(59_000)
+        runCurrent()
+        assertFalse(dimmer.dimmed.value)
+        advanceTimeBy(2_000)
+        runCurrent()
+        assertTrue(dimmer.dimmed.value)
+    }
+
+    @Test
+    fun stopReleasesAHold() = runTest {
+        val dimmer = KioskIdleDimmer(backgroundScope, dimAfterMs = 60_000)
+        dimmer.setHeld(true)
+        dimmer.stop()
+        dimmer.start()
+        advanceTimeBy(61_000)
+        runCurrent()
+        assertTrue(dimmer.dimmed.value)
+    }
+
+    @Test
     fun stopBrightensAndCancelsTheCountdown() = runTest {
         val dimmer = KioskIdleDimmer(backgroundScope, dimAfterMs = 60_000)
         dimmer.start()

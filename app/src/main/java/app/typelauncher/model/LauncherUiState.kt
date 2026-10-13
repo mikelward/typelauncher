@@ -733,6 +733,11 @@ internal data class LauncherUiState(
     val isKioskBlankWhenIdle: Boolean = false,
     val kioskBlankStartMinutes: Int = KIOSK_BLANK_DEFAULT_START_MINUTES,
     val kioskBlankEndMinutes: Int = KIOSK_BLANK_DEFAULT_END_MINUTES,
+    // Kiosk mode's "Wake up using light level": the display stays awake while
+    // the room is lit by this level, in lux, and wakes when it becomes lit.
+    // Defaults off.
+    val isKioskWakeOnLight: Boolean = false,
+    val kioskLightWakeLux: Float = KIOSK_LIGHT_WAKE_DEFAULT_LUX,
     // True while Home's widget slot is in edit mode: the slot scrolls, every
     // widget shows inline Move / Resize / Remove controls, and an Add / Done
     // bar sits under the list. Transient — never persisted.

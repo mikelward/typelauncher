@@ -54,6 +54,9 @@ class KioskScreenTest {
         unlockThen: (action: () -> Unit) -> Unit = { it() },
         blankAtNight: Boolean = false,
         blankWhenIdle: Boolean = false,
+        wakeOnLight: Boolean = false,
+        lightWakeLux: Float = KIOSK_LIGHT_WAKE_DEFAULT_LUX,
+        lightWatcher: @androidx.compose.runtime.Composable (thresholdLux: Float, onLitChanged: (Boolean) -> Unit) -> Unit = { _, _ -> },
         motionWatcher: @androidx.compose.runtime.Composable (onMotion: () -> Unit) -> Unit = {},
         // Sees every pointer change after the display has handled it.
         observeFinal: ((androidx.compose.ui.input.pointer.PointerInputChange) -> Unit)? = null,
@@ -76,6 +79,9 @@ class KioskScreenTest {
                     unlockThen = unlockThen,
                     blankAtNight = blankAtNight,
                     blankWhenIdle = blankWhenIdle,
+                    wakeOnLight = wakeOnLight,
+                    lightWakeLux = lightWakeLux,
+                    lightWatcher = lightWatcher,
                     minuteOfDay = { minuteOfDay },
                     modifier = if (observeFinal == null) Modifier else Modifier.pointerInput(Unit) {
                         awaitPointerEventScope {
@@ -369,6 +375,114 @@ class KioskScreenTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertDoesNotExist()
         assertEquals(BRIGHTNESS_NONE, brightness(), 0f)
+    }
+
+    @Test
+    fun aLitRoomKeepsTheDisplayAwakeUntilTheLightsGoOff() {
+        composeRule.mainClock.autoAdvance = false
+        var litChanged: ((Boolean) -> Unit)? = null
+        var watchedLux = 0f
+        setKiosk(
+            blankWhenIdle = true,
+            wakeOnLight = true,
+            lightWakeLux = 35f,
+            lightWatcher = { thresholdLux, onLitChanged ->
+                watchedLux = thresholdLux
+                litChanged = onLitChanged
+            },
+        )
+        assertEquals(35f, watchedLux, 0f)
+
+        litChanged!!(true)
+        composeRule.mainClock.advanceTimeBy(KIOSK_DIM_AFTER_MS * 5)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertDoesNotExist()
+
+        // Lights off: the usual quiet minute, from then.
+        litChanged!!(false)
+        composeRule.mainClock.advanceTimeBy(KIOSK_DIM_AFTER_MS - 1_000)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertDoesNotExist()
+        composeRule.mainClock.advanceTimeBy(2_000)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertExists()
+    }
+
+    @Test
+    fun lightsComingOnBringBackABlankedDisplay() {
+        composeRule.mainClock.autoAdvance = false
+        var litChanged: ((Boolean) -> Unit)? = null
+        setKiosk(
+            blankWhenIdle = true,
+            wakeOnLight = true,
+            lightWatcher = { _, onLitChanged -> litChanged = onLitChanged },
+        )
+        litChanged!!(false)
+        composeRule.mainClock.advanceTimeBy(KIOSK_DIM_AFTER_MS + 1_000)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertExists()
+
+        litChanged!!(true)
+        composeRule.mainClock.advanceTimeBy(1_000)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertDoesNotExist()
+        assertEquals(BRIGHTNESS_NONE, brightness(), 0f)
+    }
+
+    @Test
+    fun turningTheSettingOffLetsALitRoomGoQuiet() {
+        composeRule.mainClock.autoAdvance = false
+        var wakeOnLight by mutableStateOf(true)
+        var litChanged: ((Boolean) -> Unit)? = null
+        composeRule.setContent {
+            TypeLauncherTheme {
+                KioskScreen(
+                    widgetIds = listOf(WIDGET_ID),
+                    isHomeReady = true,
+                    appWidgetHost = null,
+                    appWidgetManager = null,
+                    widgetHeights = emptyMap(),
+                    widgetSpans = emptyMap(),
+                    widgetProviderLabels = emptyMap(),
+                    strandedWidgetIds = emptySet(),
+                    workProfileWidgetRefreshToken = 0,
+                    onExitHold = {},
+                    blankWhenIdle = true,
+                    wakeOnLight = wakeOnLight,
+                    lightWatcher = { _, onLitChanged -> litChanged = onLitChanged },
+                    motionWatcher = {},
+                    unlockThen = { it() },
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        litChanged!!(true)
+
+        wakeOnLight = false
+        // One frame to recompose without the setting, then the quiet minute.
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.waitForIdle()
+        composeRule.mainClock.advanceTimeBy(KIOSK_DIM_AFTER_MS + 1_000)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(KIOSK_BLANK_TAG).assertExists()
+    }
+
+    @Test
+    fun theLightSensorIsOnlyWatchedWhileSomethingCanDarkenTheDisplay() {
+        var watching = false
+        val watcher: @androidx.compose.runtime.Composable (Float, (Boolean) -> Unit) -> Unit =
+            { _, _ -> watching = true }
+
+        // Nothing dims or blanks it, so there is nothing to hold it awake against.
+        setKiosk(wakeOnLight = true, lightWatcher = watcher)
+        assertFalse(watching)
+    }
+
+    @Test
+    fun theLightSensorIsNotWatchedWhenTheSettingIsOff() {
+        var watching = false
+        setKiosk(blankAtNight = true, lightWatcher = { _, _ -> watching = true })
+        assertFalse(watching)
     }
 
     @Test
