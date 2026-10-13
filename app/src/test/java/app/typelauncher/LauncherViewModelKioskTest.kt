@@ -40,10 +40,10 @@ class LauncherViewModelKioskTest {
     }
 
     @Test
-    fun blankAtNightDefaultsOffFromMidnightToSix() {
+    fun blankAtNightDefaultsOnFromMidnightToSix() {
         val state = newViewModel().uiState.value
 
-        assertFalse(state.isKioskBlankAtNight)
+        assertTrue(state.isKioskBlankAtNight)
         assertFalse(state.isKioskBlankWhenIdle)
         assertEquals(0, state.kioskBlankStartMinutes)
         assertEquals(6 * 60, state.kioskBlankEndMinutes)
@@ -52,13 +52,14 @@ class LauncherViewModelKioskTest {
     @Test
     fun blankAtNightAndItsWindowPersistAcrossViewModels() {
         val viewModel = newViewModel()
-        viewModel.setKioskBlankAtNight(true)
+        // Off, since on is the default and would persist without a write.
+        viewModel.setKioskBlankAtNight(false)
         viewModel.setKioskBlankWhenIdle(true)
         viewModel.setKioskBlankWindow(22 * 60 + 30, 7 * 60)
         idle()
 
         val state = newViewModel().uiState.value
-        assertTrue(state.isKioskBlankAtNight)
+        assertFalse(state.isKioskBlankAtNight)
         assertTrue(state.isKioskBlankWhenIdle)
         assertEquals(22 * 60 + 30, state.kioskBlankStartMinutes)
         assertEquals(7 * 60, state.kioskBlankEndMinutes)
