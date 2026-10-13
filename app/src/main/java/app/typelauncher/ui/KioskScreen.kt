@@ -82,6 +82,10 @@ internal const val KIOSK_BLANK_CHECK_INTERVAL_MS = 30_000L
  * is on) keeps watching: motion, or a touch, brings the widgets back until the
  * next quiet minute. The touch that ends a blank only does that, so a widget
  * nobody could see is never tapped by accident.
+ *
+ * "Wake up using light level" keeps the display awake for as long as the
+ * light sensor reads the room as lit by the chosen level, and wakes it when the
+ * lights come on, which covers a dark room the camera can't see into.
  */
 @Composable
 internal fun KioskScreen(
@@ -104,12 +108,19 @@ internal fun KioskScreen(
     blankWhenIdle: Boolean = false,
     blankStartMinutes: Int = KIOSK_BLANK_DEFAULT_START_MINUTES,
     blankEndMinutes: Int = KIOSK_BLANK_DEFAULT_END_MINUTES,
+    // "Wake up using light level", and the light level, in lux, that counts as lit.
+    wakeOnLight: Boolean = false,
+    lightWakeLux: Float = KIOSK_LIGHT_WAKE_DEFAULT_LUX,
     modifier: Modifier = Modifier,
     // Test seam: the local time, as minutes after midnight.
     minuteOfDay: () -> Int = { LocalTime.now().let { it.hour * 60 + it.minute } },
     // Test seam: what watches for motion. Production uses the front camera;
     // Robolectric has none, so a test drives onMotion itself.
     motionWatcher: @Composable (onMotion: () -> Unit) -> Unit = { onMotion -> KioskMotionCamera(onMotion) },
+    // Test seam: what watches whether the room is lit. Production uses the
+    // light sensor; Robolectric has none, so a test drives onLitChanged itself.
+    lightWatcher: @Composable (thresholdLux: Float, onLitChanged: (Boolean) -> Unit) -> Unit =
+        { thresholdLux, onLitChanged -> KioskRoomLight(thresholdLux, onLitChanged) },
     // Test seam: how the exit hold gets past the lock screen. Production asks
     // the system to unlock first when the device is locked.
     unlockThen: (action: () -> Unit) -> Unit = rememberKioskUnlockThen(),
@@ -151,6 +162,13 @@ internal fun KioskScreen(
                 cameraResting = true
             }
         }
+    }
+    // A lit room counts as someone being there for as long as it stays lit.
+    // Only worth watching while something can dim or blank the display.
+    if (wakeOnLight && (dimWhenIdle || blankAtNight || blankWhenIdle)) {
+        lightWatcher(lightWakeLux) { lit -> dimmer.setHeld(lit) }
+        // Turning the setting off mid-evening lets the quiet minute start.
+        DisposableEffect(dimmer) { onDispose { dimmer.setHeld(false) } }
     }
     val currentMinuteOfDay by rememberUpdatedState(minuteOfDay)
     var inBlankWindow by remember { mutableStateOf(false) }

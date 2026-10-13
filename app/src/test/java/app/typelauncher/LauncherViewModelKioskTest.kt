@@ -66,6 +66,37 @@ class LauncherViewModelKioskTest {
     }
 
     @Test
+    fun lightWakeDefaultsOffAtTheDefaultLevel() {
+        val state = newViewModel().uiState.value
+
+        assertFalse(state.isKioskWakeOnLight)
+        assertEquals(KIOSK_LIGHT_WAKE_DEFAULT_LUX, state.kioskLightWakeLux, 0f)
+    }
+
+    @Test
+    fun lightWakeAndItsLevelPersistAcrossViewModels() {
+        val viewModel = newViewModel()
+        viewModel.setKioskWakeOnLight(true)
+        viewModel.setKioskLightWakeLux(75f)
+        idle()
+
+        val state = newViewModel().uiState.value
+        assertTrue(state.isKioskWakeOnLight)
+        assertEquals(75f, state.kioskLightWakeLux, 0f)
+    }
+
+    @Test
+    fun theLightLevelIsKeptInRangeAndWhole() {
+        val viewModel = newViewModel()
+
+        viewModel.setKioskLightWakeLux(50_000f)
+        assertEquals(KIOSK_LIGHT_WAKE_MAX_LUX, viewModel.uiState.value.kioskLightWakeLux, 0f)
+        viewModel.setKioskLightWakeLux(12.6f)
+        idle()
+        assertEquals(13f, newViewModel().uiState.value.kioskLightWakeLux, 0f)
+    }
+
+    @Test
     fun changingTheBlankWindowLogsItsTimes() {
         val viewModel = newViewModel()
         LauncherDebugLog.resetForTest()

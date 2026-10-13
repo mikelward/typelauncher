@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.log10
+import kotlin.math.pow
+import kotlin.math.roundToInt
 
 /** How long the kiosk display stays bright after the last motion or touch. */
 internal const val KIOSK_DIM_AFTER_MS = 60_000L
@@ -85,10 +88,87 @@ internal class KioskMotionDetector(
     }
 }
 
+/** "Wake up using light level"'s level, in lux, until the user sets one: above a dark room, below a lit one. */
+internal const val KIOSK_LIGHT_WAKE_DEFAULT_LUX = 20f
+
+/** The range the light level can be set across, in lux: from near-dark to a bright room. */
+internal const val KIOSK_LIGHT_WAKE_MIN_LUX = 1f
+internal const val KIOSK_LIGHT_WAKE_MAX_LUX = 1000f
+
+/** A light level brought into range and to a whole lux, as the setting stores and shows it. */
+internal fun kioskLightWakeLux(lux: Float): Float =
+    if (lux.isNaN()) KIOSK_LIGHT_WAKE_DEFAULT_LUX
+    else lux.coerceIn(KIOSK_LIGHT_WAKE_MIN_LUX, KIOSK_LIGHT_WAKE_MAX_LUX).roundToInt().toFloat()
+
+/**
+ * The light-level slider's position (0–1) for [lux]. Logarithmic, since light
+ * is: a dark room and a lamp-lit one differ by a few lux, a lit room and
+ * daylight by hundreds, and a linear slider would crowd the first into a sliver.
+ */
+internal fun kioskLightWakeSliderPosition(lux: Float): Float {
+    val low = log10(KIOSK_LIGHT_WAKE_MIN_LUX)
+    val high = log10(KIOSK_LIGHT_WAKE_MAX_LUX)
+    return (log10(kioskLightWakeLux(lux)) - low) / (high - low)
+}
+
+/** The light level, in whole lux, at slider [position]; the inverse of [kioskLightWakeSliderPosition]. */
+internal fun kioskLightWakeLuxAt(position: Float): Float {
+    val low = log10(KIOSK_LIGHT_WAKE_MIN_LUX)
+    val high = log10(KIOSK_LIGHT_WAKE_MAX_LUX)
+    return kioskLightWakeLux(10f.pow(low + position.coerceIn(0f, 1f) * (high - low)))
+}
+
+/**
+ * Tells whether the room is lit, by the light level [thresholdLux]: lit from a
+ * reading at or above it, and lit until a reading falls below [darkFraction]
+ * of it, so a reading hovering around the level doesn't flip the display
+ * between awake and dimming. The first reading sets where the room starts; one
+ * between the two marks counts as dark.
+ *
+ * Not thread-safe; feed it from one thread (the main one, as the sensor's
+ * readings are delivered).
+ */
+internal class KioskRoomLightTracker(
+    private val thresholdLux: Float,
+    private val darkFraction: Float = 0.7f,
+) {
+    // Null until the first reading.
+    private var lit: Boolean? = null
+
+    /**
+     * Feeds one reading, in lux. Returns whether the room is lit when that is
+     * news (the first reading, or a change), and null when nothing changed.
+     */
+    fun onReading(lux: Float): Boolean? {
+        val nowLit = when {
+            lux >= thresholdLux -> true
+            lux < thresholdLux * darkFraction -> false
+            else -> lit ?: false
+        }
+        if (nowLit == lit) return null
+        lit = nowLit
+        return nowLit
+    }
+
+    /**
+     * The sensor can no longer be read: the room counts as dark until it
+     * reports again, and that next reading is news whatever it says. Returns
+     * false when the room was lit, so the hold it set is released, and null
+     * otherwise.
+     */
+    fun onUnavailable(): Boolean? {
+        val wasLit = lit == true
+        lit = null
+        return if (wasLit) false else null
+    }
+}
+
 /**
  * The kiosk display's idle timer: [dimmed] turns true once [dimAfterMs] pass
- * with no [onActivity], and false again the moment there is some. Runs its
- * countdown in [scope], so a test drives it on virtual time.
+ * with no [onActivity], and false again the moment there is some. While
+ * [setHeld] holds it (a lit room), it never counts down; releasing it starts
+ * the quiet period over. Runs its countdown in [scope], so a test drives it on
+ * virtual time.
  */
 internal class KioskIdleDimmer(
     private val scope: CoroutineScope,
@@ -97,6 +177,7 @@ internal class KioskIdleDimmer(
     private val _dimmed = MutableStateFlow(false)
     val dimmed: StateFlow<Boolean> = _dimmed
     private var countdown: Job? = null
+    private var held = false
 
     /** Starts (or restarts) the countdown; call once when the display shows. */
     fun start() = onActivity()
@@ -105,15 +186,30 @@ internal class KioskIdleDimmer(
     fun onActivity() {
         _dimmed.value = false
         countdown?.cancel()
-        countdown = scope.launch {
-            delay(dimAfterMs)
-            _dimmed.value = true
+        countdown = if (held) {
+            null
+        } else {
+            scope.launch {
+                delay(dimAfterMs)
+                _dimmed.value = true
+            }
         }
+    }
+
+    /**
+     * Keeps the display awake for as long as [held] is true, as if there were
+     * activity all along; on release the quiet period starts from then.
+     */
+    fun setHeld(held: Boolean) {
+        if (this.held == held) return
+        this.held = held
+        onActivity()
     }
 
     fun stop() {
         countdown?.cancel()
         countdown = null
+        held = false
         _dimmed.value = false
     }
 }

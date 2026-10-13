@@ -31,6 +31,8 @@ class BugReportSettingRowsTest {
         store.isKioskBlankWhenIdle = true
         store.kioskBlankStartMinutes = 22 * 60
         store.kioskBlankEndMinutes = 6 * 60
+        store.isKioskWakeOnLight = true
+        store.kioskLightWakeLux = 35f
         store.isWallpaperShown = true
         store.themeMode = ThemeMode.Dark
 
@@ -44,6 +46,8 @@ class BugReportSettingRowsTest {
         assertEquals("true", rows["Kiosk blank when idle"])
         assertEquals("22:00", rows["Kiosk blank from"])
         assertEquals("06:00", rows["Kiosk blank until"])
+        assertEquals("true", rows["Kiosk wake on light"])
+        assertEquals("35 lux", rows["Kiosk light wake level"])
         assertEquals("true", rows["Wallpaper shown"])
         assertEquals("Dark", rows["Theme"])
     }
@@ -65,8 +69,9 @@ class BugReportSettingRowsTest {
     fun rowsAreChoicesTogglesNumbersAndTimesOnly() {
         // Privacy floor: nothing that could name something of the user's. The
         // kiosk blank times are allowed (maintainer's call): they explain a
-        // display that went dark.
-        val allowed = Regex("""^(true|false|\d+px \([A-Za-z]+\)|[A-Z][A-Za-z]*|\d{2}:\d{2})$""")
+        // display that went dark. So is the light-wake level, a number the
+        // user set, for a display that woke (or didn't) when the lights changed.
+        val allowed = Regex("""^(true|false|\d+px \([A-Za-z]+\)|[A-Z][A-Za-z]*|\d{2}:\d{2}|\d+ lux)$""")
         bugReportSettingRows(DockSettingsStore(context)).forEach { (name, value) ->
             assertTrue("$name has an unexpected value: $value", allowed.matches(value))
         }

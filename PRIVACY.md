@@ -82,6 +82,12 @@ transmitted off your device by the app.
   moved, so it can brighten the dimmed display. Frames are compared in memory
   and discarded at once: nothing is saved, recognized, or sent off the device.
   Android shows its camera-in-use indicator the whole time the camera is on.
+- **Light sensor** (no permission needed): read only if you turn on "Wake up
+  using light level" under Kiosk mode in Settings, while the kiosk display is
+  on screen, and while that setting's light level is open in Settings. The app
+  compares each reading with the level you set to tell whether the room is lit,
+  so it can keep the display awake while it is. Readings are compared in memory and
+  discarded at once: nothing is saved or sent off the device.
 
 ## What the app does not do
 

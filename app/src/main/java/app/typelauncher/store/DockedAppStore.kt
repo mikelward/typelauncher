@@ -645,6 +645,28 @@ internal class DockSettingsStore(context: Context) {
                 .apply()
         }
 
+    /**
+     * Kiosk mode's "Wake up using light level": the light sensor keeps the
+     * display awake while the room is lit by [kioskLightWakeLux], and wakes it
+     * when the room becomes lit. Defaults off.
+     */
+    var isKioskWakeOnLight: Boolean
+        get() = sharedPreferences.getBoolean(KEY_KIOSK_WAKE_ON_LIGHT, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_KIOSK_WAKE_ON_LIGHT, value)
+                .apply()
+        }
+
+    /** The light level, in lux, that "Wake up using light level" counts as lit. */
+    var kioskLightWakeLux: Float
+        get() = kioskLightWakeLux(sharedPreferences.getFloat(KEY_KIOSK_LIGHT_WAKE_LUX, KIOSK_LIGHT_WAKE_DEFAULT_LUX))
+        set(value) {
+            sharedPreferences.edit()
+                .putFloat(KEY_KIOSK_LIGHT_WAKE_LUX, value)
+                .apply()
+        }
+
     /** Start of "Blank at night", in minutes after local midnight. */
     var kioskBlankStartMinutes: Int
         get() = sharedPreferences.getInt(KEY_KIOSK_BLANK_START_MINUTES, KIOSK_BLANK_DEFAULT_START_MINUTES)
@@ -962,6 +984,8 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_KIOSK_BLANK_WHEN_IDLE = "kiosk_blank_when_idle"
         const val KEY_KIOSK_BLANK_START_MINUTES = "kiosk_blank_start_minutes"
         const val KEY_KIOSK_BLANK_END_MINUTES = "kiosk_blank_end_minutes"
+        const val KEY_KIOSK_WAKE_ON_LIGHT = "kiosk_wake_on_light"
+        const val KEY_KIOSK_LIGHT_WAKE_LUX = "kiosk_light_wake_lux"
         // Legacy wallpaper companions ("show_wallpaper_all_pages",
         // "card_opacity") may remain on disk after upgrade but are no longer
         // read: the wallpaper now always backs every page, at full card

@@ -26,6 +26,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.ZoneId
 import java.util.Locale
+import kotlin.math.roundToInt
 
 private const val FILE_PROVIDER_AUTHORITY_SUFFIX = ".fileprovider"
 private const val SCREENSHOT_DIR_NAME = "bug-reports"
@@ -346,6 +347,8 @@ internal fun bugReportSettingRows(settings: DockSettingsStore): List<Pair<String
         "Kiosk blank from" to kioskClockTime(settings.kioskBlankStartMinutes),
         "Kiosk blank until" to kioskClockTime(settings.kioskBlankEndMinutes),
         "Kiosk blank when idle" to settings.isKioskBlankWhenIdle.toString(),
+        "Kiosk wake on light" to settings.isKioskWakeOnLight.toString(),
+        "Kiosk light wake level" to "${settings.kioskLightWakeLux.roundToInt()} lux",
         "Contact search enabled" to settings.isContactSearchEnabled.toString(),
         "Calendar search enabled" to settings.isCalendarSearchEnabled.toString(),
         "Call method" to settings.callMethod.name,

@@ -378,6 +378,8 @@ class WallpaperAllPagesScreenshotTest {
                             isKioskMode = true,
                             isKioskDimWhenIdle = true,
                             isKioskBlankAtNight = true,
+                            isKioskWakeOnLight = true,
+                            kioskLightReading = { KioskLightReading.Lux(42f) },
                         )
                     }
                 }
@@ -388,10 +390,11 @@ class WallpaperAllPagesScreenshotTest {
         composeRule.onNodeWithTag(KIOSK_MODE_SWITCH_TAG).assertExists()
         composeRule.onNodeWithTag(KIOSK_DIM_WHEN_IDLE_SWITCH_TAG).assertExists()
         composeRule.onNodeWithTag(KIOSK_BLANK_START_TAG).assertExists()
+        composeRule.onNodeWithTag(KIOSK_LIGHT_LEVEL_SLIDER_TAG).assertExists()
 
-        // Tall enough for every row: the switch, Edit, the kiosk rows, and
-        // the night window's two times.
-        capture("compose_home_widgets_settings_light_robolectric.png", heightPx = 1400)
+        // Tall enough for every row: the switch, Edit, the kiosk rows, the
+        // light level, and the night window's two times.
+        capture("compose_home_widgets_settings_light_robolectric.png", heightPx = 1800)
     }
 
     @Test
