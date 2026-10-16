@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">Muuda</string>
     <string name="settings_home_widgets_edit_button_description">Muuda avakuva vidinaid</string>
     <string name="settings_kiosk_mode_title">Kioskirežiim</string>
-    <string name="kiosk_mode_exit_hint">Seadete avamiseks hoidke ekraani 2 sekundit all</string>
     <string name="settings_kiosk_dim_when_idle_title">Ärata kaameraga</string>
     <string name="settings_kiosk_wake_on_light_title">Ärata valgustaseme järgi</string>
     <string name="settings_kiosk_light_level_title">Valgustase</string>

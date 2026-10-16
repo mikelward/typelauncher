@@ -1899,16 +1899,42 @@ internal class LauncherViewModel(
             if (enabled) {
                 it.copy(
                     isKioskMode = true,
+                    isKioskSteppedOut = false,
                     query = "",
                     contactActionsMode = null,
                     isRecentsOpen = false,
                 )
             } else {
-                it.copy(isKioskMode = false)
+                it.copy(isKioskMode = false, isKioskSteppedOut = false)
             }
         }
         if (enabled && hadQuery) refreshFilteredApps()
         logState("setKioskMode=%s", enabled)
+    }
+
+    /**
+     * The kiosk display's hold: shows the normal Home for a while, kiosk mode
+     * staying on, so using the device needs no trip to Settings and back.
+     * [returnToKiosk] brings the display back.
+     */
+    fun stepOutOfKiosk() {
+        if (!_uiState.value.isKioskMode) return
+        _uiState.update { it.copy(isKioskSteppedOut = true) }
+        logState("stepOutOfKiosk")
+    }
+
+    /**
+     * Brings the kiosk display back after [stepOutOfKiosk] or over Settings,
+     * on a fresh Home underneath, as a HOME press would leave it. Never in the
+     * middle of editing Home's widgets, which is left to finish with Done.
+     */
+    fun returnToKiosk() {
+        val state = _uiState.value
+        if (!state.isKioskMode || state.isEditingHomeWidgets) return
+        if (!state.isKioskSteppedOut && !state.isSettingsOpen) return
+        _uiState.update { it.copy(isKioskSteppedOut = false) }
+        returnToLauncherHome()
+        logState("returnToKiosk")
     }
 
     /**

@@ -31,7 +31,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
@@ -39,6 +41,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -53,8 +56,19 @@ import java.time.LocalTime
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 
-/** How long a still finger must stay down before kiosk mode opens Settings. */
-internal const val KIOSK_EXIT_HOLD_MS = 2_000L
+/**
+ * How long a still finger must stay down before kiosk mode steps out to Home:
+ * twice Android's long press, which would fire on a brush, and no longer, so
+ * stepping out doesn't feel like waiting.
+ */
+internal const val KIOSK_EXIT_HOLD_MS = 1_000L
+
+/**
+ * How far that finger may wander and still count as still. A tap's touch slop
+ * is a millimeter or so, which a fingertip pressed for a second rolls past; a
+ * swipe or a scroll goes much further.
+ */
+internal val KIOSK_EXIT_HOLD_SLOP = 24.dp
 
 /** How often the display re-reads the clock for "Blank at night". */
 internal const val KIOSK_BLANK_CHECK_INTERVAL_MS = 30_000L
@@ -66,13 +80,14 @@ internal const val KIOSK_BLANK_CHECK_INTERVAL_MS = 30_000L
  * The widgets render through [HomeWidgets] in its normal (non-editing) mode, so
  * they are the same hosted views Home shows, laid out on the same grid, and
  * they respond to touch as they do on Home. The way out is a still
- * [KIOSK_EXIT_HOLD_MS] hold anywhere, widgets included, which opens Settings;
- * a widget's own long-press is switched off here, haptic included, so the
- * half-second mark of that hold feels like nothing happened. The system bars are hidden
- * while the display shows (a swipe from the edge brings them back briefly).
+ * [KIOSK_EXIT_HOLD_MS] hold anywhere, widgets included, which steps out to the
+ * normal Home for a while, with a long-press haptic as it does; a widget's own
+ * long-press is switched off here, haptic included, so the half-second mark of
+ * that hold feels like nothing happened. The system bars are hidden while the
+ * display shows (a swipe from the edge brings them back briefly).
  *
  * The display shows over the lock screen, so it stays up after a lock; the
- * exit hold then asks for an unlock first, and Settings opens only once it
+ * exit hold then asks for an unlock first, and Home shows only once it
  * succeeds.
  *
  * "Blank at night" turns the display black, at the window's lowest
@@ -184,6 +199,7 @@ internal fun KioskScreen(
         }
     }
     val blanked = (blankWhenIdle || inBlankWindow) && dimmed
+    val haptics = LocalHapticFeedback.current
     KioskWindowBrightness(
         brightness = when {
             blanked -> KIOSK_BLANK_BRIGHTNESS
@@ -196,7 +212,13 @@ internal fun KioskScreen(
             .fillMaxSize()
             .testTag(KIOSK_SCREEN_TAG)
             // On the parent, so it sees every touch on its way to the widgets.
-            .pointerInput(onExitHold, unlockThen) { detectKioskExitHold { unlockThen(onExitHold) } }
+            .pointerInput(onExitHold, unlockThen, haptics) {
+                detectKioskExitHold {
+                    // Felt as the hold registers, before any unlock prompt.
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    unlockThen(onExitHold)
+                }
+            }
             // Any touch counts as someone being there. Observed, not consumed.
             .pointerInput(Unit) {
                 awaitEachGesture {
@@ -256,24 +278,41 @@ internal fun KioskScreen(
 }
 
 /**
- * Calls [onHold] once a finger has stayed down, within touch slop, for
- * [KIOSK_EXIT_HOLD_MS]. Watches in the Initial pass without consuming, so the
- * widgets underneath still get every touch; only the tail of a gesture that
- * did open Settings is consumed, so its lift can't also click a widget.
+ * Calls [onHold] once any finger has stayed down, within [KIOSK_EXIT_HOLD_SLOP]
+ * of where it settled, for [KIOSK_EXIT_HOLD_MS]. Every finger counts, not only
+ * the first: a hold that followed the first touch alone was lost to a stray
+ * second touch, or to the first lifting while another stayed, and nothing
+ * could start a new one until every finger was up (bug report, 2026-10-16:
+ * held well past two seconds, nothing happened). A finger that wanders past the
+ * slop starts its second over from where it is, so one that rolls and then
+ * settles still holds, while a scroll never stays put long enough. Watches in
+ * the Initial pass without consuming, so the widgets underneath still get every
+ * touch; only the tail of a gesture that did step out is consumed, so its lift
+ * can't also click a widget.
  */
 internal suspend fun PointerInputScope.detectKioskExitHold(onHold: () -> Unit) {
+    val slop = maxOf(viewConfiguration.touchSlop, KIOSK_EXIT_HOLD_SLOP.toPx())
     awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-        val endedEarly = withTimeoutOrNull(KIOSK_EXIT_HOLD_MS) {
-            while (true) {
-                val change = awaitPointerEvent(PointerEventPass.Initial).changes
-                    .firstOrNull { it.id == down.id } ?: break
-                val drift = (change.position - down.position).getDistance()
-                if (!change.pressed || drift > viewConfiguration.touchSlop) break
+        val first = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        // Where and when each finger still down last settled.
+        val settled = mutableMapOf(first.id to KioskHoldAnchor(first.position, first.uptimeMillis))
+        var now = first.uptimeMillis
+        while (true) {
+            val due = settled.values.minOf { it.since } + KIOSK_EXIT_HOLD_MS
+            if (now >= due) break
+            // Null: no event until a settled finger was due, so it held.
+            val event = withTimeoutOrNull(due - now) { awaitPointerEvent(PointerEventPass.Initial) } ?: break
+            for (change in event.changes) {
+                now = maxOf(now, change.uptimeMillis)
+                val anchor = settled[change.id]
+                when {
+                    !change.pressed -> settled.remove(change.id)
+                    anchor == null || (change.position - anchor.position).getDistance() > slop ->
+                        settled[change.id] = KioskHoldAnchor(change.position, change.uptimeMillis)
+                }
             }
-            true
+            if (settled.isEmpty()) return@awaitEachGesture
         }
-        if (endedEarly != null) return@awaitEachGesture
         onHold()
         while (true) {
             val event = awaitPointerEvent(PointerEventPass.Initial)
@@ -282,6 +321,8 @@ internal suspend fun PointerInputScope.detectKioskExitHold(onHold: () -> Unit) {
         }
     }
 }
+
+private class KioskHoldAnchor(val position: Offset, val since: Long)
 
 /**
  * Holds the window at [brightness] — [KIOSK_DIM_BRIGHTNESS] while dimmed,

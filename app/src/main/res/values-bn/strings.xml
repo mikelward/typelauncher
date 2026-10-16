@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">সম্পাদনা করুন</string>
     <string name="settings_home_widgets_edit_button_description">হোম উইজেট সম্পাদনা করুন</string>
     <string name="settings_kiosk_mode_title">কিয়স্ক মোড</string>
-    <string name="kiosk_mode_exit_hint">সেটিংস খুলতে স্ক্রিনটি ২ সেকেন্ড ধরে রাখুন</string>
     <string name="settings_kiosk_dim_when_idle_title">ক্যামেরা দিয়ে জাগান</string>
     <string name="settings_kiosk_wake_on_light_title">আলোর মাত্রা দিয়ে জাগান</string>
     <string name="settings_kiosk_light_level_title">আলোর মাত্রা</string>

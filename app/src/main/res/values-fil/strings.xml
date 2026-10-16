@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">I-edit</string>
     <string name="settings_home_widgets_edit_button_description">I-edit ang mga widget sa home</string>
     <string name="settings_kiosk_mode_title">Kiosk mode</string>
-    <string name="kiosk_mode_exit_hint">Pindutin nang matagal ang screen nang 2 segundo para buksan ang Settings</string>
     <string name="settings_kiosk_dim_when_idle_title">Gisingin gamit ang camera</string>
     <string name="settings_kiosk_wake_on_light_title">Gisingin gamit ang antas ng liwanag</string>
     <string name="settings_kiosk_light_level_title">Antas ng liwanag</string>

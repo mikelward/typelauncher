@@ -6385,7 +6385,7 @@ internal fun HomeWidgetsSettingsRows(
         // Kiosk mode turns Home into a display of these widgets, so it only
         // exists while they are on.
         val context = LocalContext.current
-        val exitHint = stringResource(R.string.kiosk_mode_exit_hint)
+        val exitHint = stringResource(R.string.kiosk_mode_hold_hint)
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,

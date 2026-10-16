@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">Szerkesztés</string>
     <string name="settings_home_widgets_edit_button_description">Kezdőképernyő-modulok szerkesztése</string>
     <string name="settings_kiosk_mode_title">Kioszk mód</string>
-    <string name="kiosk_mode_exit_hint">A Beállítások megnyitásához tartsa lenyomva a képernyőt 2 másodpercig</string>
     <string name="settings_kiosk_dim_when_idle_title">Ébresztés kamerával</string>
     <string name="settings_kiosk_wake_on_light_title">Ébresztés fényszinttel</string>
     <string name="settings_kiosk_light_level_title">Fényszint</string>

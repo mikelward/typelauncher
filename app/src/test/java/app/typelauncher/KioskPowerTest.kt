@@ -42,9 +42,19 @@ class KioskPowerTest {
     }
 
     @Test
+    fun theHomeKioskModeSteppedOutToCountsAsOnScreen() {
+        val kiosk = LauncherUiState(isHomeWidgetsShown = true, isKioskMode = true)
+        assertTrue(kiosk.isKioskOnScreen)
+        assertTrue(kiosk.copy(isKioskSteppedOut = true).isKioskOnScreen)
+        assertFalse(kiosk.copy(isKioskSteppedOut = true, isSettingsOpen = true).isKioskOnScreen)
+        assertFalse(kiosk.copy(isKioskSteppedOut = true, isEditingHomeWidgets = true).isKioskOnScreen)
+        assertFalse(kiosk.copy(isKioskMode = false).isKioskOnScreen)
+    }
+
+    @Test
     fun screenStaysOnOnlyWhileTheDisplayShowsAndPowerIsConnected() {
-        assertTrue(kioskKeepsScreenOn(isKioskDisplayShowing = true, isPluggedIn = true))
-        assertFalse(kioskKeepsScreenOn(isKioskDisplayShowing = true, isPluggedIn = false))
-        assertFalse(kioskKeepsScreenOn(isKioskDisplayShowing = false, isPluggedIn = true))
+        assertTrue(kioskKeepsScreenOn(isKioskOnScreen = true, isPluggedIn = true))
+        assertFalse(kioskKeepsScreenOn(isKioskOnScreen = true, isPluggedIn = false))
+        assertFalse(kioskKeepsScreenOn(isKioskOnScreen = false, isPluggedIn = true))
     }
 }

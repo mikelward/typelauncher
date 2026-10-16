@@ -716,10 +716,14 @@ internal data class LauncherUiState(
     // where the search box is visible. Defaults off. See `homeWidgetsActive`
     // in `HomeScreen`.
     val isHomeWidgetsShown: Boolean = false,
-    // "Kiosk mode": with Home widgets on, Home shows only its widgets, ignores
-    // touches (a still two-second hold opens Settings), and keeps the screen on
+    // "Kiosk mode": with Home widgets on, Home shows only its widgets (a still
+    // hold steps out to the normal Home for a while) and keeps the screen on
     // while plugged in. Defaults off. See [isKioskActive].
     val isKioskMode: Boolean = false,
+    // True while kiosk mode has stepped out to the normal Home after the hold.
+    // Not persisted: it goes back to the display after a quiet minute, when the
+    // screen goes off, and on a fresh start. See [isKioskSteppedOutHome].
+    val isKioskSteppedOut: Boolean = false,
     // Kiosk mode's "Wake up using camera": the display dims after a quiet
     // minute and the front camera's motion (or a touch) brightens it. Only on
     // while the camera permission is granted. Defaults off.
@@ -1023,10 +1027,19 @@ internal data class WidgetAddRequest(
  * Whether Home is showing as the kiosk display right now: kiosk mode on, Home
  * widgets on (they are what the display shows), and not mid-way through
  * editing them — Settings' "Edit" for Home widgets drops back to the normal
- * Home so the edit controls are reachable, and Done returns to the display.
+ * Home so the edit controls are reachable, and Done returns to the display —
+ * nor stepped out to the normal Home after the hold.
  */
 internal val LauncherUiState.isKioskActive: Boolean
-    get() = isKioskMode && isHomeWidgetsShown && !isEditingHomeWidgets
+    get() = isKioskMode && isHomeWidgetsShown && !isEditingHomeWidgets && !isKioskSteppedOut
+
+/**
+ * Whether kiosk mode has stepped out to the normal Home and it's on screen,
+ * Settings and editing aside. The screen-on hold carries on here, and the
+ * display comes back once Home has been quiet a minute.
+ */
+internal val LauncherUiState.isKioskSteppedOutHome: Boolean
+    get() = isKioskMode && isHomeWidgetsShown && isKioskSteppedOut && !isEditingHomeWidgets && !isSettingsOpen
 
 /**
  * Whether the kiosk display is on screen right now: [isKioskActive] and

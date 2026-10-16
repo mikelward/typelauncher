@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">Rediger</string>
     <string name="settings_home_widgets_edit_button_description">Rediger startskjermmoduler</string>
     <string name="settings_kiosk_mode_title">Kioskmodus</string>
-    <string name="kiosk_mode_exit_hint">Hold skjermen inne i 2 sekunder for å åpne Innstillinger</string>
     <string name="settings_kiosk_dim_when_idle_title">Vekk skjermen med kameraet</string>
     <string name="settings_kiosk_wake_on_light_title">Vekk skjermen med lysnivået</string>
     <string name="settings_kiosk_light_level_title">Lysnivå</string>

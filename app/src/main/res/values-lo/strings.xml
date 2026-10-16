@@ -175,7 +175,6 @@
     <string name="settings_home_widgets_edit_button">ແກ້ໄຂ</string>
     <string name="settings_home_widgets_edit_button_description">ແກ້ໄຂວິດເຈັດໜ້າຈໍຫຼັກ</string>
     <string name="settings_kiosk_mode_title">ໂໝດຄີອອສ</string>
-    <string name="kiosk_mode_exit_hint">ກົດໜ້າຈໍຄ້າງໄວ້ 2 ວິນາທີເພື່ອເປີດການຕັ້ງຄ່າ</string>
     <string name="settings_kiosk_dim_when_idle_title">ປຸກດ້ວຍກ້ອງຖ່າຍຮູບ</string>
     <string name="settings_kiosk_wake_on_light_title">ປຸກດ້ວຍລະດັບແສງ</string>
     <string name="settings_kiosk_light_level_title">ລະດັບແສງ</string>

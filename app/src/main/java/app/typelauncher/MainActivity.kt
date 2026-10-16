@@ -406,6 +406,26 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Kiosk mode: the Home the display's hold stepped out to goes back to the
+    // display after a quiet minute (see observeKioskReturn) ...
+    private val kioskReturn by lazy { KioskReturnTimer(lifecycleScope) { viewModel.returnToKiosk() } }
+
+    // ... and as soon as the screen goes off, so the device wakes to it with the
+    // launcher in front. Held from onCreate to onDestroy: with an app in front,
+    // the display is then what Home shows next (not brought forward; TODO.md).
+    private var screenOffReceiverRegistered = false
+    private val screenOffReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != Intent.ACTION_SCREEN_OFF) return
+            viewModel.returnToKiosk()
+            // Composition pauses once the activity stops, which the screen going
+            // off does, so the display's own KioskOverLockScreen may not run before
+            // the lock screen is up, and the device would wake to the lock screen
+            // instead. Its dispose still clears this when the display next leaves.
+            if (viewModel.uiState.value.isKioskDisplayShowing) setShowWhenLocked(true)
+        }
+    }
+
     // Set by `restartForWallpaperWindowMode` so onStop can tell that teardown
     // apart from the user actually leaving. Instance state, not persisted: it
     // only has to survive from finish() to this instance's own onStop.
@@ -556,6 +576,7 @@ class MainActivity : ComponentActivity() {
         appliedWallpaperShown = viewModel.uiState.value.isWallpaperShown
         observeWallpaperShownPreference()
         observeKioskKeepScreenOn()
+        observeKioskReturn()
         observeHomeReady()
         observeWorkProfileAvailability()
         checkPlayUpdate()
@@ -878,6 +899,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         LauncherDebugLog.activityCallback(this, "MainActivity.onDestroy")
+        if (screenOffReceiverRegistered) {
+            unregisterReceiver(screenOffReceiver)
+            screenOffReceiverRegistered = false
+        }
         // onStop normally already stopped listening, but make sure we never leak the
         // host's IPC binding if we get here without an onStop (e.g. process killed in
         // foreground and then re-attached). stopListening is idempotent.
@@ -1004,13 +1029,13 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Holds the screen on while the kiosk display shows and the device is
-     * connected to power, and lets the normal screen timeout back the moment
-     * either stops being true.
+     * Holds the screen on while the kiosk display, or the Home it stepped out
+     * to, shows and the device is connected to power, and lets the normal
+     * screen timeout back the moment either stops being true.
      */
     private fun observeKioskKeepScreenOn() {
         lifecycleScope.launch {
-            combine(viewModel.uiState.map { it.isKioskDisplayShowing }, isPluggedInFlow, ::kioskKeepsScreenOn)
+            combine(viewModel.uiState.map { it.isKioskOnScreen }, isPluggedInFlow, ::kioskKeepsScreenOn)
                 .distinctUntilChanged()
                 .collect { keepOn ->
                     if (keepOn) {
@@ -1021,6 +1046,45 @@ class MainActivity : ComponentActivity() {
                     LauncherDebugLog.event("kioskKeepScreenOn=%s", keepOn)
                 }
         }
+    }
+
+    /**
+     * Brings the kiosk display back from the Home its hold stepped out to: after
+     * a quiet minute on that Home while it is in front (any touch or key here,
+     * or typing into the search box, starts the minute over), and when the screen
+     * goes off.
+     */
+    private fun observeKioskReturn() {
+        ContextCompat.registerReceiver(
+            this,
+            screenOffReceiver,
+            IntentFilter(Intent.ACTION_SCREEN_OFF),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        screenOffReceiverRegistered = true
+        lifecycleScope.launch {
+            // Resumed, not started: a translucent activity or dialog over Home
+            // pauses it without stopping it, and that is another app in front too.
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                try {
+                    // The query stands in for typing: the keyboard is its own
+                    // window, so its touches never reach this activity.
+                    viewModel.uiState
+                        .map { if (it.isKioskSteppedOutHome) it.query else null }
+                        .distinctUntilChanged()
+                        .collect { query -> if (query == null) kioskReturn.stop() else kioskReturn.restart() }
+                } finally {
+                    // An app in front, even a translucent one, or the screen off:
+                    // time away isn't quiet.
+                    kioskReturn.stop()
+                }
+            }
+        }
+    }
+
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        kioskReturn.onInteraction()
     }
 
     private fun observeThemeModePreference() {

@@ -177,7 +177,6 @@
     <string name="settings_home_widgets_edit_button">Измени</string>
     <string name="settings_home_widgets_edit_button_description">Измени виџете почетног екрана</string>
     <string name="settings_kiosk_mode_title">Режим киоска</string>
-    <string name="kiosk_mode_exit_hint">Задржите екран 2 секунде да бисте отворили Подешавања</string>
     <string name="settings_kiosk_dim_when_idle_title">Буђење помоћу камере</string>
     <string name="settings_kiosk_wake_on_light_title">Буђење помоћу нивоа светлости</string>
     <string name="settings_kiosk_light_level_title">Ниво светлости</string>

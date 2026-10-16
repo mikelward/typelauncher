@@ -177,7 +177,6 @@
     <string name="settings_home_widgets_edit_button">Editar</string>
     <string name="settings_home_widgets_edit_button_description">Editar widgets de inicio</string>
     <string name="settings_kiosk_mode_title">Modo quiosco</string>
-    <string name="kiosk_mode_exit_hint">Mantén pulsada la pantalla 2 segundos para abrir Ajustes</string>
     <string name="settings_kiosk_dim_when_idle_title">Activar con la cámara</string>
     <string name="settings_kiosk_wake_on_light_title">Activar con el nivel de luz</string>
     <string name="settings_kiosk_light_level_title">Nivel de luz</string>

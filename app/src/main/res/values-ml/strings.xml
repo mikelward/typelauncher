@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">എഡിറ്റ് ചെയ്യുക</string>
     <string name="settings_home_widgets_edit_button_description">ഹോം വിജറ്റുകൾ എഡിറ്റ് ചെയ്യുക</string>
     <string name="settings_kiosk_mode_title">കിയോസ്‌ക് മോഡ്</string>
-    <string name="kiosk_mode_exit_hint">ക്രമീകരണങ്ങൾ തുറക്കാൻ സ്ക്രീൻ 2 സെക്കൻഡ് അമർത്തിപ്പിടിക്കുക</string>
     <string name="settings_kiosk_dim_when_idle_title">ക്യാമറ ഉപയോഗിച്ച് ഉണർത്തുക</string>
     <string name="settings_kiosk_wake_on_light_title">വെളിച്ചത്തിന്റെ അളവ് ഉപയോഗിച്ച് ഉണർത്തുക</string>
     <string name="settings_kiosk_light_level_title">വെളിച്ചത്തിന്റെ അളവ്</string>

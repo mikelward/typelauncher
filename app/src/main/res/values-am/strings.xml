@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">አስተካክል</string>
     <string name="settings_home_widgets_edit_button_description">የመነሻ ስክሪን ምግብሮችን አስተካክል</string>
     <string name="settings_kiosk_mode_title">የኪዮስክ ሁነታ</string>
-    <string name="kiosk_mode_exit_hint">ቅንብሮችን ለመክፈት ማያ ገጹን ለ2 ሰከንድ ይያዙ</string>
     <string name="settings_kiosk_dim_when_idle_title">በካሜራ ንቃ</string>
     <string name="settings_kiosk_wake_on_light_title">በብርሃን መጠን ንቃ</string>
     <string name="settings_kiosk_light_level_title">የብርሃን መጠን</string>

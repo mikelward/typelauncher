@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">Редактирай</string>
     <string name="settings_home_widgets_edit_button_description">Редактирай приспособленията на началния екран</string>
     <string name="settings_kiosk_mode_title">Режим на павилион</string>
-    <string name="kiosk_mode_exit_hint">Задръжте екрана за 2 секунди, за да отворите Настройки</string>
     <string name="settings_kiosk_dim_when_idle_title">Събуждане чрез камерата</string>
     <string name="settings_kiosk_wake_on_light_title">Събуждане чрез нивото на светлината</string>
     <string name="settings_kiosk_light_level_title">Ниво на светлината</string>

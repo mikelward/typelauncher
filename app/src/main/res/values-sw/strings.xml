@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">Hariri</string>
     <string name="settings_home_widgets_edit_button_description">Hariri wijeti za skrini ya nyumbani</string>
     <string name="settings_kiosk_mode_title">Hali ya kioski</string>
-    <string name="kiosk_mode_exit_hint">Shikilia skrini kwa sekunde 2 ili kufungua Mipangilio</string>
     <string name="settings_kiosk_dim_when_idle_title">Amsha kwa kamera</string>
     <string name="settings_kiosk_wake_on_light_title">Amsha kwa kiwango cha mwanga</string>
     <string name="settings_kiosk_light_level_title">Kiwango cha mwanga</string>

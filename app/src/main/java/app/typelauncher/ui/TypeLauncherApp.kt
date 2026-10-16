@@ -298,6 +298,7 @@ internal fun TypeLauncherApp(
             onUnhideApp = viewModel::unhideApp,
             onDismissRecent = viewModel::removeRecent,
             onOpenSettings = viewModel::openSettings,
+            onStepOutOfKiosk = viewModel::stepOutOfKiosk,
             onCloseSettings = viewModel::closeSettings,
             onOpenLauncherAppInfo = viewModel::openLauncherAppInfo,
             onOpenPlayUpdate = onStartPlayUpdate,
@@ -409,6 +410,8 @@ internal fun TypeLauncherApp(
     onDismissRecent: (InstalledApp) -> Unit = {},
     onOpenSettings: () -> Unit,
     onCloseSettings: () -> Unit,
+    // The kiosk display's hold: the normal Home for a while, kiosk mode staying on.
+    onStepOutOfKiosk: () -> Unit = {},
     onOpenLauncherAppInfo: () -> Unit = {},
     onOpenPlayUpdate: () -> Unit = {},
     onCompletePlayUpdate: () -> Unit = {},
@@ -960,7 +963,7 @@ internal fun TypeLauncherApp(
                         blankEndMinutes = state.kioskBlankEndMinutes,
                         wakeOnLight = state.isKioskWakeOnLight,
                         lightWakeLux = state.kioskLightWakeLux,
-                        onExitHold = onOpenSettings,
+                        onExitHold = onStepOutOfKiosk,
                     )
                 } else {
                     var homeAppListBoundsInRoot by remember { mutableStateOf<Rect?>(null) }

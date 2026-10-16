@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">Redigera</string>
     <string name="settings_home_widgets_edit_button_description">Redigera startskärmswidgetar</string>
     <string name="settings_kiosk_mode_title">Kioskläge</string>
-    <string name="kiosk_mode_exit_hint">Håll ned skärmen i 2 sekunder för att öppna Inställningar</string>
     <string name="settings_kiosk_dim_when_idle_title">Väck skärmen med kameran</string>
     <string name="settings_kiosk_wake_on_light_title">Väck skärmen med ljusnivån</string>
     <string name="settings_kiosk_light_level_title">Ljusnivå</string>

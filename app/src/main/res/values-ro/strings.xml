@@ -177,7 +177,6 @@
     <string name="settings_home_widgets_edit_button">Editează</string>
     <string name="settings_home_widgets_edit_button_description">Editează widgeturile de pe ecranul principal</string>
     <string name="settings_kiosk_mode_title">Mod chioșc</string>
-    <string name="kiosk_mode_exit_hint">Ține apăsat pe ecran 2 secunde pentru a deschide Setări</string>
     <string name="settings_kiosk_dim_when_idle_title">Activare cu camera</string>
     <string name="settings_kiosk_wake_on_light_title">Activare cu nivelul de lumină</string>
     <string name="settings_kiosk_light_level_title">Nivel de lumină</string>

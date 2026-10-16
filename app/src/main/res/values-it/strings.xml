@@ -177,7 +177,6 @@
     <string name="settings_home_widgets_edit_button">Modifica</string>
     <string name="settings_home_widgets_edit_button_description">Modifica i widget della schermata principale</string>
     <string name="settings_kiosk_mode_title">Modalità chiosco</string>
-    <string name="kiosk_mode_exit_hint">Tieni premuto lo schermo per 2 secondi per aprire le Impostazioni</string>
     <string name="settings_kiosk_dim_when_idle_title">Riattiva con la fotocamera</string>
     <string name="settings_kiosk_wake_on_light_title">Riattiva con il livello di luce</string>
     <string name="settings_kiosk_light_level_title">Livello di luce</string>

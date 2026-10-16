@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">Gyara</string>
     <string name="settings_home_widgets_edit_button_description">Gyara widgets na gida</string>
     <string name="settings_kiosk_mode_title">Yanayin kiosk</string>
-    <string name="kiosk_mode_exit_hint">Riƙe allon na daƙiƙa 2 don buɗe Saituna</string>
     <string name="settings_kiosk_dim_when_idle_title">Tashi ta amfani da kyamara</string>
     <string name="settings_kiosk_wake_on_light_title">Tashi ta amfani da matakin haske</string>
     <string name="settings_kiosk_light_level_title">Matakin haske</string>

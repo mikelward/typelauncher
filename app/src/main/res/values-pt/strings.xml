@@ -177,7 +177,6 @@
     <string name="settings_home_widgets_edit_button">Editar</string>
     <string name="settings_home_widgets_edit_button_description">Editar widgets da tela inicial</string>
     <string name="settings_kiosk_mode_title">Modo quiosque</string>
-    <string name="kiosk_mode_exit_hint">Mantenha a tela pressionada por 2 segundos para abrir as Configurações</string>
     <string name="settings_kiosk_dim_when_idle_title">Ativar com a câmera</string>
     <string name="settings_kiosk_wake_on_light_title">Ativar com o nível de luz</string>
     <string name="settings_kiosk_light_level_title">Nível de luz</string>

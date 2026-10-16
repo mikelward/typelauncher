@@ -175,7 +175,6 @@
     <string name="settings_home_widgets_edit_button">တည်းဖြတ်မည်</string>
     <string name="settings_home_widgets_edit_button_description">ပင်မ ဝစ်ဂျက်များကို တည်းဖြတ်မည်</string>
     <string name="settings_kiosk_mode_title">ကီယော့စ်မုဒ်</string>
-    <string name="kiosk_mode_exit_hint">ဆက်တင်များ ဖွင့်ရန် စခရင်ကို ၂ စက္ကန့် ဖိထားပါ</string>
     <string name="settings_kiosk_dim_when_idle_title">ကင်မရာဖြင့် နှိုးပါ</string>
     <string name="settings_kiosk_wake_on_light_title">အလင်းအဆင့်ဖြင့် နှိုးပါ</string>
     <string name="settings_kiosk_light_level_title">အလင်းအဆင့်</string>
