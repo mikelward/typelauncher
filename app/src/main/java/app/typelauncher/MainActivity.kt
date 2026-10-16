@@ -410,19 +410,21 @@ class MainActivity : ComponentActivity() {
     // display after a quiet minute (see observeKioskReturn) ...
     private val kioskReturn by lazy { KioskReturnTimer(lifecycleScope) { viewModel.returnToKiosk() } }
 
-    // ... and as soon as the screen goes off, so the device wakes to it with the
-    // launcher in front. Held from onCreate to onDestroy: with an app in front,
-    // the display is then what Home shows next (not brought forward; TODO.md).
+    // ... and as soon as the screen goes off, so the device always wakes to it,
+    // over any app that was in front (maintainer, 2026-10-16). Held from onCreate
+    // to onDestroy, since the screen can go off with an app in front.
     private var screenOffReceiverRegistered = false
     private val screenOffReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action != Intent.ACTION_SCREEN_OFF) return
             viewModel.returnToKiosk()
+            if (!viewModel.uiState.value.isKioskDisplayShowing) return
             // Composition pauses once the activity stops, which the screen going
             // off does, so the display's own KioskOverLockScreen may not run before
             // the lock screen is up, and the device would wake to the lock screen
             // instead. Its dispose still clears this when the display next leaves.
-            if (viewModel.uiState.value.isKioskDisplayShowing) setShowWhenLocked(true)
+            setShowWhenLocked(true)
+            bringKioskDisplayForward()
         }
     }
 
@@ -1085,6 +1087,26 @@ class MainActivity : ComponentActivity() {
     override fun onUserInteraction() {
         super.onUserInteraction()
         kioskReturn.onInteraction()
+    }
+
+    /**
+     * Puts the launcher back in front as the screen goes off, so an app left
+     * open, a call's screen included, wakes to the kiosk display rather than to
+     * itself behind the lock screen. A HOME intent to ourselves, as the home
+     * button sends; already in front, it lands in onNewIntent and changes nothing.
+     */
+    private fun bringKioskDisplayForward() {
+        try {
+            startActivity(kioskHomeIntent(packageName))
+            // Sent, not done: Android can drop a blocked background start and still
+            // report success, so the MainActivity.onNewIntent line after this one is
+            // what says the launcher came back (Codex on #813).
+            LauncherDebugLog.event("kiosk screen off: bring forward sent")
+        } catch (e: ActivityNotFoundException) {
+            // The launcher not resolving its own HOME intent would be a broken
+            // install; the next HOME press still shows the display.
+            LauncherDebugLog.event("kiosk screen off: bring forward failed: %s", e::class.simpleName)
+        }
     }
 
     private fun observeThemeModePreference() {

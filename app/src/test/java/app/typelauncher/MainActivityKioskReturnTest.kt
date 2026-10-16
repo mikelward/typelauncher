@@ -2,17 +2,21 @@ package app.typelauncher
 
 import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import java.time.Duration
+import kotlinx.coroutines.Dispatchers
 import org.junit.After
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.android.controller.ActivityController
 import org.robolectric.annotation.Config
 
 /**
@@ -36,7 +40,7 @@ class MainActivityKioskReturnTest {
 
     @Test
     fun aQuietMinuteOnTheSteppedOutHomeBringsTheDisplayBack() {
-        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+        val controller = launchActivity()
         try {
             val activity = controller.get()
             stepOut(activity)
@@ -56,7 +60,7 @@ class MainActivityKioskReturnTest {
 
     @Test
     fun timeWithAnAppInFrontIsNotQuiet() {
-        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+        val controller = launchActivity()
         try {
             val activity = controller.get()
             stepOut(activity)
@@ -79,7 +83,7 @@ class MainActivityKioskReturnTest {
     @Test
     fun timeUnderATranslucentActivityIsNotQuiet() {
         // A translucent activity or a dialog over Home pauses it without stopping it.
-        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+        val controller = launchActivity()
         try {
             val activity = controller.get()
             stepOut(activity)
@@ -98,7 +102,7 @@ class MainActivityKioskReturnTest {
 
     @Test
     fun theScreenGoingOffBringsTheDisplayBackOverTheLockScreen() {
-        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+        val controller = launchActivity()
         try {
             val activity = controller.get()
             stepOut(activity)
@@ -114,6 +118,81 @@ class MainActivityKioskReturnTest {
         } finally {
             controller.destroy()
         }
+    }
+
+    @Test
+    fun theScreenGoingOffBringsTheDisplayBackOverAnAppInFront() {
+        val controller = launchActivity()
+        try {
+            val activity = controller.get()
+            stepOut(activity)
+            // An app opened from Home is in front.
+            controller.pause().stop()
+            shadowOf(activity).clearNextStartedActivities()
+
+            screenOff(activity)
+
+            val started = shadowOf(activity).nextStartedActivity
+            assertTrue("the launcher comes back in front", started != null)
+            assertTrue(started.hasCategory(Intent.CATEGORY_HOME))
+            assertTrue(started.`package` == activity.packageName)
+            assertTrue(activity.viewModel.uiState.value.isKioskDisplayShowing)
+            // Only that it was sent: Android can drop a blocked background start and
+            // still report success, so nothing here may claim it arrived (Codex on #813).
+            val log = LauncherDebugLog.snapshot()
+            assertTrue(log.any { "kiosk screen off: bring forward sent" in it })
+            assertTrue(log.none { "brought forward" in it })
+        } finally {
+            controller.destroy()
+        }
+    }
+
+    @Test
+    fun aCallDoesNotKeepTheDisplayBack() {
+        // Kiosk mode always wakes to its display, a call included (maintainer, 2026-10-17).
+        val controller = launchActivity()
+        try {
+            val activity = controller.get()
+            stepOut(activity)
+            controller.pause().stop()
+            shadowOf(activity).clearNextStartedActivities()
+            activity.getSystemService(AudioManager::class.java).mode = AudioManager.MODE_IN_CALL
+
+            screenOff(activity)
+
+            assertTrue(shadowOf(activity).nextStartedActivity?.hasCategory(Intent.CATEGORY_HOME) == true)
+            assertTrue(activity.viewModel.uiState.value.isKioskDisplayShowing)
+        } finally {
+            controller.destroy()
+        }
+    }
+
+    @Test
+    fun withoutKioskModeTheScreenGoingOffBringsNothingForward() {
+        val controller = launchActivity()
+        try {
+            val activity = controller.get()
+            controller.pause().stop()
+            shadowOf(activity).clearNextStartedActivities()
+
+            screenOff(activity)
+
+            assertNull(shadowOf(activity).nextStartedActivity)
+        } finally {
+            controller.destroy()
+        }
+    }
+
+    /** The launcher, its off-main-thread work run inline so each step has landed before the next assertion. */
+    private fun launchActivity(): ActivityController<MainActivity> {
+        val controller = Robolectric.buildActivity(MainActivity::class.java)
+        controller.get().ioDispatcher = Dispatchers.Unconfined
+        return controller.setup()
+    }
+
+    private fun screenOff(activity: MainActivity) {
+        activity.sendBroadcast(Intent(Intent.ACTION_SCREEN_OFF).setPackage(activity.packageName))
+        idle()
     }
 
     private fun stepOut(activity: MainActivity) {
