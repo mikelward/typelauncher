@@ -48,10 +48,22 @@ class KioskLightSensorTest {
     /** Lets the sensor thread finish what it was posted, so the count below is settled. */
     private fun listeners(): Int {
         composeRule.waitForIdle()
-        ShadowLooper.getAllLoopers()
-            .filter { it != Looper.getMainLooper() && it.thread.name == "KioskLightSensor" }
-            .forEach { shadowOf(it).idle() }
+        val looping = ShadowLooper.getAllLoopers()
+            .filter { it != Looper.getMainLooper() && it.thread.name == SENSOR_THREAD }
+        looping.forEach { shadowOf(it).idle() }
+        // Leaving composition posts the unregister and then quits the thread,
+        // and Robolectric drops a quitting looper from the list above at once,
+        // though its thread still runs what it was posted first. Waiting for
+        // that thread to end is what makes the unregister land before the count.
+        val loopingThreads = looping.map { it.thread }.toSet()
+        Thread.getAllStackTraces().keys
+            .filter { it.name == SENSOR_THREAD && it !in loopingThreads }
+            .forEach { it.join() }
         return shadowOf(sensorManager).listeners.size
+    }
+
+    private companion object {
+        const val SENSOR_THREAD = "KioskLightSensor"
     }
 
     @Test
