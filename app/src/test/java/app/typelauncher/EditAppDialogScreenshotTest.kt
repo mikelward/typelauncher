@@ -8,6 +8,8 @@ import android.os.Process
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -86,6 +88,40 @@ class EditAppDialogScreenshotTest {
         composeRule.onNodeWithTag(PIN_SHORTCUT_DIALOG_CANCEL_TAG, useUnmergedTree = true).assertIsDisplayed()
 
         captureSnapshot("compose_pin_shortcut_confirm_robolectric.png")
+    }
+
+    @Test
+    fun addWebLink_showsTheTileAnEditableNameAndTheAddress() {
+        composeRule.setContent {
+            TypeLauncherTheme {
+                AddWebLinkDialogContent(
+                    name = "Example Recipes",
+                    onNameChange = {},
+                    url = "https://example.com/recipes",
+                    onAdd = {},
+                    onCancel = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(ADD_WEB_LINK_DIALOG_FIELD_TAG, useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag(ADD_WEB_LINK_DIALOG_ADD_TAG, useUnmergedTree = true).assertIsEnabled()
+        composeRule.onNodeWithTag(ADD_WEB_LINK_DIALOG_CANCEL_TAG, useUnmergedTree = true).assertIsDisplayed()
+
+        captureSnapshot("compose_add_web_link_robolectric.png")
+    }
+
+    @Test
+    fun addWebLink_cantAddWithoutAName() {
+        composeRule.setContent {
+            TypeLauncherTheme {
+                AddWebLinkDialogContent(name = " ", onNameChange = {}, url = "https://example.com", onAdd = {}, onCancel = {})
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(ADD_WEB_LINK_DIALOG_ADD_TAG, useUnmergedTree = true).assertIsNotEnabled()
     }
 
     @Test

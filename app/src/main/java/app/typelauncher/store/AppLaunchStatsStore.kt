@@ -196,7 +196,7 @@ internal fun List<InstalledApp>.filterByName(
                 val tier = listOfNotNull(
                     app.displayName.launcherMatchTier(query, digitSpellings),
                     app.workPrefixStrippedSearchName?.launcherMatchTier(query, digitSpellings),
-                    app.packageName.packageBrandMatchTier(query),
+                    app.brandPackageName?.packageBrandMatchTier(query),
                 ).minByOrNull { it.ordinal }
                 tier?.let { app to it }
             }
@@ -225,9 +225,14 @@ internal fun List<InstalledApp>.anyMatchesName(query: String): Boolean {
     return any { app ->
         app.displayName.launcherMatchTier(query, digitSpellings) != null ||
             app.workPrefixStrippedSearchName?.launcherMatchTier(query, digitSpellings) != null ||
-            app.packageName.packageBrandMatchTier(query) != null
+            app.brandPackageName?.packageBrandMatchTier(query) != null
     }
 }
+
+// The package a search may match by brand. None for a web link: every link
+// shares one stand-in package, so typing "web" would otherwise match them all.
+private val InstalledApp.brandPackageName: String?
+    get() = packageName.takeUnless { isWebLink }
 
 /**
  * Returns recently-launched apps in display order — oldest first, most recent

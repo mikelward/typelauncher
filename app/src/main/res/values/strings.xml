@@ -55,6 +55,10 @@
     <string name="pin_shortcut_dialog_cancel">Cancel</string>
     <string name="shortcut_pinned">Added to app list</string>
     <string name="shortcut_pin_failed">Couldn\'t add shortcut</string>
+    <!-- TODO: translate -->
+    <string name="web_link_share_label" tools:ignore="MissingTranslation">Add to app list</string>
+    <!-- TODO: translate -->
+    <string name="web_link_not_a_page" tools:ignore="MissingTranslation">Can\'t add this, it\'s not a web page</string>
     <string name="app_menu_move_out">Move out</string>
     <string name="app_menu_open_folder">Open folder</string>
     <!-- TODO: rename the "explode" code symbols (app_menu_explode, explodeFolder,

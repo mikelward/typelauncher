@@ -69,9 +69,16 @@ internal data class InstalledApp(
     // the app that published it — the browser — and the entry launches through
     // `LauncherApps.startShortcut` instead of [launchIntent].
     val shortcutId: String? = null,
+    // Set when this entry is a web page the user added through Share → "Add
+    // to app list" ([WebLinkStore]'s id for it). [packageName] is then
+    // [WEB_LINK_PACKAGE] and [launchIntent] views the page.
+    val webLinkId: String? = null,
 ) {
     val isShortcut: Boolean
         get() = shortcutId != null
+
+    val isWebLink: Boolean
+        get() = webLinkId != null
 
     // Computed once per instance rather than in a getter: a shortcut's id is
     // a SHA-256 digest, and ids are read inside the search sort's comparators
@@ -79,6 +86,8 @@ internal data class InstalledApp(
     // `copy()` builds a new instance, so it can't go stale.
     val id: String = if (shortcutId != null) {
         pinnedShortcutEntryId(user, packageName, shortcutId)
+    } else if (webLinkId != null) {
+        webLinkEntryId(user, webLinkId)
     } else {
         "${user.hashCode()}:${launchIntent.component?.flattenToString() ?: packageName}"
     }
@@ -91,7 +100,11 @@ internal data class InstalledApp(
     // returning a stale bitmap.
     val iconCacheId: String
         get() {
-            val base = iconCacheToken?.let { token -> "$id@$token" } ?: id
+            val token = iconCacheToken?.let { token -> "$id@$token" } ?: id
+            // A web link's tile is drawn from its label, so a rename must
+            // redraw it rather than hit the cached tile. Keyed on what the
+            // tile shows, not the label: cache ids are written to disk.
+            val base = if (isWebLink) "$token#tile:${letterTileLetter(displayName)}${letterTileColor(displayName)}" else token
             return customIconPath?.let { _ -> "$base#override:$customIconVersion" } ?: base
         }
 

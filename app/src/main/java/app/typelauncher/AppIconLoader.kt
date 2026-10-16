@@ -737,6 +737,7 @@ internal object AppIconLoader {
 
     private fun resolve(context: Context, app: InstalledApp): Drawable? {
         if (app.shortcutId != null) return resolveShortcutIcon(context, app)
+        if (app.isWebLink) return letterTileIcon(app.displayName)
         val component = app.launchIntent.component ?: return null
         // Date-aware calendar apps (Google Calendar et al.) ship 31 per-day icon
         // drawables and expect the launcher to pick today's; the system's plain
