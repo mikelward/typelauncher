@@ -1,5 +1,6 @@
 package app.typelauncher
 
+import android.content.Intent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -45,3 +46,10 @@ internal class KioskReturnTimer(
         countdown = null
     }
 }
+
+/** The HOME intent the launcher sends itself to come back in front, as the home button does. */
+internal fun kioskHomeIntent(packageName: String): Intent =
+    Intent(Intent.ACTION_MAIN)
+        .addCategory(Intent.CATEGORY_HOME)
+        .setPackage(packageName)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
