@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Скинути рейтинг</string>
     <string name="app_menu_edit">Редагувати</string>
     <string name="app_menu_hide">Сховати</string>
+    <string name="app_menu_uninstall">Видалити</string>
+    <string name="app_menu_uninstall_unavailable">Неможливо видалити цей додаток</string>
     <string name="app_menu_dismiss">Закрити</string>
     <string name="app_menu_settings">Налаштування</string>
     <string name="edit_app_dialog_title">Редагувати застосунок</string>
@@ -169,6 +171,7 @@
     <string name="dock_folder_close_description">Закрити папку</string>
     <string name="app_label_with_work_prefix">Робоча %1$s</string>
     <string name="widgets_restore_action">Натисніть, щоб відновити віджет %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Робочий профіль недоступний</string>
     <string name="settings_show_wallpaper_title">Показувати шпалери</string>
     <string name="settings_wallpaper_title">Шпалери</string>
     <string name="settings_change_wallpaper_button">Змінити</string>
@@ -178,6 +181,7 @@
     <string name="settings_home_widgets_edit_button">Редагувати</string>
     <string name="settings_home_widgets_edit_button_description">Редагувати віджети головного екрана</string>
     <string name="settings_kiosk_mode_title">Режим кіоску</string>
+    <string name="kiosk_mode_hold_hint">Натисніть і утримуйте, щоб розблокувати</string>
     <string name="settings_kiosk_dim_when_idle_title">Пробудження камерою</string>
     <string name="settings_kiosk_wake_on_light_title">Пробудження за рівнем освітленості</string>
     <string name="settings_kiosk_light_level_title">Рівень освітленості</string>
@@ -211,6 +215,7 @@
     <string name="settings_about_licenses">Ліцензії</string>
     <string name="settings_licenses_title">Ліцензії відкритого коду</string>
     <string name="settings_licenses_version">Версія %1$s</string>
+    <string name="settings_licenses_authors">Авторство: %1$s</string>
     <string name="settings_licenses_back_button">Назад</string>
     <string name="settings_licenses_details_dismiss">Готово</string>
     <string name="bug_report_share_failed">Не вдалося поділитися звітом про помилку</string>

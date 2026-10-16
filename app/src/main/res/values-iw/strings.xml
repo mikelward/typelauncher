@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">איפוס דירוג</string>
     <string name="app_menu_edit">עריכה</string>
     <string name="app_menu_hide">הסתרה</string>
+    <string name="app_menu_uninstall">הסרת התקנה</string>
+    <string name="app_menu_uninstall_unavailable">לא ניתן להסיר את האפליקציה הזו</string>
     <string name="app_menu_dismiss">סגירה</string>
     <string name="app_menu_settings">הגדרות</string>
     <string name="edit_app_dialog_title">עריכת אפליקציה</string>
@@ -169,6 +171,7 @@
     <string name="dock_folder_close_description">סגירת תיקייה</string>
     <string name="app_label_with_work_prefix">עבודה %1$s</string>
     <string name="widgets_restore_action">הקישו לשחזור הווידג\'ט %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">פרופיל העבודה לא זמין</string>
     <string name="settings_show_wallpaper_title">הצגת טפט</string>
     <string name="settings_wallpaper_title">טפט</string>
     <string name="settings_change_wallpaper_button">שינוי</string>
@@ -178,6 +181,7 @@
     <string name="settings_home_widgets_edit_button">עריכה</string>
     <string name="settings_home_widgets_edit_button_description">עריכת הווידג\'טים במסך הבית</string>
     <string name="settings_kiosk_mode_title">מצב קיוסק</string>
+    <string name="kiosk_mode_hold_hint">לחיצה ארוכה לביטול הנעילה</string>
     <string name="settings_kiosk_dim_when_idle_title">התעוררות באמצעות המצלמה</string>
     <string name="settings_kiosk_wake_on_light_title">התעוררות לפי רמת האור</string>
     <string name="settings_kiosk_light_level_title">רמת אור</string>
@@ -211,6 +215,7 @@
     <string name="settings_about_licenses">רישיונות</string>
     <string name="settings_licenses_title">רישיונות קוד פתוח</string>
     <string name="settings_licenses_version">גרסה %1$s</string>
+    <string name="settings_licenses_authors">מאת %1$s</string>
     <string name="settings_licenses_back_button">חזרה</string>
     <string name="settings_licenses_details_dismiss">סיום</string>
     <string name="bug_report_share_failed">לא ניתן היה לשתף את דוח הבאג</string>

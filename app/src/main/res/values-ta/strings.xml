@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">தரவரிசையை மீட்டமை</string>
     <string name="app_menu_edit">திருத்து</string>
     <string name="app_menu_hide">மறை</string>
+    <string name="app_menu_uninstall">நிறுவல் நீக்கு</string>
+    <string name="app_menu_uninstall_unavailable">இந்த ஆப்ஸை நிறுவல் நீக்க முடியாது</string>
     <string name="app_menu_dismiss">நிராகரி</string>
     <string name="app_menu_settings">அமைப்புகள்</string>
     <string name="edit_app_dialog_title">பயன்பாட்டைத் திருத்து</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">கோப்புறையை மூடு</string>
     <string name="app_label_with_work_prefix">பணி %1$s</string>
     <string name="widgets_restore_action">%1$s விட்ஜெட்டை மீட்டமைக்க தட்டவும்</string>
+    <string name="widgets_restore_work_profile_unavailable">பணிச் சுயவிவரம் கிடைக்கவில்லை</string>
     <string name="settings_show_wallpaper_title">வால்பேப்பரைக் காட்டு</string>
     <string name="settings_wallpaper_title">வால்பேப்பர்</string>
     <string name="settings_change_wallpaper_button">மாற்று</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">திருத்து</string>
     <string name="settings_home_widgets_edit_button_description">முகப்பு விட்ஜெட்டுகளைத் திருத்து</string>
     <string name="settings_kiosk_mode_title">கியோஸ்க் பயன்முறை</string>
+    <string name="kiosk_mode_hold_hint">அன்லாக் செய்ய நீண்ட நேரம் அழுத்தவும்</string>
     <string name="settings_kiosk_dim_when_idle_title">கேமரா மூலம் எழுப்பு</string>
     <string name="settings_kiosk_wake_on_light_title">ஒளி அளவு மூலம் எழுப்பு</string>
     <string name="settings_kiosk_light_level_title">ஒளி அளவு</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">உரிமங்கள்</string>
     <string name="settings_licenses_title">ஓபன் சோர்ஸ் உரிமங்கள்</string>
     <string name="settings_licenses_version">பதிப்பு %1$s</string>
+    <string name="settings_licenses_authors">உருவாக்கம்: %1$s</string>
     <string name="settings_licenses_back_button">பின்செல்</string>
     <string name="settings_licenses_details_dismiss">முடிந்தது</string>
     <string name="bug_report_share_failed">பிழை அறிக்கையைப் பகிர முடியவில்லை</string>

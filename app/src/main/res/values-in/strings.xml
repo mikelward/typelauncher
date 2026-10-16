@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Atur ulang peringkat</string>
     <string name="app_menu_edit">Ubah</string>
     <string name="app_menu_hide">Sembunyikan</string>
+    <string name="app_menu_uninstall">Uninstal</string>
+    <string name="app_menu_uninstall_unavailable">Aplikasi ini tidak dapat di-uninstal</string>
     <string name="app_menu_dismiss">Tutup</string>
     <string name="app_menu_settings">Pengaturan</string>
     <string name="edit_app_dialog_title">Ubah aplikasi</string>
@@ -166,6 +168,7 @@
     <string name="dock_folder_close_description">Tutup folder</string>
     <string name="app_label_with_work_prefix">Kerja %1$s</string>
     <string name="widgets_restore_action">Ketuk untuk mengembalikan widget %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Profil kerja tidak tersedia</string>
     <string name="settings_show_wallpaper_title">Tampilkan wallpaper</string>
     <string name="settings_wallpaper_title">Wallpaper</string>
     <string name="settings_change_wallpaper_button">Ubah</string>
@@ -175,6 +178,7 @@
     <string name="settings_home_widgets_edit_button">Ubah</string>
     <string name="settings_home_widgets_edit_button_description">Ubah widget layar beranda</string>
     <string name="settings_kiosk_mode_title">Mode kios</string>
+    <string name="kiosk_mode_hold_hint">Tekan lama untuk membuka kunci</string>
     <string name="settings_kiosk_dim_when_idle_title">Bangunkan dengan kamera</string>
     <string name="settings_kiosk_wake_on_light_title">Bangunkan dengan tingkat cahaya</string>
     <string name="settings_kiosk_light_level_title">Tingkat cahaya</string>
@@ -208,6 +212,7 @@
     <string name="settings_about_licenses">Lisensi</string>
     <string name="settings_licenses_title">Lisensi open source</string>
     <string name="settings_licenses_version">Versi %1$s</string>
+    <string name="settings_licenses_authors">Oleh %1$s</string>
     <string name="settings_licenses_back_button">Kembali</string>
     <string name="settings_licenses_details_dismiss">Selesai</string>
     <string name="bug_report_share_failed">Tidak dapat membagikan laporan bug</string>

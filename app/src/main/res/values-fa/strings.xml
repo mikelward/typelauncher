@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">بازنشانی رتبه</string>
     <string name="app_menu_edit">ویرایش</string>
     <string name="app_menu_hide">پنهان کردن</string>
+    <string name="app_menu_uninstall">حذف نصب</string>
+    <string name="app_menu_uninstall_unavailable">این برنامه را نمی‌توان حذف نصب کرد</string>
     <string name="app_menu_dismiss">رد کردن</string>
     <string name="app_menu_settings">تنظیمات</string>
     <string name="edit_app_dialog_title">ویرایش برنامه</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">بستن پوشه</string>
     <string name="app_label_with_work_prefix">کاری %1$s</string>
     <string name="widgets_restore_action">برای بازگرداندن ابزارک %1$s ضربه بزنید</string>
+    <string name="widgets_restore_work_profile_unavailable">پروفایل کاری در دسترس نیست</string>
     <string name="settings_show_wallpaper_title">نمایش کاغذدیواری</string>
     <string name="settings_wallpaper_title">کاغذدیواری</string>
     <string name="settings_change_wallpaper_button">تغییر</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">ویرایش</string>
     <string name="settings_home_widgets_edit_button_description">ویرایش ابزارک‌های صفحه خانه</string>
     <string name="settings_kiosk_mode_title">حالت کیوسک</string>
+    <string name="kiosk_mode_hold_hint">برای باز کردن قفل، طولانی فشار دهید</string>
     <string name="settings_kiosk_dim_when_idle_title">بیدار شدن با دوربین</string>
     <string name="settings_kiosk_wake_on_light_title">بیدار شدن با سطح نور</string>
     <string name="settings_kiosk_light_level_title">سطح نور</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">مجوزها</string>
     <string name="settings_licenses_title">مجوزهای متن‌باز</string>
     <string name="settings_licenses_version">نسخه %1$s</string>
+    <string name="settings_licenses_authors">توسط %1$s</string>
     <string name="settings_licenses_back_button">برگشت</string>
     <string name="settings_licenses_details_dismiss">انجام شد</string>
     <string name="bug_report_share_failed">هم‌رسانی گزارش اشکال ممکن نشد</string>

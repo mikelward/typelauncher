@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">I-reset ang ranggo</string>
     <string name="app_menu_edit">I-edit</string>
     <string name="app_menu_hide">Itago</string>
+    <string name="app_menu_uninstall">I-uninstall</string>
+    <string name="app_menu_uninstall_unavailable">Hindi ma-uninstall ang app na ito</string>
     <string name="app_menu_dismiss">I-dismiss</string>
     <string name="app_menu_settings">Settings</string>
     <string name="edit_app_dialog_title">I-edit ang app</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">Isara ang folder</string>
     <string name="app_label_with_work_prefix">Trabaho %1$s</string>
     <string name="widgets_restore_action">I-tap para ibalik ang widget na %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Hindi available ang work profile</string>
     <string name="settings_show_wallpaper_title">Ipakita ang wallpaper</string>
     <string name="settings_wallpaper_title">Wallpaper</string>
     <string name="settings_change_wallpaper_button">Palitan</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">I-edit</string>
     <string name="settings_home_widgets_edit_button_description">I-edit ang mga widget sa home</string>
     <string name="settings_kiosk_mode_title">Kiosk mode</string>
+    <string name="kiosk_mode_hold_hint">Pindutin nang matagal para i-unlock</string>
     <string name="settings_kiosk_dim_when_idle_title">Gisingin gamit ang camera</string>
     <string name="settings_kiosk_wake_on_light_title">Gisingin gamit ang antas ng liwanag</string>
     <string name="settings_kiosk_light_level_title">Antas ng liwanag</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">Mga lisensya</string>
     <string name="settings_licenses_title">Mga open source na lisensya</string>
     <string name="settings_licenses_version">Bersyon %1$s</string>
+    <string name="settings_licenses_authors">Gawa ng %1$s</string>
     <string name="settings_licenses_back_button">Bumalik</string>
     <string name="settings_licenses_details_dismiss">Tapos na</string>
     <string name="bug_report_share_failed">Hindi maibahagi ang ulat ng bug</string>

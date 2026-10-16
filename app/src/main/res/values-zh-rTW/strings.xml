@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">重設排名</string>
     <string name="app_menu_edit">編輯</string>
     <string name="app_menu_hide">隱藏</string>
+    <string name="app_menu_uninstall">解除安裝</string>
+    <string name="app_menu_uninstall_unavailable">無法解除安裝這個應用程式</string>
     <string name="app_menu_dismiss">關閉</string>
     <string name="app_menu_settings">設定</string>
     <string name="edit_app_dialog_title">編輯應用程式</string>
@@ -166,6 +168,7 @@
     <string name="dock_folder_close_description">關閉資料夾</string>
     <string name="app_label_with_work_prefix">工作 %1$s</string>
     <string name="widgets_restore_action">點按以還原 %1$s 小工具</string>
+    <string name="widgets_restore_work_profile_unavailable">無法使用工作資料</string>
     <string name="settings_show_wallpaper_title">顯示桌布</string>
     <string name="settings_wallpaper_title">桌布</string>
     <string name="settings_change_wallpaper_button">變更</string>
@@ -175,6 +178,7 @@
     <string name="settings_home_widgets_edit_button">編輯</string>
     <string name="settings_home_widgets_edit_button_description">編輯主畫面小工具</string>
     <string name="settings_kiosk_mode_title">Kiosk 模式</string>
+    <string name="kiosk_mode_hold_hint">長按即可解鎖</string>
     <string name="settings_kiosk_dim_when_idle_title">使用相機喚醒</string>
     <string name="settings_kiosk_wake_on_light_title">依照光線強度喚醒</string>
     <string name="settings_kiosk_light_level_title">光線強度</string>
@@ -208,6 +212,7 @@
     <string name="settings_about_licenses">授權</string>
     <string name="settings_licenses_title">開放原始碼授權</string>
     <string name="settings_licenses_version">版本 %1$s</string>
+    <string name="settings_licenses_authors">作者：%1$s</string>
     <string name="settings_licenses_back_button">返回</string>
     <string name="settings_licenses_details_dismiss">完成</string>
     <string name="bug_report_share_failed">無法分享錯誤報告</string>

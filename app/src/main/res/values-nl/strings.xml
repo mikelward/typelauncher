@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Rang resetten</string>
     <string name="app_menu_edit">Bewerken</string>
     <string name="app_menu_hide">Verbergen</string>
+    <string name="app_menu_uninstall">Verwijderen</string>
+    <string name="app_menu_uninstall_unavailable">Deze app kan niet worden verwijderd</string>
     <string name="app_menu_dismiss">Sluiten</string>
     <string name="app_menu_settings">Instellingen</string>
     <string name="edit_app_dialog_title">App bewerken</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">Map sluiten</string>
     <string name="app_label_with_work_prefix">Werk %1$s</string>
     <string name="widgets_restore_action">Tik om de widget %1$s te herstellen</string>
+    <string name="widgets_restore_work_profile_unavailable">Werkprofiel niet beschikbaar</string>
     <string name="settings_show_wallpaper_title">Achtergrond tonen</string>
     <string name="settings_wallpaper_title">Achtergrond</string>
     <string name="settings_change_wallpaper_button">Wijzigen</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">Bewerken</string>
     <string name="settings_home_widgets_edit_button_description">Startschermwidgets bewerken</string>
     <string name="settings_kiosk_mode_title">Kioskmodus</string>
+    <string name="kiosk_mode_hold_hint">Lang indrukken om te ontgrendelen</string>
     <string name="settings_kiosk_dim_when_idle_title">Wekken met camera</string>
     <string name="settings_kiosk_wake_on_light_title">Wekken met lichtniveau</string>
     <string name="settings_kiosk_light_level_title">Lichtniveau</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">Licenties</string>
     <string name="settings_licenses_title">Open source-licenties</string>
     <string name="settings_licenses_version">Versie %1$s</string>
+    <string name="settings_licenses_authors">Door %1$s</string>
     <string name="settings_licenses_back_button">Terug</string>
     <string name="settings_licenses_details_dismiss">Klaar</string>
     <string name="bug_report_share_failed">Kan het bugrapport niet delen</string>

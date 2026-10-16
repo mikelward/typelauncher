@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">র‍্যাঙ্ক রিসেট করুন</string>
     <string name="app_menu_edit">সম্পাদনা করুন</string>
     <string name="app_menu_hide">লুকান</string>
+    <string name="app_menu_uninstall">আনইনস্টল করুন</string>
+    <string name="app_menu_uninstall_unavailable">এই অ্যাপ আনইনস্টল করা যাবে না</string>
     <string name="app_menu_dismiss">বাতিল করুন</string>
     <string name="app_menu_settings">সেটিংস</string>
     <string name="edit_app_dialog_title">অ্যাপ সম্পাদনা করুন</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">ফোল্ডার বন্ধ করুন</string>
     <string name="app_label_with_work_prefix">কর্মক্ষেত্র %1$s</string>
     <string name="widgets_restore_action">%1$s উইজেট পুনরুদ্ধার করতে ট্যাপ করুন</string>
+    <string name="widgets_restore_work_profile_unavailable">ওয়ার্ক প্রোফাইল উপলব্ধ নেই</string>
     <string name="settings_show_wallpaper_title">ওয়ালপেপার দেখান</string>
     <string name="settings_wallpaper_title">ওয়ালপেপার</string>
     <string name="settings_change_wallpaper_button">পরিবর্তন করুন</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">সম্পাদনা করুন</string>
     <string name="settings_home_widgets_edit_button_description">হোম উইজেট সম্পাদনা করুন</string>
     <string name="settings_kiosk_mode_title">কিয়স্ক মোড</string>
+    <string name="kiosk_mode_hold_hint">আনলক করতে দীর্ঘক্ষণ টিপুন</string>
     <string name="settings_kiosk_dim_when_idle_title">ক্যামেরা দিয়ে জাগান</string>
     <string name="settings_kiosk_wake_on_light_title">আলোর মাত্রা দিয়ে জাগান</string>
     <string name="settings_kiosk_light_level_title">আলোর মাত্রা</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">লাইসেন্স</string>
     <string name="settings_licenses_title">ওপেন সোর্স লাইসেন্স</string>
     <string name="settings_licenses_version">ভার্সন %1$s</string>
+    <string name="settings_licenses_authors">%1$s দ্বারা</string>
     <string name="settings_licenses_back_button">ফিরে যান</string>
     <string name="settings_licenses_details_dismiss">সম্পন্ন</string>
     <string name="bug_report_share_failed">বাগ রিপোর্ট শেয়ার করা যায়নি</string>

@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Resetează clasamentul</string>
     <string name="app_menu_edit">Editează</string>
     <string name="app_menu_hide">Ascunde</string>
+    <string name="app_menu_uninstall">Dezinstalează</string>
+    <string name="app_menu_uninstall_unavailable">Această aplicație nu poate fi dezinstalată</string>
     <string name="app_menu_dismiss">Respinge</string>
     <string name="app_menu_settings">Setări</string>
     <string name="edit_app_dialog_title">Editează aplicația</string>
@@ -168,6 +170,7 @@
     <string name="dock_folder_close_description">Închide folderul</string>
     <string name="app_label_with_work_prefix">Serviciu %1$s</string>
     <string name="widgets_restore_action">Apăsați pentru a restabili widgetul %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Profilul de muncă nu este disponibil</string>
     <string name="settings_show_wallpaper_title">Afișează imaginea de fundal</string>
     <string name="settings_wallpaper_title">Imagine de fundal</string>
     <string name="settings_change_wallpaper_button">Schimbă</string>
@@ -177,6 +180,7 @@
     <string name="settings_home_widgets_edit_button">Editează</string>
     <string name="settings_home_widgets_edit_button_description">Editează widgeturile de pe ecranul principal</string>
     <string name="settings_kiosk_mode_title">Mod chioșc</string>
+    <string name="kiosk_mode_hold_hint">Apasă lung pentru a debloca</string>
     <string name="settings_kiosk_dim_when_idle_title">Activare cu camera</string>
     <string name="settings_kiosk_wake_on_light_title">Activare cu nivelul de lumină</string>
     <string name="settings_kiosk_light_level_title">Nivel de lumină</string>
@@ -210,6 +214,7 @@
     <string name="settings_about_licenses">Licențe</string>
     <string name="settings_licenses_title">Licențe open source</string>
     <string name="settings_licenses_version">Versiunea %1$s</string>
+    <string name="settings_licenses_authors">De %1$s</string>
     <string name="settings_licenses_back_button">Înapoi</string>
     <string name="settings_licenses_details_dismiss">Gata</string>
     <string name="bug_report_share_failed">Nu s-a putut trimite raportul de eroare</string>

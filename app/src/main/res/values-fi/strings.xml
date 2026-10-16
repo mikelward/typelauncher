@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Nollaa sijoitus</string>
     <string name="app_menu_edit">Muokkaa</string>
     <string name="app_menu_hide">Piilota</string>
+    <string name="app_menu_uninstall">Poista asennus</string>
+    <string name="app_menu_uninstall_unavailable">Tämän sovelluksen asennusta ei voi poistaa</string>
     <string name="app_menu_dismiss">Hylkää</string>
     <string name="app_menu_settings">Asetukset</string>
     <string name="edit_app_dialog_title">Muokkaa sovellusta</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">Sulje kansio</string>
     <string name="app_label_with_work_prefix">Työ %1$s</string>
     <string name="widgets_restore_action">Napauta palauttaaksesi widgetin %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Työprofiili ei käytettävissä</string>
     <string name="settings_show_wallpaper_title">Näytä taustakuva</string>
     <string name="settings_wallpaper_title">Taustakuva</string>
     <string name="settings_change_wallpaper_button">Vaihda</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">Muokkaa</string>
     <string name="settings_home_widgets_edit_button_description">Muokkaa aloitusnäytön widgetejä</string>
     <string name="settings_kiosk_mode_title">Kioskitila</string>
+    <string name="kiosk_mode_hold_hint">Avaa lukitus painamalla pitkään</string>
     <string name="settings_kiosk_dim_when_idle_title">Herätä kameralla</string>
     <string name="settings_kiosk_wake_on_light_title">Herätä valoisuuden mukaan</string>
     <string name="settings_kiosk_light_level_title">Valoisuus</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">Lisenssit</string>
     <string name="settings_licenses_title">Avoimen lähdekoodin lisenssit</string>
     <string name="settings_licenses_version">Versio %1$s</string>
+    <string name="settings_licenses_authors">Tekijä(t): %1$s</string>
     <string name="settings_licenses_back_button">Takaisin</string>
     <string name="settings_licenses_details_dismiss">Valmis</string>
     <string name="bug_report_share_failed">Virheraportin jakaminen epäonnistui</string>

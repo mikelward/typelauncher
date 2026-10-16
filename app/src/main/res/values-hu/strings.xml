@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Rangsor visszaállítása</string>
     <string name="app_menu_edit">Szerkesztés</string>
     <string name="app_menu_hide">Elrejtés</string>
+    <string name="app_menu_uninstall">Eltávolítás</string>
+    <string name="app_menu_uninstall_unavailable">Ez az alkalmazás nem távolítható el</string>
     <string name="app_menu_dismiss">Elvetés</string>
     <string name="app_menu_settings">Beállítások</string>
     <string name="edit_app_dialog_title">Alkalmazás szerkesztése</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">Mappa bezárása</string>
     <string name="app_label_with_work_prefix">Munkahelyi %1$s</string>
     <string name="widgets_restore_action">Koppintson a(z) %1$s modul visszaállításához</string>
+    <string name="widgets_restore_work_profile_unavailable">A munkahelyi profil nem érhető el</string>
     <string name="settings_show_wallpaper_title">Háttérkép megjelenítése</string>
     <string name="settings_wallpaper_title">Háttérkép</string>
     <string name="settings_change_wallpaper_button">Módosítás</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">Szerkesztés</string>
     <string name="settings_home_widgets_edit_button_description">Kezdőképernyő-modulok szerkesztése</string>
     <string name="settings_kiosk_mode_title">Kioszk mód</string>
+    <string name="kiosk_mode_hold_hint">A feloldáshoz nyomja meg hosszan</string>
     <string name="settings_kiosk_dim_when_idle_title">Ébresztés kamerával</string>
     <string name="settings_kiosk_wake_on_light_title">Ébresztés fényszinttel</string>
     <string name="settings_kiosk_light_level_title">Fényszint</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">Licencek</string>
     <string name="settings_licenses_title">Nyílt forráskódú licencek</string>
     <string name="settings_licenses_version">%1$s verzió</string>
+    <string name="settings_licenses_authors">Készítette: %1$s</string>
     <string name="settings_licenses_back_button">Vissza</string>
     <string name="settings_licenses_details_dismiss">Kész</string>
     <string name="bug_report_share_failed">Nem sikerült megosztani a hibajelentést</string>

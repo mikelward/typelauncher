@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">កំណត់ចំណាត់ថ្នាក់ឡើងវិញ</string>
     <string name="app_menu_edit">កែសម្រួល</string>
     <string name="app_menu_hide">លាក់</string>
+    <string name="app_menu_uninstall">លុបកម្មវិធី</string>
+    <string name="app_menu_uninstall_unavailable">មិនអាចលុបកម្មវិធីនេះបានទេ</string>
     <string name="app_menu_dismiss">បិទ</string>
     <string name="app_menu_settings">ការកំណត់</string>
     <string name="edit_app_dialog_title">កែសម្រួលកម្មវិធី</string>
@@ -166,6 +168,7 @@
     <string name="dock_folder_close_description">បិទថត</string>
     <string name="app_label_with_work_prefix">ការងារ %1$s</string>
     <string name="widgets_restore_action">ប៉ះដើម្បីស្តារធាតុក្រាហ្វិក %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">មិនអាចប្រើប្រវត្តិរូបការងារ</string>
     <string name="settings_show_wallpaper_title">បង្ហាញផ្ទាំងខាងក្រោយ</string>
     <string name="settings_wallpaper_title">ផ្ទាំងខាងក្រោយ</string>
     <string name="settings_change_wallpaper_button">ផ្លាស់ប្តូរ</string>
@@ -175,6 +178,7 @@
     <string name="settings_home_widgets_edit_button">កែសម្រួល</string>
     <string name="settings_home_widgets_edit_button_description">កែសម្រួលធាតុក្រាហ្វិកអេក្រង់ដើម</string>
     <string name="settings_kiosk_mode_title">មុខងារ​គីអូស</string>
+    <string name="kiosk_mode_hold_hint">ចុចឱ្យជាប់ ដើម្បីដោះសោ</string>
     <string name="settings_kiosk_dim_when_idle_title">ដាស់​ដោយ​ប្រើ​កាមេរ៉ា</string>
     <string name="settings_kiosk_wake_on_light_title">ដាស់​ដោយ​ប្រើ​កម្រិត​ពន្លឺ</string>
     <string name="settings_kiosk_light_level_title">កម្រិត​ពន្លឺ</string>
@@ -208,6 +212,7 @@
     <string name="settings_about_licenses">អាជ្ញាបណ្ណ</string>
     <string name="settings_licenses_title">អាជ្ញាបណ្ណប្រភពបើកចំហ</string>
     <string name="settings_licenses_version">កំណែ %1$s</string>
+    <string name="settings_licenses_authors">ដោយ %1$s</string>
     <string name="settings_licenses_back_button">ថយក្រោយ</string>
     <string name="settings_licenses_details_dismiss">រួចរាល់</string>
     <string name="bug_report_share_failed">មិនអាចចែករំលែករបាយការណ៍កំហុសបានទេ</string>

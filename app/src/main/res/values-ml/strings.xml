@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">റാങ്ക് റീസെറ്റ് ചെയ്യുക</string>
     <string name="app_menu_edit">എഡിറ്റ് ചെയ്യുക</string>
     <string name="app_menu_hide">മറയ്ക്കുക</string>
+    <string name="app_menu_uninstall">അൺഇൻസ്റ്റാൾ ചെയ്യുക</string>
+    <string name="app_menu_uninstall_unavailable">ഈ ആപ്പ് അൺഇൻസ്റ്റാൾ ചെയ്യാനാകില്ല</string>
     <string name="app_menu_dismiss">നിരസിക്കുക</string>
     <string name="app_menu_settings">ക്രമീകരണങ്ങൾ</string>
     <string name="edit_app_dialog_title">ആപ്പ് എഡിറ്റ് ചെയ്യുക</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">ഫോൾഡർ അടയ്ക്കുക</string>
     <string name="app_label_with_work_prefix">ജോലി %1$s</string>
     <string name="widgets_restore_action">%1$s വിജറ്റ് പുനഃസ്ഥാപിക്കാൻ ടാപ്പ് ചെയ്യുക</string>
+    <string name="widgets_restore_work_profile_unavailable">വർക്ക് പ്രൊഫൈൽ ലഭ്യമല്ല</string>
     <string name="settings_show_wallpaper_title">വാൾപേപ്പർ കാണിക്കുക</string>
     <string name="settings_wallpaper_title">വാൾപേപ്പർ</string>
     <string name="settings_change_wallpaper_button">മാറ്റുക</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">എഡിറ്റ് ചെയ്യുക</string>
     <string name="settings_home_widgets_edit_button_description">ഹോം വിജറ്റുകൾ എഡിറ്റ് ചെയ്യുക</string>
     <string name="settings_kiosk_mode_title">കിയോസ്‌ക് മോഡ്</string>
+    <string name="kiosk_mode_hold_hint">അൺലോക്ക് ചെയ്യാൻ ദീർഘനേരം അമർത്തുക</string>
     <string name="settings_kiosk_dim_when_idle_title">ക്യാമറ ഉപയോഗിച്ച് ഉണർത്തുക</string>
     <string name="settings_kiosk_wake_on_light_title">വെളിച്ചത്തിന്റെ അളവ് ഉപയോഗിച്ച് ഉണർത്തുക</string>
     <string name="settings_kiosk_light_level_title">വെളിച്ചത്തിന്റെ അളവ്</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">ലൈസൻസുകൾ</string>
     <string name="settings_licenses_title">ഓപ്പൺ സോഴ്‌സ് ലൈസൻസുകൾ</string>
     <string name="settings_licenses_version">പതിപ്പ് %1$s</string>
+    <string name="settings_licenses_authors">%1$s തയ്യാറാക്കിയത്</string>
     <string name="settings_licenses_back_button">മടങ്ങുക</string>
     <string name="settings_licenses_details_dismiss">പൂർത്തിയായി</string>
     <string name="bug_report_share_failed">ബഗ് റിപ്പോർട്ട് പങ്കിടാനായില്ല</string>

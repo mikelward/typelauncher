@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">रँक रीसेट करा</string>
     <string name="app_menu_edit">संपादित करा</string>
     <string name="app_menu_hide">लपवा</string>
+    <string name="app_menu_uninstall">अनइंस्टॉल करा</string>
+    <string name="app_menu_uninstall_unavailable">हे ॲप अनइंस्टॉल करता येत नाही</string>
     <string name="app_menu_dismiss">काढून टाका</string>
     <string name="app_menu_settings">सेटिंग्ज</string>
     <string name="edit_app_dialog_title">अॅप संपादित करा</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">फोल्डर बंद करा</string>
     <string name="app_label_with_work_prefix">कार्य %1$s</string>
     <string name="widgets_restore_action">%1$s विजेट पुनर्संचयित करण्यासाठी टॅप करा</string>
+    <string name="widgets_restore_work_profile_unavailable">कार्य प्रोफाइल उपलब्ध नाही</string>
     <string name="settings_show_wallpaper_title">वॉलपेपर दाखवा</string>
     <string name="settings_wallpaper_title">वॉलपेपर</string>
     <string name="settings_change_wallpaper_button">बदला</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">संपादित करा</string>
     <string name="settings_home_widgets_edit_button_description">होम विजेट संपादित करा</string>
     <string name="settings_kiosk_mode_title">कियॉस्क मोड</string>
+    <string name="kiosk_mode_hold_hint">अनलॉक करण्यासाठी जास्त वेळ दाबा</string>
     <string name="settings_kiosk_dim_when_idle_title">कॅमेऱ्याने जागे करा</string>
     <string name="settings_kiosk_wake_on_light_title">प्रकाशाच्या पातळीने जागे करा</string>
     <string name="settings_kiosk_light_level_title">प्रकाशाची पातळी</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">परवाने</string>
     <string name="settings_licenses_title">ओपन सोर्स परवाने</string>
     <string name="settings_licenses_version">आवृत्ती %1$s</string>
+    <string name="settings_licenses_authors">%1$s द्वारे</string>
     <string name="settings_licenses_back_button">मागे</string>
     <string name="settings_licenses_details_dismiss">पूर्ण झाले</string>
     <string name="bug_report_share_failed">बग रिपोर्ट शेअर करता आला नाही</string>

@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Resetovať poradie</string>
     <string name="app_menu_edit">Upraviť</string>
     <string name="app_menu_hide">Skryť</string>
+    <string name="app_menu_uninstall">Odinštalovať</string>
+    <string name="app_menu_uninstall_unavailable">Túto aplikáciu nie je možné odinštalovať</string>
     <string name="app_menu_dismiss">Zavrieť</string>
     <string name="app_menu_settings">Nastavenia</string>
     <string name="edit_app_dialog_title">Upraviť aplikáciu</string>
@@ -169,6 +171,7 @@
     <string name="dock_folder_close_description">Zavrieť priečinok</string>
     <string name="app_label_with_work_prefix">Pracovné %1$s</string>
     <string name="widgets_restore_action">Klepnutím obnovte miniaplikáciu %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Pracovný profil nie je k dispozícii</string>
     <string name="settings_show_wallpaper_title">Zobraziť tapetu</string>
     <string name="settings_wallpaper_title">Tapeta</string>
     <string name="settings_change_wallpaper_button">Zmeniť</string>
@@ -178,6 +181,7 @@
     <string name="settings_home_widgets_edit_button">Upraviť</string>
     <string name="settings_home_widgets_edit_button_description">Upraviť miniaplikácie domovskej obrazovky</string>
     <string name="settings_kiosk_mode_title">Režim kiosku</string>
+    <string name="kiosk_mode_hold_hint">Dlhým stlačením odomknete</string>
     <string name="settings_kiosk_dim_when_idle_title">Prebudiť pomocou fotoaparátu</string>
     <string name="settings_kiosk_wake_on_light_title">Prebudiť podľa úrovne svetla</string>
     <string name="settings_kiosk_light_level_title">Úroveň svetla</string>
@@ -211,6 +215,7 @@
     <string name="settings_about_licenses">Licencie</string>
     <string name="settings_licenses_title">Licencie open source</string>
     <string name="settings_licenses_version">Verzia %1$s</string>
+    <string name="settings_licenses_authors">Autorstvo: %1$s</string>
     <string name="settings_licenses_back_button">Späť</string>
     <string name="settings_licenses_details_dismiss">Hotovo</string>
     <string name="bug_report_share_failed">Hlásenie chyby sa nepodarilo zdieľať</string>

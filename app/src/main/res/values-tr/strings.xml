@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Sıralamayı sıfırla</string>
     <string name="app_menu_edit">Düzenle</string>
     <string name="app_menu_hide">Gizle</string>
+    <string name="app_menu_uninstall">Kaldır</string>
+    <string name="app_menu_uninstall_unavailable">Bu uygulama kaldırılamıyor</string>
     <string name="app_menu_dismiss">Kapat</string>
     <string name="app_menu_settings">Ayarlar</string>
     <string name="edit_app_dialog_title">Uygulamayı düzenle</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">Klasörü kapat</string>
     <string name="app_label_with_work_prefix">İş %1$s</string>
     <string name="widgets_restore_action">%1$s widget\'ını geri yüklemek için dokunun</string>
+    <string name="widgets_restore_work_profile_unavailable">İş profili kullanılamıyor</string>
     <string name="settings_show_wallpaper_title">Duvar kağıdını göster</string>
     <string name="settings_wallpaper_title">Duvar kağıdı</string>
     <string name="settings_change_wallpaper_button">Değiştir</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">Düzenle</string>
     <string name="settings_home_widgets_edit_button_description">Ana ekran widget\'larını düzenle</string>
     <string name="settings_kiosk_mode_title">Kiosk modu</string>
+    <string name="kiosk_mode_hold_hint">Kilidi açmak için uzun basın</string>
     <string name="settings_kiosk_dim_when_idle_title">Kamerayla uyandır</string>
     <string name="settings_kiosk_wake_on_light_title">Işık düzeyiyle uyandır</string>
     <string name="settings_kiosk_light_level_title">Işık düzeyi</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">Lisanslar</string>
     <string name="settings_licenses_title">Açık kaynak lisansları</string>
     <string name="settings_licenses_version">Sürüm %1$s</string>
+    <string name="settings_licenses_authors">Geliştiren: %1$s</string>
     <string name="settings_licenses_back_button">Geri</string>
     <string name="settings_licenses_details_dismiss">Tamam</string>
     <string name="bug_report_share_failed">Hata raporu paylaşılamadı</string>

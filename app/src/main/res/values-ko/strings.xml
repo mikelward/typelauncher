@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">순위 초기화</string>
     <string name="app_menu_edit">편집</string>
     <string name="app_menu_hide">숨기기</string>
+    <string name="app_menu_uninstall">제거</string>
+    <string name="app_menu_uninstall_unavailable">이 앱은 제거할 수 없습니다</string>
     <string name="app_menu_dismiss">닫기</string>
     <string name="app_menu_settings">설정</string>
     <string name="edit_app_dialog_title">앱 편집</string>
@@ -166,6 +168,7 @@
     <string name="dock_folder_close_description">폴더 닫기</string>
     <string name="app_label_with_work_prefix">업무용 %1$s</string>
     <string name="widgets_restore_action">탭하여 %1$s 위젯을 복원하세요</string>
+    <string name="widgets_restore_work_profile_unavailable">업무 프로필을 사용할 수 없음</string>
     <string name="settings_show_wallpaper_title">배경화면 표시</string>
     <string name="settings_wallpaper_title">배경화면</string>
     <string name="settings_change_wallpaper_button">변경</string>
@@ -175,6 +178,7 @@
     <string name="settings_home_widgets_edit_button">편집</string>
     <string name="settings_home_widgets_edit_button_description">홈 위젯 편집</string>
     <string name="settings_kiosk_mode_title">키오스크 모드</string>
+    <string name="kiosk_mode_hold_hint">길게 눌러 잠금 해제</string>
     <string name="settings_kiosk_dim_when_idle_title">카메라로 깨우기</string>
     <string name="settings_kiosk_wake_on_light_title">조도로 깨우기</string>
     <string name="settings_kiosk_light_level_title">조도</string>
@@ -208,6 +212,7 @@
     <string name="settings_about_licenses">라이선스</string>
     <string name="settings_licenses_title">오픈소스 라이선스</string>
     <string name="settings_licenses_version">버전 %1$s</string>
+    <string name="settings_licenses_authors">작성자: %1$s</string>
     <string name="settings_licenses_back_button">뒤로</string>
     <string name="settings_licenses_details_dismiss">완료</string>
     <string name="bug_report_share_failed">버그 신고를 공유할 수 없습니다</string>

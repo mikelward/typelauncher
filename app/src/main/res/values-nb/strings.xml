@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Tilbakestill rangering</string>
     <string name="app_menu_edit">Rediger</string>
     <string name="app_menu_hide">Skjul</string>
+    <string name="app_menu_uninstall">Avinstaller</string>
+    <string name="app_menu_uninstall_unavailable">Denne appen kan ikke avinstalleres</string>
     <string name="app_menu_dismiss">Lukk</string>
     <string name="app_menu_settings">Innstillinger</string>
     <string name="edit_app_dialog_title">Rediger app</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">Lukk mappe</string>
     <string name="app_label_with_work_prefix">Jobb %1$s</string>
     <string name="widgets_restore_action">Trykk for å gjenopprette %1$s-modulen</string>
+    <string name="widgets_restore_work_profile_unavailable">Jobbprofilen er ikke tilgjengelig</string>
     <string name="settings_show_wallpaper_title">Vis bakgrunnsbilde</string>
     <string name="settings_wallpaper_title">Bakgrunnsbilde</string>
     <string name="settings_change_wallpaper_button">Endre</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">Rediger</string>
     <string name="settings_home_widgets_edit_button_description">Rediger startskjermmoduler</string>
     <string name="settings_kiosk_mode_title">Kioskmodus</string>
+    <string name="kiosk_mode_hold_hint">Trykk lenge for å låse opp</string>
     <string name="settings_kiosk_dim_when_idle_title">Vekk skjermen med kameraet</string>
     <string name="settings_kiosk_wake_on_light_title">Vekk skjermen med lysnivået</string>
     <string name="settings_kiosk_light_level_title">Lysnivå</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">Lisenser</string>
     <string name="settings_licenses_title">Åpen kildekode-lisenser</string>
     <string name="settings_licenses_version">Versjon %1$s</string>
+    <string name="settings_licenses_authors">Av %1$s</string>
     <string name="settings_licenses_back_button">Tilbake</string>
     <string name="settings_licenses_details_dismiss">Ferdig</string>
     <string name="bug_report_share_failed">Kunne ikke dele feilrapporten</string>

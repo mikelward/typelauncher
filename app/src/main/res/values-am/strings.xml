@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">ደረጃን ዳግም አስጀምር</string>
     <string name="app_menu_edit">አስተካክል</string>
     <string name="app_menu_hide">ደብቅ</string>
+    <string name="app_menu_uninstall">አራግፍ</string>
+    <string name="app_menu_uninstall_unavailable">ይህን መተግበሪያ ማራገፍ አይቻልም</string>
     <string name="app_menu_dismiss">አስወግድ</string>
     <string name="app_menu_settings">ቅንብሮች</string>
     <string name="edit_app_dialog_title">መተግበሪያን አስተካክል</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">አቃፊ ዝጋ</string>
     <string name="app_label_with_work_prefix">የሥራ %1$s</string>
     <string name="widgets_restore_action">%1$s ምግብርን ለመመለስ ይንኩ</string>
+    <string name="widgets_restore_work_profile_unavailable">የሥራ መገለጫ አይገኝም</string>
     <string name="settings_show_wallpaper_title">ልጣፍ አሳይ</string>
     <string name="settings_wallpaper_title">ልጣፍ</string>
     <string name="settings_change_wallpaper_button">ቀይር</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">አስተካክል</string>
     <string name="settings_home_widgets_edit_button_description">የመነሻ ስክሪን ምግብሮችን አስተካክል</string>
     <string name="settings_kiosk_mode_title">የኪዮስክ ሁነታ</string>
+    <string name="kiosk_mode_hold_hint">ለመክፈት በረጅሙ ይጫኑ</string>
     <string name="settings_kiosk_dim_when_idle_title">በካሜራ ንቃ</string>
     <string name="settings_kiosk_wake_on_light_title">በብርሃን መጠን ንቃ</string>
     <string name="settings_kiosk_light_level_title">የብርሃን መጠን</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">ፈቃዶች</string>
     <string name="settings_licenses_title">የክፍት ምንጭ ፈቃዶች</string>
     <string name="settings_licenses_version">ስሪት %1$s</string>
+    <string name="settings_licenses_authors">በ%1$s</string>
     <string name="settings_licenses_back_button">ተመለስ</string>
     <string name="settings_licenses_details_dismiss">ተጠናቋል</string>
     <string name="bug_report_share_failed">የስህተት ሪፖርቱን ማጋራት አልተቻለም</string>

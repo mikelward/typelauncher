@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Zresetuj pozycję</string>
     <string name="app_menu_edit">Edytuj</string>
     <string name="app_menu_hide">Ukryj</string>
+    <string name="app_menu_uninstall">Odinstaluj</string>
+    <string name="app_menu_uninstall_unavailable">Nie można odinstalować tej aplikacji</string>
     <string name="app_menu_dismiss">Odrzuć</string>
     <string name="app_menu_settings">Ustawienia</string>
     <string name="edit_app_dialog_title">Edytuj aplikację</string>
@@ -169,6 +171,7 @@
     <string name="dock_folder_close_description">Zamknij folder</string>
     <string name="app_label_with_work_prefix">Służbowe %1$s</string>
     <string name="widgets_restore_action">Stuknij, aby przywrócić widżet %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Profil służbowy niedostępny</string>
     <string name="settings_show_wallpaper_title">Pokaż tapetę</string>
     <string name="settings_wallpaper_title">Tapeta</string>
     <string name="settings_change_wallpaper_button">Zmień</string>
@@ -178,6 +181,7 @@
     <string name="settings_home_widgets_edit_button">Edytuj</string>
     <string name="settings_home_widgets_edit_button_description">Edytuj widżety ekranu głównego</string>
     <string name="settings_kiosk_mode_title">Tryb kiosku</string>
+    <string name="kiosk_mode_hold_hint">Naciśnij i przytrzymaj, aby odblokować</string>
     <string name="settings_kiosk_dim_when_idle_title">Wybudzanie kamerą</string>
     <string name="settings_kiosk_wake_on_light_title">Wybudzanie poziomem światła</string>
     <string name="settings_kiosk_light_level_title">Poziom światła</string>
@@ -211,6 +215,7 @@
     <string name="settings_about_licenses">Licencje</string>
     <string name="settings_licenses_title">Licencje open source</string>
     <string name="settings_licenses_version">Wersja %1$s</string>
+    <string name="settings_licenses_authors">Autorstwo: %1$s</string>
     <string name="settings_licenses_back_button">Wstecz</string>
     <string name="settings_licenses_details_dismiss">Gotowe</string>
     <string name="bug_report_share_failed">Nie udało się udostępnić raportu o błędzie</string>

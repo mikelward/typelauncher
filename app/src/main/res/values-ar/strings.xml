@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">إعادة تعيين الترتيب</string>
     <string name="app_menu_edit">تعديل</string>
     <string name="app_menu_hide">إخفاء</string>
+    <string name="app_menu_uninstall">إلغاء التثبيت</string>
+    <string name="app_menu_uninstall_unavailable">لا يمكن إلغاء تثبيت هذا التطبيق</string>
     <string name="app_menu_dismiss">تجاهل</string>
     <string name="app_menu_settings">الإعدادات</string>
     <string name="edit_app_dialog_title">تعديل التطبيق</string>
@@ -171,6 +173,7 @@
     <string name="dock_folder_close_description">إغلاق المجلد</string>
     <string name="app_label_with_work_prefix">عمل %1$s</string>
     <string name="widgets_restore_action">انقر لاستعادة أداة %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">ملف العمل غير متاح</string>
     <string name="settings_show_wallpaper_title">إظهار الخلفية</string>
     <string name="settings_wallpaper_title">الخلفية</string>
     <string name="settings_change_wallpaper_button">تغيير</string>
@@ -180,6 +183,7 @@
     <string name="settings_home_widgets_edit_button">تعديل</string>
     <string name="settings_home_widgets_edit_button_description">تعديل أدوات الشاشة الرئيسية</string>
     <string name="settings_kiosk_mode_title">وضع الكشك</string>
+    <string name="kiosk_mode_hold_hint">اضغط مطولاً لفتح القفل</string>
     <string name="settings_kiosk_dim_when_idle_title">التنشيط باستخدام الكاميرا</string>
     <string name="settings_kiosk_wake_on_light_title">التنشيط باستخدام مستوى الإضاءة</string>
     <string name="settings_kiosk_light_level_title">مستوى الإضاءة</string>
@@ -213,6 +217,7 @@
     <string name="settings_about_licenses">التراخيص</string>
     <string name="settings_licenses_title">تراخيص المصدر المفتوح</string>
     <string name="settings_licenses_version">الإصدار %1$s</string>
+    <string name="settings_licenses_authors">بواسطة %1$s</string>
     <string name="settings_licenses_back_button">رجوع</string>
     <string name="settings_licenses_details_dismiss">تم</string>
     <string name="bug_report_share_failed">تعذّرت مشاركة تقرير الخطأ</string>

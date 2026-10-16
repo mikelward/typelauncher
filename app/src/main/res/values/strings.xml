@@ -42,10 +42,8 @@
     <string name="app_menu_reset_rank">Reset rank</string>
     <string name="app_menu_edit">Edit</string>
     <string name="app_menu_hide">Hide</string>
-    <!-- TODO: translate -->
-    <string name="app_menu_uninstall" tools:ignore="MissingTranslation">Uninstall</string>
-    <!-- TODO: translate -->
-    <string name="app_menu_uninstall_unavailable" tools:ignore="MissingTranslation">Can\'t uninstall this app</string>
+    <string name="app_menu_uninstall">Uninstall</string>
+    <string name="app_menu_uninstall_unavailable">Can\'t uninstall this app</string>
     <string name="app_menu_remove_shortcut">Remove</string>
     <string name="app_menu_shortcut_unavailable">Can\'t open this shortcut right now</string>
     <string name="app_menu_remove_shortcut_failed">Couldn\'t remove this shortcut</string>
@@ -108,8 +106,7 @@
     <string name="widgets_picker_unavailable">Widget picker unavailable</string>
     <string name="widgets_unavailable">Widget unavailable</string>
     <string name="widgets_restore_action">Tap to restore %1$s widget</string>
-    <!-- TODO: translate -->
-    <string name="widgets_restore_work_profile_unavailable" tools:ignore="MissingTranslation">Work profile unavailable</string>
+    <string name="widgets_restore_work_profile_unavailable">Work profile unavailable</string>
     <string name="widget_menu_resize">Resize</string>
     <string name="widget_menu_move_up">Move up</string>
     <string name="widget_menu_move_down">Move down</string>
@@ -162,8 +159,7 @@
     <string name="settings_home_widgets_edit_button">Edit</string>
     <string name="settings_home_widgets_edit_button_description">Edit home widgets</string>
     <string name="settings_kiosk_mode_title">Kiosk mode</string>
-    <!-- TODO: translate -->
-    <string name="kiosk_mode_hold_hint" tools:ignore="MissingTranslation">Long press to unlock</string>
+    <string name="kiosk_mode_hold_hint">Long press to unlock</string>
     <string name="settings_kiosk_dim_when_idle_title">Wake up using camera</string>
     <string name="settings_kiosk_wake_on_light_title">Wake up using light level</string>
     <string name="settings_kiosk_light_level_title">Light level</string>
@@ -230,8 +226,7 @@
          dialog. Apache-2.0 §4 asks that attribution travel with the code, so
          the page names the authors rather than only the license they chose.
          Omitted entirely when the component's own metadata names nobody. -->
-    <!-- TODO: translate -->
-    <string name="settings_licenses_authors" tools:ignore="MissingTranslation">By %1$s</string>
+    <string name="settings_licenses_authors">By %1$s</string>
     <string name="settings_licenses_back_button">Back</string>
     <string name="settings_licenses_details_dismiss">Done</string>
     <string name="settings_manage_hidden_apps_button">Manage hidden apps</string>

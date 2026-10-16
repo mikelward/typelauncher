@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">ランクをリセット</string>
     <string name="app_menu_edit">編集</string>
     <string name="app_menu_hide">非表示</string>
+    <string name="app_menu_uninstall">アンインストール</string>
+    <string name="app_menu_uninstall_unavailable">このアプリはアンインストールできません</string>
     <string name="app_menu_dismiss">閉じる</string>
     <string name="app_menu_settings">設定</string>
     <string name="edit_app_dialog_title">アプリを編集</string>
@@ -166,6 +168,7 @@
     <string name="dock_folder_close_description">フォルダを閉じる</string>
     <string name="app_label_with_work_prefix">仕事用 %1$s</string>
     <string name="widgets_restore_action">タップして%1$sウィジェットを復元します</string>
+    <string name="widgets_restore_work_profile_unavailable">仕事用プロファイルを利用できません</string>
     <string name="settings_show_wallpaper_title">壁紙を表示</string>
     <string name="settings_wallpaper_title">壁紙</string>
     <string name="settings_change_wallpaper_button">変更</string>
@@ -175,6 +178,7 @@
     <string name="settings_home_widgets_edit_button">編集</string>
     <string name="settings_home_widgets_edit_button_description">ホームのウィジェットを編集</string>
     <string name="settings_kiosk_mode_title">キオスクモード</string>
+    <string name="kiosk_mode_hold_hint">長押しでロック解除</string>
     <string name="settings_kiosk_dim_when_idle_title">カメラでスリープ解除</string>
     <string name="settings_kiosk_wake_on_light_title">照度でスリープ解除</string>
     <string name="settings_kiosk_light_level_title">照度</string>
@@ -208,6 +212,7 @@
     <string name="settings_about_licenses">ライセンス</string>
     <string name="settings_licenses_title">オープンソース ライセンス</string>
     <string name="settings_licenses_version">バージョン %1$s</string>
+    <string name="settings_licenses_authors">作成者: %1$s</string>
     <string name="settings_licenses_back_button">戻る</string>
     <string name="settings_licenses_details_dismiss">完了</string>
     <string name="bug_report_share_failed">バグレポートを共有できませんでした</string>

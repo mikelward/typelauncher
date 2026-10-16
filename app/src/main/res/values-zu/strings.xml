@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Setha kabusha isikhundla</string>
     <string name="app_menu_edit">Hlela</string>
     <string name="app_menu_hide">Fihla</string>
+    <string name="app_menu_uninstall">Khipha</string>
+    <string name="app_menu_uninstall_unavailable">Lolu hlelo lokusebenza alukwazi ukukhishwa</string>
     <string name="app_menu_dismiss">Susa</string>
     <string name="app_menu_settings">Izilungiselelo</string>
     <string name="edit_app_dialog_title">Hlela uhlelo lokusebenza</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">Vala ifolda</string>
     <string name="app_label_with_work_prefix">Umsebenzi %1$s</string>
     <string name="widgets_restore_action">Thepha ukuze ubuyisele iwijethi ye-%1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Iphrofayela yomsebenzi ayitholakali</string>
     <string name="settings_show_wallpaper_title">Bonisa isithombe sangemuva</string>
     <string name="settings_wallpaper_title">Isithombe sangemuva</string>
     <string name="settings_change_wallpaper_button">Shintsha</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">Hlela</string>
     <string name="settings_home_widgets_edit_button_description">Hlela amawijethi asekhaya</string>
     <string name="settings_kiosk_mode_title">Imodi yekhiyoski</string>
+    <string name="kiosk_mode_hold_hint">Cindezela isikhathi eside ukuze uvule</string>
     <string name="settings_kiosk_dim_when_idle_title">Vusa usebenzisa ikhamera</string>
     <string name="settings_kiosk_wake_on_light_title">Vusa usebenzisa izinga lokukhanya</string>
     <string name="settings_kiosk_light_level_title">Izinga lokukhanya</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">Amalayisensi</string>
     <string name="settings_licenses_title">Amalayisensi omthombo ovulekile</string>
     <string name="settings_licenses_version">Inguqulo %1$s</string>
+    <string name="settings_licenses_authors">Ngu-%1$s</string>
     <string name="settings_licenses_back_button">Emuva</string>
     <string name="settings_licenses_details_dismiss">Kwenziwe</string>
     <string name="bug_report_share_failed">Ayikwazanga ukwabelana ngombiko wesiphazamisi</string>

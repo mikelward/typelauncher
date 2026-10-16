@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Atstatyti vietą</string>
     <string name="app_menu_edit">Redaguoti</string>
     <string name="app_menu_hide">Slėpti</string>
+    <string name="app_menu_uninstall">Pašalinti</string>
+    <string name="app_menu_uninstall_unavailable">Šios programos pašalinti negalima</string>
     <string name="app_menu_dismiss">Atmesti</string>
     <string name="app_menu_settings">Nustatymai</string>
     <string name="edit_app_dialog_title">Redaguoti programą</string>
@@ -169,6 +171,7 @@
     <string name="dock_folder_close_description">Uždaryti aplanką</string>
     <string name="app_label_with_work_prefix">Darbo %1$s</string>
     <string name="widgets_restore_action">Bakstelėkite, kad atkurtumėte %1$s valdiklį</string>
+    <string name="widgets_restore_work_profile_unavailable">Darbo profilis nepasiekiamas</string>
     <string name="settings_show_wallpaper_title">Rodyti foną</string>
     <string name="settings_wallpaper_title">Fonas</string>
     <string name="settings_change_wallpaper_button">Keisti</string>
@@ -178,6 +181,7 @@
     <string name="settings_home_widgets_edit_button">Redaguoti</string>
     <string name="settings_home_widgets_edit_button_description">Redaguoti pagrindinio ekrano valdiklius</string>
     <string name="settings_kiosk_mode_title">Kiosko režimas</string>
+    <string name="kiosk_mode_hold_hint">Paspauskite ir palaikykite, kad atrakintumėte</string>
     <string name="settings_kiosk_dim_when_idle_title">Pažadinti fotoaparatu</string>
     <string name="settings_kiosk_wake_on_light_title">Pažadinti pagal šviesos lygį</string>
     <string name="settings_kiosk_light_level_title">Šviesos lygis</string>
@@ -211,6 +215,7 @@
     <string name="settings_about_licenses">Licencijos</string>
     <string name="settings_licenses_title">Atvirojo kodo licencijos</string>
     <string name="settings_licenses_version">%1$s versija</string>
+    <string name="settings_licenses_authors">Autorystė: %1$s</string>
     <string name="settings_licenses_back_button">Atgal</string>
     <string name="settings_licenses_details_dismiss">Atlikta</string>
     <string name="bug_report_share_failed">Nepavyko bendrinti klaidos ataskaitos</string>

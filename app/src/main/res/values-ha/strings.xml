@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Sake saita matsayi</string>
     <string name="app_menu_edit">Gyara</string>
     <string name="app_menu_hide">Boye</string>
+    <string name="app_menu_uninstall">Cire</string>
+    <string name="app_menu_uninstall_unavailable">Ba za a iya cire wannan manhaja ba</string>
     <string name="app_menu_dismiss">Kore</string>
     <string name="app_menu_settings">Saituna</string>
     <string name="edit_app_dialog_title">Gyara manhaja</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">Rufe babban fayil</string>
     <string name="app_label_with_work_prefix">Aiki %1$s</string>
     <string name="widgets_restore_action">Danna don mayar da widget na %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Babu bayanin aiki</string>
     <string name="settings_show_wallpaper_title">Nuna bangon waya</string>
     <string name="settings_wallpaper_title">Bangon waya</string>
     <string name="settings_change_wallpaper_button">Canza</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">Gyara</string>
     <string name="settings_home_widgets_edit_button_description">Gyara widgets na gida</string>
     <string name="settings_kiosk_mode_title">Yanayin kiosk</string>
+    <string name="kiosk_mode_hold_hint">Danna na dogon lokaci don buɗewa</string>
     <string name="settings_kiosk_dim_when_idle_title">Tashi ta amfani da kyamara</string>
     <string name="settings_kiosk_wake_on_light_title">Tashi ta amfani da matakin haske</string>
     <string name="settings_kiosk_light_level_title">Matakin haske</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">Lasisi</string>
     <string name="settings_licenses_title">Lasisin buɗaɗɗen tushe</string>
     <string name="settings_licenses_version">Sigar %1$s</string>
+    <string name="settings_licenses_authors">Daga %1$s</string>
     <string name="settings_licenses_back_button">Koma</string>
     <string name="settings_licenses_details_dismiss">An gama</string>
     <string name="bug_report_share_failed">An kasa raba rahoton matsala</string>
