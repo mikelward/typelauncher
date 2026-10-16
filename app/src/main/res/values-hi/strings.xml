@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">एडिट करें</string>
     <string name="settings_home_widgets_edit_button_description">होम विजेट एडिट करें</string>
     <string name="settings_kiosk_mode_title">कियोस्क मोड</string>
-    <string name="kiosk_mode_exit_hint">सेटिंग खोलने के लिए स्क्रीन को 2 सेकंड तक दबाकर रखें</string>
     <string name="settings_kiosk_dim_when_idle_title">कैमरे से जगाएं</string>
     <string name="settings_kiosk_wake_on_light_title">रोशनी के स्तर से जगाएं</string>
     <string name="settings_kiosk_light_level_title">रोशनी का स्तर</string>

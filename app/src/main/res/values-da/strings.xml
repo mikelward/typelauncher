@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">Rediger</string>
     <string name="settings_home_widgets_edit_button_description">Rediger startskærmswidgets</string>
     <string name="settings_kiosk_mode_title">Kiosktilstand</string>
-    <string name="kiosk_mode_exit_hint">Hold skærmen nede i 2 sekunder for at åbne Indstillinger</string>
     <string name="settings_kiosk_dim_when_idle_title">Væk skærmen med kameraet</string>
     <string name="settings_kiosk_wake_on_light_title">Væk skærmen med lysniveauet</string>
     <string name="settings_kiosk_light_level_title">Lysniveau</string>

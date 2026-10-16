@@ -175,7 +175,6 @@
     <string name="settings_home_widgets_edit_button">កែសម្រួល</string>
     <string name="settings_home_widgets_edit_button_description">កែសម្រួលធាតុក្រាហ្វិកអេក្រង់ដើម</string>
     <string name="settings_kiosk_mode_title">មុខងារ​គីអូស</string>
-    <string name="kiosk_mode_exit_hint">ចុចអេក្រង់​ឱ្យ​ជាប់ 2 វិនាទី ដើម្បី​បើក​ការកំណត់</string>
     <string name="settings_kiosk_dim_when_idle_title">ដាស់​ដោយ​ប្រើ​កាមេរ៉ា</string>
     <string name="settings_kiosk_wake_on_light_title">ដាស់​ដោយ​ប្រើ​កម្រិត​ពន្លឺ</string>
     <string name="settings_kiosk_light_level_title">កម្រិត​ពន្លឺ</string>

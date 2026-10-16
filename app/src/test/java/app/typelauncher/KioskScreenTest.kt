@@ -20,7 +20,12 @@ import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.performTouchInput
 import kotlin.math.abs
 import android.app.KeyguardManager
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.junit.Assert.assertEquals
@@ -34,7 +39,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * The kiosk display: a still two-second hold anywhere opens Settings without
+ * The kiosk display: a still one-second hold anywhere steps out to Home without
  * keeping touches from the widgets, and Home's search box, dock and app list
  * are not on screen.
  */
@@ -60,9 +65,11 @@ class KioskScreenTest {
         motionWatcher: @androidx.compose.runtime.Composable (onMotion: () -> Unit) -> Unit = {},
         // Sees every pointer change after the display has handled it.
         observeFinal: ((androidx.compose.ui.input.pointer.PointerInputChange) -> Unit)? = null,
+        haptics: HapticFeedback? = null,
     ) {
         composeRule.setContent {
             TypeLauncherTheme {
+                CompositionLocalProvider(LocalHapticFeedback provides (haptics ?: LocalHapticFeedback.current)) {
                 KioskScreen(
                     widgetIds = listOf(WIDGET_ID),
                     isHomeReady = true,
@@ -92,13 +99,14 @@ class KioskScreenTest {
                         }
                     },
                 )
+                }
             }
         }
         composeRule.waitForIdle()
     }
 
     @Test
-    fun stillHoldOpensSettingsOnce() {
+    fun stillHoldStepsOutOnce() {
         setKiosk()
         composeRule.onNodeWithTag(KIOSK_SCREEN_TAG).performTouchInput {
             down(center)
@@ -127,18 +135,118 @@ class KioskScreenTest {
     }
 
     @Test
-    fun movingTheFingerCancelsTheHold() {
+    fun aFingertipThatRollsALittleStillHolds() {
+        // A finger pressed for a second drifts past a tap's touch slop; that
+        // read as "long pressing often does nothing" (bug report, 2026-10-16).
         setKiosk()
         composeRule.onNodeWithTag(KIOSK_SCREEN_TAG).performTouchInput {
             down(center)
-            advanceEventTime(500)
-            moveBy(androidx.compose.ui.geometry.Offset(0f, 200f))
+            advanceEventTime(300)
+            moveBy(androidx.compose.ui.geometry.Offset(0f, 16.dp.toPx()))
+            advanceEventTime(300)
+            moveBy(androidx.compose.ui.geometry.Offset(4.dp.toPx(), 0f))
             advanceEventTime(KIOSK_EXIT_HOLD_MS)
             up()
         }
         composeRule.waitForIdle()
 
+        assertEquals(1, exitHolds)
+    }
+
+    @Test
+    fun theHoldIsFeltAsItRegisters() {
+        val feedback = mutableListOf<HapticFeedbackType>()
+        setKiosk(
+            haptics = object : HapticFeedback {
+                override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) {
+                    feedback += hapticFeedbackType
+                }
+            },
+            // The haptic comes before any unlock prompt, so it doesn't wait on one.
+            unlockThen = {},
+        )
+        composeRule.onNodeWithTag(KIOSK_SCREEN_TAG).performTouchInput {
+            down(center)
+            advanceEventTime(KIOSK_EXIT_HOLD_MS - 500)
+            up()
+        }
+        composeRule.waitForIdle()
+        assertEquals("a short press is felt as nothing", emptyList<HapticFeedbackType>(), feedback)
+
+        composeRule.onNodeWithTag(KIOSK_SCREEN_TAG).performTouchInput {
+            down(center)
+            advanceEventTime(KIOSK_EXIT_HOLD_MS + 100)
+            up()
+        }
+        composeRule.waitForIdle()
+        assertEquals(listOf(HapticFeedbackType.LongPress), feedback)
+    }
+
+    @Test
+    fun aFingerThatKeepsMovingNeverHolds() {
+        // A scroll or a swipe, however long it lasts.
+        setKiosk()
+        composeRule.onNodeWithTag(KIOSK_SCREEN_TAG).performTouchInput {
+            down(center)
+            repeat(10) {
+                advanceEventTime(300)
+                moveBy(androidx.compose.ui.geometry.Offset(0f, if (it % 2 == 0) 40.dp.toPx() else -40.dp.toPx()))
+            }
+            up()
+        }
+        composeRule.waitForIdle()
+
         assertEquals(0, exitHolds)
+    }
+
+    @Test
+    fun aFingerThatSettlesAfterMovingHolds() {
+        setKiosk()
+        composeRule.onNodeWithTag(KIOSK_SCREEN_TAG).performTouchInput {
+            down(center)
+            advanceEventTime(300)
+            moveBy(androidx.compose.ui.geometry.Offset(0f, 60.dp.toPx()))
+            advanceEventTime(KIOSK_EXIT_HOLD_MS + 100)
+            up()
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(1, exitHolds)
+    }
+
+    @Test
+    fun aStrayFirstTouchThatLiftsDoesNotLoseTheHold() {
+        // The hold used to follow the first finger down alone, and once it
+        // lifted nothing could start a new hold until every finger was up
+        // (bug report, 2026-10-16: held well past two seconds, nothing).
+        setKiosk()
+        composeRule.onNodeWithTag(KIOSK_SCREEN_TAG).performTouchInput {
+            down(0, center)
+            advanceEventTime(100)
+            down(1, center + androidx.compose.ui.geometry.Offset(80.dp.toPx(), 0f))
+            advanceEventTime(200)
+            up(0)
+            advanceEventTime(KIOSK_EXIT_HOLD_MS + 100)
+            up(1)
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(1, exitHolds)
+    }
+
+    @Test
+    fun twoFingersHeldStepOutOnce() {
+        setKiosk()
+        composeRule.onNodeWithTag(KIOSK_SCREEN_TAG).performTouchInput {
+            down(0, center)
+            down(1, center + androidx.compose.ui.geometry.Offset(80.dp.toPx(), 0f))
+            advanceEventTime(KIOSK_EXIT_HOLD_MS * 2)
+            up(0)
+            up(1)
+        }
+        composeRule.waitForIdle()
+
+        assertEquals(1, exitHolds)
     }
 
     @Test
@@ -175,7 +283,7 @@ class KioskScreenTest {
     }
 
     @Test
-    fun theHoldThatOpensSettingsDoesNotAlsoClick() {
+    fun theHoldThatStepsOutDoesNotAlsoClick() {
         var taps = 0
         composeRule.setContent {
             TypeLauncherTheme {
@@ -585,7 +693,7 @@ class KioskScreenTest {
     }
 
     @Test
-    fun theHoldOpensSettingsOnlyOnceTheUnlockSucceeds() {
+    fun theHoldStepsOutOnlyOnceTheUnlockSucceeds() {
         var pendingUnlock: (() -> Unit)? = null
         setKiosk(unlockThen = { pendingUnlock = it })
         composeRule.onNodeWithTag(KIOSK_SCREEN_TAG).performTouchInput {
@@ -594,7 +702,7 @@ class KioskScreenTest {
             up()
         }
         composeRule.waitForIdle()
-        assertEquals("Settings waits for the unlock", 0, exitHolds)
+        assertEquals("Home waits for the unlock", 0, exitHolds)
 
         pendingUnlock!!.invoke()
         assertEquals(1, exitHolds)
@@ -649,7 +757,8 @@ class KioskScreenTest {
                     onHideApp = {},
                     onUninstallApp = {},
                     onUnhideApp = {},
-                    onOpenSettings = { exitHolds += 1 },
+                    onOpenSettings = {},
+                    onStepOutOfKiosk = { exitHolds += 1 },
                     onCloseSettings = {},
                     onRequestDefaultLauncher = {},
                     onDockEnabledChanged = {},

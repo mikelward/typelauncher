@@ -175,7 +175,6 @@
     <string name="settings_home_widgets_edit_button">편집</string>
     <string name="settings_home_widgets_edit_button_description">홈 위젯 편집</string>
     <string name="settings_kiosk_mode_title">키오스크 모드</string>
-    <string name="kiosk_mode_exit_hint">화면을 2초 동안 길게 누르면 설정이 열립니다</string>
     <string name="settings_kiosk_dim_when_idle_title">카메라로 깨우기</string>
     <string name="settings_kiosk_wake_on_light_title">조도로 깨우기</string>
     <string name="settings_kiosk_light_level_title">조도</string>

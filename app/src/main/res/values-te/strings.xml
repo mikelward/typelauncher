@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">సవరించు</string>
     <string name="settings_home_widgets_edit_button_description">హోమ్ విడ్జెట్‌లను సవరించు</string>
     <string name="settings_kiosk_mode_title">కియోస్క్ మోడ్</string>
-    <string name="kiosk_mode_exit_hint">సెట్టింగ్‌లను తెరవడానికి స్క్రీన్‌ను 2 సెకన్ల పాటు నొక్కి ఉంచండి</string>
     <string name="settings_kiosk_dim_when_idle_title">కెమెరాతో మేల్కొలపండి</string>
     <string name="settings_kiosk_wake_on_light_title">కాంతి స్థాయితో మేల్కొలపండి</string>
     <string name="settings_kiosk_light_level_title">కాంతి స్థాయి</string>

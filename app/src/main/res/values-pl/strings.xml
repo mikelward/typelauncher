@@ -178,7 +178,6 @@
     <string name="settings_home_widgets_edit_button">Edytuj</string>
     <string name="settings_home_widgets_edit_button_description">Edytuj widżety ekranu głównego</string>
     <string name="settings_kiosk_mode_title">Tryb kiosku</string>
-    <string name="kiosk_mode_exit_hint">Przytrzymaj ekran przez 2 sekundy, aby otworzyć Ustawienia</string>
     <string name="settings_kiosk_dim_when_idle_title">Wybudzanie kamerą</string>
     <string name="settings_kiosk_wake_on_light_title">Wybudzanie poziomem światła</string>
     <string name="settings_kiosk_light_level_title">Poziom światła</string>

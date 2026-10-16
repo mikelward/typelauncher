@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">Düzenle</string>
     <string name="settings_home_widgets_edit_button_description">Ana ekran widget\'larını düzenle</string>
     <string name="settings_kiosk_mode_title">Kiosk modu</string>
-    <string name="kiosk_mode_exit_hint">Ayarlar\'ı açmak için ekrana 2 saniye basılı tutun</string>
     <string name="settings_kiosk_dim_when_idle_title">Kamerayla uyandır</string>
     <string name="settings_kiosk_wake_on_light_title">Işık düzeyiyle uyandır</string>
     <string name="settings_kiosk_light_level_title">Işık düzeyi</string>

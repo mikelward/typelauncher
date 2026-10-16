@@ -178,7 +178,6 @@
     <string name="settings_home_widgets_edit_button">Redaguoti</string>
     <string name="settings_home_widgets_edit_button_description">Redaguoti pagrindinio ekrano valdiklius</string>
     <string name="settings_kiosk_mode_title">Kiosko režimas</string>
-    <string name="kiosk_mode_exit_hint">Palaikykite ekraną 2 sekundes, kad atidarytumėte Nustatymus</string>
     <string name="settings_kiosk_dim_when_idle_title">Pažadinti fotoaparatu</string>
     <string name="settings_kiosk_wake_on_light_title">Pažadinti pagal šviesos lygį</string>
     <string name="settings_kiosk_light_level_title">Šviesos lygis</string>

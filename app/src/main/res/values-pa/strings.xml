@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">ਸੰਪਾਦਿਤ ਕਰੋ</string>
     <string name="settings_home_widgets_edit_button_description">ਹੋਮ ਵਿਜੇਟਾਂ ਨੂੰ ਸੰਪਾਦਿਤ ਕਰੋ</string>
     <string name="settings_kiosk_mode_title">ਕਿਓਸਕ ਮੋਡ</string>
-    <string name="kiosk_mode_exit_hint">ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹਣ ਲਈ ਸਕ੍ਰੀਨ ਨੂੰ 2 ਸਕਿੰਟਾਂ ਲਈ ਦਬਾ ਕੇ ਰੱਖੋ</string>
     <string name="settings_kiosk_dim_when_idle_title">ਕੈਮਰੇ ਨਾਲ ਜਗਾਓ</string>
     <string name="settings_kiosk_wake_on_light_title">ਰੋਸ਼ਨੀ ਦੇ ਪੱਧਰ ਨਾਲ ਜਗਾਓ</string>
     <string name="settings_kiosk_light_level_title">ਰੋਸ਼ਨੀ ਦਾ ਪੱਧਰ</string>

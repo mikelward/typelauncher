@@ -175,7 +175,6 @@
     <string name="settings_home_widgets_edit_button">Edit</string>
     <string name="settings_home_widgets_edit_button_description">Edit widget skrin utama</string>
     <string name="settings_kiosk_mode_title">Mod kiosk</string>
-    <string name="kiosk_mode_exit_hint">Tahan skrin selama 2 saat untuk membuka Tetapan</string>
     <string name="settings_kiosk_dim_when_idle_title">Bangunkan menggunakan kamera</string>
     <string name="settings_kiosk_wake_on_light_title">Bangunkan menggunakan tahap cahaya</string>
     <string name="settings_kiosk_light_level_title">Tahap cahaya</string>

@@ -175,7 +175,6 @@
     <string name="settings_home_widgets_edit_button">Ṣàtúnṣe</string>
     <string name="settings_home_widgets_edit_button_description">Ṣàtúnṣe àwọn wíjẹ́ẹ̀tì ojú ilé</string>
     <string name="settings_kiosk_mode_title">Ipò kiosk</string>
-    <string name="kiosk_mode_exit_hint">Di ojú-iboju mú fún ìṣẹ́jú-àáyá 2 láti ṣí Ètò</string>
     <string name="settings_kiosk_dim_when_idle_title">Jí pẹ̀lú kámẹ́rà</string>
     <string name="settings_kiosk_wake_on_light_title">Jí pẹ̀lú ìwọ̀n ìmọ́lẹ̀</string>
     <string name="settings_kiosk_light_level_title">Ìwọ̀n ìmọ́lẹ̀</string>

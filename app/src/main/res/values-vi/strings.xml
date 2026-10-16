@@ -175,7 +175,6 @@
     <string name="settings_home_widgets_edit_button">Chỉnh sửa</string>
     <string name="settings_home_widgets_edit_button_description">Chỉnh sửa tiện ích màn hình chính</string>
     <string name="settings_kiosk_mode_title">Chế độ kiosk</string>
-    <string name="kiosk_mode_exit_hint">Nhấn giữ màn hình trong 2 giây để mở Cài đặt</string>
     <string name="settings_kiosk_dim_when_idle_title">Đánh thức bằng camera</string>
     <string name="settings_kiosk_wake_on_light_title">Đánh thức bằng mức ánh sáng</string>
     <string name="settings_kiosk_light_level_title">Mức ánh sáng</string>

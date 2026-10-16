@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">ترمیم</string>
     <string name="settings_home_widgets_edit_button_description">ہوم ویجٹس میں ترمیم کریں</string>
     <string name="settings_kiosk_mode_title">کیوسک موڈ</string>
-    <string name="kiosk_mode_exit_hint">ترتیبات کھولنے کے لیے اسکرین کو 2 سیکنڈ تک دبائے رکھیں</string>
     <string name="settings_kiosk_dim_when_idle_title">کیمرے سے بیدار کریں</string>
     <string name="settings_kiosk_wake_on_light_title">روشنی کی سطح سے بیدار کریں</string>
     <string name="settings_kiosk_light_level_title">روشنی کی سطح</string>

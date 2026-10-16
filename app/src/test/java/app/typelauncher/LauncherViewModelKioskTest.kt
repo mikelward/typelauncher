@@ -163,11 +163,112 @@ class LauncherViewModelKioskTest {
         viewModel.openSettings()
         idle()
         assertFalse(viewModel.uiState.value.isKioskDisplayShowing)
-        assertFalse(kioskKeepsScreenOn(viewModel.uiState.value.isKioskDisplayShowing, isPluggedIn = true))
+        assertFalse(kioskKeepsScreenOn(viewModel.uiState.value.isKioskOnScreen, isPluggedIn = true))
 
         viewModel.closeSettings()
         idle()
         assertTrue(viewModel.uiState.value.isKioskDisplayShowing)
+    }
+
+    @Test
+    fun theHoldStepsOutToHomeWithKioskModeStillOn() {
+        val viewModel = kioskViewModel()
+
+        viewModel.stepOutOfKiosk()
+        idle()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isKioskActive)
+        assertTrue(state.isKioskMode)
+        assertTrue(state.isKioskSteppedOutHome)
+        // The screen stays on, so the display can come back before a timeout.
+        assertTrue(kioskKeepsScreenOn(state.isKioskOnScreen, isPluggedIn = true))
+        assertTrue("the setting itself is untouched", newViewModel().uiState.value.isKioskMode)
+    }
+
+    @Test
+    fun steppingOutIsForgottenOnAFreshStart() {
+        kioskViewModel().stepOutOfKiosk()
+        idle()
+
+        assertTrue(newViewModel().uiState.value.isKioskDisplayShowing)
+    }
+
+    @Test
+    fun theDisplayComesBackOnAFreshHome() {
+        val viewModel = kioskViewModel()
+        viewModel.stepOutOfKiosk()
+        viewModel.setQuery("ma")
+        viewModel.setRecentsOpen(true)
+        idle()
+
+        viewModel.returnToKiosk()
+        idle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.isKioskDisplayShowing)
+        assertFalse(state.isKioskSteppedOut)
+        assertEquals("", state.query)
+        assertFalse(state.isRecentsOpen)
+    }
+
+    @Test
+    fun settingsFromTheSteppedOutHomeReleasesTheScreenAndTheDisplayClosesIt() {
+        val viewModel = kioskViewModel()
+        viewModel.stepOutOfKiosk()
+        viewModel.openSettings()
+        idle()
+        assertFalse(viewModel.uiState.value.isKioskSteppedOutHome)
+        assertFalse(kioskKeepsScreenOn(viewModel.uiState.value.isKioskOnScreen, isPluggedIn = true))
+
+        // The screen going off: the device wakes to the display, not Settings.
+        viewModel.returnToKiosk()
+        idle()
+        assertFalse(viewModel.uiState.value.isSettingsOpen)
+        assertTrue(viewModel.uiState.value.isKioskDisplayShowing)
+    }
+
+    @Test
+    fun anEditInProgressIsLeftToFinish() {
+        val viewModel = kioskViewModel()
+        viewModel.stepOutOfKiosk()
+        viewModel.startEditingHomeWidgets()
+        idle()
+
+        viewModel.returnToKiosk()
+        idle()
+        assertTrue(viewModel.uiState.value.isEditingHomeWidgets)
+
+        // Done lands on the Home it stepped out to, whose quiet minute brings the display back.
+        viewModel.stopEditingHomeWidgets()
+        idle()
+        assertTrue(viewModel.uiState.value.isKioskSteppedOutHome)
+    }
+
+    @Test
+    fun theHoldAndTheReturnDoNothingWithKioskModeOff() {
+        val viewModel = newViewModel()
+        viewModel.setHomeWidgetsShown(true)
+        viewModel.setQuery("ma")
+        idle()
+
+        viewModel.stepOutOfKiosk()
+        viewModel.returnToKiosk()
+        idle()
+
+        assertFalse(viewModel.uiState.value.isKioskSteppedOut)
+        assertEquals("ma", viewModel.uiState.value.query)
+    }
+
+    @Test
+    fun turningKioskModeBackOnStartsOnTheDisplay() {
+        val viewModel = kioskViewModel()
+        viewModel.stepOutOfKiosk()
+        viewModel.setKioskMode(false)
+        viewModel.setKioskMode(true)
+        idle()
+
+        assertTrue(viewModel.uiState.value.isKioskActive)
     }
 
     @Test
@@ -205,6 +306,12 @@ class LauncherViewModelKioskTest {
 
         assertEquals("", viewModel.uiState.value.query)
         assertFalse(viewModel.uiState.value.isRecentsOpen)
+    }
+
+    private fun kioskViewModel(): LauncherViewModel = newViewModel().apply {
+        setHomeWidgetsShown(true)
+        setKioskMode(true)
+        idle()
     }
 
     private fun newViewModel(): LauncherViewModel = LauncherViewModel(

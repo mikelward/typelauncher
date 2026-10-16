@@ -162,7 +162,8 @@
     <string name="settings_home_widgets_edit_button">Edit</string>
     <string name="settings_home_widgets_edit_button_description">Edit home widgets</string>
     <string name="settings_kiosk_mode_title">Kiosk mode</string>
-    <string name="kiosk_mode_exit_hint">Hold the screen for 2 seconds to open Settings</string>
+    <!-- TODO: translate -->
+    <string name="kiosk_mode_hold_hint" tools:ignore="MissingTranslation">Long press to unlock</string>
     <string name="settings_kiosk_dim_when_idle_title">Wake up using camera</string>
     <string name="settings_kiosk_wake_on_light_title">Wake up using light level</string>
     <string name="settings_kiosk_light_level_title">Light level</string>

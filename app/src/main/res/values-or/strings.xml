@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">ସମ୍ପାଦନ କରନ୍ତୁ</string>
     <string name="settings_home_widgets_edit_button_description">ହୋମ୍ ୱିଜେଟ୍ ସମ୍ପାଦନ କରନ୍ତୁ</string>
     <string name="settings_kiosk_mode_title">କିଓସ୍କ ମୋଡ୍</string>
-    <string name="kiosk_mode_exit_hint">ସେଟିଂସ୍ ଖୋଲିବାକୁ ସ୍କ୍ରିନକୁ 2 ସେକେଣ୍ଡ ଦବାଇ ରଖନ୍ତୁ</string>
     <string name="settings_kiosk_dim_when_idle_title">କ୍ୟାମେରା ବ୍ୟବହାର କରି ଜାଗ୍ରତ କରନ୍ତୁ</string>
     <string name="settings_kiosk_wake_on_light_title">ଆଲୋକ ସ୍ତର ବ୍ୟବହାର କରି ଜାଗ୍ରତ କରନ୍ତୁ</string>
     <string name="settings_kiosk_light_level_title">ଆଲୋକ ସ୍ତର</string>

@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">සංස්කරණය</string>
     <string name="settings_home_widgets_edit_button_description">මුල් විජට් සංස්කරණය කරන්න</string>
     <string name="settings_kiosk_mode_title">කියොස්ක් ප්‍රකාරය</string>
-    <string name="kiosk_mode_exit_hint">සැකසුම් විවෘත කිරීමට තිරය තත්පර 2ක් ඔබාගෙන සිටින්න</string>
     <string name="settings_kiosk_dim_when_idle_title">කැමරාව භාවිතයෙන් අවදි කරන්න</string>
     <string name="settings_kiosk_wake_on_light_title">ආලෝක මට්ටම භාවිතයෙන් අවදි කරන්න</string>
     <string name="settings_kiosk_light_level_title">ආලෝක මට්ටම</string>

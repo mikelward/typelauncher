@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">ویرایش</string>
     <string name="settings_home_widgets_edit_button_description">ویرایش ابزارک‌های صفحه خانه</string>
     <string name="settings_kiosk_mode_title">حالت کیوسک</string>
-    <string name="kiosk_mode_exit_hint">برای باز کردن تنظیمات، صفحه را ۲ ثانیه نگه دارید</string>
     <string name="settings_kiosk_dim_when_idle_title">بیدار شدن با دوربین</string>
     <string name="settings_kiosk_wake_on_light_title">بیدار شدن با سطح نور</string>
     <string name="settings_kiosk_light_level_title">سطح نور</string>

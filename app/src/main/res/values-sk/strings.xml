@@ -178,7 +178,6 @@
     <string name="settings_home_widgets_edit_button">Upraviť</string>
     <string name="settings_home_widgets_edit_button_description">Upraviť miniaplikácie domovskej obrazovky</string>
     <string name="settings_kiosk_mode_title">Režim kiosku</string>
-    <string name="kiosk_mode_exit_hint">Podržaním obrazovky na 2 sekundy otvoríte Nastavenia</string>
     <string name="settings_kiosk_dim_when_idle_title">Prebudiť pomocou fotoaparátu</string>
     <string name="settings_kiosk_wake_on_light_title">Prebudiť podľa úrovne svetla</string>
     <string name="settings_kiosk_light_level_title">Úroveň svetla</string>

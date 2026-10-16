@@ -175,7 +175,6 @@
     <string name="settings_home_widgets_edit_button">編輯</string>
     <string name="settings_home_widgets_edit_button_description">編輯主畫面小工具</string>
     <string name="settings_kiosk_mode_title">Kiosk 模式</string>
-    <string name="kiosk_mode_exit_hint">按住螢幕 2 秒即可開啟設定</string>
     <string name="settings_kiosk_dim_when_idle_title">使用相機喚醒</string>
     <string name="settings_kiosk_wake_on_light_title">依照光線強度喚醒</string>
     <string name="settings_kiosk_light_level_title">光線強度</string>

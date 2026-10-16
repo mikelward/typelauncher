@@ -176,7 +176,6 @@
     <string name="settings_home_widgets_edit_button">सम्पादन गर्नुहोस्</string>
     <string name="settings_home_widgets_edit_button_description">होम विजेटहरू सम्पादन गर्नुहोस्</string>
     <string name="settings_kiosk_mode_title">किओस्क मोड</string>
-    <string name="kiosk_mode_exit_hint">सेटिङ खोल्न स्क्रिनलाई २ सेकेन्डसम्म थिचिराख्नुहोस्</string>
     <string name="settings_kiosk_dim_when_idle_title">क्यामेराबाट ब्युँझाउनुहोस्</string>
     <string name="settings_kiosk_wake_on_light_title">प्रकाशको स्तरबाट ब्युँझाउनुहोस्</string>
     <string name="settings_kiosk_light_level_title">प्रकाशको स्तर</string>

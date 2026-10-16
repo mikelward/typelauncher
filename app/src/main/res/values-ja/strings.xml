@@ -175,7 +175,6 @@
     <string name="settings_home_widgets_edit_button">編集</string>
     <string name="settings_home_widgets_edit_button_description">ホームのウィジェットを編集</string>
     <string name="settings_kiosk_mode_title">キオスクモード</string>
-    <string name="kiosk_mode_exit_hint">画面を 2 秒間長押しすると設定が開きます</string>
     <string name="settings_kiosk_dim_when_idle_title">カメラでスリープ解除</string>
     <string name="settings_kiosk_wake_on_light_title">照度でスリープ解除</string>
     <string name="settings_kiosk_light_level_title">照度</string>
