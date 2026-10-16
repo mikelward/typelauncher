@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">ର୍ୟାଙ୍କ ରିସେଟ୍ କରନ୍ତୁ</string>
     <string name="app_menu_edit">ସମ୍ପାଦନ କରନ୍ତୁ</string>
     <string name="app_menu_hide">ଲୁଚାନ୍ତୁ</string>
+    <string name="app_menu_uninstall">ଅନଇନଷ୍ଟଲ କରନ୍ତୁ</string>
+    <string name="app_menu_uninstall_unavailable">ଏହି ଆପକୁ ଅନଇନଷ୍ଟଲ କରାଯାଇପାରିବ ନାହିଁ</string>
     <string name="app_menu_dismiss">ବାତିଲ୍ କରନ୍ତୁ</string>
     <string name="app_menu_settings">ସେଟିଂସ୍</string>
     <string name="edit_app_dialog_title">ଆପ୍ ସମ୍ପାଦନ କରନ୍ତୁ</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">ଫୋଲ୍ଡର୍ ବନ୍ଦ କରନ୍ତୁ</string>
     <string name="app_label_with_work_prefix">କାର୍ଯ୍ୟ %1$s</string>
     <string name="widgets_restore_action">%1$s ୱିଜେଟ୍ ପୁନରୁଦ୍ଧାର କରିବାକୁ ଟ୍ୟାପ୍ କରନ୍ତୁ</string>
+    <string name="widgets_restore_work_profile_unavailable">କାମ ପ୍ରୋଫାଇଲ୍ ଉପଲବ୍ଧ ନାହିଁ</string>
     <string name="settings_show_wallpaper_title">ୱାଲପେପର ଦେଖାନ୍ତୁ</string>
     <string name="settings_wallpaper_title">ୱାଲପେପର</string>
     <string name="settings_change_wallpaper_button">ପରିବର୍ତ୍ତନ କରନ୍ତୁ</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">ସମ୍ପାଦନ କରନ୍ତୁ</string>
     <string name="settings_home_widgets_edit_button_description">ହୋମ୍ ୱିଜେଟ୍ ସମ୍ପାଦନ କରନ୍ତୁ</string>
     <string name="settings_kiosk_mode_title">କିଓସ୍କ ମୋଡ୍</string>
+    <string name="kiosk_mode_hold_hint">ଅନଲକ କରିବାକୁ ଅଧିକ ସମୟ ଦବାନ୍ତୁ</string>
     <string name="settings_kiosk_dim_when_idle_title">କ୍ୟାମେରା ବ୍ୟବହାର କରି ଜାଗ୍ରତ କରନ୍ତୁ</string>
     <string name="settings_kiosk_wake_on_light_title">ଆଲୋକ ସ୍ତର ବ୍ୟବହାର କରି ଜାଗ୍ରତ କରନ୍ତୁ</string>
     <string name="settings_kiosk_light_level_title">ଆଲୋକ ସ୍ତର</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">ଲାଇସେନ୍ସ</string>
     <string name="settings_licenses_title">ଓପନ୍ ସୋର୍ସ ଲାଇସେନ୍ସ</string>
     <string name="settings_licenses_version">ସଂସ୍କରଣ %1$s</string>
+    <string name="settings_licenses_authors">%1$s ଦ୍ୱାରା</string>
     <string name="settings_licenses_back_button">ପଛକୁ</string>
     <string name="settings_licenses_details_dismiss">ସମ୍ପନ୍ନ</string>
     <string name="bug_report_share_failed">ବଗ୍ ରିପୋର୍ଟ ସେୟାର୍ କରାଯାଇପାରିଲା ନାହିଁ</string>

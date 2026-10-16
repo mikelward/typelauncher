@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Tún ipò ṣètò</string>
     <string name="app_menu_edit">Ṣàtúnṣe</string>
     <string name="app_menu_hide">Bò</string>
+    <string name="app_menu_uninstall">Yọ kúrò</string>
+    <string name="app_menu_uninstall_unavailable">A kò lè yọ áàpù yìí kúrò</string>
     <string name="app_menu_dismiss">Lé kúrò</string>
     <string name="app_menu_settings">Ètò</string>
     <string name="edit_app_dialog_title">Ṣàtúnṣe áàpù</string>
@@ -166,6 +168,7 @@
     <string name="dock_folder_close_description">Ti fódà</string>
     <string name="app_label_with_work_prefix">Iṣẹ́ %1$s</string>
     <string name="widgets_restore_action">Tẹ̀ láti mú wíjẹ́ẹ̀tì %1$s padà</string>
+    <string name="widgets_restore_work_profile_unavailable">Profáìlì iṣẹ́ kò sí</string>
     <string name="settings_show_wallpaper_title">Fihàn aworan abẹ́lẹ̀</string>
     <string name="settings_wallpaper_title">Aworan abẹ́lẹ̀</string>
     <string name="settings_change_wallpaper_button">Yí padà</string>
@@ -175,6 +178,7 @@
     <string name="settings_home_widgets_edit_button">Ṣàtúnṣe</string>
     <string name="settings_home_widgets_edit_button_description">Ṣàtúnṣe àwọn wíjẹ́ẹ̀tì ojú ilé</string>
     <string name="settings_kiosk_mode_title">Ipò kiosk</string>
+    <string name="kiosk_mode_hold_hint">Tẹ̀ ẹ́ mọ́lẹ̀ pẹ́ láti ṣí</string>
     <string name="settings_kiosk_dim_when_idle_title">Jí pẹ̀lú kámẹ́rà</string>
     <string name="settings_kiosk_wake_on_light_title">Jí pẹ̀lú ìwọ̀n ìmọ́lẹ̀</string>
     <string name="settings_kiosk_light_level_title">Ìwọ̀n ìmọ́lẹ̀</string>
@@ -208,6 +212,7 @@
     <string name="settings_about_licenses">Àwọn ìwé àṣẹ</string>
     <string name="settings_licenses_title">Àwọn ìwé àṣẹ orísun ṣíṣí</string>
     <string name="settings_licenses_version">Ẹ̀yà %1$s</string>
+    <string name="settings_licenses_authors">Láti ọwọ́ %1$s</string>
     <string name="settings_licenses_back_button">Padà</string>
     <string name="settings_licenses_details_dismiss">Ti parí</string>
     <string name="bug_report_share_failed">Kò lè pín ìròyìn àṣìṣe náà</string>

@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Stel rangorde terug</string>
     <string name="app_menu_edit">Wysig</string>
     <string name="app_menu_hide">Versteek</string>
+    <string name="app_menu_uninstall">Deïnstalleer</string>
+    <string name="app_menu_uninstall_unavailable">Kan nie hierdie app deïnstalleer nie</string>
     <string name="app_menu_dismiss">Maak toe</string>
     <string name="app_menu_settings">Instellings</string>
     <string name="edit_app_dialog_title">Wysig program</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">Maak vouer toe</string>
     <string name="app_label_with_work_prefix">Werk %1$s</string>
     <string name="widgets_restore_action">Tik om %1$s-legstuk te herstel</string>
+    <string name="widgets_restore_work_profile_unavailable">Werkprofiel nie beskikbaar nie</string>
     <string name="settings_show_wallpaper_title">Wys muurpapier</string>
     <string name="settings_wallpaper_title">Muurpapier</string>
     <string name="settings_change_wallpaper_button">Verander</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">Wysig</string>
     <string name="settings_home_widgets_edit_button_description">Wysig tuisskerm-legstukke</string>
     <string name="settings_kiosk_mode_title">Kioskmodus</string>
+    <string name="kiosk_mode_hold_hint">Druk lank om te ontsluit</string>
     <string name="settings_kiosk_dim_when_idle_title">Word wakker met kamera</string>
     <string name="settings_kiosk_wake_on_light_title">Word wakker met ligvlak</string>
     <string name="settings_kiosk_light_level_title">Ligvlak</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">Lisensies</string>
     <string name="settings_licenses_title">Oopbronlisensies</string>
     <string name="settings_licenses_version">Weergawe %1$s</string>
+    <string name="settings_licenses_authors">Deur %1$s</string>
     <string name="settings_licenses_back_button">Terug</string>
     <string name="settings_licenses_details_dismiss">Klaar</string>
     <string name="bug_report_share_failed">Kon nie die foutverslag deel nie</string>

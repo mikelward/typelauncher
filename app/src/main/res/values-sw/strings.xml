@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Weka upya cheo</string>
     <string name="app_menu_edit">Hariri</string>
     <string name="app_menu_hide">Ficha</string>
+    <string name="app_menu_uninstall">Ondoa</string>
+    <string name="app_menu_uninstall_unavailable">Haiwezekani kuondoa programu hii</string>
     <string name="app_menu_dismiss">Ondoa</string>
     <string name="app_menu_settings">Mipangilio</string>
     <string name="edit_app_dialog_title">Hariri programu</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">Funga folda</string>
     <string name="app_label_with_work_prefix">Kazi %1$s</string>
     <string name="widgets_restore_action">Gusa ili urejeshe wijeti ya %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Wasifu wa kazi haupatikani</string>
     <string name="settings_show_wallpaper_title">Onyesha mandharinyuma</string>
     <string name="settings_wallpaper_title">Mandharinyuma</string>
     <string name="settings_change_wallpaper_button">Badilisha</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">Hariri</string>
     <string name="settings_home_widgets_edit_button_description">Hariri wijeti za skrini ya nyumbani</string>
     <string name="settings_kiosk_mode_title">Hali ya kioski</string>
+    <string name="kiosk_mode_hold_hint">Bonyeza kwa muda mrefu ili kufungua</string>
     <string name="settings_kiosk_dim_when_idle_title">Amsha kwa kamera</string>
     <string name="settings_kiosk_wake_on_light_title">Amsha kwa kiwango cha mwanga</string>
     <string name="settings_kiosk_light_level_title">Kiwango cha mwanga</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">Leseni</string>
     <string name="settings_licenses_title">Leseni za chanzo huria</string>
     <string name="settings_licenses_version">Toleo la %1$s</string>
+    <string name="settings_licenses_authors">Na %1$s</string>
     <string name="settings_licenses_back_button">Rudi</string>
     <string name="settings_licenses_details_dismiss">Imekamilika</string>
     <string name="bug_report_share_failed">Imeshindwa kushiriki ripoti ya hitilafu</string>

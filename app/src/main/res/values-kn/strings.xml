@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">ಶ್ರೇಣಿಯನ್ನು ಮರುಹೊಂದಿಸಿ</string>
     <string name="app_menu_edit">ಸಂಪಾದಿಸಿ</string>
     <string name="app_menu_hide">ಮರೆಮಾಡಿ</string>
+    <string name="app_menu_uninstall">ಅನ್‌ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಿ</string>
+    <string name="app_menu_uninstall_unavailable">ಈ ಆ್ಯಪ್ ಅನ್ನು ಅನ್‌ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ</string>
     <string name="app_menu_dismiss">ವಜಾಗೊಳಿಸಿ</string>
     <string name="app_menu_settings">ಸೆಟ್ಟಿಂಗ್‌ಗಳು</string>
     <string name="edit_app_dialog_title">ಆ್ಯಪ್ ಸಂಪಾದಿಸಿ</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">ಫೋಲ್ಡರ್ ಮುಚ್ಚಿ</string>
     <string name="app_label_with_work_prefix">ಕೆಲಸ %1$s</string>
     <string name="widgets_restore_action">%1$s ವಿಜೆಟ್ ಅನ್ನು ಮರುಸ್ಥಾಪಿಸಲು ಟ್ಯಾಪ್ ಮಾಡಿ</string>
+    <string name="widgets_restore_work_profile_unavailable">ಕೆಲಸದ ಪ್ರೊಫೈಲ್ ಲಭ್ಯವಿಲ್ಲ</string>
     <string name="settings_show_wallpaper_title">ವಾಲ್‌ಪೇಪರ್ ತೋರಿಸಿ</string>
     <string name="settings_wallpaper_title">ವಾಲ್‌ಪೇಪರ್</string>
     <string name="settings_change_wallpaper_button">ಬದಲಾಯಿಸಿ</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">ಸಂಪಾದಿಸಿ</string>
     <string name="settings_home_widgets_edit_button_description">ಮುಖಪುಟ ವಿಜೆಟ್‌ಗಳನ್ನು ಸಂಪಾದಿಸಿ</string>
     <string name="settings_kiosk_mode_title">ಕಿಯೋಸ್ಕ್ ಮೋಡ್</string>
+    <string name="kiosk_mode_hold_hint">ಅನ್‌ಲಾಕ್ ಮಾಡಲು ದೀರ್ಘವಾಗಿ ಒತ್ತಿ</string>
     <string name="settings_kiosk_dim_when_idle_title">ಕ್ಯಾಮರಾ ಬಳಸಿ ಎಚ್ಚರಗೊಳಿಸಿ</string>
     <string name="settings_kiosk_wake_on_light_title">ಬೆಳಕಿನ ಮಟ್ಟ ಬಳಸಿ ಎಚ್ಚರಗೊಳಿಸಿ</string>
     <string name="settings_kiosk_light_level_title">ಬೆಳಕಿನ ಮಟ್ಟ</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">ಪರವಾನಗಿಗಳು</string>
     <string name="settings_licenses_title">ಓಪನ್ ಸೋರ್ಸ್ ಪರವಾನಗಿಗಳು</string>
     <string name="settings_licenses_version">ಆವೃತ್ತಿ %1$s</string>
+    <string name="settings_licenses_authors">ಲೇಖಕರು: %1$s</string>
     <string name="settings_licenses_back_button">ಹಿಂದೆ</string>
     <string name="settings_licenses_details_dismiss">ಮುಗಿದಿದೆ</string>
     <string name="bug_report_share_failed">ದೋಷ ವರದಿಯನ್ನು ಹಂಚಿಕೊಳ್ಳಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ</string>

@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Нулирай ранга</string>
     <string name="app_menu_edit">Редактирай</string>
     <string name="app_menu_hide">Скрий</string>
+    <string name="app_menu_uninstall">Деинсталиране</string>
+    <string name="app_menu_uninstall_unavailable">Това приложение не може да бъде деинсталирано</string>
     <string name="app_menu_dismiss">Затвори</string>
     <string name="app_menu_settings">Настройки</string>
     <string name="edit_app_dialog_title">Редактиране на приложение</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">Затвори папката</string>
     <string name="app_label_with_work_prefix">Служебно %1$s</string>
     <string name="widgets_restore_action">Докоснете за възстановяване на приспособлението %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Служебният профил не е наличен</string>
     <string name="settings_show_wallpaper_title">Покажи тапет</string>
     <string name="settings_wallpaper_title">Тапет</string>
     <string name="settings_change_wallpaper_button">Промяна</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">Редактирай</string>
     <string name="settings_home_widgets_edit_button_description">Редактирай приспособленията на началния екран</string>
     <string name="settings_kiosk_mode_title">Режим на павилион</string>
+    <string name="kiosk_mode_hold_hint">Натиснете продължително, за да отключите</string>
     <string name="settings_kiosk_dim_when_idle_title">Събуждане чрез камерата</string>
     <string name="settings_kiosk_wake_on_light_title">Събуждане чрез нивото на светлината</string>
     <string name="settings_kiosk_light_level_title">Ниво на светлината</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">Лицензи</string>
     <string name="settings_licenses_title">Лицензи с отворен код</string>
     <string name="settings_licenses_version">Версия %1$s</string>
+    <string name="settings_licenses_authors">От %1$s</string>
     <string name="settings_licenses_back_button">Назад</string>
     <string name="settings_licenses_details_dismiss">Готово</string>
     <string name="bug_report_share_failed">Отчетът за грешка не бе споделен</string>

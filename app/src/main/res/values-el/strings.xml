@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Επαναφορά κατάταξης</string>
     <string name="app_menu_edit">Επεξεργασία</string>
     <string name="app_menu_hide">Απόκρυψη</string>
+    <string name="app_menu_uninstall">Απεγκατάσταση</string>
+    <string name="app_menu_uninstall_unavailable">Δεν είναι δυνατή η απεγκατάσταση αυτής της εφαρμογής</string>
     <string name="app_menu_dismiss">Απόρριψη</string>
     <string name="app_menu_settings">Ρυθμίσεις</string>
     <string name="edit_app_dialog_title">Επεξεργασία εφαρμογής</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">Κλείσιμο φακέλου</string>
     <string name="app_label_with_work_prefix">Εργασία %1$s</string>
     <string name="widgets_restore_action">Πατήστε για επαναφορά του γραφικού στοιχείου %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Το προφίλ εργασίας δεν είναι διαθέσιμο</string>
     <string name="settings_show_wallpaper_title">Εμφάνιση ταπετσαρίας</string>
     <string name="settings_wallpaper_title">Ταπετσαρία</string>
     <string name="settings_change_wallpaper_button">Αλλαγή</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">Επεξεργασία</string>
     <string name="settings_home_widgets_edit_button_description">Επεξεργασία γραφικών στοιχείων αρχικής οθόνης</string>
     <string name="settings_kiosk_mode_title">Λειτουργία περιπτέρου</string>
+    <string name="kiosk_mode_hold_hint">Πατήστε παρατεταμένα για ξεκλείδωμα</string>
     <string name="settings_kiosk_dim_when_idle_title">Αφύπνιση με την κάμερα</string>
     <string name="settings_kiosk_wake_on_light_title">Αφύπνιση με το επίπεδο φωτός</string>
     <string name="settings_kiosk_light_level_title">Επίπεδο φωτός</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">Άδειες</string>
     <string name="settings_licenses_title">Άδειες ανοιχτού κώδικα</string>
     <string name="settings_licenses_version">Έκδοση %1$s</string>
+    <string name="settings_licenses_authors">Από %1$s</string>
     <string name="settings_licenses_back_button">Πίσω</string>
     <string name="settings_licenses_details_dismiss">Τέλος</string>
     <string name="bug_report_share_failed">Δεν ήταν δυνατή η κοινοποίηση της αναφοράς σφάλματος</string>

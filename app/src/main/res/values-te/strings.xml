@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">ర్యాంక్‌ను రీసెట్ చేయి</string>
     <string name="app_menu_edit">సవరించు</string>
     <string name="app_menu_hide">దాచు</string>
+    <string name="app_menu_uninstall">అన్‌ఇన్‌స్టాల్ చేయండి</string>
+    <string name="app_menu_uninstall_unavailable">ఈ యాప్‌ను అన్‌ఇన్‌స్టాల్ చేయడం సాధ్యపడదు</string>
     <string name="app_menu_dismiss">తీసివేయి</string>
     <string name="app_menu_settings">సెట్టింగ్‌లు</string>
     <string name="edit_app_dialog_title">యాప్‌ను సవరించు</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">ఫోల్డర్‌ను మూసివేయి</string>
     <string name="app_label_with_work_prefix">వర్క్ %1$s</string>
     <string name="widgets_restore_action">%1$s విడ్జెట్‌ను పునరుద్ధరించడానికి నొక్కండి</string>
+    <string name="widgets_restore_work_profile_unavailable">వర్క్ ప్రొఫైల్ అందుబాటులో లేదు</string>
     <string name="settings_show_wallpaper_title">వాల్‌పేపర్‌ను చూపించు</string>
     <string name="settings_wallpaper_title">వాల్‌పేపర్</string>
     <string name="settings_change_wallpaper_button">మార్చు</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">సవరించు</string>
     <string name="settings_home_widgets_edit_button_description">హోమ్ విడ్జెట్‌లను సవరించు</string>
     <string name="settings_kiosk_mode_title">కియోస్క్ మోడ్</string>
+    <string name="kiosk_mode_hold_hint">అన్‌లాక్ చేయడానికి ఎక్కువసేపు నొక్కండి</string>
     <string name="settings_kiosk_dim_when_idle_title">కెమెరాతో మేల్కొలపండి</string>
     <string name="settings_kiosk_wake_on_light_title">కాంతి స్థాయితో మేల్కొలపండి</string>
     <string name="settings_kiosk_light_level_title">కాంతి స్థాయి</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">లైసెన్స్‌లు</string>
     <string name="settings_licenses_title">ఓపెన్ సోర్స్ లైసెన్స్‌లు</string>
     <string name="settings_licenses_version">వెర్షన్ %1$s</string>
+    <string name="settings_licenses_authors">%1$s ద్వారా</string>
     <string name="settings_licenses_back_button">వెనుకకు</string>
     <string name="settings_licenses_details_dismiss">పూర్తయింది</string>
     <string name="bug_report_share_failed">బగ్ రిపోర్ట్‌ను షేర్ చేయడం సాధ్యపడలేదు</string>

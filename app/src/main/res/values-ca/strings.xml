@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Restableix l\'ordre</string>
     <string name="app_menu_edit">Edita</string>
     <string name="app_menu_hide">Amaga</string>
+    <string name="app_menu_uninstall">Desinstal·la</string>
+    <string name="app_menu_uninstall_unavailable">No es pot desinstal·lar aquesta aplicació</string>
     <string name="app_menu_dismiss">Tanca</string>
     <string name="app_menu_settings">Configuració</string>
     <string name="edit_app_dialog_title">Edita l\'aplicació</string>
@@ -168,6 +170,7 @@
     <string name="dock_folder_close_description">Tanca la carpeta</string>
     <string name="app_label_with_work_prefix">Feina %1$s</string>
     <string name="widgets_restore_action">Toca per restaurar el widget %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Perfil de feina no disponible</string>
     <string name="settings_show_wallpaper_title">Mostra el fons de pantalla</string>
     <string name="settings_wallpaper_title">Fons de pantalla</string>
     <string name="settings_change_wallpaper_button">Canvia</string>
@@ -177,6 +180,7 @@
     <string name="settings_home_widgets_edit_button">Edita</string>
     <string name="settings_home_widgets_edit_button_description">Edita els widgets d\'inici</string>
     <string name="settings_kiosk_mode_title">Mode quiosc</string>
+    <string name="kiosk_mode_hold_hint">Mantén premut per desbloquejar</string>
     <string name="settings_kiosk_dim_when_idle_title">Activa amb la càmera</string>
     <string name="settings_kiosk_wake_on_light_title">Activa amb el nivell de llum</string>
     <string name="settings_kiosk_light_level_title">Nivell de llum</string>
@@ -210,6 +214,7 @@
     <string name="settings_about_licenses">Llicències</string>
     <string name="settings_licenses_title">Llicències de codi obert</string>
     <string name="settings_licenses_version">Versió %1$s</string>
+    <string name="settings_licenses_authors">Per %1$s</string>
     <string name="settings_licenses_back_button">Enrere</string>
     <string name="settings_licenses_details_dismiss">Fet</string>
     <string name="bug_report_share_failed">No s\'ha pogut compartir l\'informe d\'error</string>

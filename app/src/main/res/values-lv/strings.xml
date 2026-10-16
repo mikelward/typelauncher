@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Atiestatīt secību</string>
     <string name="app_menu_edit">Rediģēt</string>
     <string name="app_menu_hide">Slēpt</string>
+    <string name="app_menu_uninstall">Atinstalēt</string>
+    <string name="app_menu_uninstall_unavailable">Šo lietotni nevar atinstalēt</string>
     <string name="app_menu_dismiss">Aizvērt</string>
     <string name="app_menu_settings">Iestatījumi</string>
     <string name="edit_app_dialog_title">Rediģēt lietotni</string>
@@ -168,6 +170,7 @@
     <string name="dock_folder_close_description">Aizvērt mapi</string>
     <string name="app_label_with_work_prefix">Darba %1$s</string>
     <string name="widgets_restore_action">Pieskarieties, lai atjaunotu logrīku %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Darba profils nav pieejams</string>
     <string name="settings_show_wallpaper_title">Rādīt fona tapeti</string>
     <string name="settings_wallpaper_title">Fona tapete</string>
     <string name="settings_change_wallpaper_button">Mainīt</string>
@@ -177,6 +180,7 @@
     <string name="settings_home_widgets_edit_button">Rediģēt</string>
     <string name="settings_home_widgets_edit_button_description">Rediģēt sākuma ekrāna logrīkus</string>
     <string name="settings_kiosk_mode_title">Kioska režīms</string>
+    <string name="kiosk_mode_hold_hint">Nospiediet un turiet, lai atbloķētu</string>
     <string name="settings_kiosk_dim_when_idle_title">Modināt ar kameru</string>
     <string name="settings_kiosk_wake_on_light_title">Modināt pēc gaismas līmeņa</string>
     <string name="settings_kiosk_light_level_title">Gaismas līmenis</string>
@@ -210,6 +214,7 @@
     <string name="settings_about_licenses">Licences</string>
     <string name="settings_licenses_title">Atvērtā pirmkoda licences</string>
     <string name="settings_licenses_version">Versija %1$s</string>
+    <string name="settings_licenses_authors">Autorība: %1$s</string>
     <string name="settings_licenses_back_button">Atpakaļ</string>
     <string name="settings_licenses_details_dismiss">Gatavs</string>
     <string name="bug_report_share_failed">Neizdevās kopīgot kļūdu ziņojumu</string>

@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Återställ ranking</string>
     <string name="app_menu_edit">Redigera</string>
     <string name="app_menu_hide">Dölj</string>
+    <string name="app_menu_uninstall">Avinstallera</string>
+    <string name="app_menu_uninstall_unavailable">Den här appen kan inte avinstalleras</string>
     <string name="app_menu_dismiss">Stäng</string>
     <string name="app_menu_settings">Inställningar</string>
     <string name="edit_app_dialog_title">Redigera app</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">Stäng mapp</string>
     <string name="app_label_with_work_prefix">Jobb %1$s</string>
     <string name="widgets_restore_action">Tryck för att återställa widgeten %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Jobbprofilen är inte tillgänglig</string>
     <string name="settings_show_wallpaper_title">Visa bakgrundsbild</string>
     <string name="settings_wallpaper_title">Bakgrundsbild</string>
     <string name="settings_change_wallpaper_button">Ändra</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">Redigera</string>
     <string name="settings_home_widgets_edit_button_description">Redigera startskärmswidgetar</string>
     <string name="settings_kiosk_mode_title">Kioskläge</string>
+    <string name="kiosk_mode_hold_hint">Tryck länge för att låsa upp</string>
     <string name="settings_kiosk_dim_when_idle_title">Väck skärmen med kameran</string>
     <string name="settings_kiosk_wake_on_light_title">Väck skärmen med ljusnivån</string>
     <string name="settings_kiosk_light_level_title">Ljusnivå</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">Licenser</string>
     <string name="settings_licenses_title">Licenser för öppen källkod</string>
     <string name="settings_licenses_version">Version %1$s</string>
+    <string name="settings_licenses_authors">Av %1$s</string>
     <string name="settings_licenses_back_button">Tillbaka</string>
     <string name="settings_licenses_details_dismiss">Klar</string>
     <string name="bug_report_share_failed">Det gick inte att dela felrapporten</string>

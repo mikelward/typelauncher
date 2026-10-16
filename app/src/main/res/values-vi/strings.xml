@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Đặt lại thứ hạng</string>
     <string name="app_menu_edit">Chỉnh sửa</string>
     <string name="app_menu_hide">Ẩn</string>
+    <string name="app_menu_uninstall">Gỡ cài đặt</string>
+    <string name="app_menu_uninstall_unavailable">Không thể gỡ cài đặt ứng dụng này</string>
     <string name="app_menu_dismiss">Đóng</string>
     <string name="app_menu_settings">Cài đặt</string>
     <string name="edit_app_dialog_title">Chỉnh sửa ứng dụng</string>
@@ -166,6 +168,7 @@
     <string name="dock_folder_close_description">Đóng thư mục</string>
     <string name="app_label_with_work_prefix">Công việc %1$s</string>
     <string name="widgets_restore_action">Nhấn để khôi phục tiện ích %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Hồ sơ công việc không khả dụng</string>
     <string name="settings_show_wallpaper_title">Hiển thị hình nền</string>
     <string name="settings_wallpaper_title">Hình nền</string>
     <string name="settings_change_wallpaper_button">Thay đổi</string>
@@ -175,6 +178,7 @@
     <string name="settings_home_widgets_edit_button">Chỉnh sửa</string>
     <string name="settings_home_widgets_edit_button_description">Chỉnh sửa tiện ích màn hình chính</string>
     <string name="settings_kiosk_mode_title">Chế độ kiosk</string>
+    <string name="kiosk_mode_hold_hint">Nhấn và giữ để mở khóa</string>
     <string name="settings_kiosk_dim_when_idle_title">Đánh thức bằng camera</string>
     <string name="settings_kiosk_wake_on_light_title">Đánh thức bằng mức ánh sáng</string>
     <string name="settings_kiosk_light_level_title">Mức ánh sáng</string>
@@ -208,6 +212,7 @@
     <string name="settings_about_licenses">Giấy phép</string>
     <string name="settings_licenses_title">Giấy phép nguồn mở</string>
     <string name="settings_licenses_version">Phiên bản %1$s</string>
+    <string name="settings_licenses_authors">Tác giả: %1$s</string>
     <string name="settings_licenses_back_button">Quay lại</string>
     <string name="settings_licenses_details_dismiss">Xong</string>
     <string name="bug_report_share_failed">Không thể chia sẻ báo cáo lỗi</string>

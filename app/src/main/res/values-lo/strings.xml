@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">ຣີເຊັດອັນດັບ</string>
     <string name="app_menu_edit">ແກ້ໄຂ</string>
     <string name="app_menu_hide">ເຊື່ອງ</string>
+    <string name="app_menu_uninstall">ຖອນການຕິດຕັ້ງ</string>
+    <string name="app_menu_uninstall_unavailable">ບໍ່ສາມາດຖອນການຕິດຕັ້ງແອັບນີ້ໄດ້</string>
     <string name="app_menu_dismiss">ປິດ</string>
     <string name="app_menu_settings">ການຕັ້ງຄ່າ</string>
     <string name="edit_app_dialog_title">ແກ້ໄຂແອັບ</string>
@@ -166,6 +168,7 @@
     <string name="dock_folder_close_description">ປິດໂຟນເດີ</string>
     <string name="app_label_with_work_prefix">ວຽກ %1$s</string>
     <string name="widgets_restore_action">ແຕະເພື່ອກັບຄືນວິດເຈັດ %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">ໂປຣໄຟລ໌ວຽກບໍ່ສາມາດໃຊ້ໄດ້</string>
     <string name="settings_show_wallpaper_title">ສະແດງພາບພື້ນຫຼັງ</string>
     <string name="settings_wallpaper_title">ພາບພື້ນຫຼັງ</string>
     <string name="settings_change_wallpaper_button">ປ່ຽນ</string>
@@ -175,6 +178,7 @@
     <string name="settings_home_widgets_edit_button">ແກ້ໄຂ</string>
     <string name="settings_home_widgets_edit_button_description">ແກ້ໄຂວິດເຈັດໜ້າຈໍຫຼັກ</string>
     <string name="settings_kiosk_mode_title">ໂໝດຄີອອສ</string>
+    <string name="kiosk_mode_hold_hint">ກົດຄ້າງໄວ້ເພື່ອປົດລັອກ</string>
     <string name="settings_kiosk_dim_when_idle_title">ປຸກດ້ວຍກ້ອງຖ່າຍຮູບ</string>
     <string name="settings_kiosk_wake_on_light_title">ປຸກດ້ວຍລະດັບແສງ</string>
     <string name="settings_kiosk_light_level_title">ລະດັບແສງ</string>
@@ -208,6 +212,7 @@
     <string name="settings_about_licenses">ໃບອະນຸຍາດ</string>
     <string name="settings_licenses_title">ໃບອະນຸຍາດໂອເພນຊອດ</string>
     <string name="settings_licenses_version">ເວີຊັນ %1$s</string>
+    <string name="settings_licenses_authors">ໂດຍ %1$s</string>
     <string name="settings_licenses_back_button">ກັບຄືນ</string>
     <string name="settings_licenses_details_dismiss">ສຳເລັດ</string>
     <string name="bug_report_share_failed">ບໍ່ສາມາດແບ່ງປັນລາຍງານຂໍ້ຜິດພາດໄດ້</string>

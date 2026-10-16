@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">ਰੈਂਕ ਰੀਸੈੱਟ ਕਰੋ</string>
     <string name="app_menu_edit">ਸੰਪਾਦਿਤ ਕਰੋ</string>
     <string name="app_menu_hide">ਲੁਕਾਓ</string>
+    <string name="app_menu_uninstall">ਅਣਸਥਾਪਤ ਕਰੋ</string>
+    <string name="app_menu_uninstall_unavailable">ਇਸ ਐਪ ਨੂੰ ਅਣਸਥਾਪਤ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ</string>
     <string name="app_menu_dismiss">ਖਾਰਜ ਕਰੋ</string>
     <string name="app_menu_settings">ਸੈਟਿੰਗਾਂ</string>
     <string name="edit_app_dialog_title">ਐਪ ਨੂੰ ਸੰਪਾਦਿਤ ਕਰੋ</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">ਫੋਲਡਰ ਬੰਦ ਕਰੋ</string>
     <string name="app_label_with_work_prefix">ਕੰਮ %1$s</string>
     <string name="widgets_restore_action">%1$s ਵਿਜੇਟ ਮੁੜ-ਬਹਾਲ ਕਰਨ ਲਈ ਟੈਪ ਕਰੋ</string>
+    <string name="widgets_restore_work_profile_unavailable">ਵਰਕ ਪ੍ਰੋਫਾਈਲ ਉਪਲਬਧ ਨਹੀਂ</string>
     <string name="settings_show_wallpaper_title">ਵਾਲਪੇਪਰ ਦਿਖਾਓ</string>
     <string name="settings_wallpaper_title">ਵਾਲਪੇਪਰ</string>
     <string name="settings_change_wallpaper_button">ਬਦਲੋ</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">ਸੰਪਾਦਿਤ ਕਰੋ</string>
     <string name="settings_home_widgets_edit_button_description">ਹੋਮ ਵਿਜੇਟਾਂ ਨੂੰ ਸੰਪਾਦਿਤ ਕਰੋ</string>
     <string name="settings_kiosk_mode_title">ਕਿਓਸਕ ਮੋਡ</string>
+    <string name="kiosk_mode_hold_hint">ਅਣਲਾਕ ਕਰਨ ਲਈ ਦੇਰ ਤੱਕ ਦਬਾਓ</string>
     <string name="settings_kiosk_dim_when_idle_title">ਕੈਮਰੇ ਨਾਲ ਜਗਾਓ</string>
     <string name="settings_kiosk_wake_on_light_title">ਰੋਸ਼ਨੀ ਦੇ ਪੱਧਰ ਨਾਲ ਜਗਾਓ</string>
     <string name="settings_kiosk_light_level_title">ਰੋਸ਼ਨੀ ਦਾ ਪੱਧਰ</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">ਲਾਇਸੰਸ</string>
     <string name="settings_licenses_title">ਓਪਨ ਸੋਰਸ ਲਾਇਸੰਸ</string>
     <string name="settings_licenses_version">ਵਰਜਨ %1$s</string>
+    <string name="settings_licenses_authors">%1$s ਵੱਲੋਂ</string>
     <string name="settings_licenses_back_button">ਪਿੱਛੇ</string>
     <string name="settings_licenses_details_dismiss">ਹੋ ਗਿਆ</string>
     <string name="bug_report_share_failed">ਬੱਗ ਰਿਪੋਰਟ ਸਾਂਝੀ ਨਹੀਂ ਕੀਤੀ ਜਾ ਸਕੀ</string>

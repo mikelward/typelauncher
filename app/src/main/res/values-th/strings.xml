@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">รีเซ็ตอันดับ</string>
     <string name="app_menu_edit">แก้ไข</string>
     <string name="app_menu_hide">ซ่อน</string>
+    <string name="app_menu_uninstall">ถอนการติดตั้ง</string>
+    <string name="app_menu_uninstall_unavailable">ถอนการติดตั้งแอปนี้ไม่ได้</string>
     <string name="app_menu_dismiss">ปิด</string>
     <string name="app_menu_settings">การตั้งค่า</string>
     <string name="edit_app_dialog_title">แก้ไขแอป</string>
@@ -166,6 +168,7 @@
     <string name="dock_folder_close_description">ปิดโฟลเดอร์</string>
     <string name="app_label_with_work_prefix">งาน %1$s</string>
     <string name="widgets_restore_action">แตะเพื่อคืนค่าวิดเจ็ต %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">โปรไฟล์งานไม่พร้อมใช้งาน</string>
     <string name="settings_show_wallpaper_title">แสดงวอลเปเปอร์</string>
     <string name="settings_wallpaper_title">วอลเปเปอร์</string>
     <string name="settings_change_wallpaper_button">เปลี่ยน</string>
@@ -175,6 +178,7 @@
     <string name="settings_home_widgets_edit_button">แก้ไข</string>
     <string name="settings_home_widgets_edit_button_description">แก้ไขวิดเจ็ตหน้าจอหลัก</string>
     <string name="settings_kiosk_mode_title">โหมดคีออสก์</string>
+    <string name="kiosk_mode_hold_hint">กดค้างไว้เพื่อปลดล็อก</string>
     <string name="settings_kiosk_dim_when_idle_title">ปลุกด้วยกล้อง</string>
     <string name="settings_kiosk_wake_on_light_title">ปลุกด้วยระดับแสง</string>
     <string name="settings_kiosk_light_level_title">ระดับแสง</string>
@@ -208,6 +212,7 @@
     <string name="settings_about_licenses">ใบอนุญาต</string>
     <string name="settings_licenses_title">ใบอนุญาตโอเพนซอร์ส</string>
     <string name="settings_licenses_version">เวอร์ชัน %1$s</string>
+    <string name="settings_licenses_authors">โดย %1$s</string>
     <string name="settings_licenses_back_button">กลับ</string>
     <string name="settings_licenses_details_dismiss">เสร็จสิ้น</string>
     <string name="bug_report_share_failed">แชร์รายงานข้อบกพร่องไม่ได้</string>

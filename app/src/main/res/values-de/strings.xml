@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Rang zurücksetzen</string>
     <string name="app_menu_edit">Bearbeiten</string>
     <string name="app_menu_hide">Ausblenden</string>
+    <string name="app_menu_uninstall">Deinstallieren</string>
+    <string name="app_menu_uninstall_unavailable">Diese App kann nicht deinstalliert werden</string>
     <string name="app_menu_dismiss">Schließen</string>
     <string name="app_menu_settings">Einstellungen</string>
     <string name="edit_app_dialog_title">App bearbeiten</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">Ordner schließen</string>
     <string name="app_label_with_work_prefix">Arbeit %1$s</string>
     <string name="widgets_restore_action">Tippen, um das Widget %1$s wiederherzustellen</string>
+    <string name="widgets_restore_work_profile_unavailable">Arbeitsprofil nicht verfügbar</string>
     <string name="settings_show_wallpaper_title">Hintergrundbild anzeigen</string>
     <string name="settings_wallpaper_title">Hintergrundbild</string>
     <string name="settings_change_wallpaper_button">Ändern</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">Bearbeiten</string>
     <string name="settings_home_widgets_edit_button_description">Startbildschirm-Widgets bearbeiten</string>
     <string name="settings_kiosk_mode_title">Kioskmodus</string>
+    <string name="kiosk_mode_hold_hint">Zum Entsperren lange drücken</string>
     <string name="settings_kiosk_dim_when_idle_title">Mit Kamera aufwecken</string>
     <string name="settings_kiosk_wake_on_light_title">Mit Beleuchtungsstärke aufwecken</string>
     <string name="settings_kiosk_light_level_title">Beleuchtungsstärke</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">Lizenzen</string>
     <string name="settings_licenses_title">Open-Source-Lizenzen</string>
     <string name="settings_licenses_version">Version %1$s</string>
+    <string name="settings_licenses_authors">Von %1$s</string>
     <string name="settings_licenses_back_button">Zurück</string>
     <string name="settings_licenses_details_dismiss">Fertig</string>
     <string name="bug_report_share_failed">Fehlerbericht konnte nicht geteilt werden</string>

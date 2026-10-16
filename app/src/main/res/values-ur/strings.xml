@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">درجہ بندی ری سیٹ کریں</string>
     <string name="app_menu_edit">ترمیم</string>
     <string name="app_menu_hide">چھپائیں</string>
+    <string name="app_menu_uninstall">ان انسٹال کریں</string>
+    <string name="app_menu_uninstall_unavailable">اس ایپ کو ان انسٹال نہیں کیا جا سکتا</string>
     <string name="app_menu_dismiss">برخاست کریں</string>
     <string name="app_menu_settings">ترتیبات</string>
     <string name="edit_app_dialog_title">ایپ میں ترمیم کریں</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">فولڈر بند کریں</string>
     <string name="app_label_with_work_prefix">کام %1$s</string>
     <string name="widgets_restore_action">%1$s ویجٹ بحال کرنے کے لیے تھپتھپائیں</string>
+    <string name="widgets_restore_work_profile_unavailable">ورک پروفائل دستیاب نہیں</string>
     <string name="settings_show_wallpaper_title">وال پیپر دکھائیں</string>
     <string name="settings_wallpaper_title">وال پیپر</string>
     <string name="settings_change_wallpaper_button">تبدیل کریں</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">ترمیم</string>
     <string name="settings_home_widgets_edit_button_description">ہوم ویجٹس میں ترمیم کریں</string>
     <string name="settings_kiosk_mode_title">کیوسک موڈ</string>
+    <string name="kiosk_mode_hold_hint">غیر مقفل کرنے کے لیے دیر تک دبائیں</string>
     <string name="settings_kiosk_dim_when_idle_title">کیمرے سے بیدار کریں</string>
     <string name="settings_kiosk_wake_on_light_title">روشنی کی سطح سے بیدار کریں</string>
     <string name="settings_kiosk_light_level_title">روشنی کی سطح</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">لائسنسز</string>
     <string name="settings_licenses_title">اوپن سورس لائسنسز</string>
     <string name="settings_licenses_version">ورژن %1$s</string>
+    <string name="settings_licenses_authors">%1$s کی جانب سے</string>
     <string name="settings_licenses_back_button">پیچھے</string>
     <string name="settings_licenses_details_dismiss">ہو گیا</string>
     <string name="bug_report_share_failed">بگ رپورٹ کا اشتراک نہیں کیا جا سکا</string>

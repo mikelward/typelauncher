@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Сбросить рейтинг</string>
     <string name="app_menu_edit">Изменить</string>
     <string name="app_menu_hide">Скрыть</string>
+    <string name="app_menu_uninstall">Удалить</string>
+    <string name="app_menu_uninstall_unavailable">Невозможно удалить это приложение</string>
     <string name="app_menu_dismiss">Отмена</string>
     <string name="app_menu_settings">Настройки</string>
     <string name="edit_app_dialog_title">Изменить приложение</string>
@@ -169,6 +171,7 @@
     <string name="dock_folder_close_description">Закрыть папку</string>
     <string name="app_label_with_work_prefix">Рабочее %1$s</string>
     <string name="widgets_restore_action">Нажмите, чтобы восстановить виджет %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Рабочий профиль недоступен</string>
     <string name="settings_show_wallpaper_title">Показывать обои</string>
     <string name="settings_wallpaper_title">Обои</string>
     <string name="settings_change_wallpaper_button">Изменить</string>
@@ -178,6 +181,7 @@
     <string name="settings_home_widgets_edit_button">Изменить</string>
     <string name="settings_home_widgets_edit_button_description">Изменить виджеты главного экрана</string>
     <string name="settings_kiosk_mode_title">Режим киоска</string>
+    <string name="kiosk_mode_hold_hint">Нажмите и удерживайте, чтобы разблокировать</string>
     <string name="settings_kiosk_dim_when_idle_title">Пробуждение по камере</string>
     <string name="settings_kiosk_wake_on_light_title">Пробуждение по уровню освещённости</string>
     <string name="settings_kiosk_light_level_title">Уровень освещённости</string>
@@ -211,6 +215,7 @@
     <string name="settings_about_licenses">Лицензии</string>
     <string name="settings_licenses_title">Лицензии открытого кода</string>
     <string name="settings_licenses_version">Версия %1$s</string>
+    <string name="settings_licenses_authors">Авторство: %1$s</string>
     <string name="settings_licenses_back_button">Назад</string>
     <string name="settings_licenses_details_dismiss">Готово</string>
     <string name="bug_report_share_failed">Не удалось отправить отчет об ошибке</string>

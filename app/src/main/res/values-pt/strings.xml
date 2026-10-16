@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Redefinir posição</string>
     <string name="app_menu_edit">Editar</string>
     <string name="app_menu_hide">Ocultar</string>
+    <string name="app_menu_uninstall">Desinstalar</string>
+    <string name="app_menu_uninstall_unavailable">Não é possível desinstalar este app</string>
     <string name="app_menu_dismiss">Dispensar</string>
     <string name="app_menu_settings">Configurações</string>
     <string name="edit_app_dialog_title">Editar app</string>
@@ -168,6 +170,7 @@
     <string name="dock_folder_close_description">Fechar pasta</string>
     <string name="app_label_with_work_prefix">Trabalho %1$s</string>
     <string name="widgets_restore_action">Toque para restaurar o widget %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Perfil de trabalho indisponível</string>
     <string name="settings_show_wallpaper_title">Mostrar papel de parede</string>
     <string name="settings_wallpaper_title">Papel de parede</string>
     <string name="settings_change_wallpaper_button">Alterar</string>
@@ -177,6 +180,7 @@
     <string name="settings_home_widgets_edit_button">Editar</string>
     <string name="settings_home_widgets_edit_button_description">Editar widgets da tela inicial</string>
     <string name="settings_kiosk_mode_title">Modo quiosque</string>
+    <string name="kiosk_mode_hold_hint">Toque e mantenha pressionado para desbloquear</string>
     <string name="settings_kiosk_dim_when_idle_title">Ativar com a câmera</string>
     <string name="settings_kiosk_wake_on_light_title">Ativar com o nível de luz</string>
     <string name="settings_kiosk_light_level_title">Nível de luz</string>
@@ -210,6 +214,7 @@
     <string name="settings_about_licenses">Licenças</string>
     <string name="settings_licenses_title">Licenças de código aberto</string>
     <string name="settings_licenses_version">Versão %1$s</string>
+    <string name="settings_licenses_authors">Por %1$s</string>
     <string name="settings_licenses_back_button">Voltar</string>
     <string name="settings_licenses_details_dismiss">Concluído</string>
     <string name="bug_report_share_failed">Não foi possível compartilhar o relatório de bug</string>

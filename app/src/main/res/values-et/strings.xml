@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Lähtesta järjestus</string>
     <string name="app_menu_edit">Muuda</string>
     <string name="app_menu_hide">Peida</string>
+    <string name="app_menu_uninstall">Desinstalli</string>
+    <string name="app_menu_uninstall_unavailable">Seda rakendust ei saa desinstallida</string>
     <string name="app_menu_dismiss">Sulge</string>
     <string name="app_menu_settings">Seaded</string>
     <string name="edit_app_dialog_title">Muuda rakendust</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">Sulge kaust</string>
     <string name="app_label_with_work_prefix">Töö %1$s</string>
     <string name="widgets_restore_action">Puudutage vidina %1$s taastamiseks</string>
+    <string name="widgets_restore_work_profile_unavailable">Tööprofiil pole saadaval</string>
     <string name="settings_show_wallpaper_title">Kuva taustapilt</string>
     <string name="settings_wallpaper_title">Taustapilt</string>
     <string name="settings_change_wallpaper_button">Muuda</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">Muuda</string>
     <string name="settings_home_widgets_edit_button_description">Muuda avakuva vidinaid</string>
     <string name="settings_kiosk_mode_title">Kioskirežiim</string>
+    <string name="kiosk_mode_hold_hint">Avamiseks vajutage pikalt</string>
     <string name="settings_kiosk_dim_when_idle_title">Ärata kaameraga</string>
     <string name="settings_kiosk_wake_on_light_title">Ärata valgustaseme järgi</string>
     <string name="settings_kiosk_light_level_title">Valgustase</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">Litsentsid</string>
     <string name="settings_licenses_title">Avatud lähtekoodi litsentsid</string>
     <string name="settings_licenses_version">Versioon %1$s</string>
+    <string name="settings_licenses_authors">Autorlus: %1$s</string>
     <string name="settings_licenses_back_button">Tagasi</string>
     <string name="settings_licenses_details_dismiss">Valmis</string>
     <string name="bug_report_share_failed">Veaaruannet ei õnnestunud jagada</string>

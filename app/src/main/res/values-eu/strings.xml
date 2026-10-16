@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Berrezarri ordena</string>
     <string name="app_menu_edit">Editatu</string>
     <string name="app_menu_hide">Ezkutatu</string>
+    <string name="app_menu_uninstall">Desinstalatu</string>
+    <string name="app_menu_uninstall_unavailable">Ezin da aplikazio hau desinstalatu</string>
     <string name="app_menu_dismiss">Itxi</string>
     <string name="app_menu_settings">Ezarpenak</string>
     <string name="edit_app_dialog_title">Editatu aplikazioa</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">Itxi karpeta</string>
     <string name="app_label_with_work_prefix">Laneko %1$s</string>
     <string name="widgets_restore_action">Sakatu %1$s widgeta berrezartzeko</string>
+    <string name="widgets_restore_work_profile_unavailable">Laneko profila ez dago erabilgarri</string>
     <string name="settings_show_wallpaper_title">Erakutsi horma-papera</string>
     <string name="settings_wallpaper_title">Horma-papera</string>
     <string name="settings_change_wallpaper_button">Aldatu</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">Editatu</string>
     <string name="settings_home_widgets_edit_button_description">Editatu hasiera-pantailako widgetak</string>
     <string name="settings_kiosk_mode_title">Kiosko modua</string>
+    <string name="kiosk_mode_hold_hint">Desblokeatzeko, sakatu luze</string>
     <string name="settings_kiosk_dim_when_idle_title">Esnatu kamerarekin</string>
     <string name="settings_kiosk_wake_on_light_title">Esnatu argi-mailarekin</string>
     <string name="settings_kiosk_light_level_title">Argi-maila</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">Lizentziak</string>
     <string name="settings_licenses_title">Kode irekiko lizentziak</string>
     <string name="settings_licenses_version">%1$s bertsioa</string>
+    <string name="settings_licenses_authors">Egilea(k): %1$s</string>
     <string name="settings_licenses_back_button">Atzera</string>
     <string name="settings_licenses_details_dismiss">Eginda</string>
     <string name="bug_report_share_failed">Ezin izan da akats-txostena partekatu</string>

@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Poništi rang</string>
     <string name="app_menu_edit">Uredi</string>
     <string name="app_menu_hide">Sakrij</string>
+    <string name="app_menu_uninstall">Deinstaliraj</string>
+    <string name="app_menu_uninstall_unavailable">Ova se aplikacija ne može deinstalirati</string>
     <string name="app_menu_dismiss">Odbaci</string>
     <string name="app_menu_settings">Postavke</string>
     <string name="edit_app_dialog_title">Uredi aplikaciju</string>
@@ -168,6 +170,7 @@
     <string name="dock_folder_close_description">Zatvori mapu</string>
     <string name="app_label_with_work_prefix">Poslovni %1$s</string>
     <string name="widgets_restore_action">Dodirnite za vraćanje widgeta %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Poslovni profil nije dostupan</string>
     <string name="settings_show_wallpaper_title">Prikaži pozadinu</string>
     <string name="settings_wallpaper_title">Pozadina</string>
     <string name="settings_change_wallpaper_button">Promijeni</string>
@@ -177,6 +180,7 @@
     <string name="settings_home_widgets_edit_button">Uredi</string>
     <string name="settings_home_widgets_edit_button_description">Uredi widgete početnog zaslona</string>
     <string name="settings_kiosk_mode_title">Način kioska</string>
+    <string name="kiosk_mode_hold_hint">Dugo pritisnite za otključavanje</string>
     <string name="settings_kiosk_dim_when_idle_title">Buđenje kamerom</string>
     <string name="settings_kiosk_wake_on_light_title">Buđenje razinom svjetla</string>
     <string name="settings_kiosk_light_level_title">Razina svjetla</string>
@@ -210,6 +214,7 @@
     <string name="settings_about_licenses">Licence</string>
     <string name="settings_licenses_title">Licence otvorenog koda</string>
     <string name="settings_licenses_version">Verzija %1$s</string>
+    <string name="settings_licenses_authors">Autorstvo: %1$s</string>
     <string name="settings_licenses_back_button">Natrag</string>
     <string name="settings_licenses_details_dismiss">Gotovo</string>
     <string name="bug_report_share_failed">Izvješće o programskoj pogrešci nije podijeljeno</string>

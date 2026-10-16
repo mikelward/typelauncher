@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Réinitialiser le rang</string>
     <string name="app_menu_edit">Modifier</string>
     <string name="app_menu_hide">Masquer</string>
+    <string name="app_menu_uninstall">Désinstaller</string>
+    <string name="app_menu_uninstall_unavailable">Impossible de désinstaller cette application</string>
     <string name="app_menu_dismiss">Ignorer</string>
     <string name="app_menu_settings">Paramètres</string>
     <string name="edit_app_dialog_title">Modifier l\'application</string>
@@ -168,6 +170,7 @@
     <string name="dock_folder_close_description">Fermer le dossier</string>
     <string name="app_label_with_work_prefix">Pro %1$s</string>
     <string name="widgets_restore_action">Appuyez pour restaurer le widget %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Profil professionnel non disponible</string>
     <string name="settings_show_wallpaper_title">Afficher le fond d\'écran</string>
     <string name="settings_wallpaper_title">Fond d\'écran</string>
     <string name="settings_change_wallpaper_button">Modifier</string>
@@ -177,6 +180,7 @@
     <string name="settings_home_widgets_edit_button">Modifier</string>
     <string name="settings_home_widgets_edit_button_description">Modifier les widgets d\'accueil</string>
     <string name="settings_kiosk_mode_title">Mode kiosque</string>
+    <string name="kiosk_mode_hold_hint">Appui long pour déverrouiller</string>
     <string name="settings_kiosk_dim_when_idle_title">Réveil par la caméra</string>
     <string name="settings_kiosk_wake_on_light_title">Réveil selon le niveau de lumière</string>
     <string name="settings_kiosk_light_level_title">Niveau de lumière</string>
@@ -210,6 +214,7 @@
     <string name="settings_about_licenses">Licences</string>
     <string name="settings_licenses_title">Licences open source</string>
     <string name="settings_licenses_version">Version %1$s</string>
+    <string name="settings_licenses_authors">Par %1$s</string>
     <string name="settings_licenses_back_button">Retour</string>
     <string name="settings_licenses_details_dismiss">Terminé</string>
     <string name="bug_report_share_failed">Impossible de partager le rapport de bug</string>

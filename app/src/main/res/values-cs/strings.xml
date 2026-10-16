@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Resetovat pořadí</string>
     <string name="app_menu_edit">Upravit</string>
     <string name="app_menu_hide">Skrýt</string>
+    <string name="app_menu_uninstall">Odinstalovat</string>
+    <string name="app_menu_uninstall_unavailable">Tuto aplikaci nelze odinstalovat</string>
     <string name="app_menu_dismiss">Zavřít</string>
     <string name="app_menu_settings">Nastavení</string>
     <string name="edit_app_dialog_title">Upravit aplikaci</string>
@@ -169,6 +171,7 @@
     <string name="dock_folder_close_description">Zavřít složku</string>
     <string name="app_label_with_work_prefix">Pracovní %1$s</string>
     <string name="widgets_restore_action">Klepnutím obnovte widget %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Pracovní profil není k dispozici</string>
     <string name="settings_show_wallpaper_title">Zobrazit tapetu</string>
     <string name="settings_wallpaper_title">Tapeta</string>
     <string name="settings_change_wallpaper_button">Změnit</string>
@@ -178,6 +181,7 @@
     <string name="settings_home_widgets_edit_button">Upravit</string>
     <string name="settings_home_widgets_edit_button_description">Upravit widgety domovské obrazovky</string>
     <string name="settings_kiosk_mode_title">Režim kiosku</string>
+    <string name="kiosk_mode_hold_hint">Dlouhým stisknutím odemknete</string>
     <string name="settings_kiosk_dim_when_idle_title">Probudit pomocí fotoaparátu</string>
     <string name="settings_kiosk_wake_on_light_title">Probudit podle úrovně světla</string>
     <string name="settings_kiosk_light_level_title">Úroveň světla</string>
@@ -211,6 +215,7 @@
     <string name="settings_about_licenses">Licence</string>
     <string name="settings_licenses_title">Licence open source</string>
     <string name="settings_licenses_version">Verze %1$s</string>
+    <string name="settings_licenses_authors">Autorství: %1$s</string>
     <string name="settings_licenses_back_button">Zpět</string>
     <string name="settings_licenses_details_dismiss">Hotovo</string>
     <string name="bug_report_share_failed">Hlášení o chybě se nepodařilo sdílet</string>

@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Tetapkan semula kedudukan</string>
     <string name="app_menu_edit">Edit</string>
     <string name="app_menu_hide">Sembunyikan</string>
+    <string name="app_menu_uninstall">Nyahpasang</string>
+    <string name="app_menu_uninstall_unavailable">Apl ini tidak dapat dinyahpasang</string>
     <string name="app_menu_dismiss">Tutup</string>
     <string name="app_menu_settings">Tetapan</string>
     <string name="edit_app_dialog_title">Edit aplikasi</string>
@@ -166,6 +168,7 @@
     <string name="dock_folder_close_description">Tutup folder</string>
     <string name="app_label_with_work_prefix">Kerja %1$s</string>
     <string name="widgets_restore_action">Ketik untuk memulihkan widget %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Profil kerja tidak tersedia</string>
     <string name="settings_show_wallpaper_title">Tunjukkan kertas dinding</string>
     <string name="settings_wallpaper_title">Kertas dinding</string>
     <string name="settings_change_wallpaper_button">Tukar</string>
@@ -175,6 +178,7 @@
     <string name="settings_home_widgets_edit_button">Edit</string>
     <string name="settings_home_widgets_edit_button_description">Edit widget skrin utama</string>
     <string name="settings_kiosk_mode_title">Mod kiosk</string>
+    <string name="kiosk_mode_hold_hint">Tekan lama untuk membuka kunci</string>
     <string name="settings_kiosk_dim_when_idle_title">Bangunkan menggunakan kamera</string>
     <string name="settings_kiosk_wake_on_light_title">Bangunkan menggunakan tahap cahaya</string>
     <string name="settings_kiosk_light_level_title">Tahap cahaya</string>
@@ -208,6 +212,7 @@
     <string name="settings_about_licenses">Lesen</string>
     <string name="settings_licenses_title">Lesen sumber terbuka</string>
     <string name="settings_licenses_version">Versi %1$s</string>
+    <string name="settings_licenses_authors">Oleh %1$s</string>
     <string name="settings_licenses_back_button">Kembali</string>
     <string name="settings_licenses_details_dismiss">Selesai</string>
     <string name="bug_report_share_failed">Tidak dapat berkongsi laporan pepijat</string>

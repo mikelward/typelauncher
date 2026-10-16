@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">रैंक रीसेट करें</string>
     <string name="app_menu_edit">एडिट करें</string>
     <string name="app_menu_hide">छिपाएं</string>
+    <string name="app_menu_uninstall">अनइंस्टॉल करें</string>
+    <string name="app_menu_uninstall_unavailable">इस ऐप को अनइंस्टॉल नहीं किया जा सकता</string>
     <string name="app_menu_dismiss">खारिज करें</string>
     <string name="app_menu_settings">सेटिंग</string>
     <string name="edit_app_dialog_title">ऐप एडिट करें</string>
@@ -167,6 +169,7 @@
     <string name="dock_folder_close_description">फ़ोल्डर बंद करें</string>
     <string name="app_label_with_work_prefix">कार्य %1$s</string>
     <string name="widgets_restore_action">%1$s विजेट को पुनर्स्थापित करने के लिए टैप करें</string>
+    <string name="widgets_restore_work_profile_unavailable">वर्क प्रोफ़ाइल उपलब्ध नहीं</string>
     <string name="settings_show_wallpaper_title">वॉलपेपर दिखाएं</string>
     <string name="settings_wallpaper_title">वॉलपेपर</string>
     <string name="settings_change_wallpaper_button">बदलें</string>
@@ -176,6 +179,7 @@
     <string name="settings_home_widgets_edit_button">एडिट करें</string>
     <string name="settings_home_widgets_edit_button_description">होम विजेट एडिट करें</string>
     <string name="settings_kiosk_mode_title">कियोस्क मोड</string>
+    <string name="kiosk_mode_hold_hint">अनलॉक करने के लिए देर तक दबाएं</string>
     <string name="settings_kiosk_dim_when_idle_title">कैमरे से जगाएं</string>
     <string name="settings_kiosk_wake_on_light_title">रोशनी के स्तर से जगाएं</string>
     <string name="settings_kiosk_light_level_title">रोशनी का स्तर</string>
@@ -209,6 +213,7 @@
     <string name="settings_about_licenses">लाइसेंस</string>
     <string name="settings_licenses_title">ओपन सोर्स लाइसेंस</string>
     <string name="settings_licenses_version">वर्शन %1$s</string>
+    <string name="settings_licenses_authors">%1$s द्वारा</string>
     <string name="settings_licenses_back_button">वापस जाएं</string>
     <string name="settings_licenses_details_dismiss">हो गया</string>
     <string name="bug_report_share_failed">गड़बड़ी की रिपोर्ट शेयर नहीं की जा सकी</string>

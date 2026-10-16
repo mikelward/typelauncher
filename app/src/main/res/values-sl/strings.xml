@@ -38,6 +38,8 @@
     <string name="app_menu_reset_rank">Ponastavi razvrstitev</string>
     <string name="app_menu_edit">Uredi</string>
     <string name="app_menu_hide">Skrij</string>
+    <string name="app_menu_uninstall">Odstrani</string>
+    <string name="app_menu_uninstall_unavailable">Te aplikacije ni mogoče odstraniti</string>
     <string name="app_menu_dismiss">Opusti</string>
     <string name="app_menu_settings">Nastavitve</string>
     <string name="edit_app_dialog_title">Uredi aplikacijo</string>
@@ -169,6 +171,7 @@
     <string name="dock_folder_close_description">Zapri mapo</string>
     <string name="app_label_with_work_prefix">Služba %1$s</string>
     <string name="widgets_restore_action">Tapnite za obnovitev pripomočka %1$s</string>
+    <string name="widgets_restore_work_profile_unavailable">Službeni profil ni na voljo</string>
     <string name="settings_show_wallpaper_title">Prikaži ozadje</string>
     <string name="settings_wallpaper_title">Ozadje</string>
     <string name="settings_change_wallpaper_button">Spremeni</string>
@@ -178,6 +181,7 @@
     <string name="settings_home_widgets_edit_button">Uredi</string>
     <string name="settings_home_widgets_edit_button_description">Uredi pripomočke začetnega zaslona</string>
     <string name="settings_kiosk_mode_title">Način kioska</string>
+    <string name="kiosk_mode_hold_hint">Za odklepanje pridržite</string>
     <string name="settings_kiosk_dim_when_idle_title">Prebujanje s kamero</string>
     <string name="settings_kiosk_wake_on_light_title">Prebujanje z ravnjo svetlobe</string>
     <string name="settings_kiosk_light_level_title">Raven svetlobe</string>
@@ -211,6 +215,7 @@
     <string name="settings_about_licenses">Licence</string>
     <string name="settings_licenses_title">Licence odprte kode</string>
     <string name="settings_licenses_version">Različica %1$s</string>
+    <string name="settings_licenses_authors">Avtorstvo: %1$s</string>
     <string name="settings_licenses_back_button">Nazaj</string>
     <string name="settings_licenses_details_dismiss">Končano</string>
     <string name="bug_report_share_failed">Poročila o napaki ni bilo mogoče deliti</string>
