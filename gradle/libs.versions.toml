@@ -1,7 +1,7 @@
 [versions]
-androidlog = "5.0.80"
+androidlog = "5.1.83"
 agp = "9.4.1"
-kotlin = "2.4.20"
+kotlin = "2.4.21"
 activity = "1.13.0"
 composeBom = "2026.09.00"
 coreKtx = "1.19.1"
