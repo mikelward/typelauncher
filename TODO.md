@@ -485,6 +485,18 @@
 
 ## Layout, caching, rendering, and recomposition follow-ups
 
+- [ ] **The work dock sometimes appears about a second late, then pops in.**
+      Reported from a device (2026-10-17); when it happens is not yet known
+      (right after unpausing the work profile, or on returning Home with it
+      already on). The dock renders only while `isWorkProfileActive`, which
+      needs a non-quiet work app in `installedApps`, and only a live
+      `loadInstalledApps` can supply one: `AppMetadataStore` saves personal
+      apps only and never `isQuietMode`, so the cached prefill cannot show
+      the work dock. A cold start (or return after process death) therefore
+      waits for the initial full load, and an unpause waits for the
+      `MANAGED_PROFILE_AVAILABLE` reload. Capture a bug report at the moment
+      it happens to tell the two apart before changing either.
+
 - [ ] **The icon-size retirement re-check is still not atomic with the eviction.**
       `onRenderedIconSizes` re-reads the live size tuple inside the dispatcher hop
       before calling `AppIconLoader.evictSizes`, which closes the large window (a
