@@ -19,6 +19,7 @@ import com.caverock.androidsvg.SVG
 import java.io.File
 import java.time.LocalDate
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -958,10 +959,20 @@ internal fun rememberAppIconResolution(app: InstalledApp, sizeDp: Dp): AppIconRe
     // remembered bitmap and reloads instead of painting the stale pre-change
     // tile until the composable happens to leave the tree.
     val generation = AppIconLoader.cacheGenerationValue
+    // The bitmap this slot last painted, kept across a re-key so a reload
+    // swaps art in place instead of flashing the empty placeholder for the
+    // frames the decode takes. An app that fires package events in bursts
+    // (a notification-settings toggle can send dozens) otherwise makes its
+    // docked icon blink on every one. Keyed on the app's identity, not its
+    // cache id, so a real update holds the old art until the new is ready too.
+    val lastPainted = remember(app.id, sizePx) { LastPaintedIcon() }
     var resolution by remember(cacheId, sizePx, generation) {
         val cached = AppIconLoader.cached(app, sizePx)
-        mutableStateOf(AppIconResolution(bitmap = cached, isResolved = cached != null))
+        mutableStateOf(
+            AppIconResolution(bitmap = cached ?: lastPainted.bitmap, isResolved = cached != null),
+        )
     }
+    SideEffect { lastPainted.bitmap = resolution.bitmap }
     LaunchedEffect(cacheId, sizePx, generation) {
         if (!resolution.isResolved) {
             resolution = AppIconResolution(
@@ -971,6 +982,11 @@ internal fun rememberAppIconResolution(app: InstalledApp, sizeDp: Dp): AppIconRe
         }
     }
     return resolution
+}
+
+// Plain holder, not snapshot state: writing it must not trigger a recomposition.
+private class LastPaintedIcon {
+    var bitmap: ImageBitmap? = null
 }
 
 @Composable
