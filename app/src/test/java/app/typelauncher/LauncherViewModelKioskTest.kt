@@ -282,6 +282,32 @@ class LauncherViewModelKioskTest {
     }
 
     @Test
+    fun theLockIsOffByDefaultAndPersists() {
+        assertFalse(newViewModel().uiState.value.isKioskLock)
+        val viewModel = newViewModel()
+        viewModel.setKioskMode(true)
+        viewModel.setKioskLock(true)
+        idle()
+
+        assertTrue(newViewModel().uiState.value.isKioskLock)
+    }
+
+    @Test
+    fun turningKioskModeOffTurnsItsLockOffToo() {
+        val viewModel = newViewModel()
+        viewModel.setKioskMode(true)
+        viewModel.setKioskLock(true)
+
+        viewModel.setKioskMode(false)
+        idle()
+
+        assertFalse(viewModel.uiState.value.isKioskLock)
+        assertFalse(newViewModel().uiState.value.isKioskLock)
+        viewModel.setKioskMode(true)
+        assertFalse("back on, the lock waits to be asked for", viewModel.uiState.value.isKioskLock)
+    }
+
+    @Test
     fun aRevokedCameraTurnsDimWhenIdleOffOnResume() {
         val viewModel = newViewModel()
         viewModel.setKioskDimWhenIdle(true)

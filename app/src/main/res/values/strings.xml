@@ -160,6 +160,18 @@
     <string name="settings_home_widgets_edit_button_description">Edit home widgets</string>
     <string name="settings_kiosk_mode_title">Kiosk mode</string>
     <string name="kiosk_mode_hold_hint">Long press to unlock</string>
+    <!-- Kiosk mode's switch for locking the device whenever its display shows. -->
+    <!-- TODO: translate -->
+    <string name="settings_kiosk_lock_title" tools:ignore="MissingTranslation">Lock screen automatically</string>
+    <!-- Toast when "Lock screen automatically" is turned on with no PIN, pattern or password set. -->
+    <!-- TODO: translate -->
+    <string name="kiosk_lock_needs_screen_lock" tools:ignore="MissingTranslation">Set a screen lock first</string>
+    <!-- Kiosk mode's device admin, on Android's grant screen and in its device admin apps list. -->
+    <!-- TODO: translate -->
+    <string name="kiosk_lock_admin_description" tools:ignore="MissingTranslation">Locks the device whenever kiosk mode shows its display</string>
+    <!-- Toast when turning Home widgets off turns kiosk mode, and its lock, off with them. -->
+    <!-- TODO: translate -->
+    <string name="kiosk_mode_off_with_widgets" tools:ignore="MissingTranslation">Kiosk mode off</string>
     <string name="settings_kiosk_dim_when_idle_title">Wake up using camera</string>
     <string name="settings_kiosk_wake_on_light_title">Wake up using light level</string>
     <string name="settings_kiosk_light_level_title">Light level</string>

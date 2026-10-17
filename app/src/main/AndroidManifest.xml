@@ -38,6 +38,13 @@
          without it the action can only ever end in a SecurityException and the
          failure toast. -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <!-- Kiosk mode's lock turns the screen off, as locking does, and wakes it
+         straight back onto the display with a brief wake lock (see KioskLock).
+         WAKE_LOCK is a normal permission. Android says waking the screen this
+         way will need TURN_SCREEN_ON in a future release, so it is declared
+         now; it changes nothing where it isn't granted or needed. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.TURN_SCREEN_ON" />
 
     <queries>
         <intent>
@@ -148,6 +155,18 @@
         </activity>
 
         <!--
+            Turns the screen back on after kiosk mode's own relock
+            (KioskWakeActivity). Transparent and gone as soon as it resumes; not
+            exported, so only the launcher starts it, on top of its display.
+        -->
+        <activity
+            android:name=".KioskWakeActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!--
             Applies the platform's old→new widget ID translation after a backup
             restore. Delivered even when the launcher isn't running, so it must
             be a manifest receiver. exported="true" is required for the system
@@ -160,6 +179,27 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_HOST_RESTORED" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+            Kiosk mode's "Lock screen automatically" (KioskLock): a device admin
+            holding only the force-lock policy, granted by the user on the
+            system screen that switch opens as it turns on, and removed again
+            as it, or kiosk mode, turns off.
+            exported="true" with BIND_DEVICE_ADMIN is what Android requires of
+            a device admin: only the system can bind it.
+        -->
+        <receiver
+            android:name=".KioskLockAdminReceiver"
+            android:description="@string/kiosk_lock_admin_description"
+            android:exported="true"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/kiosk_lock_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
             </intent-filter>
         </receiver>
 

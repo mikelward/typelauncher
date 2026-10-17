@@ -26,6 +26,7 @@ class BugReportSettingRowsTest {
         store.isKeyboardAutoShown = false
         store.isHomeWidgetsShown = true
         store.isKioskMode = true
+        store.isKioskLock = true
         store.isKioskDimWhenIdle = true
         store.isKioskBlankAtNight = true
         store.isKioskBlankWhenIdle = true
@@ -41,6 +42,7 @@ class BugReportSettingRowsTest {
         assertEquals("false", rows["Keyboard auto-shown"])
         assertEquals("true", rows["Home widgets shown"])
         assertEquals("true", rows["Kiosk mode"])
+        assertEquals("true", rows["Kiosk lock"])
         assertEquals("true", rows["Kiosk dim when idle"])
         assertEquals("true", rows["Kiosk blank at night"])
         assertEquals("true", rows["Kiosk blank when idle"])

@@ -51,12 +51,15 @@ import com.mikelward.androidlog.safe
 import com.mikelward.androidlog.sensitive
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 // Set on the restart intent `restartForWallpaperWindowMode` launches so the
@@ -70,6 +73,10 @@ internal const val EXTRA_REOPEN_SETTINGS = "app.typelauncher.REOPEN_SETTINGS"
 internal const val TEST_WORK_PACKAGES_EXTRA = "app.typelauncher.TEST_WORK_PACKAGES"
 internal const val TEST_SEARCH_PLACEHOLDER_SUFFIX_EXTRA = "app.typelauncher.TEST_SEARCH_PLACEHOLDER_SUFFIX"
 internal const val TEST_SEARCH_PLACEHOLDER_SUFFIX_PROPERTY = "app.typelauncher.TEST_SEARCH_PLACEHOLDER_SUFFIX"
+
+// Serializes kiosk lock grant changes across activity instances (syncKioskLockGrant).
+private val kioskGrantChanges = Mutex()
+
 // APP_WIDGET_HOST_ID lives in WidgetRestore.kt — it is shared with the
 // restore-broadcast receiver, which must construct/filter against the same
 // host ID.
@@ -80,6 +87,8 @@ private const val CONFIGURE_WIDGET_REQUEST_CODE = 43
 // mistaken for an orphan by the startup sweep, and so the configure-result
 // fallback can still recover the ID when the result intent omits the extra.
 private const val KEY_PENDING_WIDGET_ID = "app.typelauncher.PENDING_WIDGET_ID"
+// Carries "waiting on the lock grant screen" across recreation; see askingForKioskLock.
+private const val KEY_ASKING_FOR_KIOSK_LOCK = "app.typelauncher.ASKING_FOR_KIOSK_LOCK"
 // Persists the stranded widget ID a restore-placeholder tap is re-binding, so
 // an in-place swap survives a configuration change during the provider's
 // configure activity (mirrors KEY_PENDING_WIDGET_ID).
@@ -411,22 +420,51 @@ class MainActivity : ComponentActivity() {
     private val kioskReturn by lazy { KioskReturnTimer(lifecycleScope) { viewModel.returnToKiosk() } }
 
     // ... and as soon as the screen goes off, so the device always wakes to it,
-    // over any app that was in front (maintainer, 2026-10-16). Held from onCreate
-    // to onDestroy, since the screen can go off with an app in front.
+    // over any app that was in front (maintainer, 2026-10-16), and locked with
+    // "Lock screen automatically" on. Then unlocking while the display shows
+    // steps out, however it was unlocked. Held from onCreate to onDestroy,
+    // since the screen can go off with an app in front.
     private var screenOffReceiverRegistered = false
     private val screenOffReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action != Intent.ACTION_SCREEN_OFF) return
-            viewModel.returnToKiosk()
-            if (!viewModel.uiState.value.isKioskDisplayShowing) return
-            // Composition pauses once the activity stops, which the screen going
-            // off does, so the display's own KioskOverLockScreen may not run before
-            // the lock screen is up, and the device would wake to the lock screen
-            // instead. Its dispose still clears this when the display next leaves.
-            setShowWhenLocked(true)
-            bringKioskDisplayForward()
+            when (intent.action) {
+                Intent.ACTION_SCREEN_OFF -> {
+                    val lock = onKioskScreenOff() ?: return
+                    // The lock finishes after onReceive returns, and a stopped
+                    // launcher's process could be reclaimed in between: going async
+                    // keeps it alive until the lock is done, or canceled with the
+                    // activity before it runs.
+                    val pending = goAsync()
+                    lock.invokeOnCompletion { pending.finish() }
+                }
+                Intent.ACTION_USER_PRESENT -> onDeviceUnlocked()
+            }
         }
     }
+
+    // Kiosk mode's "Lock screen automatically": the device's own lock, put back
+    // whenever the display comes back (see KioskLock and observeKioskLock).
+    private val kioskLock by lazy { KioskLock(this, startWake = { runOnUiThread(::startKioskWake) }) }
+
+    // True from opening Android's grant screen until it answers, kept across
+    // recreation, so a sync meanwhile neither turns the switch off for the
+    // missing grant nor removes one just granted.
+    @Volatile private var askingForKioskLock = false
+
+    // Counts presses of the lock's switch, so a check for turning it on that
+    // finishes after it was turned back off does nothing.
+    private var kioskLockPresses = 0
+    private val requestKioskLockLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            askingForKioskLock = false
+            val granted = result.resultCode == RESULT_OK
+            LauncherDebugLog.event("kiosk lock: grant screen result ok=%s", granted.toString())
+            // The switch turns on only once granted, and only while kiosk mode
+            // still is. The sync then checks the grant itself rather than trust
+            // the result, and gives it back if kiosk mode went off meanwhile.
+            if (granted && viewModel.uiState.value.isKioskMode) viewModel.setKioskLock(true)
+            syncKioskLockGrant()
+        }
 
     // Set by `restartForWallpaperWindowMode` so onStop can tell that teardown
     // apart from the user actually leaving. Instance state, not persisted: it
@@ -491,6 +529,8 @@ class MainActivity : ComponentActivity() {
         restoreTargetWidgetId = savedInstanceState
             ?.getInt(KEY_RESTORE_TARGET_WIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
             ?: AppWidgetManager.INVALID_APPWIDGET_ID
+        // Before the start's sync below, which must leave a grant in progress alone.
+        askingForKioskLock = savedInstanceState?.getBoolean(KEY_ASKING_FOR_KIOSK_LOCK, false) ?: false
         playUpdateChecker = PlayUpdateChecker(application)
         // Registered eagerly, not lazily on the first in-progress checkForUpdate
         // answer: a rotation between accepting the update sheet and Play's first
@@ -579,6 +619,8 @@ class MainActivity : ComponentActivity() {
         observeWallpaperShownPreference()
         observeKioskKeepScreenOn()
         observeKioskReturn()
+        observeKioskLock()
+        syncKioskLockGrant()
         observeHomeReady()
         observeWorkProfileAvailability()
         checkPlayUpdate()
@@ -613,6 +655,8 @@ class MainActivity : ComponentActivity() {
                                 viewModel.setContactSearchEnabled(enabled)
                             }
                         },
+                        onKioskModeChanged = ::onKioskModeChanged,
+                        onKioskLockChanged = ::onKioskLockChanged,
                         onKioskDimWhenIdleChanged = { enabled ->
                             if (enabled && !hasPermission(Manifest.permission.CAMERA)) {
                                 requestKioskCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
@@ -722,6 +766,12 @@ class MainActivity : ComponentActivity() {
         // `TypeLauncherApp` via the activity lifecycle (synchronous, pre-frame).
         viewModel.closeSecondaryTrayOnResume()
         viewModel.refreshPermissionDrivenUi()
+        // The lock's grant can be removed in Android's settings, and added
+        // there too; the switch stays the one source of truth, turning off
+        // rather than read on while nothing locks, and a grant it doesn't want
+        // given back so it can't block uninstalling (Codex on #814). One
+        // device-admin check, off the main thread.
+        syncKioskLockGrant()
         checkPlayUpdate()
     }
 
@@ -1060,7 +1110,7 @@ class MainActivity : ComponentActivity() {
         ContextCompat.registerReceiver(
             this,
             screenOffReceiver,
-            IntentFilter(Intent.ACTION_SCREEN_OFF),
+            IntentFilter(Intent.ACTION_SCREEN_OFF).apply { addAction(Intent.ACTION_USER_PRESENT) },
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
         screenOffReceiverRegistered = true
@@ -1108,6 +1158,178 @@ class MainActivity : ComponentActivity() {
             LauncherDebugLog.event("kiosk screen off: bring forward failed: %s", e::class.simpleName)
         }
     }
+
+    /** Returns the lock it starts, which runs on past the broadcast, or null when it doesn't lock. */
+    private fun onKioskScreenOff(): Job? {
+        viewModel.returnToKiosk()
+        val state = viewModel.uiState.value
+        // With the lock on, the screen going off in kiosk mode always locks,
+        // even mid-edit, when the display itself waits for Done.
+        val locks = state.isKioskMode && state.isHomeWidgetsShown && state.isKioskLock
+        val lock = if (locks) lockKiosk("screen off", fromScreenOff = true) else null
+        if (state.isKioskDisplayShowing) {
+            // Composition pauses once the activity stops, which the screen going
+            // off does, so the display's own KioskOverLockScreen may not run before
+            // the lock screen is up, and the device would wake to the lock screen
+            // instead. Its dispose still clears this when the display next leaves.
+            setShowWhenLocked(true)
+            bringKioskDisplayForward()
+        }
+        return lock
+    }
+
+    /**
+     * The device was unlocked: with the display showing and locked by kiosk
+     * mode, that means someone is here to use it, so Home shows, as the hold's
+     * own unlock does, whether the unlock came from the hold, a fingerprint or
+     * anything else. Only with the lock on: without a screen lock, Android
+     * reports an unlock each time the screen comes on, which would step out
+     * of the display every time.
+     */
+    private fun onDeviceUnlocked() {
+        kioskLock.forgetOwnScreenOff()
+        val state = viewModel.uiState.value
+        if (state.isKioskDisplayShowing && state.isKioskLock) {
+            LauncherDebugLog.event("kiosk: unlocked, stepping out")
+            viewModel.stepOutOfKiosk()
+        }
+    }
+
+    /**
+     * With "Lock screen automatically" on, locks the device each time the
+     * kiosk display comes on screen (a quiet minute, the screen going off,
+     * Settings closing onto it, a fresh start), so it never shows on an
+     * unlocked device and stepping out always takes the unlock. Not on every
+     * resume: the display showing again after the hold's own unlock, before it
+     * steps out, must not lock straight back.
+     */
+    private fun observeKioskLock() {
+        lifecycleScope.launch {
+            viewModel.uiState
+                .map { it.isKioskDisplayShowing && it.isKioskLock }
+                .distinctUntilChanged()
+                .collect { lockedDisplay ->
+                    if (lockedDisplay) {
+                        // Allowed over the lock before it locks, not only once
+                        // KioskOverLockScreen composes: on a fresh start this runs
+                        // before setContent, and the device would wake to the
+                        // plain lock screen instead (Codex on #814).
+                        setShowWhenLocked(true)
+                        lockKiosk("display showing")
+                    } else if (!viewModel.uiState.value.isKioskDisplayShowing) {
+                        // Undone here as well as by KioskOverLockScreen leaving, in
+                        // case the display left before it ever composed: the
+                        // launcher must not stay allowed over the lock.
+                        setShowWhenLocked(false)
+                    }
+                }
+        }
+    }
+
+    /**
+     * [fromScreenOff] is for the screen-off broadcast. Locking turns the screen
+     * off too, so the display's own relock sends one, often after it has
+     * already woken the screen back up; locking again on that one would turn
+     * the display off with nothing to wake it. Every other screen-off locks.
+     */
+    private fun lockKiosk(reason: String, fromScreenOff: Boolean = false): Job =
+        lifecycleScope.launch(ioDispatcher) {
+            // A call doesn't stop it, as it doesn't stop the display coming forward:
+            // a lock skipped for a call would have nothing to retry it when the call ends.
+            if (fromScreenOff && kioskLock.takeOwnScreenOff()) {
+                LauncherDebugLog.event("kiosk lock (%s): its own lock's screen-off, not locked again", reason)
+                return@launch
+            }
+            LauncherDebugLog.event("kiosk lock (%s): %s", reason, kioskLock.lock().name)
+        }
+
+    // Turns the screen back on over the display after its own relock.
+    private fun startKioskWake() {
+        startActivity(Intent(this, KioskWakeActivity::class.java))
+    }
+
+    /**
+     * Kiosk mode's switch. Turning it off turns "Lock screen automatically"
+     * off with it (the view model) and gives the grant back here, so the grant
+     * never outlives the mode, and the app can be uninstalled without first
+     * finding it in the device admin settings.
+     */
+    @VisibleForTesting
+    internal fun onKioskModeChanged(enabled: Boolean) {
+        viewModel.setKioskMode(enabled)
+        if (!enabled) syncKioskLockGrant()
+    }
+
+    /**
+     * "Lock screen automatically". Turning it on asks to let the launcher lock
+     * the device, on Android's own screen, and the switch turns on only once
+     * that's granted (requestKioskLockLauncher); declining leaves it off. With
+     * no PIN, pattern or password there's nothing to lock with, so it says to
+     * set one rather than ask. Turning it off gives the grant back.
+     */
+    @VisibleForTesting
+    internal fun onKioskLockChanged(enabled: Boolean) {
+        val press = ++kioskLockPresses
+        if (!enabled) {
+            viewModel.setKioskLock(false)
+            syncKioskLockGrant()
+            return
+        }
+        lifecycleScope.launch(ioDispatcher) {
+            kioskGrantChanges.withLock {
+                val hasScreenLock = kioskLock.hasScreenLock()
+                val granted = hasScreenLock && kioskLock.isGranted()
+                withContext(Dispatchers.Main) {
+                    when {
+                        press != kioskLockPresses || !viewModel.uiState.value.isKioskMode -> Unit
+                        !hasScreenLock -> {
+                            LauncherDebugLog.event("kiosk lock: no screen lock set, not asking")
+                            Toast.makeText(this@MainActivity, R.string.kiosk_lock_needs_screen_lock, Toast.LENGTH_LONG).show()
+                        }
+                        granted -> viewModel.setKioskLock(true)
+                        else -> try {
+                            askingForKioskLock = true
+                            requestKioskLockLauncher.launch(kioskLock.grantIntent())
+                        } catch (e: ActivityNotFoundException) {
+                            // A device whose settings don't offer device admins.
+                            askingForKioskLock = false
+                            LauncherDebugLog.failure(e, "kiosk lock: no grant screen")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Brings the lock grant in line with the switches as they are when this
+     * runs, not as they were when asked: a quick off and on then never removes
+     * the grant after the on has found it there. One at a time, process-wide,
+     * so no two can interleave.
+     * - With kiosk mode or its lock off, gives the grant back. Run at each
+     *   start and resume too, which gives back a grant whose removal never ran
+     *   (the activity destroyed, or the process killed, between switching off
+     *   and the removal), or one added in Android's own settings.
+     * - With the lock on but the grant or the screen lock gone, removed in
+     *   Android's settings, turns the switch off, so it never reads on while
+     *   nothing locks.
+     * Left alone while Android's grant screen is up; its answer runs this again.
+     */
+    private fun syncKioskLockGrant(): Job =
+        lifecycleScope.launch(ioDispatcher) {
+            kioskGrantChanges.withLock {
+                if (askingForKioskLock) return@withLock
+                val state = viewModel.uiState.value
+                var wanted = state.isKioskMode && state.isKioskLock
+                if (wanted && !(kioskLock.isGranted() && kioskLock.hasScreenLock())) {
+                    LauncherDebugLog.event("kiosk lock: grant or screen lock gone, turning the lock off")
+                    withContext(Dispatchers.Main) { viewModel.setKioskLock(false) }
+                    wanted = false
+                }
+                // Waits for Android to finish removing it, so the next sync sees it gone.
+                if (!wanted) kioskLock.release()
+            }
+        }
 
     private fun observeThemeModePreference() {
         lifecycleScope.launch {
@@ -1608,6 +1830,7 @@ class MainActivity : ComponentActivity() {
         outState.putInt(KEY_RESTORE_TARGET_WIDGET_ID, restoreTargetWidgetId)
         outState.putBoolean(KEY_PENDING_WIDGET_FOR_HOME, viewModel.isPendingWidgetForHome)
         outState.putInt(KEY_PENDING_WIDGET_SPAN, viewModel.pendingWidgetDefaultSpan ?: 0)
+        outState.putBoolean(KEY_ASKING_FOR_KIOSK_LOCK, askingForKioskLock)
         super.onSaveInstanceState(outState)
         LauncherDebugLog.event("MainActivity.onSaveInstanceState afterSuper outState=%s", outState.debugSummary())
     }

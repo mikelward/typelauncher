@@ -607,6 +607,19 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * Kiosk mode's "Lock screen automatically": lock the device whenever the
+     * display shows. Only persisted on once the device admin grant it needs is
+     * held, and turned back off with kiosk mode. Defaults off.
+     */
+    var isKioskLock: Boolean
+        get() = sharedPreferences.getBoolean(KEY_KIOSK_LOCK, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_KIOSK_LOCK, value)
+                .apply()
+        }
+
+    /**
      * Kiosk mode's "Wake up using camera": dim the display when the front
      * camera sees no motion for a while. Only persisted on once the camera
      * permission is granted. Defaults off.
@@ -979,6 +992,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_SHOW_WALLPAPER = "show_wallpaper"
         const val KEY_SHOW_HOME_WIDGETS = "show_home_widgets"
         const val KEY_KIOSK_MODE = "kiosk_mode"
+        const val KEY_KIOSK_LOCK = "kiosk_lock"
         const val KEY_KIOSK_DIM_WHEN_IDLE = "kiosk_dim_when_idle"
         const val KEY_KIOSK_BLANK_AT_NIGHT = "kiosk_blank_at_night"
         const val KEY_KIOSK_BLANK_WHEN_IDLE = "kiosk_blank_when_idle"

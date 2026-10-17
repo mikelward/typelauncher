@@ -342,6 +342,7 @@ internal fun bugReportSettingRows(settings: DockSettingsStore): List<Pair<String
         "Wallpaper shown" to settings.isWallpaperShown.toString(),
         "Home widgets shown" to settings.isHomeWidgetsShown.toString(),
         "Kiosk mode" to settings.isKioskMode.toString(),
+        "Kiosk lock" to settings.isKioskLock.toString(),
         "Kiosk dim when idle" to settings.isKioskDimWhenIdle.toString(),
         "Kiosk blank at night" to settings.isKioskBlankAtNight.toString(),
         "Kiosk blank from" to kioskClockTime(settings.kioskBlankStartMinutes),
