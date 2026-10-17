@@ -724,6 +724,10 @@ internal data class LauncherUiState(
     // Not persisted: it goes back to the display after a quiet minute, when the
     // screen goes off, and on a fresh start. See [isKioskSteppedOutHome].
     val isKioskSteppedOut: Boolean = false,
+    // Kiosk mode's "Lock screen automatically": the device locks whenever the
+    // display shows, with the device's own lock. Only on while the device admin
+    // grant is held. Defaults off.
+    val isKioskLock: Boolean = false,
     // Kiosk mode's "Wake up using camera": the display dims after a quiet
     // minute and the front camera's motion (or a touch) brightens it. Only on
     // while the camera permission is granted. Defaults off.

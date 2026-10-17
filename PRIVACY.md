@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 2026-10-10_
+_Last updated: 2026-10-17_
 
 Type Launcher is an Android home screen launcher. This policy describes what
 the app does and does not do with your data.
@@ -88,6 +88,15 @@ transmitted off your device by the app.
   compares each reading with the level you set to tell whether the room is lit,
   so it can keep the display awake while it is. Readings are compared in memory and
   discarded at once: nothing is saved or sent off the device.
+- **Lock the device** (a device admin with only the screen-lock policy): asked
+  for, on Android's own screen, only when you turn on "Lock screen
+  automatically" under Kiosk mode in Settings, and given back when you turn it
+  or kiosk mode off. Kiosk mode uses it only to lock the device whenever its
+  display shows and when the screen goes off. It lets the app do nothing else:
+  it can't read your PIN, change it, or erase anything.
+- **Turn the screen on** (`WAKE_LOCK`, `TURN_SCREEN_ON`): used for a couple of
+  seconds after "Lock screen automatically" locks the device, since locking
+  turns the screen off, to turn it straight back on to the kiosk display.
 
 ## What the app does not do
 

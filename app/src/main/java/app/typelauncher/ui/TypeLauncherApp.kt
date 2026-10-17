@@ -202,6 +202,10 @@ internal fun TypeLauncherApp(
     // (previews, tests).
     onContactSearchEnabledChanged: (Boolean) -> Unit = viewModel::setContactSearchEnabled,
     onCalendarSearchEnabledChanged: (Boolean) -> Unit = viewModel::setCalendarSearchEnabled,
+    // Route through the host too: turning kiosk mode off gives its lock's
+    // grant back, and turning the lock on asks for that grant first.
+    onKioskModeChanged: (Boolean) -> Unit = viewModel::setKioskMode,
+    onKioskLockChanged: (Boolean) -> Unit = viewModel::setKioskLock,
     onKioskDimWhenIdleChanged: (Boolean) -> Unit = viewModel::setKioskDimWhenIdle,
     onKioskBlankAtNightChanged: (Boolean) -> Unit = viewModel::setKioskBlankAtNight,
     onKioskBlankWhenIdleChanged: (Boolean) -> Unit = viewModel::setKioskBlankWhenIdle,
@@ -316,7 +320,8 @@ internal fun TypeLauncherApp(
             onChangeWallpaper = viewModel::openWallpaperPicker,
             onHomeWidgetsShownChanged = viewModel::setHomeWidgetsShown,
             onEditHomeWidgets = viewModel::startEditingHomeWidgets,
-            onKioskModeChanged = viewModel::setKioskMode,
+            onKioskModeChanged = onKioskModeChanged,
+            onKioskLockChanged = onKioskLockChanged,
             onStopEditingHomeWidgets = viewModel::stopEditingHomeWidgets,
             onAddHomeWidget = viewModel::showHomeWidgetPicker,
             onAgendaEnabledChanged = viewModel::setAgendaEnabled,
@@ -429,6 +434,7 @@ internal fun TypeLauncherApp(
     onHomeWidgetsShownChanged: (Boolean) -> Unit = {},
     onEditHomeWidgets: () -> Unit = {},
     onKioskModeChanged: (Boolean) -> Unit = {},
+    onKioskLockChanged: (Boolean) -> Unit = {},
     onStopEditingHomeWidgets: () -> Unit = {},
     onAddHomeWidget: () -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
@@ -922,6 +928,7 @@ internal fun TypeLauncherApp(
                         onHomeWidgetsShownChanged = onHomeWidgetsShownChanged,
                         onEditHomeWidgets = onEditHomeWidgets,
                         onKioskModeChanged = onKioskModeChanged,
+                        onKioskLockChanged = onKioskLockChanged,
                         onAgendaEnabledChanged = onAgendaEnabledChanged,
                         onContactSearchEnabledChanged = onContactSearchEnabledChanged,
                         onCalendarSearchEnabledChanged = onCalendarSearchEnabledChanged,

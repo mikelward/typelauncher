@@ -6324,6 +6324,8 @@ internal fun HomeWidgetsSettingsRows(
     onEditHomeWidgets: () -> Unit,
     isKioskMode: Boolean = false,
     onKioskModeChanged: (Boolean) -> Unit = {},
+    isKioskLock: Boolean = false,
+    onKioskLockChanged: (Boolean) -> Unit = {},
     isKioskDimWhenIdle: Boolean = false,
     onKioskDimWhenIdleChanged: (Boolean) -> Unit = {},
     isKioskBlankAtNight: Boolean = false,
@@ -6342,6 +6344,8 @@ internal fun HomeWidgetsSettingsRows(
     kioskLightReading: @Composable () -> KioskLightReading = { rememberKioskLightReading().value },
 ) {
     val editDescription = stringResource(R.string.settings_home_widgets_edit_button_description)
+    val context = LocalContext.current
+    val kioskOff = stringResource(R.string.kiosk_mode_off_with_widgets)
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -6355,7 +6359,18 @@ internal fun HomeWidgetsSettingsRows(
         }
         Switch(
             checked = isHomeWidgetsShown,
-            onCheckedChange = onHomeWidgetsShownChanged,
+            onCheckedChange = { shown ->
+                // Kiosk mode is a display of these widgets, and its switches go
+                // with them, so turning them off turns it off too, lock and
+                // all, rather than leave it on where nothing can reach it
+                // (maintainer, 2026-10-17). Said out loud, since a device that
+                // locked stops locking.
+                if (!shown && isKioskMode) {
+                    onKioskModeChanged(false)
+                    Toast.makeText(context, kioskOff, Toast.LENGTH_LONG).show()
+                }
+                onHomeWidgetsShownChanged(shown)
+            },
             modifier = Modifier.testTag(HOME_WIDGETS_SHOWN_SWITCH_TAG),
         )
     }
@@ -6384,7 +6399,6 @@ internal fun HomeWidgetsSettingsRows(
         }
         // Kiosk mode turns Home into a display of these widgets, so it only
         // exists while they are on.
-        val context = LocalContext.current
         val exitHint = stringResource(R.string.kiosk_mode_hold_hint)
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -6409,6 +6423,25 @@ internal fun HomeWidgetsSettingsRows(
             )
         }
         if (isKioskMode) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_kiosk_lock_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                // Turning it on asks for the device admin grant first
+                // (MainActivity); the switch flips only once that is held.
+                Switch(
+                    checked = isKioskLock,
+                    onCheckedChange = onKioskLockChanged,
+                    modifier = Modifier.testTag(KIOSK_LOCK_SWITCH_TAG),
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -6632,6 +6665,7 @@ internal fun SettingsScreen(
     onHomeWidgetsShownChanged: (Boolean) -> Unit = {},
     onEditHomeWidgets: () -> Unit = {},
     onKioskModeChanged: (Boolean) -> Unit = {},
+    onKioskLockChanged: (Boolean) -> Unit = {},
     onAgendaEnabledChanged: (Boolean) -> Unit = {},
     // "Search contacts" / "Search calendar events". Enabling routes through
     // MainActivity's permission request first; the persisted flag (and this
@@ -7004,6 +7038,8 @@ internal fun SettingsScreen(
                     onEditHomeWidgets = onEditHomeWidgets,
                     isKioskMode = state.isKioskMode,
                     onKioskModeChanged = onKioskModeChanged,
+                    isKioskLock = state.isKioskLock,
+                    onKioskLockChanged = onKioskLockChanged,
                     isKioskDimWhenIdle = state.isKioskDimWhenIdle,
                     onKioskDimWhenIdleChanged = onKioskDimWhenIdleChanged,
                     isKioskBlankAtNight = state.isKioskBlankAtNight,

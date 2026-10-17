@@ -452,6 +452,7 @@ internal class LauncherViewModel(
             isWallpaperShown = dockSettingsStore.isWallpaperShown,
             isHomeWidgetsShown = dockSettingsStore.isHomeWidgetsShown,
             isKioskMode = dockSettingsStore.isKioskMode,
+            isKioskLock = dockSettingsStore.isKioskLock,
             isKioskDimWhenIdle = dockSettingsStore.isKioskDimWhenIdle,
             isKioskBlankAtNight = dockSettingsStore.isKioskBlankAtNight,
             isKioskBlankWhenIdle = dockSettingsStore.isKioskBlankWhenIdle,
@@ -1908,8 +1909,22 @@ internal class LauncherViewModel(
                 it.copy(isKioskMode = false, isKioskSteppedOut = false)
             }
         }
+        // "Lock screen automatically" goes with it, so turning kiosk mode back
+        // on never asks for the grant; MainActivity gives that back.
+        if (!enabled && _uiState.value.isKioskLock) setKioskLock(false)
         if (enabled && hadQuery) refreshFilteredApps()
         logState("setKioskMode=%s", enabled)
+    }
+
+    /**
+     * Turns kiosk mode's "Lock screen automatically" on or off. MainActivity
+     * asks for the device admin grant first and only calls this with true once
+     * it is held; a grant removed in Android's settings turns it back off.
+     */
+    fun setKioskLock(enabled: Boolean) {
+        dockSettingsStore.isKioskLock = enabled
+        _uiState.update { it.copy(isKioskLock = enabled) }
+        logState("setKioskLock=%s", enabled)
     }
 
     /**
