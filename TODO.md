@@ -156,6 +156,11 @@
 
 ## CI
 
+- [ ] **Check `AGENTS.md` < 24,000 bytes in CI** (as mikelward/stopdash#932 plans): add
+      `test "$(wc -c < AGENTS.md)" -lt 24000` to `.github/workflows/ci.yml` on the
+      docs/classify path so `AGENTS.md` cannot silently grow past Antigravity's 24,000-byte
+      per-file rule cap.
+
 ### Decisions needing review
 
 - **`play/README.md` is now code, not docs** (autopilot, 2026-08-30).
