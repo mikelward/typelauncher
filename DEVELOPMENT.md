@@ -222,17 +222,15 @@ Use a physical device for launcher behavior that may differ from emulators, incl
 `versionCode` and `versionName` are derived from git at configure time:
 
 - `versionCode` = `git rev-list --count HEAD` (number of commits up to `HEAD`).
-- `versionName` = `"1.0.<commitCount>+<shortSha>"`, e.g. `1.0.50+5e6eb54`.
+- `versionName` = `"<commitCount>+<shortSha>"`, e.g. `50+5e6eb54`.
 
 This means the same commit always produces the same `versionCode`, and the short SHA is always recoverable from an installed APK via `adb shell dumpsys package app.typelauncher | grep versionName`.
 
-A debug build's `versionName` instead names its build, `<base>.<commitCount>-debug+<branch>@<shortSha>`, with the branch from `GITHUB_HEAD_REF` on a pull request, `GITHUB_REF_NAME` on `main` and `git rev-parse --abbrev-ref HEAD` locally, sanitized to `[A-Za-z0-9._/-]` and cut to 30 characters.
+A debug build's `versionName` instead names its build, `<commitCount>-debug+<branch>@<shortSha>`, with the branch from `GITHUB_HEAD_REF` on a pull request, `GITHUB_REF_NAME` on `main` and `git rev-parse --abbrev-ref HEAD` locally, sanitized to `[A-Za-z0-9._/-]` and cut to 30 characters.
 
-CI's unit-test, lint and screenshot runs set `ORG_GRADLE_PROJECT_typelauncherFixedVersion=true` (`-PtypelauncherFixedVersion`): `versionCode` `1`, `versionName` `1.0.0-test` and the debug search-hint suffix ` (test)`, so a new commit doesn't miss the build cache for all of `:app`. Packaging a release with it set fails (`checkReleaseNotFixedVersion`). `scripts/version_selection_test.py` checks all of this against the real manifest and `BuildConfig` tasks.
+CI's unit-test, lint and screenshot runs set `ORG_GRADLE_PROJECT_typelauncherFixedVersion=true` (`-PtypelauncherFixedVersion`): `versionCode` `1`, `versionName` `test` and the debug search-hint suffix ` (test)`, so a new commit doesn't miss the build cache for all of `:app`. Packaging a release with it set fails (`checkReleaseNotFixedVersion`). `scripts/version_selection_test.py` checks all of this against the real manifest and `BuildConfig` tasks.
 
 CI must check the repo out with full history for the count to be correct. The `actions/checkout` step uses `fetch-depth: 0`; if you run a build from a shallow clone, `versionCode` will collapse to `1`.
-
-If you need to override the base name (for example, to bump to `2.0`), edit `baseVersionName` in `app/build.gradle.kts`.
 
 ## Distribution
 
