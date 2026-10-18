@@ -208,7 +208,6 @@ val isGitWorkingTreeDirty: Boolean =
     } catch (_: Exception) {
         true
     }
-val baseVersionName = "1.0"
 // CI's unit test, lint and screenshot runs set -PtypelauncherFixedVersion (as
 // ORG_GRADLE_PROJECT_typelauncherFixedVersion): a per-commit versionCode, versionName or debug
 // search-hint suffix lands in the merged manifest and BuildConfig those tasks read, so without
@@ -426,7 +425,7 @@ android {
         minSdk = 34
         targetSdk = 36
         versionCode = if (fixedTestVersion) 1 else gitCommitCount
-        versionName = if (fixedTestVersion) "$baseVersionName.0-test" else "$baseVersionName.$gitCommitCount+$gitShortSha"
+        versionName = if (fixedTestVersion) "test" else "$gitCommitCount+$gitShortSha"
         buildConfigField("String", "LOCAL_BUILD_BRANCH", buildConfigString(localBuildBranch))
         buildConfigField("String", "LOCAL_BUILD_SHA", buildConfigString(localBuildSha))
         buildConfigField("boolean", "LOCAL_BUILD_DIRTY", localBuildDirty.toString())
@@ -666,11 +665,11 @@ tasks.matching { it.name in setOf("packageRelease", "packageReleaseBundle", "bun
     .configureEach { dependsOn(releaseFixedVersionCheck) }
 
 // A debug build names its commit and branch, so a sideloaded APK or a bug report from one says
-// which build it is; the shipped release keeps its plain "<base>.<count>+<sha>".
+// which build it is; the shipped release keeps its plain "<count>+<sha>".
 androidComponents {
     onVariants(selector().withBuildType("debug")) { variant ->
         if (!fixedTestVersion) {
-            val name = "$baseVersionName.$gitCommitCount-debug+$buildBranch@$gitShortSha"
+            val name = "$gitCommitCount-debug+$buildBranch@$gitShortSha"
             variant.outputs.forEach { it.versionName.set(name) }
         }
     }

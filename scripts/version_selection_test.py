@@ -7,11 +7,11 @@ shipped must keep the real one. A regression either way stays invisible to the u
 and to CI (which runs green with any version), so this runs the real manifest and
 BuildConfig tasks and reads what they produced:
 
-- with the flag, every variant gets versionCode 1 and versionName 1.0.0-test, and the
+- with the flag, every variant gets versionCode 1 and versionName test, and the
   debug search-hint suffix is " (test)";
-- without it, debug builds are named 1.0.<count>-debug+<branch>@<sha>, the branch taken
+- without it, debug builds are named <count>-debug+<branch>@<sha>, the branch taken
   from GITHUB_HEAD_REF, then GITHUB_REF_NAME, then git, sanitized and cut to 30 characters,
-  and release builds keep 1.0.<count>+<sha>, the count being git's commit count;
+  and release builds keep <count>+<sha>, the count being git's commit count;
 - packaging a release, as an APK or a Play bundle, with the flag set is refused.
 
 Needs the Android SDK and a full clone, as the build job has. Run it directly:
@@ -26,8 +26,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 FLAG = "-PtypelauncherFixedVersion"
-TEST_NAME = "1.0.0-test"
-NAME_PREFIX = "1.0."
+TEST_NAME = "test"
+NAME_PREFIX = ""
 
 failures = []
 
