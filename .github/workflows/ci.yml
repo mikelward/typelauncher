@@ -425,6 +425,11 @@ jobs:
         # than a copy that could drift.
         run: python3 scripts/release_notes_dedup_test.py
 
+      - name: Test the version selection
+        # Which versionCode/versionName each build gets, with and without the fixed test
+        # version, and that a release can't be packaged with it.
+        run: python3 scripts/version_selection_test.py
+
       - name: Build release APK (runs the full R8 pipeline)
         # The only step in this lane that exercises R8 shrinking, optimization
         # and obfuscation together -- which is what the Play build ships.
@@ -492,6 +497,10 @@ jobs:
           git diff --exit-code app/src/main/res/raw/aboutlibraries.json
 
       - name: Run unit tests
+        # A fixed versionCode/versionName keeps a new commit from missing the build cache for
+        # all of :app (app/build.gradle.kts, fixedTestVersion). Not on the release build above.
+        env:
+          ORG_GRADLE_PROJECT_typelauncherFixedVersion: "true"
         run: ./gradlew test
 
       - name: Save Robolectric's Android runtime
@@ -544,6 +553,8 @@ jobs:
           retention-days: 1
 
       - name: Run lint
+        env:
+          ORG_GRADLE_PROJECT_typelauncherFixedVersion: "true"
         run: ./gradlew lint
 
   # Holds the PR-comment write token `build` used to have; runs no
@@ -632,6 +643,10 @@ jobs:
     needs: classify
     if: needs.classify.outputs.docs_only != 'true' && needs.classify.outputs.generated_only != 'true'
     timeout-minutes: 30
+    # Every Gradle run here is a screenshot test: a fixed version keeps them cacheable
+    # (app/build.gradle.kts, fixedTestVersion).
+    env:
+      ORG_GRADLE_PROJECT_typelauncherFixedVersion: "true"
     # Read-only, deliberately: this job executes the PR's own Gradle build
     # and test code end to end, and under pull_request_target that code
     # gets the full `secrets` context regardless of fork status. No secret,
