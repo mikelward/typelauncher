@@ -533,11 +533,24 @@ tasks.withType<Test>().configureEach {
     // jdk.internal.access.SharedSecrets, which java.base doesn't export; without this
     // every Robolectric test fails in setup with IllegalAccessException.
     jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
+    // ManifestUnitTest reads this build script and source files under src/main straight from
+    // the working directory: track them as task inputs so the build cache reruns the tests
+    // on any edit to them. A file tree over every non-test source set, so a src/debug or
+    // src/release added later is covered too.
+    inputs.file("build.gradle.kts").withPropertyName("buildScript")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.files(fileTree("src") { exclude("test/**", "androidTest/**") })
+        .withPropertyName("sourceSetFiles")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
     if (project.hasProperty("roborazzi.test.record")) {
         jvmArgs("-Droborazzi.test.record=true")
+        // Recording writes PNGs into src/test/snapshots/images, outside Gradle's tracked outputs
+        // (after CI empties that directory), so a cached or up-to-date skip would leave it empty.
+        outputs.upToDateWhen { false }
     }
     if (project.hasProperty("roborazzi.test.verify")) {
         jvmArgs("-Droborazzi.test.verify=true")
+        outputs.upToDateWhen { false }
     }
 }
 
