@@ -209,6 +209,19 @@ val isGitWorkingTreeDirty: Boolean =
         true
     }
 val baseVersionName = "1.0"
+// CI's unit test, lint and screenshot runs set -PtypelauncherFixedVersion (as
+// ORG_GRADLE_PROJECT_typelauncherFixedVersion): a per-commit versionCode, versionName or debug
+// search-hint suffix lands in the merged manifest and BuildConfig those tasks read, so without
+// it every commit misses the build cache for all of :app. Anything installed or shipped is
+// built without it.
+val fixedTestVersion: Boolean = providers.gradleProperty("typelauncherFixedVersion").isPresent
+// Names a debug build's branch: the PR's head branch on a pull request (its checkout is a
+// detached merge commit), the pushed branch on main, git's own answer locally.
+val buildBranch: String = (
+    providers.environmentVariable("GITHUB_HEAD_REF").orNull?.ifEmpty { null }
+        ?: providers.environmentVariable("GITHUB_REF_NAME").orNull?.ifEmpty { null }
+        ?: gitOutput("rev-parse", "--abbrev-ref", "HEAD", fallback = "unknown")
+    ).replace(Regex("[^A-Za-z0-9._/-]"), "-").take(30)
 // One badged icon per build type, resolved at manifest-merge time. Release is
 // plain; debug wears a "DEBUG" bar on a yellow plate with dark lettering.
 //
@@ -243,6 +256,7 @@ fun buildConfigString(value: String): String = "\"${value.replace("\\", "\\\\").
 // explicitly non-reproducible, main builds map to the monotonic versionCode,
 // and clean branch builds map back to their commit SHA.
 val debugSearchPlaceholderSuffix = when {
+    fixedTestVersion -> " (test)"
     isGitWorkingTreeDirty -> " (dirty)"
     gitBranchName == "main" -> " (v$gitCommitCount)"
     else -> " ($gitShortSha)"
@@ -411,8 +425,8 @@ android {
         applicationId = "app.typelauncher"
         minSdk = 34
         targetSdk = 36
-        versionCode = gitCommitCount
-        versionName = "$baseVersionName.$gitCommitCount+$gitShortSha"
+        versionCode = if (fixedTestVersion) 1 else gitCommitCount
+        versionName = if (fixedTestVersion) "$baseVersionName.0-test" else "$baseVersionName.$gitCommitCount+$gitShortSha"
         buildConfigField("String", "LOCAL_BUILD_BRANCH", buildConfigString(localBuildBranch))
         buildConfigField("String", "LOCAL_BUILD_SHA", buildConfigString(localBuildSha))
         buildConfigField("boolean", "LOCAL_BUILD_DIRTY", localBuildDirty.toString())
@@ -636,6 +650,29 @@ tasks.register("exportBundledLicenses") {
         val used = kept.flatMap { (it["licenses"] as? List<String>).orEmpty() }.toSet()
         (root["licenses"] as? MutableMap<String, Any?>)?.keys?.retainAll(used)
         licensesFile.writeText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(root)) + "\n")
+    }
+}
+
+// The fixed test version must never reach an installable release: packaging refuses it, while
+// release unit tests still run with it.
+val releaseFixedVersionCheck = tasks.register("checkReleaseNotFixedVersion") {
+    description = "Fails packaging a release build while -PtypelauncherFixedVersion is set."
+    val fixed = fixedTestVersion
+    doLast {
+        check(!fixed) { "A release build can't be packaged with -PtypelauncherFixedVersion: its versionCode is a placeholder." }
+    }
+}
+tasks.matching { it.name in setOf("packageRelease", "packageReleaseBundle", "bundleRelease") }
+    .configureEach { dependsOn(releaseFixedVersionCheck) }
+
+// A debug build names its commit and branch, so a sideloaded APK or a bug report from one says
+// which build it is; the shipped release keeps its plain "<base>.<count>+<sha>".
+androidComponents {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        if (!fixedTestVersion) {
+            val name = "$baseVersionName.$gitCommitCount-debug+$buildBranch@$gitShortSha"
+            variant.outputs.forEach { it.versionName.set(name) }
+        }
     }
 }
 
