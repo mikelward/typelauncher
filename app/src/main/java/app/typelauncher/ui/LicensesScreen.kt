@@ -42,7 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowInsetsControllerCompat
 import com.mikepenz.aboutlibraries.Libs
 import com.mikepenz.aboutlibraries.entity.Library
-import com.mikepenz.aboutlibraries.ui.compose.android.rememberLibraries
+import com.mikepenz.aboutlibraries.ui.compose.android.produceLibraries
 
 /**
  * Open-source attribution, reached from Settings → About → Licenses: every
@@ -88,11 +88,11 @@ internal fun LicensesScreen(
             previousNavigationBars?.let { bars?.isAppearanceLightNavigationBars = it }
         }
     }
-    // rememberLibraries parses the bundled JSON off the composition thread and
+    // produceLibraries parses the bundled JSON off the composition thread and
     // swaps it in when ready, so the page's header paints in the first frame
     // rather than waiting on a ~150 KB parse — this replaces Settings on a tap,
     // and an empty pause there reads as a dead button.
-    val libraries by rememberLibraries(R.raw.aboutlibraries)
+    val libraries by produceLibraries(R.raw.aboutlibraries)
     LicensesContent(
         libraries = libraries,
         innerPadding = innerPadding,
