@@ -31,7 +31,7 @@ import org.robolectric.annotation.GraphicsMode
  * Screenshot + interaction cover for the Settings → About → Licenses page.
  * The library list is built synchronously from the committed
  * res/raw/aboutlibraries.json so the snapshot is deterministic — production
- * loads the same JSON asynchronously through `rememberLibraries`.
+ * loads the same JSON asynchronously through `produceLibraries`.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")

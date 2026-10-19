@@ -25,7 +25,7 @@ androidsvg = "1.4"
 # (`rememberLibraries`), not its stock list UI, which we don't use. See
 # app/build.gradle.kts for why the export is committed to res/raw instead of
 # generated at build time.
-aboutlibraries = "12.2.4"
+aboutlibraries = "15.3.0"
 # CameraX — kiosk mode's "Dim when nobody's there": low-resolution front
 # camera frames, analyzed on-device for motion only. Nothing is stored or sent.
 camerax = "1.6.2"
