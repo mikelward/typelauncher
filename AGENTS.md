@@ -1,7 +1,7 @@
 ---
 trigger: always_on
 alwaysApply: true
-last_modified: 2026-10-17
+last_modified: 2026-10-22
 ---
 
 # Type Launcher
@@ -237,8 +237,8 @@ framing the surrounding UI implies; justify longer phrasing in the PR.
   Codex.
 - **Judge every comment on merit**; a comment citing a rule is a reading of it, and
   over-strict privacy readings quietly cost capability — quote the rule and decline, leaving
-  genuine conflicts to the maintainer. After a rebuttal, `@codex review` once (or let the next
-  push); escalate if it re-raises or stays silent.
+  genuine conflicts to the maintainer. After a rebuttal, `@codex review` (or let the next
+  push); escalate if it re-raises.
 - **A second verified finding in the same mechanism is a design question**: ask whether a
   different design deletes the class; a design change is the maintainer's call.
 - **Read the Codex verdict on the PR body** (`issue_read` → reactions: `eyes` reading, `+1`
@@ -246,7 +246,10 @@ framing the surrounding UI implies; justify longer phrasing in the PR.
   Findings arrive as review comments, top-level comments or reviews: read all three to the
   last page, plus the `codex` status where required (`updated_at` moving with no reaction
   usually means unread findings). Findings block the merge until fixed, rebutted or deferred;
-  an acknowledgment isn't an answer. Nothing five minutes after a push: `@codex review`, once.
+  an acknowledgment isn't an answer. A hung review — nothing back five minutes after a push
+  or poke, or stuck at running (👀) ten minutes on — gets `@codex review`; a poke that hangs
+  the same way gets a second an hour later, and only a second that hangs too is escalated,
+  never the first (maintainer, 2026-10-22).
 - **Once Codex has +1'd a head, make no unnecessary change without asking** (maintainer,
   2026-10-13): tidy-ups wait for a yes or a follow-up PR; a rebase for `dirty`/required
   `behind`, a red-CI fix, and drive or autopilot steps proceed unasked.
