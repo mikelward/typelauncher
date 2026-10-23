@@ -716,6 +716,7 @@ class MainActivity : ComponentActivity() {
         if (!intent.isLauncherEntryIntent()) return
         recordHomeEntryFromChooser(intent)
         LauncherDebugLog.event("handleLauncherIntent returning to launcher home")
+        viewModel.onLauncherHomeIntent()
         viewModel.returnToLauncherHome()
     }
 

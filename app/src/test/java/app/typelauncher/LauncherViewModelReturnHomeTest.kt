@@ -8,6 +8,7 @@ import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.Dispatchers
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -15,6 +16,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowSystemClock
+import org.robolectric.shadows.ShadowToast
+import java.time.Duration
 
 /**
  * Coverage for the launcher-entry-intent reset (`returnToLauncherHome`), which
@@ -123,10 +127,45 @@ class LauncherViewModelReturnHomeTest {
         assertEquals(before + 2, afterSecond)
     }
 
+    @Test
+    fun homeIntentRightAfterALaunchSaysTheAppDidNotOpen() {
+        seedApp("Mail", "com.example.mail")
+        val viewModel = newViewModel()
+        idle()
+        val mail = viewModel.uiState.value.filteredApps.single { it.name == "Mail" }
+
+        viewModel.launchApp(mail)
+        idle()
+        viewModel.onLauncherHidden()
+        ShadowSystemClock.advanceBy(Duration.ofMillis(1_000))
+        viewModel.onLauncherHomeIntent()
+        idle()
+
+        assertEquals("Mail didn't open", ShadowToast.getTextOfLatestToast())
+    }
+
+    @Test
+    fun homeIntentLongAfterALaunchIsAnOrdinaryReturn() {
+        seedApp("Mail", "com.example.mail")
+        val viewModel = newViewModel()
+        idle()
+        val mail = viewModel.uiState.value.filteredApps.single { it.name == "Mail" }
+
+        viewModel.launchApp(mail)
+        idle()
+        viewModel.onLauncherHidden()
+        ShadowSystemClock.advanceBy(Duration.ofMillis(LaunchBounceDetector.BOUNCE_WINDOW_MILLIS + 1_000))
+        viewModel.onLauncherHomeIntent()
+        idle()
+
+        assertNull(ShadowToast.getTextOfLatestToast())
+    }
+
     private fun newViewModel(): LauncherViewModel = LauncherViewModel(
         app = ApplicationProvider.getApplicationContext(),
         workPackages = emptySet(),
         ioDispatcher = Dispatchers.Unconfined,
+        launchDispatcher = Dispatchers.Unconfined,
     )
 
     private fun seedApp(label: String, packageName: String) {
