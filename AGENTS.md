@@ -1,7 +1,7 @@
 ---
 trigger: always_on
 alwaysApply: true
-last_modified: 2026-10-22
+last_modified: 2026-10-23
 ---
 
 # Type Launcher
@@ -116,11 +116,13 @@ Measure padding and margins on every UI change; spacing is part of the deliverab
   changes production behavior goes bare.
 - **A dependency the app ships is bare** (it changes what the app runs); a test- or build-only
   bump you write keeps `internal:`; the weekly batch can't tell them apart and lands bare.
-- **Sentence case, plain English, ≤ ~70 characters**: "Fix drag and drop in the dock", not
-  "Arm dock carousel-suppression on long-press" — no internal symbols (`pointerInput`,
-  `RemoteViews`), mechanism detail, or "Defer"/"Gate"/"Arm" imperatives. CI measures the full
-  notes against Play's 500-character cap and drops trailing subjects. Engineering detail
-  (mechanism, bug, file:line) goes in the body.
+- **Title like a changelog line** (maintainer, 2026-10-23): an imperative verb, then the
+  feature in the user's plain words, sentence case, ≤ ~70 characters, e.g. `Fix …` for what
+  was broken ("Fix drag and drop in the dock", not "Arm dock carousel-suppression on
+  long-press"), `Improve …` for what got better, `Add …` for what's new; an
+  optional parenthetical says how. No internal symbols (`pointerInput`, `RemoteViews`),
+  scenario or mechanism: those and file:line go in the body. PR titles and release notes
+  match. CI drops trailing subjects past Play's 500-character cap.
 - **No model identifier** — never name the coding agent's model or version (`Opus 4.8`,
   `Sonnet`, `Gemini …`, `claude-*`, `gemini-*`) in a commit, PR, comment, or pushed
   artifact; keep it to chat. Generic attribution (`Co-Authored-By: Claude` / `Gemini`,
@@ -264,11 +266,12 @@ framing the surrounding UI implies; justify longer phrasing in the PR.
 - **After every merge to `main`, report the versionCode** — `git rev-list --count
   origin/main` after a refspec fetch (with `--unshallow` while shallow, or it undercounts):
   `Need versionCode 72 (b81c23d) or higher to test PR #52's fix`.
-- **"Release notes since N"**: up to five `• ` end-user bullets in one code block for commits
-  N+1..`origin/main` (freshly fetched), ranked by impact, one feature per bullet, reading
-  bodies where a subject is unclear. Skip prefixed, docs and CI commits, dependency bumps
-  (unless nothing else changed — then one bullet), and anything the range added then undid;
-  describe a reworked feature by its final state.
+- **"Release notes since N"**: up to five `• ` end-user bullets worded as titles are, in one
+  code block for commits N+1..`origin/main` (freshly fetched), one per feature however many
+  commits built it, reading bodies where a subject is unclear. **Rank by what the user risks
+  without it** (maintainer, 2026-10-23): something broken or wrong first, polish last. Skip
+  prefixed, docs and CI commits, dependency bumps (unless nothing else changed — then one
+  bullet), and anything the range added then undid; a reworked feature by its final state.
   Range above, one line below naming what was left out. Offline, only from a complete local
   `main`, saying it may be behind; a shallow one can't answer.
 - **On a CI failure**, read the failing-tests PR comment first. No comment from `build`
