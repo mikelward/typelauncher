@@ -189,6 +189,7 @@ internal class LauncherViewModel(
     // at -- and not every trigger implies visibility: a reload can land after the
     // user has already left.
     private var launcherVisible = false
+    private val launchBounceDetector = LaunchBounceDetector()
     // Set when the icon-picker callback fires before the cold-start
     // `loadInstalledApps()` coroutine has populated [installedApps] — the
     // launcher can be rebuilt from saved-instance after a full process
@@ -2392,6 +2393,7 @@ internal class LauncherViewModel(
 
     fun onLauncherHidden() {
         launcherVisible = false
+        launchBounceDetector.onLauncherHidden()
     }
 
     /**
@@ -3268,6 +3270,16 @@ internal class LauncherViewModel(
         val shortcutId = app.shortcutId
         val launcherApps = launcherAppsService
         startLaunch(
+            // Armed only once the start is really going out: the in-flight
+            // guard drops a second tap, which must not stand in for the first.
+            beforeStart = {
+                launchBounceDetector.onLaunchStarted(
+                    app.displayName,
+                    loggedPackage,
+                    app.isWorkApp,
+                    SystemClock.elapsedRealtime(),
+                )
+            },
             start = {
                 if (shortcutId != null) {
                     launcherApps?.startShortcut(app.packageName, shortcutId, null, null, app.user)
@@ -3278,6 +3290,7 @@ internal class LauncherViewModel(
                 }
             },
         ) { failure ->
+            if (failure != null) launchBounceDetector.onLaunchFailed()
             when (failure) {
                 null -> onAppLaunched(app)
                 is ActivityNotFoundException ->
@@ -3297,6 +3310,22 @@ internal class LauncherViewModel(
                 Toast.makeText(this.app, R.string.app_menu_shortcut_unavailable, Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    /**
+     * A Home intent arrived. If it came straight after a launch that left
+     * Home, the app closed without being used, so say so rather than leave
+     * the tap looking dead.
+     */
+    fun onLauncherHomeIntent() {
+        val bounce = launchBounceDetector.onHomeIntent(SystemClock.elapsedRealtime()) ?: return
+        LauncherDebugLog.event(
+            "launch bounced package=%s work=%s afterMs=%d",
+            bounce.loggedPackage,
+            bounce.isWorkApp,
+            bounce.afterMillis,
+        )
+        Toast.makeText(app, app.getString(R.string.app_launch_bounced, bounce.label), Toast.LENGTH_SHORT).show()
     }
 
     /**
@@ -3336,7 +3365,11 @@ internal class LauncherViewModel(
      * once the system has accepted the start, as it did when the call ran on
      * the main thread.
      */
-    private fun startLaunch(start: () -> Unit, onResult: (RuntimeException?) -> Unit) {
+    private fun startLaunch(
+        start: () -> Unit,
+        beforeStart: () -> Unit = {},
+        onResult: (RuntimeException?) -> Unit,
+    ) {
         // One start at a time. Home stays interactive while a slow call is on
         // the wire, so a double tap (or a second icon tapped before the first
         // app appears) would otherwise open both, and record their launches
@@ -3345,6 +3378,7 @@ internal class LauncherViewModel(
             LauncherDebugLog.event("launch ignored: another start is in flight")
             return
         }
+        beforeStart()
         launchInFlight = viewModelScope.launch {
             val failure = withContext(launchDispatcher) {
                 try {
