@@ -15,9 +15,15 @@ class LaunchBounceDetectorTest {
     @Test
     fun homeIntentSoonAfterLaunchThatLeftHomeIsABounce() {
         launchAt(1_000)
-        detector.onLauncherHidden()
+        detector.onLauncherHidden(1_100)
         assertEquals(
-            LaunchBounceDetector.Bounce("Work App One", "com.example.app", isWorkApp = true, afterMillis = 958),
+            LaunchBounceDetector.Bounce(
+                "Work App One",
+                "com.example.app",
+                isWorkApp = true,
+                afterMillis = 958,
+                hiddenAfterMillis = 100,
+            ),
             detector.onHomeIntent(1_958),
         )
     }
@@ -25,7 +31,7 @@ class LaunchBounceDetectorTest {
     @Test
     fun homeIntentAfterTheWindowIsAVisit() {
         launchAt(1_000)
-        detector.onLauncherHidden()
+        detector.onLauncherHidden(1_100)
         assertNull(detector.onHomeIntent(1_000 + LaunchBounceDetector.BOUNCE_WINDOW_MILLIS + 1))
     }
 
@@ -39,38 +45,39 @@ class LaunchBounceDetectorTest {
     fun failedLaunchIsNotABounce() {
         launchAt(1_000)
         detector.onLaunchFailed()
-        detector.onLauncherHidden()
+        detector.onLauncherHidden(1_100)
         assertNull(detector.onHomeIntent(1_500))
     }
 
     @Test
     fun aBounceIsReportedOnce() {
         launchAt(1_000)
-        detector.onLauncherHidden()
+        detector.onLauncherHidden(1_100)
         detector.onHomeIntent(1_500)
-        detector.onLauncherHidden()
+        detector.onLauncherHidden(1_100)
         assertNull(detector.onHomeIntent(1_600))
     }
 
     @Test
-    fun aWorkAppBounceTellsTheUser() {
+    fun aBounceCarriesHowLongTheAppTookToCoverHome() {
         launchAt(1_000)
-        detector.onLauncherHidden()
-        assertTrue(detector.onHomeIntent(1_500)!!.tellsUser)
+        detector.onLauncherHidden(1_240)
+        detector.onLauncherHidden(1_300)
+        assertEquals(240L, detector.onHomeIntent(1_500)!!.hiddenAfterMillis)
     }
 
     @Test
-    fun aPersonalAppBounceIsOnlyLogged() {
-        detector.onLaunchStarted("App One", "com.example.app", isWorkApp = false, nowMillis = 1_000)
-        detector.onLauncherHidden()
-        assertFalse(detector.onHomeIntent(1_500)!!.tellsUser)
+    fun aBounceWithNoProfileStateIsNotBlamedOnPausing() {
+        launchAt(1_000)
+        detector.onLauncherHidden(1_100)
+        assertFalse(detector.onHomeIntent(1_500)!!.wasIntoPausedProfile)
     }
 
     @Test
     fun aBounceCarriesTheWorkProfileStateAtLaunch() {
         launchAt(1_000)
         detector.onLaunchSucceeded(WorkProfileState.PAUSED)
-        detector.onLauncherHidden()
+        detector.onLauncherHidden(1_100)
         val bounce = detector.onHomeIntent(1_500)!!
         assertEquals(WorkProfileState.PAUSED, bounce.workProfile)
         assertTrue(bounce.wasIntoPausedProfile)
@@ -80,7 +87,7 @@ class LaunchBounceDetectorTest {
     fun aBounceFromARunningProfileIsNotBlamedOnPausing() {
         launchAt(1_000)
         detector.onLaunchSucceeded(WorkProfileState.RUNNING)
-        detector.onLauncherHidden()
+        detector.onLauncherHidden(1_100)
         assertFalse(detector.onHomeIntent(1_500)!!.wasIntoPausedProfile)
     }
 
@@ -95,7 +102,7 @@ class LaunchBounceDetectorTest {
 
     @Test
     fun homeIntentWithNoLaunchIsNothing() {
-        detector.onLauncherHidden()
+        detector.onLauncherHidden(1_100)
         assertNull(detector.onHomeIntent(1_000))
     }
 }

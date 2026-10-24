@@ -2394,7 +2394,7 @@ internal class LauncherViewModel(
 
     fun onLauncherHidden() {
         launcherVisible = false
-        launchBounceDetector.onLauncherHidden()
+        launchBounceDetector.onLauncherHidden(SystemClock.elapsedRealtime())
     }
 
     /**
@@ -3322,26 +3322,22 @@ internal class LauncherViewModel(
 
     /**
      * A Home intent arrived. If it came straight after a launch that left
-     * Home, the app may have closed without being used: log it, and for a
-     * work app say so rather than leave the tap looking dead.
+     * Home, log it with what might tell a real bounce from a quick Home press
+     * next time. Only a launch into a paused work profile says so on screen.
      */
-    fun onLauncherHomeIntent() {
+    fun onLauncherHomeIntent(homeIntentFlags: Int = 0) {
         val bounce = launchBounceDetector.onHomeIntent(SystemClock.elapsedRealtime()) ?: return
         LauncherDebugLog.event(
-            "launch bounced package=%s work=%s workProfile=%s afterMs=%s",
+            "launch bounced package=%s work=%s workProfile=%s afterMs=%s hiddenAfterMs=%s homeFlags=0x%s",
             bounce.loggedPackage,
             bounce.isWorkApp,
             bounce.workProfile?.logValue,
             bounce.afterMillis,
+            bounce.hiddenAfterMillis,
+            Integer.toHexString(homeIntentFlags),
         )
-        if (bounce.tellsUser) {
-            val message = if (bounce.wasIntoPausedProfile) {
-                // The settings row's "Work profile is paused", already translated.
-                app.getString(R.string.settings_work_dock_disabled_toast)
-            } else {
-                app.getString(R.string.app_launch_bounced, bounce.label)
-            }
-            Toast.makeText(app, message, Toast.LENGTH_SHORT).show()
+        if (bounce.wasIntoPausedProfile) {
+            Toast.makeText(app, R.string.settings_work_dock_disabled_toast, Toast.LENGTH_SHORT).show()
         }
     }
 

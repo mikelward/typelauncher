@@ -141,7 +141,7 @@ class LauncherViewModelReturnHomeTest {
         viewModel.onLauncherHomeIntent()
         idle()
 
-        // A quick Home press reads the same as a bounce; only work apps speak up.
+        // A quick Home press reads the same as a bounce, so a bounce only reaches the log.
         assertNull(ShadowToast.getTextOfLatestToast())
     }
 

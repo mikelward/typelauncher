@@ -19,16 +19,14 @@ internal class LaunchBounceDetector(
         val isWorkApp: Boolean,
         val afterMillis: Long,
         val workProfile: WorkProfileState? = null,
+        /** Tap to the launcher leaving the screen: how long the app took to cover Home. */
+        val hiddenAfterMillis: Long? = null,
     ) {
         /**
-         * Whether to tell the user, not just the log. A Home press inside the
-         * window reads exactly like a bounce, and quick switches out of
-         * personal apps drew the toast often; the one bounce ever reported was
-         * a work app, so only those speak up.
+         * The launch went into a paused work profile: the one case worth a
+         * toast. A Home press inside the window reads exactly like any other
+         * bounce, so those only reach the log.
          */
-        val tellsUser: Boolean get() = isWorkApp
-
-        /** The launch went into a paused work profile, which is the likelier story than the app closing. */
         val wasIntoPausedProfile: Boolean get() = workProfile == WorkProfileState.PAUSED
     }
 
@@ -37,7 +35,7 @@ internal class LaunchBounceDetector(
         val loggedPackage: String,
         val isWorkApp: Boolean,
         val atMillis: Long,
-        var leftHome: Boolean = false,
+        var hiddenAtMillis: Long? = null,
         var workProfile: WorkProfileState? = null,
     )
 
@@ -59,8 +57,9 @@ internal class LaunchBounceDetector(
     }
 
     /** The launcher stopped being visible, so the app did take the screen. */
-    fun onLauncherHidden() {
-        pending?.leftHome = true
+    fun onLauncherHidden(nowMillis: Long) {
+        val launch = pending ?: return
+        if (launch.hiddenAtMillis == null) launch.hiddenAtMillis = nowMillis
     }
 
     /**
@@ -71,8 +70,16 @@ internal class LaunchBounceDetector(
         val launch = pending ?: return null
         pending = null
         val after = nowMillis - launch.atMillis
-        if (!launch.leftHome || after < 0 || after > windowMillis) return null
-        return Bounce(launch.label, launch.loggedPackage, launch.isWorkApp, after, launch.workProfile)
+        val hiddenAt = launch.hiddenAtMillis ?: return null
+        if (after < 0 || after > windowMillis) return null
+        return Bounce(
+            launch.label,
+            launch.loggedPackage,
+            launch.isWorkApp,
+            after,
+            launch.workProfile,
+            hiddenAfterMillis = hiddenAt - launch.atMillis,
+        )
     }
 
     companion object {
