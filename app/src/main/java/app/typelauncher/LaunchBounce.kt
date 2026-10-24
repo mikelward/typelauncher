@@ -13,7 +13,15 @@ package app.typelauncher
 internal class LaunchBounceDetector(
     private val windowMillis: Long = BOUNCE_WINDOW_MILLIS,
 ) {
-    data class Bounce(val label: String, val loggedPackage: String, val isWorkApp: Boolean, val afterMillis: Long)
+    data class Bounce(val label: String, val loggedPackage: String, val isWorkApp: Boolean, val afterMillis: Long) {
+        /**
+         * Whether to tell the user, not just the log. A Home press inside the
+         * window reads exactly like a bounce, and quick switches out of
+         * personal apps drew the toast often; the one bounce ever reported was
+         * a work app, so only those speak up.
+         */
+        val tellsUser: Boolean get() = isWorkApp
+    }
 
     private class Pending(
         val label: String,

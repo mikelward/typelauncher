@@ -128,7 +128,7 @@ class LauncherViewModelReturnHomeTest {
     }
 
     @Test
-    fun homeIntentRightAfterALaunchSaysTheAppDidNotOpen() {
+    fun homeIntentRightAfterAPersonalLaunchShowsNoToast() {
         seedApp("Mail", "com.example.mail")
         val viewModel = newViewModel()
         idle()
@@ -141,7 +141,8 @@ class LauncherViewModelReturnHomeTest {
         viewModel.onLauncherHomeIntent()
         idle()
 
-        assertEquals("Mail didn't open", ShadowToast.getTextOfLatestToast())
+        // A quick Home press reads the same as a bounce; only work apps speak up.
+        assertNull(ShadowToast.getTextOfLatestToast())
     }
 
     @Test

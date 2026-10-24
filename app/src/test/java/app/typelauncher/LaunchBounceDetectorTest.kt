@@ -1,7 +1,9 @@
 package app.typelauncher
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LaunchBounceDetectorTest {
@@ -48,6 +50,20 @@ class LaunchBounceDetectorTest {
         detector.onHomeIntent(1_500)
         detector.onLauncherHidden()
         assertNull(detector.onHomeIntent(1_600))
+    }
+
+    @Test
+    fun aWorkAppBounceTellsTheUser() {
+        launchAt(1_000)
+        detector.onLauncherHidden()
+        assertTrue(detector.onHomeIntent(1_500)!!.tellsUser)
+    }
+
+    @Test
+    fun aPersonalAppBounceIsOnlyLogged() {
+        detector.onLaunchStarted("App One", "com.example.app", isWorkApp = false, nowMillis = 1_000)
+        detector.onLauncherHidden()
+        assertFalse(detector.onHomeIntent(1_500)!!.tellsUser)
     }
 
     @Test
