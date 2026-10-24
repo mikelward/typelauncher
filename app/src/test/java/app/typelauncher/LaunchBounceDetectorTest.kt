@@ -67,6 +67,33 @@ class LaunchBounceDetectorTest {
     }
 
     @Test
+    fun aBounceCarriesTheWorkProfileStateAtLaunch() {
+        launchAt(1_000)
+        detector.onLaunchSucceeded(WorkProfileState.PAUSED)
+        detector.onLauncherHidden()
+        val bounce = detector.onHomeIntent(1_500)!!
+        assertEquals(WorkProfileState.PAUSED, bounce.workProfile)
+        assertTrue(bounce.wasIntoPausedProfile)
+    }
+
+    @Test
+    fun aBounceFromARunningProfileIsNotBlamedOnPausing() {
+        launchAt(1_000)
+        detector.onLaunchSucceeded(WorkProfileState.RUNNING)
+        detector.onLauncherHidden()
+        assertFalse(detector.onHomeIntent(1_500)!!.wasIntoPausedProfile)
+    }
+
+    @Test
+    fun workProfileStatePrefersPausedOverLocked() {
+        assertEquals(WorkProfileState.PAUSED, WorkProfileState.of(quietMode = true, unlocked = false))
+        assertEquals(WorkProfileState.LOCKED, WorkProfileState.of(quietMode = false, unlocked = false))
+        assertEquals(WorkProfileState.RUNNING, WorkProfileState.of(quietMode = false, unlocked = true))
+        assertEquals(WorkProfileState.UNKNOWN, WorkProfileState.of(quietMode = null, unlocked = true))
+        assertEquals(WorkProfileState.UNKNOWN, WorkProfileState.of(quietMode = false, unlocked = null))
+    }
+
+    @Test
     fun homeIntentWithNoLaunchIsNothing() {
         detector.onLauncherHidden()
         assertNull(detector.onHomeIntent(1_000))

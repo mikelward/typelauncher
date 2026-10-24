@@ -13,7 +13,13 @@ package app.typelauncher
 internal class LaunchBounceDetector(
     private val windowMillis: Long = BOUNCE_WINDOW_MILLIS,
 ) {
-    data class Bounce(val label: String, val loggedPackage: String, val isWorkApp: Boolean, val afterMillis: Long) {
+    data class Bounce(
+        val label: String,
+        val loggedPackage: String,
+        val isWorkApp: Boolean,
+        val afterMillis: Long,
+        val workProfile: WorkProfileState? = null,
+    ) {
         /**
          * Whether to tell the user, not just the log. A Home press inside the
          * window reads exactly like a bounce, and quick switches out of
@@ -21,6 +27,9 @@ internal class LaunchBounceDetector(
          * a work app, so only those speak up.
          */
         val tellsUser: Boolean get() = isWorkApp
+
+        /** The launch went into a paused work profile, which is the likelier story than the app closing. */
+        val wasIntoPausedProfile: Boolean get() = workProfile == WorkProfileState.PAUSED
     }
 
     private class Pending(
@@ -29,6 +38,7 @@ internal class LaunchBounceDetector(
         val isWorkApp: Boolean,
         val atMillis: Long,
         var leftHome: Boolean = false,
+        var workProfile: WorkProfileState? = null,
     )
 
     private var pending: Pending? = null
@@ -36,6 +46,11 @@ internal class LaunchBounceDetector(
     /** Called as a tap starts an app, before the start call goes out. */
     fun onLaunchStarted(label: String, loggedPackage: String, isWorkApp: Boolean, nowMillis: Long) {
         pending = Pending(label, loggedPackage, isWorkApp, nowMillis)
+    }
+
+    /** The start call went out; [workProfile] is the work profile's state as it did. */
+    fun onLaunchSucceeded(workProfile: WorkProfileState?) {
+        pending?.workProfile = workProfile
     }
 
     /** The start call was refused; that path reports its own failure. */
@@ -57,7 +72,7 @@ internal class LaunchBounceDetector(
         pending = null
         val after = nowMillis - launch.atMillis
         if (!launch.leftHome || after < 0 || after > windowMillis) return null
-        return Bounce(launch.label, launch.loggedPackage, launch.isWorkApp, after)
+        return Bounce(launch.label, launch.loggedPackage, launch.isWorkApp, after, launch.workProfile)
     }
 
     companion object {
@@ -65,5 +80,27 @@ internal class LaunchBounceDetector(
         // leaves room for a slow start while staying short of a real visit;
         // the cost of a miss either way is one toast or one missing toast.
         const val BOUNCE_WINDOW_MILLIS = 2_000L
+    }
+}
+
+/**
+ * A work profile's state as a launch into it goes out, for the log: whether a
+ * work app that bounced was tapped into a paused or locked profile.
+ */
+internal enum class WorkProfileState(val logValue: String) {
+    RUNNING("running"),
+    PAUSED("paused"),
+    LOCKED("locked"),
+    UNKNOWN("unknown"),
+    ;
+
+    companion object {
+        /** `null` for a read that failed. Paused wins: a paused profile also reads locked. */
+        fun of(quietMode: Boolean?, unlocked: Boolean?): WorkProfileState = when {
+            quietMode == null || unlocked == null -> UNKNOWN
+            quietMode -> PAUSED
+            !unlocked -> LOCKED
+            else -> RUNNING
+        }
     }
 }
