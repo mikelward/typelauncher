@@ -46,9 +46,6 @@
     <string name="app_menu_uninstall_unavailable">Can\'t uninstall this app</string>
     <string name="app_menu_remove_shortcut">Remove</string>
     <string name="app_menu_shortcut_unavailable">Can\'t open this shortcut right now</string>
-    <!-- Toast when a tapped app closed straight back to Home without showing anything. %1$s is the app's label. -->
-    <!-- TODO: translate -->
-    <string name="app_launch_bounced" tools:ignore="MissingTranslation">%1$s didn\'t open</string>
     <string name="app_menu_remove_shortcut_failed">Couldn\'t remove this shortcut</string>
     <string name="shortcut_already_listed">Already in app list</string>
     <string name="pin_shortcut_dialog_title">Add to app list?</string>
