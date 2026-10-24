@@ -3314,8 +3314,8 @@ internal class LauncherViewModel(
 
     /**
      * A Home intent arrived. If it came straight after a launch that left
-     * Home, the app closed without being used, so say so rather than leave
-     * the tap looking dead.
+     * Home, the app may have closed without being used: log it, and for a
+     * work app say so rather than leave the tap looking dead.
      */
     fun onLauncherHomeIntent() {
         val bounce = launchBounceDetector.onHomeIntent(SystemClock.elapsedRealtime()) ?: return
@@ -3325,7 +3325,9 @@ internal class LauncherViewModel(
             bounce.isWorkApp,
             bounce.afterMillis,
         )
-        Toast.makeText(app, app.getString(R.string.app_launch_bounced, bounce.label), Toast.LENGTH_SHORT).show()
+        if (bounce.tellsUser) {
+            Toast.makeText(app, app.getString(R.string.app_launch_bounced, bounce.label), Toast.LENGTH_SHORT).show()
+        }
     }
 
     /**
