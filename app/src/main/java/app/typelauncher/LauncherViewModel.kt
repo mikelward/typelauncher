@@ -32,6 +32,7 @@ import android.telecom.TelecomManager
 import android.text.format.DateUtils
 import android.widget.Toast
 import androidx.annotation.VisibleForTesting
+import androidx.annotation.WorkerThread
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import androidx.lifecycle.ViewModel
@@ -3269,6 +3270,8 @@ internal class LauncherViewModel(
         )
         val shortcutId = app.shortcutId
         val launcherApps = launcherAppsService
+        // Written on the launch dispatcher, read in onResult once it has hopped back.
+        var workProfile: WorkProfileState? = null
         startLaunch(
             // Armed only once the start is really going out: the in-flight
             // guard drops a second tap, which must not stand in for the first.
@@ -3281,6 +3284,11 @@ internal class LauncherViewModel(
                 )
             },
             start = {
+                if (app.isWorkApp) {
+                    workProfile = readWorkProfileState(app.user).also { state ->
+                        LauncherDebugLog.event("launchApp workProfile=%s", state.logValue)
+                    }
+                }
                 if (shortcutId != null) {
                     launcherApps?.startShortcut(app.packageName, shortcutId, null, null, app.user)
                 } else if (app.launchWithLauncherApps && component != null) {
@@ -3290,7 +3298,7 @@ internal class LauncherViewModel(
                 }
             },
         ) { failure ->
-            if (failure != null) launchBounceDetector.onLaunchFailed()
+            if (failure != null) launchBounceDetector.onLaunchFailed() else launchBounceDetector.onLaunchSucceeded(workProfile)
             when (failure) {
                 null -> onAppLaunched(app)
                 is ActivityNotFoundException ->
@@ -3320,14 +3328,41 @@ internal class LauncherViewModel(
     fun onLauncherHomeIntent() {
         val bounce = launchBounceDetector.onHomeIntent(SystemClock.elapsedRealtime()) ?: return
         LauncherDebugLog.event(
-            "launch bounced package=%s work=%s afterMs=%d",
+            "launch bounced package=%s work=%s workProfile=%s afterMs=%s",
             bounce.loggedPackage,
             bounce.isWorkApp,
+            bounce.workProfile?.logValue,
             bounce.afterMillis,
         )
         if (bounce.tellsUser) {
-            Toast.makeText(app, app.getString(R.string.app_launch_bounced, bounce.label), Toast.LENGTH_SHORT).show()
+            val message = if (bounce.wasIntoPausedProfile) {
+                // The settings row's "Work profile is paused", already translated.
+                app.getString(R.string.settings_work_dock_disabled_toast)
+            } else {
+                app.getString(R.string.app_launch_bounced, bounce.label)
+            }
+            Toast.makeText(app, message, Toast.LENGTH_SHORT).show()
         }
+    }
+
+    /**
+     * Whether [user]'s work profile is running, paused or locked. Two binder
+     * calls, so only off the main thread. Either can be refused for a profile
+     * being removed; that reads as unknown rather than failing the launch.
+     */
+    @WorkerThread
+    private fun readWorkProfileState(user: UserHandle): WorkProfileState {
+        val userManager = app.getSystemService<UserManager>()
+        fun read(what: String, call: (UserManager) -> Boolean): Boolean? = try {
+            userManager?.let(call)
+        } catch (exception: RuntimeException) {
+            LauncherDebugLog.failure(exception, "launchApp workProfile %s unavailable", what)
+            null
+        }
+        return WorkProfileState.of(
+            quietMode = read("quietMode") { it.isQuietModeEnabled(user) },
+            unlocked = read("unlocked") { it.isUserUnlocked(user) },
+        )
     }
 
     /**
