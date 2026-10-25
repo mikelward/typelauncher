@@ -157,6 +157,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -339,11 +340,19 @@ internal fun HomeScreen(
     // The portrait positions in state are never rewritten; this is a pure
     // render-time reflow (rotating back restores the grid).
     val isWiderThanPortrait = configuration.screenWidthDp > configuration.screenHeightDp
+    // "Landscape dock" set to Right or Both sides turns the flattened row into a
+    // single reading-order column beside the search box and app list (Both
+    // sides cuts it in half, left and right), so the dock takes width instead
+    // of the short screen's scarce height. Portrait ignores the setting.
+    val isDockOnSide = isWiderThanPortrait && state.landscapeDockPosition != LandscapeDockPosition.Bottom
+    val isDockSplit = isWiderThanPortrait && state.landscapeDockPosition == LandscapeDockPosition.BothSides
     val personalDockOccupantIds = state.dockedApps.map { app -> app.id } +
         state.dockFolders.map { folder -> folder.id }
     val workDockOccupantIds = state.workDockedApps.map { app -> app.id } +
         state.workDockFolders.map { folder -> folder.id }
-    val dockColumnCount = if (isWiderThanPortrait) {
+    val dockColumnCount = if (isDockOnSide) {
+        1
+    } else if (isWiderThanPortrait) {
         landscapeDockColumnCount(
             isPersonalDockEnabled = state.isDockEnabled,
             personalDockOccupantCount = personalDockOccupantIds.size,
@@ -364,6 +373,17 @@ internal fun HomeScreen(
         landscapeDockPositions(workDockOccupantIds, state.workDockPositions, dockIconCount, dockColumnCount)
     } else {
         state.workDockPositions
+    }
+    // Both sides: each dock's column cut in half (left, right). Unused otherwise.
+    val personalDockSplitPositions = if (isDockSplit) {
+        splitLandscapeDockPositions(personalDockOccupantIds, state.dockPositions, dockIconCount)
+    } else {
+        emptyMap<String, DockPosition>() to emptyMap()
+    }
+    val workDockSplitPositions = if (isDockSplit) {
+        splitLandscapeDockPositions(workDockOccupantIds, state.workDockPositions, dockIconCount)
+    } else {
+        emptyMap<String, DockPosition>() to emptyMap()
     }
     // In the landscape reflow a rendered `(row, column)` is a flattened view of
     // the portrait grid, so a coordinate-carrying drop (app-list → dock, folder
@@ -421,9 +441,12 @@ internal fun HomeScreen(
     // work apps), and a folder member is already docked inside its folder
     // (the store's dock() no-ops for it; moving it out stays the folder
     // popup's explicit action).
+    // A side-column dock stays on screen while typing (see `isDockSlotPresent`),
+    // so there is nothing to reveal.
     val latestSearchDockRevealAvailable by rememberUpdatedState<(InstalledApp) -> Boolean>(
         { app ->
-            landscapeTier != HomeLandscapeTier.Compact &&
+            !isDockOnSide &&
+                landscapeTier != HomeLandscapeTier.Compact &&
                 !app.isInFolder &&
                 (state.isDockEnabled || (showWorkDock && app.isWorkApp))
         },
@@ -444,6 +467,10 @@ internal fun HomeScreen(
     // it docks/merges into the work store, but only when it's a work app — the
     // work dock holds work apps only (see the drop resolution in onDragEnd).
     var workDockDropTarget by remember { mutableStateOf<DockDropTarget?>(null) }
+    // The left halves' drop geometry under "Both sides" (the targets above then
+    // hold the right halves); null in every other layout.
+    var personalDockDropTargetLeft by remember { mutableStateOf<DockDropTarget?>(null) }
+    var workDockDropTargetLeft by remember { mutableStateOf<DockDropTarget?>(null) }
     // The apps card's bounds in root coordinates, so a dock icon dragged up only
     // undocks when released over the card (not the search field / margins / other
     // dock). Fed by the card itself (not the scrollable list), so it stays valid
@@ -458,6 +485,8 @@ internal fun HomeScreen(
     val listAppCenters = remember { mutableStateMapOf<String, Offset>() }
     val latestPersonalDockDropTarget by rememberUpdatedState(personalDockDropTarget)
     val latestWorkDockDropTarget by rememberUpdatedState(workDockDropTarget)
+    val latestPersonalDockDropTargetLeft by rememberUpdatedState(personalDockDropTargetLeft)
+    val latestWorkDockDropTargetLeft by rememberUpdatedState(workDockDropTargetLeft)
     val latestOnFolderMemberDragFloat by rememberUpdatedState(onFolderMemberDragFloat)
     val latestOnDockAppAtPosition by rememberUpdatedState(onDockAppAtPosition)
     val latestOnDockAppIntoOccupant by rememberUpdatedState(onDockAppIntoOccupant)
@@ -558,7 +587,10 @@ internal fun HomeScreen(
                         return true
                     }
     
-                    val landedOnPersonal = latestPersonalDockDropTarget?.let { target ->
+                    val landedOnPersonal = listOfNotNull(
+                        latestPersonalDockDropTarget,
+                        latestPersonalDockDropTargetLeft,
+                    ).any { target ->
                         dropOnto(
                             target,
                             latestDockFolders,
@@ -575,11 +607,11 @@ internal fun HomeScreen(
                             },
                             latestOnDockAppIntoOccupant,
                         )
-                    } ?: false
+                    }
                     // The work dock is work-apps-only: a personal app released over it
                     // falls through (no-op), staying in the list.
                     val landedOnWork = if (!landedOnPersonal && app.isWorkApp) {
-                        latestWorkDockDropTarget?.let { target ->
+                        listOfNotNull(latestWorkDockDropTarget, latestWorkDockDropTargetLeft).any { target ->
                             dropOnto(
                                 target,
                                 latestWorkDockFolders,
@@ -593,7 +625,7 @@ internal fun HomeScreen(
                                 },
                                 latestOnDockAppIntoWorkDockOccupant,
                             )
-                        } ?: false
+                        }
                     } else {
                         false
                     }
@@ -691,8 +723,11 @@ internal fun HomeScreen(
     // Editing Home's widgets hides the dock and the recents bar, so the
     // widgets get the room and nothing else on screen invites a tap.
     val isEditingWidgetsOnHome = state.isEditingHomeWidgets && state.destination is LauncherDestination.Home
+    // A side-column dock takes no height from the results, so it stays while
+    // typing (the docked apps also show in the typed results, which never
+    // dedupe them).
     val isDockSlotPresent =
-        bodyReady && state.query.isBlank() && !isEditingWidgetsOnHome &&
+        bodyReady && (state.query.isBlank() || isDockOnSide) && !isEditingWidgetsOnHome &&
             // The contact-actions mode clears the query but is a focused
             // "acting on this contact" surface like an active search, so the dock
             // stays hidden — otherwise it would reappear and take height from the
@@ -714,6 +749,19 @@ internal fun HomeScreen(
     LaunchedEffect(isPersonalDockPresent) {
         if (!isPersonalDockPresent) personalDockDropTarget = null
     }
+    // Under Both sides a half with no occupants renders no card, except the
+    // right half of an empty dock, which keeps the empty card (and its add
+    // hint). A half that renders no card publishes no drop geometry.
+    val personalLeftCardShown = isDockSplit && personalDockSplitPositions.first.isNotEmpty()
+    val personalRightCardShown = !isDockSplit ||
+        personalDockSplitPositions.second.isNotEmpty() || personalDockSplitPositions.first.isEmpty()
+    val workLeftCardShown = isDockSplit && workDockSplitPositions.first.isNotEmpty()
+    val workRightCardShown = !isDockSplit ||
+        workDockSplitPositions.second.isNotEmpty() || workDockSplitPositions.first.isEmpty()
+    LaunchedEffect(isPersonalDockPresent, personalLeftCardShown, personalRightCardShown) {
+        if (!isPersonalDockPresent || !personalLeftCardShown) personalDockDropTargetLeft = null
+        if (!personalRightCardShown) personalDockDropTarget = null
+    }
     // Same presence-based clearing for the work dock: `showWorkDock` stays true
     // while typing or in Compact landscape (which hide the dock card without
     // flipping the flag), so key the clear on the actual rendered presence — not
@@ -722,6 +770,10 @@ internal fun HomeScreen(
     val isWorkDockPresent = (isDockSlotPresent || isSearchDockRevealShowing) && showWorkDock
     LaunchedEffect(isWorkDockPresent) {
         if (!isWorkDockPresent) workDockDropTarget = null
+    }
+    LaunchedEffect(isWorkDockPresent, workLeftCardShown, workRightCardShown) {
+        if (!isWorkDockPresent || !workLeftCardShown) workDockDropTargetLeft = null
+        if (!workRightCardShown) workDockDropTarget = null
     }
     val isHome = state.destination is LauncherDestination.Home
     // The search box is hidden in the cramped-landscape Compact state (it
@@ -816,7 +868,29 @@ internal fun HomeScreen(
     // The dock cards (personal above work), shared between the in-layout
     // dock slot (blank query) and the search-time reveal (active query +
     // long-press) — only ever composed in one of the two places at a time.
-    val homeDockCards: @Composable () -> Unit = {
+    // [strip] picks which occupants render: the whole dock, or one half of a
+    // Both sides split.
+    val homeDockCards: @Composable (DockStrip) -> Unit = { strip ->
+        val personalPositions = when (strip) {
+            DockStrip.Whole -> personalDockRenderPositions
+            DockStrip.Left -> personalDockSplitPositions.first
+            DockStrip.Right -> personalDockSplitPositions.second
+        }
+        val workPositions = when (strip) {
+            DockStrip.Whole -> workDockRenderPositions
+            DockStrip.Left -> workDockSplitPositions.first
+            DockStrip.Right -> workDockSplitPositions.second
+        }
+        val showPersonalCard = state.isDockEnabled && when (strip) {
+            DockStrip.Whole -> true
+            DockStrip.Left -> personalLeftCardShown
+            DockStrip.Right -> personalRightCardShown
+        }
+        val showWorkCard = showWorkDock && when (strip) {
+            DockStrip.Whole -> true
+            DockStrip.Left -> workLeftCardShown
+            DockStrip.Right -> workRightCardShown
+        }
         // In a wider-than-portrait window, narrow the dock card(s) to
         // the width their icons occupy and center them, so the gray
         // card sits as an island with the screen background showing in
@@ -825,26 +899,46 @@ internal fun HomeScreen(
         // is applied to this wrapping Column (the card can't size
         // itself); the surrounding Box centers it. Portrait fills the
         // width exactly as before.
+        //
+        // A side-column dock fills the height it is given and centers its
+        // card(s) vertically in that strip, within thumb reach of a phone
+        // held in landscape.
         val dockColumnModifier = if (isWiderThanPortrait) {
             Modifier.width(dockCardWidthDp)
         } else {
             Modifier.fillMaxWidth()
         }
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+        Box(
+            modifier = if (isDockOnSide) Modifier.fillMaxHeight() else Modifier.fillMaxWidth(),
+            contentAlignment = if (isDockOnSide) Alignment.Center else Alignment.TopCenter,
+        ) {
             Column(
                 modifier = dockColumnModifier,
                 verticalArrangement = Arrangement.spacedBy(HOME_CARD_SPACING_DP.dp),
             ) {
-                if (state.isDockEnabled) {
+                if (showPersonalCard) {
                     DockCard(
-                        dockedApps = state.dockedApps,
-                        dockPositions = personalDockRenderPositions,
-                        dockFolders = state.dockFolders,
+                        dockedApps = if (strip == DockStrip.Whole) {
+                            state.dockedApps
+                        } else {
+                            state.dockedApps.filter { app -> app.id in personalPositions }
+                        },
+                        dockPositions = personalPositions,
+                        dockFolders = if (strip == DockStrip.Whole) {
+                            state.dockFolders
+                        } else {
+                            state.dockFolders.filter { folder -> folder.id in personalPositions }
+                        },
                         dockIconSizeDp = dockIconSizeDp,
                         dockIconCount = dockColumnCount,
                         dockLayout = state.dockLayout,
                         modifier = Modifier.weight(1f, fill = false),
                         reorderEnabled = !isWiderThanPortrait,
+                        companionDropTarget = when (strip) {
+                            DockStrip.Whole -> null
+                            DockStrip.Left -> personalDockDropTarget
+                            DockStrip.Right -> personalDockDropTargetLeft
+                        },
                         onLaunchApp = onLaunchApp,
                         onOpenAppInfo = onOpenAppInfo,
                         onToggleDock = onToggleDock,
@@ -868,7 +962,11 @@ internal fun HomeScreen(
                         onMergeFolderMemberInto = onMergeDockFolderMemberInto,
                         onFolderMemberDragFloat = onFolderMemberDragFloat,
                         onDockGeometryChanged = { geometry ->
-                            personalDockDropTarget = geometry
+                            if (strip == DockStrip.Left) {
+                                personalDockDropTargetLeft = geometry
+                            } else {
+                                personalDockDropTarget = geometry
+                            }
                         },
                         appListBoundsInRoot = appListBoundsInRoot,
                         onExplodeFolder = onExplodeDockFolder,
@@ -881,10 +979,10 @@ internal fun HomeScreen(
                         onUninstallApp = onUninstallApp,
                         onDragStateChanged = onDockDragChanged,
                         homeReturnToken = state.homeReturnToken,
-                        showAddButtonHint = state.shouldShowDockAddHint,
+                        showAddButtonHint = state.shouldShowDockAddHint && strip != DockStrip.Left,
                     )
                 }
-                if (showWorkDock) {
+                if (showWorkCard) {
                     // Match `DockCard`'s own row-count calculation (which
                     // is `maxOccupiedRow + 1` over the resolved-positions
                     // map, not just `ceil(size / dockIconCount)`) so a
@@ -918,14 +1016,34 @@ internal fun HomeScreen(
                         (workRows - 1) * DOCK_ITEM_SPACING_DP +
                         SECTION_CARD_PADDING_DP * 2
                     DockCard(
-                        dockedApps = state.workDockedApps,
-                        dockPositions = workDockRenderPositions,
-                        dockFolders = state.workDockFolders,
+                        dockedApps = if (strip == DockStrip.Whole) {
+                            state.workDockedApps
+                        } else {
+                            state.workDockedApps.filter { app -> app.id in workPositions }
+                        },
+                        dockPositions = workPositions,
+                        dockFolders = if (strip == DockStrip.Whole) {
+                            state.workDockFolders
+                        } else {
+                            state.workDockFolders.filter { folder -> folder.id in workPositions }
+                        },
                         dockIconSizeDp = dockIconSizeDp,
                         dockIconCount = dockColumnCount,
                         dockLayout = state.dockLayout,
-                        modifier = Modifier.heightIn(max = workMaxHeightDp.dp),
+                        // A side column has the window's height to share, so
+                        // the work card splits it with the personal card (each
+                        // scrolls) rather than taking the bottom row cap.
+                        modifier = if (isDockOnSide) {
+                            Modifier.weight(1f, fill = false)
+                        } else {
+                            Modifier.heightIn(max = workMaxHeightDp.dp)
+                        },
                         reorderEnabled = !isWiderThanPortrait,
+                        companionDropTarget = when (strip) {
+                            DockStrip.Whole -> null
+                            DockStrip.Left -> workDockDropTarget
+                            DockStrip.Right -> workDockDropTargetLeft
+                        },
                         onLaunchApp = onLaunchApp,
                         onOpenAppInfo = onOpenAppInfo,
                         onToggleDock = onToggleWorkDock,
@@ -945,7 +1063,11 @@ internal fun HomeScreen(
                         onMergeFolderMemberInto = onMergeDockFolderMemberInto,
                         onFolderMemberDragFloat = onFolderMemberDragFloat,
                         onDockGeometryChanged = { geometry ->
-                            workDockDropTarget = geometry
+                            if (strip == DockStrip.Left) {
+                                workDockDropTargetLeft = geometry
+                            } else {
+                                workDockDropTarget = geometry
+                            }
                         },
                         appListBoundsInRoot = appListBoundsInRoot,
                         onExplodeFolder = onExplodeDockFolder,
@@ -959,7 +1081,7 @@ internal fun HomeScreen(
                         onDragStateChanged = onDockDragChanged,
                         tags = DockTestTags.Work,
                         homeReturnToken = state.homeReturnToken,
-                        showAddButtonHint = state.shouldShowWorkDockAddHint,
+                        showAddButtonHint = state.shouldShowWorkDockAddHint && strip != DockStrip.Left,
                     )
                 }
             }
@@ -1226,7 +1348,7 @@ internal fun HomeScreen(
             // the rare case where its natural content exceeds the remaining
             // budget.
             if (isDockSlotPresent) {
-                homeDockCards()
+                homeDockCards(if (isDockSplit) DockStrip.Right else DockStrip.Whole)
             } else {
                 Spacer(modifier = Modifier.size(0.dp))
             }
@@ -1260,8 +1382,15 @@ internal fun HomeScreen(
                         .fillMaxWidth()
                         .testTag(SEARCH_DOCK_REVEAL_TAG),
                 ) {
-                    homeDockCards()
+                    homeDockCards(DockStrip.Whole)
                 }
+            } else {
+                Spacer(modifier = Modifier.size(0.dp))
+            }
+            // Index 5: the left half of a Both sides dock (the right half is
+            // index 2), or a zero-size spacer.
+            if (isDockSlotPresent && isDockSplit) {
+                homeDockCards(DockStrip.Left)
             } else {
                 Spacer(modifier = Modifier.size(0.dp))
             }
@@ -1276,8 +1405,19 @@ internal fun HomeScreen(
             fontScale,
         ).dp.roundToPx()
 
+        // A side-column dock (Right / Both sides) is measured first, at the full
+        // height, and everything else lays out in the width between the
+        // strips. Zero-size spacers stand in for absent strips.
+        val sideDockConstraints = Constraints(maxWidth = constraints.maxWidth, maxHeight = constraints.maxHeight)
+        val rightDock = if (isDockOnSide) measurables[2].measure(sideDockConstraints) else null
+        val leftDock = measurables[5].measure(sideDockConstraints)
+        val rightInsetPx = rightDock?.width?.takeIf { it > 0 }?.let { it + spacingPx } ?: 0
+        val leftInsetPx = if (leftDock.width > 0) leftDock.width + spacingPx else 0
+        val contentWidthPx = (constraints.maxWidth - leftInsetPx - rightInsetPx).coerceAtLeast(0)
+        val contentConstraints = constraints.copy(minWidth = contentWidthPx, maxWidth = contentWidthPx)
+
         val search = measurables[0].measure(
-            constraints.copy(minHeight = 0, maxHeight = constraints.maxHeight),
+            contentConstraints.copy(minHeight = 0, maxHeight = constraints.maxHeight),
         )
         // No card-gap below a hidden (zero-height) search box, so the app grid
         // sits flush at the top in the cramped-landscape Compact state.
@@ -1290,23 +1430,28 @@ internal fun HomeScreen(
         // Closed bars measure to zero, collapsing this back to the no-bar layout.
         val barMaxPx = (belowSearch - appListMinPx - spacingPx).coerceAtLeast(0)
         val bar = measurables[3].measure(
-            constraints.copy(minHeight = 0, maxHeight = barMaxPx),
+            contentConstraints.copy(minHeight = 0, maxHeight = barMaxPx),
         )
         val barSpacingPx = if (bar.height > 0) spacingPx else 0
         val belowBar = (belowSearch - bar.height - barSpacingPx).coerceAtLeast(0)
 
-        val dockMaxPx = if (isDockSlotPresent) {
+        val dockMaxPx = if (isDockSlotPresent && !isDockOnSide) {
             (belowBar - appListMinPx - spacingPx).coerceAtLeast(0)
         } else {
             0
         }
-        val dock = measurables[2].measure(
-            constraints.copy(minHeight = 0, maxHeight = dockMaxPx),
-        )
-        val dockSpacingPx = if (dock.height > 0) spacingPx else 0
-        val appHeight = (belowBar - dock.height - dockSpacingPx).coerceAtLeast(0)
+        // Index 2 was already measured as the right strip when the dock is on
+        // the side; otherwise it is the bottom dock, capped above the app list.
+        val dock = if (isDockOnSide) {
+            null
+        } else {
+            measurables[2].measure(constraints.copy(minHeight = 0, maxHeight = dockMaxPx))
+        }
+        val dockHeightPx = dock?.height ?: 0
+        val dockSpacingPx = if (dockHeightPx > 0) spacingPx else 0
+        val appHeight = (belowBar - dockHeightPx - dockSpacingPx).coerceAtLeast(0)
         val apps = measurables[1].measure(
-            constraints.copy(minHeight = appHeight, maxHeight = appHeight),
+            contentConstraints.copy(minHeight = appHeight, maxHeight = appHeight),
         )
         // The search-time dock reveal measures loose (natural height): it is
         // placed *outside* this layout's bounds, in the band the hidden
@@ -1318,15 +1463,18 @@ internal fun HomeScreen(
         )
 
         layout(constraints.maxWidth, constraints.maxHeight) {
-            search.place(0, 0)
-            apps.place(0, search.height + searchSpacingPx)
+            leftDock.place(0, 0)
+            rightDock?.place(constraints.maxWidth - rightDock.width, 0)
+            val x = leftInsetPx
+            search.place(x, 0)
+            apps.place(x, search.height + searchSpacingPx)
             var y = search.height + searchSpacingPx + apps.height
-            if (dock.height > 0) {
+            if (dock != null && dock.height > 0) {
                 dock.place(0, y + spacingPx)
                 y += spacingPx + dock.height
             }
             if (bar.height > 0) {
-                bar.place(0, y + spacingPx)
+                bar.place(x, y + spacingPx)
             }
             if (reveal.height > 0) {
                 // Below the layout's bottom edge the padding chain is: one
@@ -1777,6 +1925,11 @@ private fun DockCard(
     // positions are a flattened single-row view of the portrait grid, not the
     // persisted grid (see `DockedAppButton.reorderEnabled`). Portrait keeps it.
     reorderEnabled: Boolean = true,
+    // Under "Both sides" each half of a dock is its own card; this is the
+    // other half's drop geometry, so a drag released over it still lands in
+    // the same dock (a merge, or back in place) instead of counting as off the
+    // dock. Null in every other layout.
+    companionDropTarget: DockDropTarget? = null,
 ) {
     // Drag-to-reorder state is hoisted here so the pointer loop can compare
     // the dragged icon's center against every rendered slot, including empty
@@ -1816,6 +1969,7 @@ private fun DockCard(
     val latestOnReorderDock by rememberUpdatedState(onReorderDock)
     val latestOnMergeDock by rememberUpdatedState(onMergeDock)
     val latestOnDragStateChanged by rememberUpdatedState(onDragStateChanged)
+    val latestCompanionDropTarget by rememberUpdatedState(companionDropTarget)
     val scrollState = rememberScrollState()
     val columns = dockIconCount.coerceAtLeast(1)
     val occupiedPositions = resolvedPositions.values.toSet()
@@ -1905,10 +2059,29 @@ private fun DockCard(
             // docked app). Released over the dock, the search field, the margins,
             // or the other dock (the deferred cross-dock move) is ignored — the
             // lifted icon just drops home, so a pinned icon is never lost.
+            val companion = latestCompanionDropTarget
             if (!canceled && draggedApp != null && center != null &&
                 appListBoundsInRoot?.contains(center) == true
             ) {
                 onToggleDock(draggedApp, Int.MAX_VALUE)
+            } else if (!canceled && center != null && companion?.bounds?.contains(center) == true) {
+                // Released over the other half of a "Both sides" dock: merge
+                // onto the occupant it lands on, else it just drops home.
+                val pitch = dockSlotPitch(companion.slotCenters)
+                val drop = resolveDockDropWithCompanion(
+                    dropCenter = center,
+                    sourceFolderId = "",
+                    own = DockDropTarget(null, emptyMap(), emptyMap()),
+                    companion = companion,
+                    mergeRadiusPx = if (pitch.isFinite()) {
+                        pitch * DOCK_MERGE_CENTER_RADIUS_FRACTION
+                    } else {
+                        Float.POSITIVE_INFINITY
+                    },
+                )
+                if (drop is FolderMemberDropTarget.MergeWith && drop.occupantId != occupantId) {
+                    latestOnMergeDock(occupantId, drop.occupantId)
+                }
             }
         } else {
             val mergeTarget = hoveredMergeTargetId
@@ -2166,6 +2339,7 @@ private fun DockCard(
                         onMergeFolderMemberInto(inPlaceFolder.id, appId, targetId)
                     },
                     onUndockMember = { appId -> onUndockFromFolder(inPlaceFolder.id, appId) },
+                    companionDropTarget = companionDropTarget,
                 )
             }
         }
@@ -2556,6 +2730,9 @@ internal fun DockFolderInPlace(
     onMoveMemberToDock: (appId: String, row: Int, column: Int) -> Unit = { _, _, _ -> },
     onMergeMemberInto: (appId: String, targetId: String) -> Unit = { _, _ -> },
     onUndockMember: (appId: String) -> Unit = {},
+    // The other half of the same dock under "Both sides" (see
+    // [DockCard]'s companionDropTarget); null otherwise.
+    companionDropTarget: DockDropTarget? = null,
     modifier: Modifier = Modifier,
 ) {
     BackHandler(enabled = true, onBack = onClose)
@@ -2626,6 +2803,7 @@ internal fun DockFolderInPlace(
                 onMoveMemberToDock = onMoveMemberToDock,
                 onMergeMemberInto = onMergeMemberInto,
                 onUndockMember = onUndockMember,
+                companionDropTarget = companionDropTarget,
             )
         }
     }
@@ -2703,6 +2881,8 @@ internal fun DockFolderGrid(
     onMoveMemberToDock: (appId: String, row: Int, column: Int) -> Unit = { _, _, _ -> },
     onMergeMemberInto: (appId: String, targetId: String) -> Unit = { _, _ -> },
     onUndockMember: (appId: String) -> Unit = {},
+    // The other half of the same dock under "Both sides"; null otherwise.
+    companionDropTarget: DockDropTarget? = null,
 ) {
     val columns = dockIconCount.coerceAtLeast(1)
     // Assign the members + close tile to grid cells: the members pack from the
@@ -2735,6 +2915,7 @@ internal fun DockFolderGrid(
     val latestOnMoveMemberToDock by rememberUpdatedState(onMoveMemberToDock)
     val latestOnMergeMemberInto by rememberUpdatedState(onMergeMemberInto)
     val latestOnUndockMember by rememberUpdatedState(onUndockMember)
+    val latestCompanionDropTarget by rememberUpdatedState(companionDropTarget)
     val latestOnClose by rememberUpdatedState(onClose)
     val onMemberDragStart: (String) -> Unit = { id ->
         draggedMemberId = id
@@ -2794,12 +2975,13 @@ internal fun DockFolderGrid(
                 } else {
                     Float.POSITIVE_INFINITY
                 }
-                val target = resolveFolderMemberDrop(
+                // Released over the other half of a "Both sides" dock: still
+                // this dock, so resolve against that half rather than undocking.
+                val target = resolveDockDropWithCompanion(
                     dropCenter = center,
                     sourceFolderId = folder.id,
-                    dockBounds = latestDockBounds,
-                    dockSlotCenters = liveDockCenters,
-                    occupantByPosition = latestOccupantByPosition,
+                    own = DockDropTarget(latestDockBounds, liveDockCenters, latestOccupantByPosition),
+                    companion = latestCompanionDropTarget,
                     mergeRadiusPx = mergeRadiusPx,
                 )
                 when (target) {
@@ -3511,6 +3693,13 @@ internal sealed interface FolderMemberDropTarget {
  * on release — the dock doesn't move during an app-list drag, so a snapshot is
  * enough.
  */
+/** Which occupants a Home dock strip renders: the whole dock, or one half of a Both sides split. */
+internal enum class DockStrip {
+    Whole,
+    Left,
+    Right,
+}
+
 internal data class DockDropTarget(
     val bounds: Rect?,
     val slotCenters: Map<DockPosition, Offset>,
@@ -3585,6 +3774,31 @@ internal fun resolveFolderMemberDrop(
             FolderMemberDropTarget.MergeWith(occupant)
         else -> FolderMemberDropTarget.DockSlot(nearest.key.row, nearest.key.column)
     }
+}
+
+/**
+ * [resolveFolderMemberDrop] for a dock drawn as two cards ("Both sides"): a
+ * release inside the [companion] half resolves against that half — it is
+ * still the same dock, so it must never read as off-dock (an undock) — and
+ * anything else against [own]. With no companion this is
+ * [resolveFolderMemberDrop] on [own].
+ */
+internal fun resolveDockDropWithCompanion(
+    dropCenter: Offset,
+    sourceFolderId: String,
+    own: DockDropTarget,
+    companion: DockDropTarget?,
+    mergeRadiusPx: Float,
+): FolderMemberDropTarget {
+    val target = if (companion?.bounds?.contains(dropCenter) == true) companion else own
+    return resolveFolderMemberDrop(
+        dropCenter = dropCenter,
+        sourceFolderId = sourceFolderId,
+        dockBounds = target.bounds,
+        dockSlotCenters = target.slotCenters,
+        occupantByPosition = target.occupants,
+        mergeRadiusPx = mergeRadiusPx,
+    )
 }
 
 /**
@@ -6656,6 +6870,7 @@ internal fun SettingsScreen(
     onDockEnabledChanged: (Boolean) -> Unit,
     onAppListLayoutChanged: (AppListLayout) -> Unit,
     onDockLayoutChanged: (DockLayout) -> Unit = {},
+    onLandscapeDockPositionChanged: (LandscapeDockPosition) -> Unit = {},
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
@@ -6987,6 +7202,22 @@ internal fun SettingsScreen(
                     DockLayoutDropdown(
                         selected = state.dockLayout,
                         onLayoutChanged = onDockLayoutChanged,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_landscape_dock_position_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    LandscapeDockPositionDropdown(
+                        selected = state.landscapeDockPosition,
+                        onPositionChanged = onLandscapeDockPositionChanged,
                     )
                 }
                 Row(
@@ -7470,6 +7701,51 @@ private fun DockLayoutDropdown(
                     onLayoutChanged(DockLayout.TitleBelow)
                 },
             )
+        }
+    }
+}
+
+@Composable
+private fun LandscapeDockPositionDropdown(
+    selected: LandscapeDockPosition,
+    onPositionChanged: (LandscapeDockPosition) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    fun labelRes(position: LandscapeDockPosition) = when (position) {
+        LandscapeDockPosition.Bottom -> R.string.settings_landscape_dock_position_option_bottom
+        LandscapeDockPosition.Right -> R.string.settings_landscape_dock_position_option_right
+        LandscapeDockPosition.BothSides -> R.string.settings_landscape_dock_position_option_both_sides
+    }
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag(LANDSCAPE_DOCK_POSITION_DROPDOWN_TAG),
+        ) {
+            Text(stringResource(labelRes(selected)))
+            Icon(
+                LauncherIcons.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        LauncherDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            LandscapeDockPosition.entries.forEach { position ->
+                DropdownMenuItem(
+                    text = { LauncherMenuItemText(stringResource(labelRes(position))) },
+                    modifier = when (position) {
+                        LandscapeDockPosition.Bottom -> Modifier
+                        LandscapeDockPosition.Right -> Modifier.testTag(LANDSCAPE_DOCK_POSITION_OPTION_RIGHT_TAG)
+                        LandscapeDockPosition.BothSides ->
+                            Modifier.testTag(LANDSCAPE_DOCK_POSITION_OPTION_BOTH_SIDES_TAG)
+                    },
+                    onClick = {
+                        expanded = false
+                        onPositionChanged(position)
+                    },
+                )
+            }
         }
     }
 }

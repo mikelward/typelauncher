@@ -120,6 +120,24 @@ internal enum class DockLayout {
 }
 
 /**
+ * Where the dock sits in a wider-than-portrait (landscape) window.
+ *
+ * - [Bottom] (the default and previous behavior): the dock flattens into one
+ *   reading-order row below the app list (see `landscapeDockPositions`).
+ * - [Right]: the dock flattens into one reading-order column along the right
+ *   edge, so it takes width instead of the short screen's scarce height.
+ * - [BothSides]: the same column cut in half, the first half down the left
+ *   edge and the rest down the right (see [splitLandscapeDockPositions]).
+ *
+ * Portrait always keeps the dock at the bottom.
+ */
+internal enum class LandscapeDockPosition {
+    Bottom,
+    Right,
+    BothSides,
+}
+
+/**
  * Height of one dock slot, in dp, for a given [dockIconSizeDp], [layout], and
  * [fontScale]. Used by every renderer that needs to size a fixed slot
  * ([DockedAppButton], [EmptyDockSlot], [DockAddButton]) and by the
@@ -310,6 +328,28 @@ internal fun landscapeDockPositions(
     return order.withIndex().associate { (index, occupantId) ->
         occupantId to DockPosition(index / columns, index % columns)
     }
+}
+
+/**
+ * The two halves of a dock split across both edges of a landscape window
+ * ([LandscapeDockPosition.BothSides]): the flattened reading order (see
+ * [landscapeDockPositions]) is cut in half, the first half — rounded up —
+ * becoming the left column and the rest the right, each a single column
+ * counted from row 0. Like the flatten, a pure render-time transform: the
+ * persisted portrait grid is never rewritten.
+ */
+internal fun splitLandscapeDockPositions(
+    occupantIds: List<String>,
+    persistedPositions: Map<String, DockPosition>,
+    portraitColumnCount: Int,
+): Pair<Map<String, DockPosition>, Map<String, DockPosition>> {
+    val order = landscapeDockPositions(occupantIds, persistedPositions, portraitColumnCount, 1)
+        .entries
+        .sortedBy { (_, position) -> position.row }
+        .map { (occupantId, _) -> occupantId }
+    val leftCount = (order.size + 1) / 2
+    fun column(ids: List<String>) = ids.withIndex().associate { (index, id) -> id to DockPosition(index, 0) }
+    return column(order.take(leftCount)) to column(order.drop(leftCount))
 }
 
 /**
@@ -659,6 +699,7 @@ internal data class LauncherUiState(
     // How each dock slot renders. `IconOnly` (default) preserves the previous
     // launcher behavior; `TitleBelow` adds an `labelSmall` line below each icon.
     val dockLayout: DockLayout = DockLayout.IconOnly,
+    val landscapeDockPosition: LandscapeDockPosition = LandscapeDockPosition.Bottom,
     // See `IconTheme`: `Monochrome` renders icons from their app's monochrome
     // themed-icon glyph in theme colors (API 33+); apps without a monochrome
     // layer keep their normal icon. Applied at rasterization time by

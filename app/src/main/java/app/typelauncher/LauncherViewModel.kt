@@ -447,6 +447,7 @@ internal class LauncherViewModel(
             isDockEnabled = dockSettingsStore.isDockEnabled,
             appListLayout = dockSettingsStore.appListLayout,
             dockLayout = dockSettingsStore.dockLayout,
+            landscapeDockPosition = dockSettingsStore.landscapeDockPosition,
             dockIconSizeDp = dockSettingsStore.dockIconSizeDp,
             isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
             appListSortOrder = dockSettingsStore.appListSortOrder,
@@ -4973,6 +4974,12 @@ internal class LauncherViewModel(
         _uiState.update { it.copy(appListSortOrder = sortOrder) }
         refreshLists()
         logState("setAppListSortOrder")
+    }
+
+    fun setLandscapeDockPosition(position: LandscapeDockPosition) {
+        dockSettingsStore.landscapeDockPosition = position
+        _uiState.update { it.copy(landscapeDockPosition = position) }
+        logState("setLandscapeDockPosition")
     }
 
     fun setKeyboardAutoShown(isAutoShown: Boolean) {

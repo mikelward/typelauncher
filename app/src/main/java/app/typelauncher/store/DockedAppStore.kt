@@ -530,6 +530,19 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * Where the dock sits in landscape (see [LandscapeDockPosition]). Stored by
+     * name so an unknown value falls back to [LandscapeDockPosition.Bottom],
+     * the pre-setting behavior.
+     */
+    var landscapeDockPosition: LandscapeDockPosition
+        get() = sharedPreferences.enumOrDefault(KEY_LANDSCAPE_DOCK_POSITION, LandscapeDockPosition.Bottom)
+        set(value) {
+            sharedPreferences.edit()
+                .putString(KEY_LANDSCAPE_DOCK_POSITION, value.name)
+                .apply()
+        }
+
+    /**
      * How every app icon's tile is rendered. [IconTheme.Default] keeps each
      * app's own icon art; [IconTheme.Monochrome] re-renders icons from their
      * app's monochrome themed-icon glyph in theme colors. Stored by name so an
@@ -986,6 +999,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
         const val KEY_APP_LIST_LAYOUT = "app_list_layout"
         const val KEY_DOCK_LAYOUT = "dock_layout"
+        const val KEY_LANDSCAPE_DOCK_POSITION = "landscape_dock_position"
         const val KEY_ICON_THEME = "icon_theme"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"

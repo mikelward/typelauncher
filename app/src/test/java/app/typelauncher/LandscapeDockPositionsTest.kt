@@ -160,4 +160,37 @@ class LandscapeDockPositionsTest {
             ),
         )
     }
+
+    @Test
+    fun bothSidesSplitsReadingOrderInHalfLeftFirst() {
+        val (left, right) = splitLandscapeDockPositions(sixByTwoIds, sixByTwoPositions, portraitColumns)
+        // First half of the reading order down the left, the rest down the right,
+        // each a single column counted from row 0.
+        assertEquals(
+            listOf("a", "b", "c", "d", "e", "f"),
+            left.entries.sortedBy { it.value.row }.map { it.key },
+        )
+        assertEquals(
+            listOf("g", "h", "i", "j", "k", "l"),
+            right.entries.sortedBy { it.value.row }.map { it.key },
+        )
+        assertEquals(setOf(0), (left.values + right.values).map { it.column }.toSet())
+        assertEquals((0..5).toList(), right.values.map { it.row }.sorted())
+    }
+
+    @Test
+    fun bothSidesGivesTheOddOccupantToTheLeft() {
+        val ids = listOf("a", "b", "c")
+        val positions = mapOf("a" to DockPosition(0, 0), "b" to DockPosition(0, 1), "c" to DockPosition(0, 2))
+        val (left, right) = splitLandscapeDockPositions(ids, positions, portraitColumns)
+        assertEquals(setOf("a", "b"), left.keys)
+        assertEquals(setOf("c"), right.keys)
+    }
+
+    @Test
+    fun bothSidesOfAnEmptyDockAreEmpty() {
+        val (left, right) = splitLandscapeDockPositions(emptyList(), emptyMap(), portraitColumns)
+        assertEquals(emptyMap<String, DockPosition>(), left)
+        assertEquals(emptyMap<String, DockPosition>(), right)
+    }
 }

@@ -1074,6 +1074,7 @@ class MainActivity : ComponentActivity() {
                 keyboardReservation = state.keyboardReservation,
                 reservationFingerprint = fingerprint,
                 dockLayout = state.dockLayout,
+                landscapeDockPosition = state.landscapeDockPosition,
                 appListLayout = state.appListLayout,
                 fontScale = config.fontScale,
                 verticalSystemBarsPx = verticalSystemBarsPx,

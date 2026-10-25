@@ -385,6 +385,75 @@ class MainActivityRobolectricScreenshotTest {
         )
     }
 
+    // "Landscape dock: Right" turns the flattened row into one column along the
+    // right edge, beside the search box and app list. Asserts every docked icon
+    // shares one column right of the app list and records the visual.
+    @Test
+    @Config(qualifiers = "w914dp-h411dp-420dpi")
+    fun screenshot_landscape_dockOnRight_isOneColumnBesideTheList() {
+        composeRule.waitForIdle()
+        val viewModel = composeRule.activity.viewModel
+        viewModel.uiState.value.filteredApps.take(4).forEach { app ->
+            viewModel.toggleDock(app, maxDockedApps = 1)
+        }
+        viewModel.setLandscapeDockPosition(LandscapeDockPosition.Right)
+        composeRule.waitForIdle()
+
+        val docked = viewModel.uiState.value.dockedApps
+        assertTrue("expected 4 docked apps (was=${docked.size})", docked.size == 4)
+        val bounds = docked.map { app ->
+            composeRule.onNodeWithTag("$DOCK_APP_TAG:${app.displayName}").getBoundsInRoot()
+        }
+        val firstLeft = bounds.first().left.value
+        bounds.forEachIndexed { index, rect ->
+            assertTrue(
+                "dock icon $index should share the single column (firstLeft=$firstLeft, left=${rect.left})",
+                kotlin.math.abs(rect.left.value - firstLeft) <= 1f,
+            )
+        }
+        val tops = bounds.map { it.top.value }
+        assertEquals("the column reads top to bottom", tops.sorted(), tops)
+        // The column sits in the right half of the window.
+        assertTrue("dock should hug the right edge (left=$firstLeft)", firstLeft > 914f / 2)
+
+        saveScreenshot(
+            "compose_home_landscape_dock_right_robolectric.png",
+            widthPx = 2400,
+            heightPx = 1080,
+        )
+    }
+
+    // "Both sides" cuts the column in half: the first half down the left edge,
+    // the rest down the right.
+    @Test
+    @Config(qualifiers = "w914dp-h411dp-420dpi")
+    fun screenshot_landscape_dockOnBothSides_splitsTheColumn() {
+        composeRule.waitForIdle()
+        val viewModel = composeRule.activity.viewModel
+        viewModel.uiState.value.filteredApps.take(4).forEach { app ->
+            viewModel.toggleDock(app, maxDockedApps = 1)
+        }
+        viewModel.setLandscapeDockPosition(LandscapeDockPosition.BothSides)
+        composeRule.waitForIdle()
+
+        val docked = viewModel.uiState.value.dockedApps
+        assertTrue("expected 4 docked apps (was=${docked.size})", docked.size == 4)
+        val lefts = docked.map { app ->
+            composeRule.onNodeWithTag("$DOCK_APP_TAG:${app.displayName}").getBoundsInRoot().left.value
+        }
+        assertEquals(
+            "two icons on each edge (lefts=$lefts)",
+            listOf(2, 2),
+            listOf(lefts.count { it < 914f / 2 }, lefts.count { it >= 914f / 2 }),
+        )
+
+        saveScreenshot(
+            "compose_home_landscape_dock_both_sides_robolectric.png",
+            widthPx = 2400,
+            heightPx = 1080,
+        )
+    }
+
     @Test
     @Config(qualifiers = "w600dp-h240dp-420dpi")
     fun screenshot_landscape_short_showsDockWithoutSearchBox() {

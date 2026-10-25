@@ -337,6 +337,7 @@ internal fun bugReportSettingRows(settings: DockSettingsStore): List<Pair<String
     return listOf(
         "Work dock enabled" to settings.isWorkDockEnabled.toString(),
         "Dock layout" to settings.dockLayout.name,
+        "Landscape dock position" to settings.landscapeDockPosition.name,
         "Keyboard auto-shown" to settings.isKeyboardAutoShown.toString(),
         "Keyboard reservation" to "${reservation.bottomPx}px (${reservation.source.name})",
         "Wallpaper shown" to settings.isWallpaperShown.toString(),
