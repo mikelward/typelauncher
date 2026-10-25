@@ -340,6 +340,39 @@ class MainActivityRobolectricScreenshotTest {
         saveScreenshot("compose_home_landscape_dock_no_keyboard_robolectric.png", widthPx = 2400, heightPx = 1080)
     }
 
+    // Landscape Home lists apps by name with an A–Z strip on the list's
+    // trailing edge; tapping a letter jumps the list to that letter's first app.
+    @Test
+    @Config(qualifiers = "w914dp-h411dp-420dpi")
+    fun screenshot_landscape_letterStrip_jumpsToLetter() {
+        composeRule.waitForIdle()
+        val viewModel = composeRule.activity.viewModel
+        assertTrue(viewModel.uiState.value.isLandscapeHome)
+        val names = viewModel.uiState.value.filteredApps.map { it.displayName }
+        assertEquals("landscape lists apps by name", names.sortedBy { it.lowercase() }, names)
+        composeRule.onNodeWithTag(APP_LIST_LETTER_STRIP_TAG).assertIsDisplayed()
+
+        val target = names.last()
+        val letter = appListLetter(target)
+        composeRule.onNodeWithTag("$APP_LIST_LETTER_TAG:$letter").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(target).assertIsDisplayed()
+
+        saveScreenshot(
+            "compose_home_landscape_letter_strip_robolectric.png",
+            widthPx = 2400,
+            heightPx = 1080,
+        )
+    }
+
+    // Portrait keeps the user's own sort and has no letter strip.
+    @Test
+    fun portrait_hasNoLetterStrip() {
+        composeRule.waitForIdle()
+        assertFalse(composeRule.activity.viewModel.uiState.value.isLandscapeHome)
+        composeRule.onNodeWithTag(APP_LIST_LETTER_STRIP_TAG).assertDoesNotExist()
+    }
+
     // A 6x2 portrait dock flattens into a single reading-order landscape row —
     // the top portrait row first, then the bottom row appended on the right —
     // returning the saved vertical space to the app list. The portrait

@@ -323,6 +323,39 @@ class LauncherViewModelShowDockedInListTest {
         assertEquals(listOf("Apple", "Maps", "Zebra"), backToFull)
     }
 
+    @Test
+    fun landscapeSortsListByNameEvenUnderUsageSort() {
+        // Usage sort, with "Maps" launched most: portrait lists Maps first, but
+        // landscape (the letter strip's jump needs name order) lists A–Z, in
+        // Compact too; back in portrait the usage order returns.
+        seedApp("Apple", "com.example.apple")
+        seedApp("Maps", "com.example.maps")
+        seedApp("Zebra", "com.example.zebra")
+        val viewModel = newViewModel()
+        idle()
+        val maps = viewModel.uiState.value.filteredApps.first { it.name == "Maps" }
+        repeat(5) { AppLaunchStatsStore(context).recordLaunch(maps.id) }
+        // Choosing the sort recomputes the list against the recorded launches.
+        viewModel.setAppListSortOrder(AppListSortOrder.Usage)
+        idle()
+        val tracked = setOf("Apple", "Maps", "Zebra")
+        fun order() = viewModel.uiState.value.filteredApps.map { it.name }.filter { it in tracked }
+        assertEquals("Maps", order().first())
+
+        viewModel.setLandscapeHome(true)
+        idle()
+        assertEquals(listOf("Apple", "Maps", "Zebra"), order())
+
+        viewModel.setHomeLandscapeTier(HomeLandscapeTier.Compact)
+        idle()
+        assertEquals(listOf("Apple", "Maps", "Zebra"), order())
+
+        viewModel.setHomeLandscapeTier(HomeLandscapeTier.Full)
+        viewModel.setLandscapeHome(false)
+        idle()
+        assertEquals("Maps", order().first())
+    }
+
     private fun newViewModel(): LauncherViewModel = LauncherViewModel(
         app = ApplicationProvider.getApplicationContext(),
         workPackages = emptySet(),

@@ -600,6 +600,7 @@ class MainActivity : ComponentActivity() {
         // frame before Compose recomputes.
         val seedTier = computeHomeLandscapeTier()
         viewModel.setHomeLandscapeTier(seedTier)
+        viewModel.setLandscapeHome(resources.configuration.screenWidthDp > resources.configuration.screenHeightDp)
         applyKeyboardAutoShownPreference(
             viewModel.uiState.value.isKeyboardAutoShown && seedTier == HomeLandscapeTier.Full &&
                 !viewModel.uiState.value.isKioskDisplayShowing,

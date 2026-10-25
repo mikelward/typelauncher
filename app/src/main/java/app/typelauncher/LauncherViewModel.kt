@@ -675,7 +675,7 @@ internal class LauncherViewModel(
                             appLaunchStatsStore = appLaunchStatsStore,
                             excludedAppIds = excludedFromAppList(state, dockedIds),
                             dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
-                            sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
+                            sortOrder = state.renderedAppListSortOrder(),
                         ).markVisibility(),
                         dockedApps = visibleApps
                             .filterDocked(dockedIds)
@@ -781,7 +781,7 @@ internal class LauncherViewModel(
                     appLaunchStatsStore = appLaunchStatsStore,
                     excludedAppIds = excludedFromAppList(state, dockedIds),
                     dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
-                    sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
+                    sortOrder = state.renderedAppListSortOrder(),
                 ).markVisibility()
                 state.copy(
                     filteredApps = filtered,
@@ -1708,6 +1708,14 @@ internal class LauncherViewModel(
         LauncherDebugLog.event("setHomeLandscapeTier tier=%s", tier)
     }
 
+    fun setLandscapeHome(isLandscape: Boolean) {
+        if (_uiState.value.isLandscapeHome == isLandscape) return
+        _uiState.update { it.copy(isLandscapeHome = isLandscape) }
+        // Landscape sorts the list by name (see effectiveAppListSortOrder).
+        refreshFilteredApps()
+        LauncherDebugLog.event("setLandscapeHome landscape=%s", isLandscape)
+    }
+
     /**
      * Pushed from the Compose layer: true while the keyboard is up in the
      * landscape `DockNoKeyboard` tier, where raising the keyboard hides the
@@ -2462,10 +2470,7 @@ internal class LauncherViewModel(
             appLaunchStatsStore = appLaunchStatsStore,
             excludedAppIds = emptyList(),
             dockedAppIds = floatingDockedIds,
-            sortOrder = effectiveAppListSortOrder(
-                state.appListSortOrder,
-                state.homeLandscapeTier,
-            ),
+            sortOrder = state.renderedAppListSortOrder(),
         )
     }
 
@@ -5296,7 +5301,7 @@ internal class LauncherViewModel(
                 appLaunchStatsStore = appLaunchStatsStore,
                 excludedAppIds = excludedFromAppList(state, dockedIds),
                 dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
-                sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
+                sortOrder = state.renderedAppListSortOrder(),
             ).markVisibility()
             state.copy(
                 filteredApps = filtered,
@@ -5378,7 +5383,7 @@ internal class LauncherViewModel(
                 appLaunchStatsStore = appLaunchStatsStore,
                 excludedAppIds = excludedFromAppList(state, dockedIds),
                 dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
-                sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
+                sortOrder = state.renderedAppListSortOrder(),
             ).markVisibility()
             state.copy(
                 filteredApps = filtered,
@@ -5458,13 +5463,13 @@ internal class LauncherViewModel(
 
     private fun dockedAppIdsForState(state: LauncherUiState): List<String> =
         dockedAppStore.dockedAppIdsFor(
-            sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
+            sortOrder = state.renderedAppListSortOrder(),
             columnCount = deviceRenderableDockIconCount(state.dockIconSizeDp),
         )
 
     private fun workDockedAppIdsForState(state: LauncherUiState): List<String> =
         workDockedAppStore.dockedAppIdsFor(
-            sortOrder = effectiveAppListSortOrder(state.appListSortOrder, state.homeLandscapeTier),
+            sortOrder = state.renderedAppListSortOrder(),
             columnCount = deviceRenderableDockIconCount(state.dockIconSizeDp),
         )
 

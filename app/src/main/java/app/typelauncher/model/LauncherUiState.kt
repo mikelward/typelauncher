@@ -4,6 +4,9 @@ import android.content.ComponentName
 import android.graphics.drawable.Drawable
 import android.os.UserHandle
 import androidx.compose.runtime.Immutable
+import java.text.Collator
+import java.text.Normalizer
+import java.util.Locale
 
 // Bounds on the derived icon size, which in turn set the "Icons per row"
 // slider's range per screen width (see `dockSlotCountRange`). The floor is the
@@ -835,6 +838,10 @@ internal data class LauncherUiState(
     // mode, resume re-show) and the cold-start home-ready IME wait read one
     // value. Always [HomeLandscapeTier.Full] in portrait.
     val homeLandscapeTier: HomeLandscapeTier = HomeLandscapeTier.Full,
+    // Whether Home's window is wider than it is tall. Pushed from the Compose
+    // layer (and seeded by `MainActivity`) like [homeLandscapeTier]: the
+    // landscape app list sorts by name so its letter strip can jump.
+    val isLandscapeHome: Boolean = false,
     // True while the keyboard is up in the landscape
     // [HomeLandscapeTier.DockNoKeyboard] state: that tier shows the dock with
     // the keyboard down, so when the user raises the keyboard the dock yields
@@ -938,20 +945,78 @@ internal data class LauncherUiState(
 
 /**
  * The sort order the app list actually renders under, given the persisted
- * "Sort apps by" [persisted] choice and the current landscape [tier].
+ * "Sort apps by" [persisted] choice, the current landscape [tier], and whether
+ * Home is in a wider-than-portrait window ([isLandscape]).
  *
- * The cramped-landscape [HomeLandscapeTier.Compact] state always sorts by usage
- * with the most-used app at the visual bottom (`UsageReversed`) regardless of
- * the persisted choice: the app list is the only launch surface there (the docks
- * are dropped and the search box is hidden), so the most-launched apps belong
- * under the thumb, closest to where a pull-up brings the keyboard. Every other
- * state — all of portrait, and the Full landscape tier — honors [persisted].
+ * Landscape always sorts by name, top to bottom (`Alphabetical`): the letter
+ * strip beside the list jumps to a letter, which only works when each letter's
+ * apps are one contiguous run. Otherwise the cramped-landscape
+ * [HomeLandscapeTier.Compact] state sorts by usage with the most-used app at
+ * the visual bottom (`UsageReversed`) — only reachable when the caller doesn't
+ * know the window is landscape (the Compact tier is landscape-only). Every
+ * other state — all of portrait — honors [persisted].
  */
 internal fun effectiveAppListSortOrder(
     persisted: AppListSortOrder,
     tier: HomeLandscapeTier,
-): AppListSortOrder =
-    if (tier == HomeLandscapeTier.Compact) AppListSortOrder.UsageReversed else persisted
+    isLandscape: Boolean = false,
+): AppListSortOrder = when {
+    isLandscape -> AppListSortOrder.Alphabetical
+    tier == HomeLandscapeTier.Compact -> AppListSortOrder.UsageReversed
+    else -> persisted
+}
+
+/** [effectiveAppListSortOrder] for this state's setting, tier and orientation. */
+internal fun LauncherUiState.renderedAppListSortOrder(): AppListSortOrder =
+    effectiveAppListSortOrder(appListSortOrder, homeLandscapeTier, isLandscapeHome)
+
+/**
+ * The first letter of [displayName], uppercased, as the landscape letter strip
+ * reads it (accents kept; [appListLetterSections] decides which letters group
+ * together). Anything that isn't a letter (a digit, a symbol, an empty name)
+ * reads as `#`.
+ */
+internal fun appListLetter(displayName: String): String {
+    val first = displayName.trimStart().firstOrNull() ?: return "#"
+    return if (Character.isLetter(first)) first.toString().uppercase() else "#"
+}
+
+/**
+ * The letter strip's entries for an app list in [displayNames] order: each
+ * letter present, in list order, with the index the list jumps to.
+ *
+ * Letters group the way the list is sorted, by [collator] at primary strength
+ * (base letters only): accents join their base letter where the locale sorts
+ * them there (É with E in English) and stay their own letter where it doesn't
+ * (Å after Z in Swedish). A run is labeled with its unaccented base letter
+ * when the locale treats the two as one, else with the letter itself. A
+ * letter whose apps appear in more than one run — docked apps floated to the
+ * top of a dock-hidden list — jumps to its *last* run, the one in the
+ * name-sorted body.
+ */
+internal fun appListLetterSections(
+    displayNames: List<String>,
+    collator: Collator = Collator.getInstance(Locale.getDefault()),
+): List<Pair<String, Int>> {
+    val primary = (collator.clone() as Collator).apply { strength = Collator.PRIMARY }
+    fun label(letter: String): String {
+        val base = Normalizer.normalize(letter, Normalizer.Form.NFD).take(1)
+        return if (base.isNotEmpty() && primary.compare(base, letter) == 0) base else letter
+    }
+    val starts = LinkedHashMap<String, Int>()
+    var previous: String? = null
+    displayNames.forEachIndexed { index, name ->
+        val letter = appListLetter(name)
+        val sameRun = previous != null && primary.compare(letter, previous) == 0
+        if (!sameRun) {
+            val key = label(letter)
+            starts.remove(key)
+            starts[key] = index
+        }
+        previous = letter
+    }
+    return starts.entries.map { (letter, index) -> letter to index }
+}
 
 /**
  * The top match's title and the title indices to bold, for the inline
