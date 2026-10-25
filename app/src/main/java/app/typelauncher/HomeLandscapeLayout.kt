@@ -142,6 +142,9 @@ internal data class HomeLandscapeMetrics(
     // list to a clipped sliver, so a box it can't honor is hidden instead and
     // search stays a portrait affordance. Always true in portrait.
     val searchBoxFitsWithKeyboard: Boolean = true,
+    // Whether a visible dock sits in a side column (Right / BothSides) rather
+    // than at the bottom: present, yet costing no height ([dockHeightDp] 0).
+    val hasSideDock: Boolean = false,
 )
 
 /**
@@ -167,6 +170,9 @@ internal fun homeLandscapeMetrics(
     keyboardReservation: KeyboardReservation,
     reservationFingerprint: KeyboardReservationConfig,
     dockLayout: DockLayout = DockLayout.IconOnly,
+    // Where the dock sits in landscape. Off the bottom (a side column) it takes
+    // width rather than height, so the fit below counts no dock height.
+    landscapeDockPosition: LandscapeDockPosition = LandscapeDockPosition.Bottom,
     // The persisted "App list" layout: a NameBelow grid's rows are taller (the
     // label strip), and the DockNoKeyboard floor must reserve that too.
     appListLayout: AppListLayout = AppListLayout.NameBeside,
@@ -250,8 +256,15 @@ internal fun homeLandscapeMetrics(
         0
     }
     val bothCardsPresent = personalCardHeightDp > 0 && workCardHeightDp > 0
-    val dockHeightDp = personalCardHeightDp + workCardHeightDp +
-        (if (bothCardsPresent) HOME_CARD_SPACING_DP else 0)
+    // A side-column dock (Right / BothSides) sits beside the search box and
+    // app list, so it costs those no height and always "fits as one row".
+    val isDockOnSide = isWiderThanPortrait && landscapeDockPosition != LandscapeDockPosition.Bottom
+    val dockHeightDp = if (isDockOnSide) {
+        0
+    } else {
+        personalCardHeightDp + workCardHeightDp +
+            (if (bothCardsPresent) HOME_CARD_SPACING_DP else 0)
+    }
 
     // The bar-adjusted viewport every height estimate below is taken against:
     // the screen height net of the system bars the window chrome consumes (see
@@ -303,7 +316,7 @@ internal fun homeLandscapeMetrics(
         else -> fallbackKeyboardDp
     }
 
-    val dockFitsAsSingleRow = landscapeDockFitsAsSingleRow(
+    val dockFitsAsSingleRow = isDockOnSide || landscapeDockFitsAsSingleRow(
         isWiderThanPortrait = isWiderThanPortrait,
         landscapeColumnCount = landscapeColumnCount,
         isPersonalDockEnabled = isPersonalDockEnabled,
@@ -342,6 +355,7 @@ internal fun homeLandscapeMetrics(
         appListFloorRowHeightDp = floorRowDp,
         dockFitsAsSingleRow = dockFitsAsSingleRow,
         searchBoxFitsWithKeyboard = searchBoxFitsWithKeyboard,
+        hasSideDock = isDockOnSide && (isPersonalDockEnabled || isWorkDockVisible),
     )
 }
 
@@ -432,7 +446,7 @@ internal fun resolveHomeLandscapeTier(
         metrics.searchBoxFitsWithKeyboard &&
             needWithBoxDp + cardSpacingDp + metrics.predictedKeyboardHeightDp <= metrics.availableHeightDp ->
             HomeLandscapeTier.Full
-        metrics.dockHeightDp > 0 && metrics.dockFitsAsSingleRow &&
+        (metrics.dockHeightDp > 0 || metrics.hasSideDock) && metrics.dockFitsAsSingleRow &&
             needWithDockFloorDp <= metrics.availableHeightDp ->
             HomeLandscapeTier.DockNoKeyboard
         else -> HomeLandscapeTier.Compact

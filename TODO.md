@@ -490,6 +490,20 @@
 
 ## Layout, caching, rendering, and recomposition follow-ups
 
+- [ ] **Pick one landscape dock position.** "Landscape dock" ships Bottom,
+      Right and Both sides side by side so each can be tried on a device;
+      keep the winner (or keep the choice) and delete the rest.
+- [ ] **Landscape search when the keyboard doesn't fit** (discussion first).
+      The search box hides in phone landscape because the keyboard plus one
+      result row won't fit. An app can't size or place the keyboard (it is
+      the IME's own window), but it can stop opting out of fullscreen: the
+      IME could then take the screen with its own text box and Enter launches
+      the top match, at the cost of live results while typing. Check whether
+      Compose's text field sets `IME_FLAG_NO_FULLSCREEN` today, and what
+      Gboard does without it. A launcher-drawn keyboard is the only way to
+      control shape (e.g. half-width beside a side dock), at the cost of the
+      user's own IME.
+
 - [ ] **The work dock sometimes appears about a second late, then pops in.**
       Reported from a device (2026-10-17); when it happens is not yet known
       (right after unpausing the work profile, or on returning Home with it

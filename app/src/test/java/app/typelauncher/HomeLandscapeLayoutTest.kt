@@ -254,6 +254,38 @@ class HomeLandscapeLayoutTest {
     }
 
     @Test
+    fun sideDockCostsNoHeightAndAlwaysFitsAsOneRow() {
+        // Thirty occupants overflow one flattened bottom row, so the bottom dock
+        // can't take the keyboard-down tier; a side column costs no height.
+        fun metricsFor(position: LandscapeDockPosition, width: Int = 851, height: Int = 393) =
+            homeLandscapeMetrics(
+                screenWidthDp = width,
+                screenHeightDp = height,
+                densityDpi = 420,
+                targetDockIconSizeDp = dockIconSizeForSlotCount(393, 4),
+                isPersonalDockEnabled = true,
+                personalDockOccupantIds = (1..30).map { "app$it" },
+                isWorkDockVisible = false,
+                workDockedAppIds = emptyList(),
+                workDockPositions = emptyMap(),
+                keyboardReservation = KeyboardReservation(),
+                reservationFingerprint = fingerprint(width, height, 420, navBottomPx = 0),
+                landscapeDockPosition = position,
+            )
+        val bottom = metricsFor(LandscapeDockPosition.Bottom)
+        assertEquals(false, bottom.dockFitsAsSingleRow)
+        assertTrue(bottom.dockHeightDp > 0)
+        for (position in listOf(LandscapeDockPosition.Right, LandscapeDockPosition.BothSides)) {
+            val side = metricsFor(position)
+            assertEquals(0, side.dockHeightDp)
+            assertEquals(true, side.dockFitsAsSingleRow)
+            assertEquals(HomeLandscapeTier.DockNoKeyboard, resolveHomeLandscapeTier(side))
+        }
+        // Portrait ignores the setting: the dock is always at the bottom there.
+        assertTrue(metricsFor(LandscapeDockPosition.Right, width = 393, height = 851).dockHeightDp > 0)
+    }
+
+    @Test
     fun metricsUsePersistedReservationWhenItApplies() {
         // 2x density: (bottomPx 600 − nav 100) px = 500 px = 250 dp.
         val fp = fingerprint(851, 393, 320, navBottomPx = 100)

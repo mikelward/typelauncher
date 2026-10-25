@@ -312,6 +312,7 @@ internal fun TypeLauncherApp(
             onDockEnabledChanged = viewModel::setDockEnabled,
             onAppListLayoutChanged = viewModel::setAppListLayout,
             onDockLayoutChanged = viewModel::setDockLayout,
+            onLandscapeDockPositionChanged = viewModel::setLandscapeDockPosition,
             onDockVisibleIconCountChanged = viewModel::setDockVisibleIconCount,
             onWorkDockEnabledChanged = viewModel::setWorkDockEnabled,
             onAppListSortOrderChanged = viewModel::setAppListSortOrder,
@@ -425,6 +426,7 @@ internal fun TypeLauncherApp(
     onDockEnabledChanged: (Boolean) -> Unit,
     onAppListLayoutChanged: (AppListLayout) -> Unit,
     onDockLayoutChanged: (DockLayout) -> Unit = {},
+    onLandscapeDockPositionChanged: (LandscapeDockPosition) -> Unit = {},
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
@@ -841,8 +843,11 @@ internal fun TypeLauncherApp(
         // Pushed to the ViewModel so the app-list dedupe surfaces the docked
         // apps while the dock is gone, and passed straight to HomeScreen so it
         // yields promptly.
+        // A side-column dock (Right / BothSides) takes no height, so it never
+        // has to yield to the keyboard.
         val dockSuppressedByKeyboard = keyboardShowingOrAnimatingIn &&
-            homeLandscapeTier == HomeLandscapeTier.DockNoKeyboard
+            homeLandscapeTier == HomeLandscapeTier.DockNoKeyboard &&
+            state.landscapeDockPosition == LandscapeDockPosition.Bottom
         LaunchedEffect(dockSuppressedByKeyboard) {
             onDockSuppressedByKeyboardChanged(dockSuppressedByKeyboard)
         }
@@ -919,6 +924,7 @@ internal fun TypeLauncherApp(
                         onDockEnabledChanged = onDockEnabledChanged,
                         onAppListLayoutChanged = onAppListLayoutChanged,
                         onDockLayoutChanged = onDockLayoutChanged,
+                        onLandscapeDockPositionChanged = onLandscapeDockPositionChanged,
                         onDockVisibleIconCountChanged = onDockVisibleIconCountChanged,
                         onWorkDockEnabledChanged = onWorkDockEnabledChanged,
                         onAppListSortOrderChanged = onAppListSortOrderChanged,
@@ -1345,6 +1351,7 @@ private fun rememberHomeLandscapeUi(state: LauncherUiState): HomeLandscapeUi {
         state.workDockPositions,
         state.keyboardReservation,
         state.dockLayout,
+        state.landscapeDockPosition,
         state.appListLayout,
         density.fontScale,
     ) {
@@ -1368,6 +1375,7 @@ private fun rememberHomeLandscapeUi(state: LauncherUiState): HomeLandscapeUi {
             keyboardReservation = state.keyboardReservation,
             reservationFingerprint = fingerprint,
             dockLayout = state.dockLayout,
+            landscapeDockPosition = state.landscapeDockPosition,
             appListLayout = state.appListLayout,
             fontScale = density.fontScale,
             verticalSystemBarsPx = verticalSystemBarsPx,

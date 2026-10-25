@@ -151,4 +151,42 @@ class FolderMemberDropTest {
         )
         assertEquals(false, canMergeIntoDockOccupant("folder:a", listOf(folder)))
     }
+
+    // "Both sides": the left half is the card above; the right half is a
+    // second card at x ∈ [800, 900] holding "right-app" at (850, 500).
+    private val rightHalf = DockDropTarget(
+        bounds = Rect(left = 800f, top = 460f, right = 900f, bottom = 540f),
+        slotCenters = mapOf(DockPosition(0, 0) to Offset(850f, 500f)),
+        occupants = mapOf(DockPosition(0, 0) to "right-app"),
+    )
+    private val leftHalf = DockDropTarget(dockBounds, slotCenters, occupantByPosition)
+
+    @Test
+    fun releaseOverTheOtherHalfMergesInsteadOfUndocking() {
+        // Without the companion this release is off the card: an undock.
+        assertEquals(
+            FolderMemberDropTarget.Undock,
+            resolveDockDropWithCompanion(Offset(850f, 500f), sourceFolderId, leftHalf, null, 40f),
+        )
+        assertEquals(
+            FolderMemberDropTarget.MergeWith("right-app"),
+            resolveDockDropWithCompanion(Offset(850f, 500f), sourceFolderId, leftHalf, rightHalf, 40f),
+        )
+    }
+
+    @Test
+    fun releaseOutsideBothHalvesStillUndocks() {
+        assertEquals(
+            FolderMemberDropTarget.Undock,
+            resolveDockDropWithCompanion(Offset(600f, 500f), sourceFolderId, leftHalf, rightHalf, 40f),
+        )
+    }
+
+    @Test
+    fun releaseOverItsOwnHalfIgnoresTheCompanion() {
+        assertEquals(
+            FolderMemberDropTarget.MergeWith("loose-app"),
+            resolveDockDropWithCompanion(Offset(250f, 500f), sourceFolderId, leftHalf, rightHalf, 40f),
+        )
+    }
 }
