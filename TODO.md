@@ -252,6 +252,11 @@
   method, which points at state carried between tests rather than at any
   one test's own setup.
 
+  Seen again (2026-10-25, locally): `homeWithOpenDockFolder_rendersFolderInDockFootprint`
+  failed with `performMeasureAndLayout called during measure layout` during
+  input dispatch in a full `./gradlew test`, then passed twice alone and in a
+  full run of the class.
+
 - **Reconcile the docs-lane classifier with the release-notes-skip classifier
   for `PRIVACY.md`, and reconsider forcing it onto the code lane at all.**
   `.github/lanes.conf`'s `code PRIVACY.md` rule means a PRIVACY.md-only
