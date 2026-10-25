@@ -356,6 +356,7 @@ internal fun TypeLauncherApp(
             onKeyboardReservationChanged = viewModel::setKeyboardReservation,
             onKeyboardFloatingChanged = viewModel::setKeyboardFloating,
             onHomeLandscapeTierChanged = viewModel::setHomeLandscapeTier,
+            onLandscapeHomeChanged = viewModel::setLandscapeHome,
             onDockSuppressedByKeyboardChanged = viewModel::setDockSuppressedByKeyboard,
             keyboardShowRequests = viewModel.keyboardShowRequests,
             appWidgetHost = appWidgetHost,
@@ -471,6 +472,7 @@ internal fun TypeLauncherApp(
     onKeyboardReservationChanged: (KeyboardReservation) -> Unit = {},
     onKeyboardFloatingChanged: (Boolean) -> Unit = {},
     onHomeLandscapeTierChanged: (HomeLandscapeTier) -> Unit = {},
+    onLandscapeHomeChanged: (Boolean) -> Unit = {},
     onDockSuppressedByKeyboardChanged: (Boolean) -> Unit = {},
     keyboardShowRequests: SharedFlow<Unit> = MutableSharedFlow(),
     appWidgetHost: AppWidgetHost?,
@@ -543,6 +545,11 @@ internal fun TypeLauncherApp(
     val homeLandscapeTier = homeLandscape.tier
     LaunchedEffect(homeLandscapeTier) {
         onHomeLandscapeTierChanged(homeLandscapeTier)
+    }
+    val landscapeConfiguration = LocalConfiguration.current
+    val isLandscapeHome = landscapeConfiguration.screenWidthDp > landscapeConfiguration.screenHeightDp
+    LaunchedEffect(isLandscapeHome) {
+        onLandscapeHomeChanged(isLandscapeHome)
     }
     val autoShowKeyboardFits = homeLandscapeTier == HomeLandscapeTier.Full
     HomeReadySignal(

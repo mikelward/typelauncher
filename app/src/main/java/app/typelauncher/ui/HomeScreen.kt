@@ -1188,7 +1188,16 @@ internal fun HomeScreen(
                         !state.isLoadingSearchContent &&
                         !state.queryMatchesInstalledApp,
                     onSearchAppStore = onSearchAppStore,
-                    reverseLayout = effectiveAppListSortOrder(state.appListSortOrder, landscapeTier).isReversed,
+                    reverseLayout = effectiveAppListSortOrder(
+                        state.appListSortOrder,
+                        landscapeTier,
+                        isWiderThanPortrait,
+                    ).isReversed,
+                    // Landscape lists sort by name (see effectiveAppListSortOrder)
+                    // so the strip can jump; only the blank-query browse list
+                    // gets it, never typed results.
+                    showLetterStrip = isWiderThanPortrait && state.query.isBlank(),
+                    onLetterStripDragChanged = onDockDragChanged,
                     contactResults = state.contactResults,
                     eventResults = state.eventResults,
                     onOpenContact = onOpenContact,
@@ -4463,6 +4472,12 @@ internal fun AppsCard(
     // renders empty (content at alpha 0, layout slot preserved) so the icon reads
     // as picked up into the floating drag overlay instead of duplicated in place.
     draggedAppId: String? = null,
+    // Landscape: show the A–Z letter strip on the list's trailing edge, which
+    // jumps the list to a letter (see [AppListLetterStrip]).
+    showLetterStrip: Boolean = false,
+    // True while a finger is on the letter strip, so the launcher's carousel
+    // and pull gestures stand down for that drag.
+    onLetterStripDragChanged: (Boolean) -> Unit = {},
 ) {
     // "No results" means no apps AND no content sections: a content-only
     // result set still renders the scrollable list, whose bounds must stay
@@ -4499,6 +4514,11 @@ internal fun AppsCard(
     }
     var measuredChevronLayoutKey by remember { mutableStateOf<AppListChevronLayoutKey?>(null) }
     val isCurrentAppSetMeasured = measuredChevronLayoutKey == chevronLayoutKey
+    // Recomputed only when the list or the strip's visibility changes; one
+    // pass over the display names.
+    val letterSections = remember(apps, showLetterStrip) {
+        if (showLetterStrip) appListLetterSections(apps.map { it.displayName }) else emptyList()
+    }
     SectionCard(
         modifier
             .testTag(APPS_CARD_TAG)
@@ -4571,53 +4591,62 @@ internal fun AppsCard(
                     isCurrentAppSetMeasured &&
                     viewportMeasured
                 val scope = rememberCoroutineScope()
-                AppListOverflowChevronBox(
-                    canScrollUp = canScrollUp,
-                    canScrollDown = canScrollDown,
-                    chevronsReady = chevronsReady,
-                    topChevronContentDescription = chevronDescription,
-                    bottomChevronContentDescription = chevronDescription,
-                    onScrollPageUp = {
-                        scope.launch { gridState.scrollOneVisualPage(up = true, reverseLayout = reverseLayout) }
-                    },
-                    onScrollPageDown = {
-                        scope.launch { gridState.scrollOneVisualPage(up = false, reverseLayout = reverseLayout) }
-                    },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    IconOnlyAppGrid(
-                        apps = apps,
-                        dockLimit = dockLimit,
-                        iconSizeDp = iconSizeDp,
-                        showLabel = showLabels,
-                        highlightFirst = highlightFirst,
-                        reverseLayout = reverseLayout,
-                        query = query,
-                        onSearchAppStore = onSearchAppStore,
-                        contactResults = contactResults,
-                        eventResults = eventResults,
-                        onOpenContact = onOpenContact,
-                        onToggleStarred = onToggleStarred,
-                        onContactLongPress = onContactLongPress,
-                        onOpenEvent = onOpenEvent,
-                        state = gridState,
-                        onBoundsChanged = { bounds ->
-                            onAppListBoundsChanged(bounds)
-                            measuredChevronLayoutKey = chevronLayoutKey
+                Row(modifier = Modifier.weight(1f)) {
+                    AppListOverflowChevronBox(
+                        canScrollUp = canScrollUp,
+                        canScrollDown = canScrollDown,
+                        chevronsReady = chevronsReady,
+                        topChevronContentDescription = chevronDescription,
+                        bottomChevronContentDescription = chevronDescription,
+                        onScrollPageUp = {
+                            scope.launch { gridState.scrollOneVisualPage(up = true, reverseLayout = reverseLayout) }
                         },
-                        onLaunchApp = onLaunchApp,
-                        onOpenAppInfo = onOpenAppInfo,
-                        onToggleDock = onToggleDock,
-                        onResetRank = onResetRank,
-                        onRenameApp = onRenameApp,
-                        onSetAppIconOverride = onSetAppIconOverride,
-                        onClearAppIconOverride = onClearAppIconOverride,
-                        onSetAppBadge = onSetAppBadge,
-                        onHideApp = onHideApp,
-                        onUninstallApp = onUninstallApp,
-                        appDrag = appDrag,
-                        draggedAppId = draggedAppId,
-                    )
+                        onScrollPageDown = {
+                            scope.launch { gridState.scrollOneVisualPage(up = false, reverseLayout = reverseLayout) }
+                        },
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                    ) {
+                        IconOnlyAppGrid(
+                            apps = apps,
+                            dockLimit = dockLimit,
+                            iconSizeDp = iconSizeDp,
+                            showLabel = showLabels,
+                            highlightFirst = highlightFirst,
+                            reverseLayout = reverseLayout,
+                            query = query,
+                            onSearchAppStore = onSearchAppStore,
+                            contactResults = contactResults,
+                            eventResults = eventResults,
+                            onOpenContact = onOpenContact,
+                            onToggleStarred = onToggleStarred,
+                            onContactLongPress = onContactLongPress,
+                            onOpenEvent = onOpenEvent,
+                            state = gridState,
+                            onBoundsChanged = { bounds ->
+                                onAppListBoundsChanged(bounds)
+                                measuredChevronLayoutKey = chevronLayoutKey
+                            },
+                            onLaunchApp = onLaunchApp,
+                            onOpenAppInfo = onOpenAppInfo,
+                            onToggleDock = onToggleDock,
+                            onResetRank = onResetRank,
+                            onRenameApp = onRenameApp,
+                            onSetAppIconOverride = onSetAppIconOverride,
+                            onClearAppIconOverride = onClearAppIconOverride,
+                            onSetAppBadge = onSetAppBadge,
+                            onHideApp = onHideApp,
+                            onUninstallApp = onUninstallApp,
+                            appDrag = appDrag,
+                            draggedAppId = draggedAppId,
+                        )
+                    }
+                    if (letterSections.isNotEmpty()) {
+                        AppListLetterStrip(
+                            sections = letterSections,
+                            onJump = { index -> scope.launch { gridState.scrollToItem(index) } },
+                            onDragChanged = onLetterStripDragChanged,
+                        )
+                    }
                 }
             } else {
                 val listState = rememberLazyListState()
@@ -4633,67 +4662,194 @@ internal fun AppsCard(
                     isCurrentAppSetMeasured &&
                     viewportMeasured
                 val scope = rememberCoroutineScope()
-                AppListOverflowChevronBox(
-                    canScrollUp = canScrollUp,
-                    canScrollDown = canScrollDown,
-                    chevronsReady = chevronsReady,
-                    topChevronContentDescription = chevronDescription,
-                    bottomChevronContentDescription = chevronDescription,
-                    onScrollPageUp = {
-                        scope.launch { listState.scrollOneVisualPage(up = true, reverseLayout = reverseLayout) }
-                    },
-                    onScrollPageDown = {
-                        scope.launch { listState.scrollOneVisualPage(up = false, reverseLayout = reverseLayout) }
-                    },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    LazyColumn(
-                        state = listState,
-                        reverseLayout = reverseLayout,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .onGloballyPositioned { coords ->
-                                onAppListBoundsChanged(
-                                    Rect(coords.positionInRoot(), coords.size.toSize()),
-                                )
-                                measuredChevronLayoutKey = chevronLayoutKey
-                            }
-                            .testTag(APPS_LIST_TAG),
+                Row(modifier = Modifier.weight(1f)) {
+                    AppListOverflowChevronBox(
+                        canScrollUp = canScrollUp,
+                        canScrollDown = canScrollDown,
+                        chevronsReady = chevronsReady,
+                        topChevronContentDescription = chevronDescription,
+                        bottomChevronContentDescription = chevronDescription,
+                        onScrollPageUp = {
+                            scope.launch { listState.scrollOneVisualPage(up = true, reverseLayout = reverseLayout) }
+                        },
+                        onScrollPageDown = {
+                            scope.launch { listState.scrollOneVisualPage(up = false, reverseLayout = reverseLayout) }
+                        },
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                     ) {
-                        itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
-                            AppRow(
-                                app = app,
-                                isActive = highlightFirst && index == 0,
-                                dockLimit = dockLimit,
-                                onLaunchApp = onLaunchApp,
-                                onOpenAppInfo = onOpenAppInfo,
-                                onToggleDock = onToggleDock,
-                                onResetRank = onResetRank,
-                                onRenameApp = onRenameApp,
-                                onSetAppIconOverride = onSetAppIconOverride,
-                                onClearAppIconOverride = onClearAppIconOverride,
-                                onSetAppBadge = onSetAppBadge,
-                                onHideApp = onHideApp,
-                                onUninstallApp = onUninstallApp,
-                                appDrag = appDrag,
-                                isDragged = appDrag != null && app.id == draggedAppId,
+                        LazyColumn(
+                            state = listState,
+                            reverseLayout = reverseLayout,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .onGloballyPositioned { coords ->
+                                    onAppListBoundsChanged(
+                                        Rect(coords.positionInRoot(), coords.size.toSize()),
+                                    )
+                                    measuredChevronLayoutKey = chevronLayoutKey
+                                }
+                                .testTag(APPS_LIST_TAG),
+                        ) {
+                            itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
+                                AppRow(
+                                    app = app,
+                                    isActive = highlightFirst && index == 0,
+                                    dockLimit = dockLimit,
+                                    onLaunchApp = onLaunchApp,
+                                    onOpenAppInfo = onOpenAppInfo,
+                                    onToggleDock = onToggleDock,
+                                    onResetRank = onResetRank,
+                                    onRenameApp = onRenameApp,
+                                    onSetAppIconOverride = onSetAppIconOverride,
+                                    onClearAppIconOverride = onClearAppIconOverride,
+                                    onSetAppBadge = onSetAppBadge,
+                                    onHideApp = onHideApp,
+                                    onUninstallApp = onUninstallApp,
+                                    appDrag = appDrag,
+                                    isDragged = appDrag != null && app.id == draggedAppId,
+                                )
+                            }
+                            if (showStoreSearchRow) {
+                                storeSearchItem(query = query, onSearchAppStore = onSearchAppStore)
+                            }
+                            contentSearchSectionItems(
+                                contactResults = contactResults,
+                                eventResults = eventResults,
+                                hasItemsAbove = apps.isNotEmpty() || showStoreSearchRow,
+                                appsEmpty = apps.isEmpty(),
+                                highlightFirst = highlightFirst,
+                                onOpenContact = onOpenContact,
+                                onToggleStarred = onToggleStarred,
+                                onContactLongPress = onContactLongPress,
+                                onOpenEvent = onOpenEvent,
                             )
                         }
-                        if (showStoreSearchRow) {
-                            storeSearchItem(query = query, onSearchAppStore = onSearchAppStore)
-                        }
-                        contentSearchSectionItems(
-                            contactResults = contactResults,
-                            eventResults = eventResults,
-                            hasItemsAbove = apps.isNotEmpty() || showStoreSearchRow,
-                            appsEmpty = apps.isEmpty(),
-                            highlightFirst = highlightFirst,
-                            onOpenContact = onOpenContact,
-                            onToggleStarred = onToggleStarred,
-                            onContactLongPress = onContactLongPress,
-                            onOpenEvent = onOpenEvent,
+                    }
+                    if (letterSections.isNotEmpty()) {
+                        AppListLetterStrip(
+                            sections = letterSections,
+                            onJump = { index -> scope.launch { listState.scrollToItem(index) } },
+                            onDragChanged = onLetterStripDragChanged,
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+// Width of the landscape letter strip: wide enough to land a thumb on, narrow
+// enough to leave the list its width.
+private const val APP_LIST_LETTER_STRIP_WIDTH_DP = 32
+
+// Height one letter needs to stay legible (a `labelSmall` line). When the
+// strip is too short for every letter, it labels an evenly spread subset; a
+// drag still lands on every letter.
+private const val APP_LIST_LETTER_MIN_HEIGHT_DP = 16
+
+/**
+ * The landscape app list's letter strip: each letter present in the list, top
+ * to bottom. Touching or sliding over it jumps the list to that letter
+ * (contacts-style fast scroll), with a haptic tick per letter. The whole strip
+ * height maps onto [sections], so a short strip that can only label some
+ * letters still reaches every one. Each label is also a button for TalkBack.
+ */
+@Composable
+internal fun AppListLetterStrip(
+    sections: List<Pair<String, Int>>,
+    onJump: (index: Int) -> Unit,
+    onDragChanged: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val haptics = LocalHapticFeedback.current
+    var activeLetter by remember { mutableStateOf<String?>(null) }
+    val latestSections by rememberUpdatedState(sections)
+    val latestOnJump by rememberUpdatedState(onJump)
+    val latestOnDragChanged by rememberUpdatedState(onDragChanged)
+    BoxWithConstraints(
+        modifier = modifier
+            .width(APP_LIST_LETTER_STRIP_WIDTH_DP.dp)
+            .fillMaxHeight()
+            .testTag(APP_LIST_LETTER_STRIP_TAG)
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    latestOnDragChanged(true)
+                    fun jumpAt(y: Float) {
+                        val entries = latestSections
+                        if (entries.isEmpty() || size.height <= 0) return
+                        val slot = (y / size.height * entries.size).toInt().coerceIn(0, entries.lastIndex)
+                        val (letter, index) = entries[slot]
+                        if (letter != activeLetter) {
+                            activeLetter = letter
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            latestOnJump(index)
+                        }
+                    }
+                    try {
+                        down.consume()
+                        jumpAt(down.position.y)
+                        while (true) {
+                            val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) break
+                            change.consume()
+                            jumpAt(change.position.y)
+                        }
+                    } finally {
+                        activeLetter = null
+                        latestOnDragChanged(false)
+                    }
+                }
+            },
+    ) {
+        // Section i owns the slice [i, i+1) * height / count — exactly the
+        // slice the drag maps to it above — and a label, when shown, is
+        // centered on its own slice by the same arithmetic, so a tap on a label
+        // always lands on its letter. When the slices are too short to label
+        // each one, only an evenly spread subset is labeled.
+        val fit = (maxHeight / APP_LIST_LETTER_MIN_HEIGHT_DP.dp).toInt().coerceAtLeast(1)
+        val labeledSlots = if (sections.size <= fit) {
+            sections.indices.toList()
+        } else {
+            List(fit) { i -> i * sections.size / fit }.distinct()
+        }
+        Layout(
+            modifier = Modifier.fillMaxSize(),
+            content = {
+                labeledSlots.forEach { slot ->
+                    val (letter, index) = sections[slot]
+                    Text(
+                        text = letter,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (letter == activeLetter) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        maxLines = 1,
+                        modifier = Modifier
+                            .testTag("$APP_LIST_LETTER_TAG:$letter")
+                            .semantics {
+                                role = Role.Button
+                                onClick {
+                                    onJump(index)
+                                    true
+                                }
+                            },
+                    )
+                }
+            },
+        ) { measurables, constraints ->
+            val loose = constraints.copy(minWidth = 0, minHeight = 0)
+            val placeables = measurables.map { it.measure(loose) }
+            val height = constraints.maxHeight
+            layout(constraints.maxWidth, height) {
+                placeables.forEachIndexed { i, placeable ->
+                    val centerY = (labeledSlots[i] + 0.5f) * height / sections.size
+                    placeable.place(
+                        x = (constraints.maxWidth - placeable.width) / 2,
+                        y = (centerY - placeable.height / 2f).roundToInt(),
+                    )
                 }
             }
         }

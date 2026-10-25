@@ -59,4 +59,20 @@ class AppListCompactOverrideTest {
             effectiveAppListSortOrder(AppListSortOrder.Alphabetical, HomeLandscapeTier.Compact).isReversed,
         )
     }
+
+    @Test
+    fun landscapeSortsByNameInEveryTier() {
+        // The landscape letter strip jumps to a letter, which needs each
+        // letter's apps in one run: landscape sorts by name top to bottom,
+        // whatever the tier or the persisted choice.
+        for (tier in HomeLandscapeTier.values()) {
+            for (persisted in AppListSortOrder.values()) {
+                assertEquals(
+                    "Landscape $tier must sort by name, even from $persisted",
+                    AppListSortOrder.Alphabetical,
+                    effectiveAppListSortOrder(persisted, tier, isLandscape = true),
+                )
+            }
+        }
+    }
 }
