@@ -173,6 +173,10 @@ internal fun homeLandscapeMetrics(
     // Where the dock sits in landscape. Off the bottom (a side column) it takes
     // width rather than height, so the fit below counts no dock height.
     landscapeDockPosition: LandscapeDockPosition = LandscapeDockPosition.Bottom,
+    // The keyboard floats (takes no screen space; see `observeKeyboardFloating`),
+    // so every keyboard estimate below is 0: the box, a result row, and the
+    // floating keyboard always fit together.
+    isKeyboardFloating: Boolean = false,
     // The persisted "App list" layout: a NameBelow grid's rows are taller (the
     // label strip), and the DockNoKeyboard floor must reserve that too.
     appListLayout: AppListLayout = AppListLayout.NameBeside,
@@ -277,7 +281,9 @@ internal fun homeLandscapeMetrics(
 
     val keyboardHeightIsMeasured =
         keyboardReservation.appliesUnder(reservationFingerprint) && keyboardReservation.bottomPx > 0
-    val predictedKeyboardHeightDp = if (keyboardHeightIsMeasured) {
+    val predictedKeyboardHeightDp = if (isKeyboardFloating) {
+        0
+    } else if (keyboardHeightIsMeasured) {
         val navBottomPx = keyboardReservation.configFingerprint?.navBottomPx
             ?: reservationFingerprint.navBottomPx
         val heightPx = (keyboardReservation.bottomPx - navBottomPx).coerceAtLeast(0)
@@ -302,6 +308,7 @@ internal fun homeLandscapeMetrics(
     // are used for (1)/(2); anything else uses the fallback alone.
     val fallbackKeyboardDp = barAdjustedScreenHeightDp * LANDSCAPE_KEYBOARD_FALLBACK_PERCENT / 100
     val gateKeyboardHeightDp = when {
+        isKeyboardFloating -> 0
         keyboardHeightIsMeasured &&
             keyboardReservation.source == KeyboardReservationSource.VisibleIme ->
             predictedKeyboardHeightDp

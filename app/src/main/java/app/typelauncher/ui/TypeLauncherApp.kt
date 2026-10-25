@@ -354,6 +354,7 @@ internal fun TypeLauncherApp(
             onSetRecentsOpen = viewModel::setRecentsOpen,
             onRequestShowKeyboard = viewModel::requestShowKeyboard,
             onKeyboardReservationChanged = viewModel::setKeyboardReservation,
+            onKeyboardFloatingChanged = viewModel::setKeyboardFloating,
             onHomeLandscapeTierChanged = viewModel::setHomeLandscapeTier,
             onDockSuppressedByKeyboardChanged = viewModel::setDockSuppressedByKeyboard,
             keyboardShowRequests = viewModel.keyboardShowRequests,
@@ -468,6 +469,7 @@ internal fun TypeLauncherApp(
     onSetRecentsOpen: (Boolean) -> Unit = {},
     onRequestShowKeyboard: () -> Unit = {},
     onKeyboardReservationChanged: (KeyboardReservation) -> Unit = {},
+    onKeyboardFloatingChanged: (Boolean) -> Unit = {},
     onHomeLandscapeTierChanged: (HomeLandscapeTier) -> Unit = {},
     onDockSuppressedByKeyboardChanged: (Boolean) -> Unit = {},
     keyboardShowRequests: SharedFlow<Unit> = MutableSharedFlow(),
@@ -738,6 +740,25 @@ internal fun TypeLauncherApp(
                 current = currentReservation,
             )?.let(onKeyboardReservationChanged)
         }
+        // Remember whether the keyboard, once settled, takes any screen space.
+        // A floating keyboard (e.g. Gboard's floating mode) reports itself
+        // visible with no inset; the reservation path above ignores it, so
+        // without this the last docked height would keep hiding the landscape
+        // search box and reserving room nothing fills. Debounced like a shrink
+        // so a docked keyboard's first open frames (inset still 0) can't flip
+        // it; `observeKeyboardFloating` also requires the animation target to
+        // stay low. A keyboard that doesn't report itself visible while
+        // floating simply never records it.
+        LaunchedEffect(imeBottomPx, imeTargetBottomPx, imeVisible, navBottomPx) {
+            val floating = observeKeyboardFloating(
+                imeVisible = imeVisible,
+                imeBottomPx = imeBottomPx,
+                imeTargetBottomPx = imeTargetBottomPx,
+                navBottomPx = navBottomPx,
+            ) ?: return@LaunchedEffect
+            delay(IME_SHRINK_DEBOUNCE_MS)
+            onKeyboardFloatingChanged(floating)
+        }
         // In the cramped-landscape [HomeLandscapeTier.Compact] state the search box
         // is hidden by default; a pull-up (routed to `keyboardShowRequests`)
         // reveals it on demand. In [HomeLandscapeTier.DockNoKeyboard] the box is
@@ -766,7 +787,10 @@ internal fun TypeLauncherApp(
         // imeVisible paths below as the IME animates in.
         val expectKeyboardThisEntry = (state.isKeyboardAutoShown && autoShowKeyboardFits) ||
             searchRevealedInTightLandscape
+        // A floating keyboard pushes nothing up, so its last docked height is
+        // not reserved.
         val stableTypingGeometryAvailable = !state.isSettingsOpen &&
+            !state.isKeyboardFloating &&
             expectKeyboardThisEntry &&
             entryKeyboardBottomPx > navBottomPx
         val shouldUseTypingGeometry = stableTypingGeometryAvailable
@@ -1352,6 +1376,7 @@ private fun rememberHomeLandscapeUi(state: LauncherUiState): HomeLandscapeUi {
         state.keyboardReservation,
         state.dockLayout,
         state.landscapeDockPosition,
+        state.isKeyboardFloating,
         state.appListLayout,
         density.fontScale,
     ) {
@@ -1376,6 +1401,7 @@ private fun rememberHomeLandscapeUi(state: LauncherUiState): HomeLandscapeUi {
             reservationFingerprint = fingerprint,
             dockLayout = state.dockLayout,
             landscapeDockPosition = state.landscapeDockPosition,
+            isKeyboardFloating = state.isKeyboardFloating,
             appListLayout = state.appListLayout,
             fontScale = density.fontScale,
             verticalSystemBarsPx = verticalSystemBarsPx,

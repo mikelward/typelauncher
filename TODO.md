@@ -498,16 +498,20 @@
 - [ ] **Pick one landscape dock position.** "Landscape dock" ships Bottom,
       Right and Both sides side by side so each can be tried on a device;
       keep the winner (or keep the choice) and delete the rest.
-- [ ] **Landscape search when the keyboard doesn't fit** (discussion first).
-      The search box hides in phone landscape because the keyboard plus one
-      result row won't fit. An app can't size or place the keyboard (it is
-      the IME's own window), but it can stop opting out of fullscreen: the
-      IME could then take the screen with its own text box and Enter launches
-      the top match, at the cost of live results while typing. Check whether
-      Compose's text field sets `IME_FLAG_NO_FULLSCREEN` today, and what
-      Gboard does without it. A launcher-drawn keyboard is the only way to
-      control shape (e.g. half-width beside a side dock), at the cost of the
-      user's own IME.
+- [ ] **Landscape search when the keyboard doesn't fit.** The search box
+      hides in phone landscape because the keyboard plus one result row won't
+      fit. An app can't size or place the keyboard (it is the IME's own
+      window; Compose 1.12 also always sets `IME_FLAG_NO_FULLSCREEN`).
+      - [x] Floating keyboards (e.g. Gboard's floating mode) keep the box:
+            detected from a visible IME with no inset. **Needs a device check**
+            that a floating Gboard reports itself visible; if not, nothing
+            changes.
+      - [ ] Next: an A–Z letter strip in landscape that **jumps** the list to
+            a letter (contacts-style fast scroll, maintainer's choice
+            2026-10-25), sorting the landscape list A–Z while it shows. Open:
+            letters with apps only vs all 26; placement under "Both sides".
+      - Not planned for now: allowing fullscreen keyboard mode (needs a View
+        text field; hides live results), or a launcher-drawn keyboard.
 
 - [ ] **The work dock sometimes appears about a second late, then pops in.**
       Reported from a device (2026-10-17); when it happens is not yet known
