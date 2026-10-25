@@ -617,6 +617,28 @@ internal fun resolveKeyboardReservation(
  * first frame of the hide animation, so the tray is free to fill the space
  * the keyboard is vacating.
  */
+/**
+ * Whether a keyboard that is up takes no screen space (a floating keyboard,
+ * such as Gboard's floating mode), from one inset reading: `true` when the IME
+ * is visible yet neither its inset nor its animation target rises above the
+ * navigation bar, `false` when it is visible and does rise above it, and
+ * `null` when the IME is not visible (no observation). The animation target
+ * guard keeps the first frames of a docked keyboard's open animation, while
+ * its inset is still 0, from reading as floating; the caller additionally
+ * debounces so only a reading that holds counts.
+ */
+internal fun observeKeyboardFloating(
+    imeVisible: Boolean,
+    imeBottomPx: Int,
+    imeTargetBottomPx: Int,
+    navBottomPx: Int,
+): Boolean? = when {
+    !imeVisible -> null
+    imeBottomPx <= navBottomPx && imeTargetBottomPx <= navBottomPx -> true
+    imeBottomPx > navBottomPx -> false
+    else -> null
+}
+
 internal fun isKeyboardShowingOrAnimatingIn(
     imeVisible: Boolean,
     imeTargetBottomPx: Int,
@@ -745,6 +767,10 @@ internal data class LauncherUiState(
     // `MainActivity` applies `stateAlwaysHidden` so the keyboard stays down
     // until the user taps the field.
     val isKeyboardAutoShown: Boolean = true,
+    // The last settled keyboard took no screen space (see
+    // `observeKeyboardFloating`), so nothing reserves room for it and the
+    // landscape search-box gate counts it as 0dp tall.
+    val isKeyboardFloating: Boolean = false,
     // When true, the empty-query Home shows the device wallpaper in the
     // app-list slot (instead of the browse list) until the user starts typing,
     // and only where the search box is visible; the Widgets and Agenda

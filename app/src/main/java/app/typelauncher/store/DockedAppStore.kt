@@ -582,6 +582,20 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * Whether the last settled keyboard floated (took no screen space). A
+     * property of the keyboard app's mode, not of the configuration, so one
+     * flag rather than a per-configuration reservation. Defaults off: a
+     * keyboard is assumed docked until one is seen floating.
+     */
+    var isKeyboardFloating: Boolean
+        get() = sharedPreferences.getBoolean(KEY_KEYBOARD_FLOATING, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_KEYBOARD_FLOATING, value)
+                .apply()
+        }
+
+    /**
      * When on, the empty-query Home shows the device wallpaper in the app-list
      * slot instead of the browse list until the user starts typing — an opt-in,
      * so it defaults off to preserve the browse-first Home for existing users.
@@ -1003,6 +1017,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_ICON_THEME = "icon_theme"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
+        const val KEY_KEYBOARD_FLOATING = "keyboard_floating"
         const val KEY_SHOW_WALLPAPER = "show_wallpaper"
         const val KEY_SHOW_HOME_WIDGETS = "show_home_widgets"
         const val KEY_KIOSK_MODE = "kiosk_mode"

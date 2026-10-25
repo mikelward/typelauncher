@@ -452,6 +452,7 @@ internal class LauncherViewModel(
             isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
             appListSortOrder = dockSettingsStore.appListSortOrder,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
+            isKeyboardFloating = dockSettingsStore.isKeyboardFloating,
             isWallpaperShown = dockSettingsStore.isWallpaperShown,
             isHomeWidgetsShown = dockSettingsStore.isHomeWidgetsShown,
             isKioskMode = dockSettingsStore.isKioskMode,
@@ -1734,6 +1735,13 @@ internal class LauncherViewModel(
             coerced.source,
             coerced.configFingerprint,
         )
+    }
+
+    fun setKeyboardFloating(isFloating: Boolean) {
+        if (_uiState.value.isKeyboardFloating == isFloating) return
+        dockSettingsStore.isKeyboardFloating = isFloating
+        _uiState.update { it.copy(isKeyboardFloating = isFloating) }
+        logState("setKeyboardFloating=%s", isFloating)
     }
 
     fun requestShowKeyboardOnHomeResume() {

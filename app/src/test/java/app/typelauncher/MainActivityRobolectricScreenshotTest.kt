@@ -530,6 +530,28 @@ class MainActivityRobolectricScreenshotTest {
     // exceed the height, so the box is hidden entirely (never shown, not
     // revealed) and the window is just the flattened dock and the app list.
     // The launcher never shows a search box it can't honor.
+    // A floating keyboard (e.g. Gboard's floating mode) takes no screen space,
+    // so the same window whose cached docked keyboard hides the search box
+    // keeps it, with no keyboard space reserved. Seeded with the same too-tall
+    // docked reservation as the no-search-box case below.
+    @Test
+    @Config(qualifiers = "w914dp-h360dp-420dpi")
+    fun screenshot_landscape_floatingKeyboard_keepsSearchBox() {
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertDoesNotExist()
+
+        composeRule.runOnUiThread { composeRule.activity.viewModel.setKeyboardFloating(true) }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(DOCK_CARD_TAG).assertIsDisplayed()
+        saveScreenshot(
+            "compose_home_landscape_floating_keyboard_robolectric.png",
+            widthPx = 2400,
+            heightPx = 945,
+        )
+    }
+
     @Test
     @Config(qualifiers = "w914dp-h360dp-420dpi")
     fun screenshot_landscape_dockNoSearchBox_hidesBoxWithoutTypingHeadroom() {
@@ -4172,6 +4194,7 @@ class MainActivityRobolectricScreenshotTest {
                     if (description.methodName in listOf(
                             "screenshot_landscape_dockNoSearchBox_hidesBoxWithoutTypingHeadroom",
                             "landscape_pullUpDoesNotRevealSearchWithoutTypingHeadroom",
+                            "screenshot_landscape_floatingKeyboard_keepsSearchBox",
                         )
                     ) {
                         // Pin the typing-headroom gate to the measured-keyboard

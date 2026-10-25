@@ -339,6 +339,7 @@ internal fun bugReportSettingRows(settings: DockSettingsStore): List<Pair<String
         "Dock layout" to settings.dockLayout.name,
         "Landscape dock position" to settings.landscapeDockPosition.name,
         "Keyboard auto-shown" to settings.isKeyboardAutoShown.toString(),
+        "Keyboard floating" to settings.isKeyboardFloating.toString(),
         "Keyboard reservation" to "${reservation.bottomPx}px (${reservation.source.name})",
         "Wallpaper shown" to settings.isWallpaperShown.toString(),
         "Home widgets shown" to settings.isHomeWidgetsShown.toString(),

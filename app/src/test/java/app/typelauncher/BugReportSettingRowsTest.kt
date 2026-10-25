@@ -24,6 +24,7 @@ class BugReportSettingRowsTest {
     fun rowsReflectStoredSettings() {
         val store = DockSettingsStore(context)
         store.isKeyboardAutoShown = false
+        store.isKeyboardFloating = true
         store.isHomeWidgetsShown = true
         store.isKioskMode = true
         store.isKioskLock = true
@@ -40,6 +41,7 @@ class BugReportSettingRowsTest {
         val rows = bugReportSettingRows(store).toMap()
 
         assertEquals("false", rows["Keyboard auto-shown"])
+        assertEquals("true", rows["Keyboard floating"])
         assertEquals("true", rows["Home widgets shown"])
         assertEquals("true", rows["Kiosk mode"])
         assertEquals("true", rows["Kiosk lock"])
