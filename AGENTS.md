@@ -1,7 +1,7 @@
 ---
 trigger: always_on
 alwaysApply: true
-last_modified: 2026-10-23
+last_modified: 2026-10-26
 ---
 
 # Type Launcher
@@ -134,8 +134,10 @@ Measure padding and margins on every UI change; spacing is part of the deliverab
   (`AskUserQuestion` in Claude Code, `ask_question` in Antigravity). Then stop and wait: no
   assumed answer, no self-picked "recommended" option, no work on the part it affects. Never
   ask while the user is typing.
-- **Answer a mid-turn message first**, before any further tool call (except a merge cue,
-  whose hygiene runs first and whose announced switch is the answer).
+- **Answer a mid-turn message first**, before any further tool call (except a merge cue, whose
+  hygiene runs first and whose announced switch is the answer). **Claude Code only**
+  (maintainer, 2026-10-25): its app reliably shows just a turn's last message, so reply only
+  there, answering a mid-turn message at a stopping point soon.
 - **Keep replies short**; lead with what matters most.
 - **Message only when the user needs to see it** (maintainer, 2026-10-15): each one notifies
   their phone. Work and listen in silence; speak up for a question or blocker, something to
