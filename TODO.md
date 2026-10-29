@@ -139,6 +139,18 @@
 
 ### Decisions needing review
 
+- [ ] **A name sort keeps its order in cramped landscape while the letter strip
+      is on** (2026-10-29). The cramped Compact layout (no search box, no dock)
+      sorts by usage, most-used at the bottom, whatever "Sort apps by" says;
+      with "Letter strip" on and a name sort, it now keeps the name order so
+      the strip shows there, where it is most useful. **Alternative:** keep
+      the usage override in Compact too, so the strip disappears there.
+      **Reversible** in `effectiveAppListSortOrder`.
+- [ ] **"Letter strip" stays settable under a usage sort** (2026-10-29), with
+      the line "When sorted by name" beneath it, rather than graying it out.
+      **Alternative:** disable the switch until "Sort apps by" is a name
+      order. **Reversible** in the Settings row.
+
 - [ ] **Kept Material Icons in the Licenses page after vendoring them**
       (autopilot, 2026-09-05, from a review finding on PR #730). Dropping
       `material-icons-extended` takes both icon modules off the release runtime
@@ -506,10 +518,13 @@
             detected from a visible IME with no inset. **Needs a device check**
             that a floating Gboard reports itself visible; if not, nothing
             changes.
-      - [ ] Next: an A–Z letter strip in landscape that **jumps** the list to
-            a letter (contacts-style fast scroll, maintainer's choice
-            2026-10-25), sorting the landscape list A–Z while it shows. Open:
-            letters with apps only vs all 26; placement under "Both sides".
+      - [x] A letter strip that **jumps** the list to a letter
+            (contacts-style fast scroll, maintainer's choice 2026-10-25).
+            Settled 2026-10-29: a "Letter strip" switch, off by default, in
+            portrait and landscape; it shows only under a name sort and never
+            forces one; every letter that has apps, labeled down both sides
+            of the list inside its card. **Needs a device check** that the
+            labels stay legible on a short phone-landscape list.
       - Not planned for now: allowing fullscreen keyboard mode (needs a View
         text field; hides live results), or a launcher-drawn keyboard.
 

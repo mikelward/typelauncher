@@ -155,6 +155,10 @@
     <string name="settings_app_list_sort_option_usage_reversed">Usage ↑</string>
     <string name="settings_app_list_sort_option_name">Name ↓</string>
     <string name="settings_app_list_sort_option_name_reversed">Name ↑</string>
+    <!-- TODO: translate -->
+    <string name="settings_letter_strip_title" tools:ignore="MissingTranslation">Letter strip</string>
+    <!-- TODO: translate -->
+    <string name="settings_letter_strip_needs_name_sort" tools:ignore="MissingTranslation">When sorted by name</string>
     <string name="settings_dock_enabled_title">Show dock</string>
     <string name="settings_work_dock_enabled_title">Show work dock</string>
     <string name="settings_work_dock_disabled_toast">Work profile is paused</string>

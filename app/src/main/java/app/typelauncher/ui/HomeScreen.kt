@@ -145,6 +145,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.role
@@ -171,6 +172,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
+import kotlin.math.floor
 import kotlin.math.roundToInt
 
 @Composable
@@ -1160,6 +1162,11 @@ internal fun HomeScreen(
             // composition; the holdback is a cold-start optimisation, not
             // a per-mount one. See the comment on `homeBodyReady` in
             // TypeLauncherApp for the why.
+            val renderedSortOrder = effectiveAppListSortOrder(
+                state.appListSortOrder,
+                landscapeTier,
+                state.isLetterStripEnabled,
+            )
             val appsCard: @Composable () -> Unit = {
                 AppsCard(
                     apps = state.filteredApps,
@@ -1172,7 +1179,8 @@ internal fun HomeScreen(
                     // cramped-landscape Compact tier still sorts by usage with the
                     // most-used app at the visual bottom, overriding the persisted
                     // "Sort apps by" choice — the list is the only launch surface
-                    // there, so it favors thumb-reach. The sort reads the live
+                    // there, so it favors thumb-reach — unless a name sort has the
+                    // letter strip to reach apps by. The sort reads the live
                     // `landscapeTier` param (which can lead the
                     // `state.homeLandscapeTier` snapshot by a frame on rotation).
                     layout = state.appListLayout,
@@ -1188,15 +1196,12 @@ internal fun HomeScreen(
                         !state.isLoadingSearchContent &&
                         !state.queryMatchesInstalledApp,
                     onSearchAppStore = onSearchAppStore,
-                    reverseLayout = effectiveAppListSortOrder(
-                        state.appListSortOrder,
-                        landscapeTier,
-                        isWiderThanPortrait,
-                    ).isReversed,
-                    // Landscape lists sort by name (see effectiveAppListSortOrder)
-                    // so the strip can jump; only the blank-query browse list
-                    // gets it, never typed results.
-                    showLetterStrip = isWiderThanPortrait && state.query.isBlank(),
+                    reverseLayout = renderedSortOrder.isReversed,
+                    // "Letter strip" shows only while the list sorts by name (a
+                    // jump needs each letter's apps in one run), and only on the
+                    // blank-query browse list, never typed results.
+                    showLetterStrip = state.query.isBlank() &&
+                        showsLetterStrip(state.isLetterStripEnabled, renderedSortOrder),
                     onLetterStripDragChanged = onDockDragChanged,
                     contactResults = state.contactResults,
                     eventResults = state.eventResults,
@@ -4472,10 +4477,10 @@ internal fun AppsCard(
     // renders empty (content at alpha 0, layout slot preserved) so the icon reads
     // as picked up into the floating drag overlay instead of duplicated in place.
     draggedAppId: String? = null,
-    // Landscape: show the A–Z letter strip on the list's trailing edge, which
-    // jumps the list to a letter (see [AppListLetterStrip]).
+    // Show a letter strip down each side of the list, which jumps the list to
+    // a letter (see [AppListLetterStrip]). Only for a name-sorted list.
     showLetterStrip: Boolean = false,
-    // True while a finger is on the letter strip, so the launcher's carousel
+    // True while a finger is on a letter strip, so the launcher's carousel
     // and pull gestures stand down for that drag.
     onLetterStripDragChanged: (Boolean) -> Unit = {},
 ) {
@@ -4514,10 +4519,15 @@ internal fun AppsCard(
     }
     var measuredChevronLayoutKey by remember { mutableStateOf<AppListChevronLayoutKey?>(null) }
     val isCurrentAppSetMeasured = measuredChevronLayoutKey == chevronLayoutKey
-    // Recomputed only when the list or the strip's visibility changes; one
-    // pass over the display names.
-    val letterSections = remember(apps, showLetterStrip) {
-        if (showLetterStrip) appListLetterSections(apps.map { it.displayName }) else emptyList()
+    // Recomputed only when the list, its direction or the strip's visibility
+    // changes; one pass over the display names. The strips read top to bottom
+    // as the list does, so a reversed list (item 0 at the bottom) reverses them.
+    val letterSections = remember(apps, showLetterStrip, reverseLayout) {
+        if (showLetterStrip) {
+            appListLetterSections(apps.map { it.displayName }).let { if (reverseLayout) it.asReversed() else it }
+        } else {
+            emptyList()
+        }
     }
     SectionCard(
         modifier
@@ -4591,7 +4601,16 @@ internal fun AppsCard(
                     isCurrentAppSetMeasured &&
                     viewportMeasured
                 val scope = rememberCoroutineScope()
+                val jumpToLetter: (Int) -> Unit = { index -> scope.launch { gridState.scrollToItem(index) } }
                 Row(modifier = Modifier.weight(1f)) {
+                    if (letterSections.isNotEmpty()) {
+                        AppListLetterStrip(
+                            sections = letterSections,
+                            onJump = jumpToLetter,
+                            onDragChanged = onLetterStripDragChanged,
+                            tag = APP_LIST_LETTER_STRIP_START_TAG,
+                        )
+                    }
                     AppListOverflowChevronBox(
                         canScrollUp = canScrollUp,
                         canScrollDown = canScrollDown,
@@ -4643,8 +4662,10 @@ internal fun AppsCard(
                     if (letterSections.isNotEmpty()) {
                         AppListLetterStrip(
                             sections = letterSections,
-                            onJump = { index -> scope.launch { gridState.scrollToItem(index) } },
+                            onJump = jumpToLetter,
                             onDragChanged = onLetterStripDragChanged,
+                            tag = APP_LIST_LETTER_STRIP_END_TAG,
+                            isAccessibilityDuplicate = true,
                         )
                     }
                 }
@@ -4662,7 +4683,16 @@ internal fun AppsCard(
                     isCurrentAppSetMeasured &&
                     viewportMeasured
                 val scope = rememberCoroutineScope()
+                val jumpToLetter: (Int) -> Unit = { index -> scope.launch { listState.scrollToItem(index) } }
                 Row(modifier = Modifier.weight(1f)) {
+                    if (letterSections.isNotEmpty()) {
+                        AppListLetterStrip(
+                            sections = letterSections,
+                            onJump = jumpToLetter,
+                            onDragChanged = onLetterStripDragChanged,
+                            tag = APP_LIST_LETTER_STRIP_START_TAG,
+                        )
+                    }
                     AppListOverflowChevronBox(
                         canScrollUp = canScrollUp,
                         canScrollDown = canScrollDown,
@@ -4728,8 +4758,10 @@ internal fun AppsCard(
                     if (letterSections.isNotEmpty()) {
                         AppListLetterStrip(
                             sections = letterSections,
-                            onJump = { index -> scope.launch { listState.scrollToItem(index) } },
+                            onJump = jumpToLetter,
                             onDragChanged = onLetterStripDragChanged,
+                            tag = APP_LIST_LETTER_STRIP_END_TAG,
+                            isAccessibilityDuplicate = true,
                         )
                     }
                 }
@@ -4738,21 +4770,21 @@ internal fun AppsCard(
     }
 }
 
-// Width of the landscape letter strip: wide enough to land a thumb on, narrow
-// enough to leave the list its width.
+// Width of each letter strip: wide enough to land a thumb on, narrow enough to
+// leave the list its width.
 private const val APP_LIST_LETTER_STRIP_WIDTH_DP = 32
 
-// Height one letter needs to stay legible (a `labelSmall` line). When the
-// strip is too short for every letter, it labels an evenly spread subset; a
-// drag still lands on every letter.
-private const val APP_LIST_LETTER_MIN_HEIGHT_DP = 16
-
 /**
- * The landscape app list's letter strip: each letter present in the list, top
- * to bottom. Touching or sliding over it jumps the list to that letter
- * (contacts-style fast scroll), with a haptic tick per letter. The whole strip
- * height maps onto [sections], so a short strip that can only label some
- * letters still reaches every one. Each label is also a button for TalkBack.
+ * A letter strip beside the app list: each letter present in the list, top to
+ * bottom in the list's own visual order. Touching or sliding over it jumps the
+ * list to that letter (contacts-style fast scroll), with a haptic tick per
+ * letter. Every letter is labeled: on a strip too short for `labelSmall`, the
+ * labels shrink to fit their slices rather than drop out. Each label is also a
+ * button for TalkBack, except on a strip that [isAccessibilityDuplicate]s
+ * another (the list's second side), which TalkBack skips so it reads each
+ * letter once.
+ *
+ * The strip is tagged [tag] and each label `"$tag:$letter"`.
  */
 @Composable
 internal fun AppListLetterStrip(
@@ -4760,6 +4792,8 @@ internal fun AppListLetterStrip(
     onJump: (index: Int) -> Unit,
     onDragChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    tag: String = APP_LIST_LETTER_STRIP_START_TAG,
+    isAccessibilityDuplicate: Boolean = false,
 ) {
     val haptics = LocalHapticFeedback.current
     var activeLetter by remember { mutableStateOf<String?>(null) }
@@ -4770,7 +4804,8 @@ internal fun AppListLetterStrip(
         modifier = modifier
             .width(APP_LIST_LETTER_STRIP_WIDTH_DP.dp)
             .fillMaxHeight()
-            .testTag(APP_LIST_LETTER_STRIP_TAG)
+            .testTag(tag)
+            .then(if (isAccessibilityDuplicate) Modifier.semantics { hideFromAccessibility() } else Modifier)
             .pointerInput(Unit) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
@@ -4803,24 +4838,25 @@ internal fun AppListLetterStrip(
             },
     ) {
         // Section i owns the slice [i, i+1) * height / count — exactly the
-        // slice the drag maps to it above — and a label, when shown, is
-        // centered on its own slice by the same arithmetic, so a tap on a label
-        // always lands on its letter. When the slices are too short to label
-        // each one, only an evenly spread subset is labeled.
-        val fit = (maxHeight / APP_LIST_LETTER_MIN_HEIGHT_DP.dp).toInt().coerceAtLeast(1)
-        val labeledSlots = if (sections.size <= fit) {
-            sections.indices.toList()
-        } else {
-            List(fit) { i -> i * sections.size / fit }.distinct()
+        // slice the drag maps to it above — and its label is centered on that
+        // slice by the same arithmetic, so a tap on a label always lands on its
+        // letter. A label is at most one slice tall, so labels never overlap.
+        val baseStyle = MaterialTheme.typography.labelSmall
+        val sliceHeight = maxHeight / sections.size.coerceAtLeast(1)
+        val labelStyle = with(LocalDensity.current) {
+            // A label measures up to a pixel taller than its line height once
+            // rounded to the pixel grid, so leave that pixel spare.
+            val fontPx = minOf(baseStyle.fontSize.toPx(), floor(sliceHeight.toPx()) - 1f).coerceAtLeast(1f)
+            val fontSize = fontPx.toSp()
+            baseStyle.copy(fontSize = fontSize, lineHeight = fontSize)
         }
         Layout(
             modifier = Modifier.fillMaxSize(),
             content = {
-                labeledSlots.forEach { slot ->
-                    val (letter, index) = sections[slot]
+                sections.forEach { (letter, index) ->
                     Text(
                         text = letter,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = labelStyle,
                         color = if (letter == activeLetter) {
                             MaterialTheme.colorScheme.primary
                         } else {
@@ -4828,7 +4864,7 @@ internal fun AppListLetterStrip(
                         },
                         maxLines = 1,
                         modifier = Modifier
-                            .testTag("$APP_LIST_LETTER_TAG:$letter")
+                            .testTag("$tag:$letter")
                             .semantics {
                                 role = Role.Button
                                 onClick {
@@ -4845,7 +4881,7 @@ internal fun AppListLetterStrip(
             val height = constraints.maxHeight
             layout(constraints.maxWidth, height) {
                 placeables.forEachIndexed { i, placeable ->
-                    val centerY = (labeledSlots[i] + 0.5f) * height / sections.size
+                    val centerY = (i + 0.5f) * height / sections.size
                     placeable.place(
                         x = (constraints.maxWidth - placeable.width) / 2,
                         y = (centerY - placeable.height / 2f).roundToInt(),
@@ -7030,6 +7066,7 @@ internal fun SettingsScreen(
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
+    onLetterStripEnabledChanged: (Boolean) -> Unit = {},
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onWallpaperShownChanged: (Boolean) -> Unit = {},
     onChangeWallpaper: () -> Unit = {},
@@ -7326,6 +7363,33 @@ internal fun SettingsScreen(
                     AppListSortOrderDropdown(
                         selected = state.appListSortOrder,
                         onSortOrderChanged = onAppListSortOrderChanged,
+                    )
+                }
+                // Beside "Sort apps by" because the strip only shows under a
+                // name sort; the switch stays live under a usage sort (so it can
+                // be set first), with a line saying when it applies.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_letter_strip_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        if (!state.appListSortOrder.isAlphabetical) {
+                            Text(
+                                stringResource(R.string.settings_letter_strip_needs_name_sort),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    Switch(
+                        checked = state.isLetterStripEnabled,
+                        onCheckedChange = onLetterStripEnabledChanged,
+                        modifier = Modifier.testTag(LETTER_STRIP_SWITCH_TAG),
                     )
                 }
                 Text(

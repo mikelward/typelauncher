@@ -9,7 +9,8 @@ import org.junit.Test
  * presentation choice: it always sorts by usage with the most-used app at the
  * visual bottom, regardless of the user's persisted "Sort apps by" setting.
  * Every other tier — all of portrait, the Full landscape tier, and the
- * keyboard-down DockNoKeyboard tier — honors the persisted choice. The "App
+ * keyboard-down DockNoKeyboard tier — honors the persisted choice, as does
+ * Compact for a name sort while the letter strip is on. The "App
  * list" layout setting is honored in *every* tier (the old Compact icon-grid
  * override is gone), so there is no layout counterpart to these tests.
  */
@@ -61,18 +62,38 @@ class AppListCompactOverrideTest {
     }
 
     @Test
-    fun landscapeSortsByNameInEveryTier() {
-        // The landscape letter strip jumps to a letter, which needs each
-        // letter's apps in one run: landscape sorts by name top to bottom,
-        // whatever the tier or the persisted choice.
-        for (tier in HomeLandscapeTier.values()) {
+    fun compactKeepsANameSortWhileTheLetterStripIsOn() {
+        // The letter strip reaches apps by name where the keyboard doesn't fit,
+        // so a name sort survives Compact while the strip is on; a usage sort
+        // still gets the thumb-reach override.
+        for (persisted in AppListSortOrder.values()) {
+            val expected = if (persisted.isAlphabetical) persisted else AppListSortOrder.UsageReversed
+            assertEquals(
+                "Compact with the strip on, from $persisted",
+                expected,
+                effectiveAppListSortOrder(persisted, HomeLandscapeTier.Compact, letterStrip = true),
+            )
+        }
+    }
+
+    @Test
+    fun theLetterStripNeverChangesTheSortOutsideCompact() {
+        for (tier in HomeLandscapeTier.values().filter { it != HomeLandscapeTier.Compact }) {
             for (persisted in AppListSortOrder.values()) {
                 assertEquals(
-                    "Landscape $tier must sort by name, even from $persisted",
-                    AppListSortOrder.Alphabetical,
-                    effectiveAppListSortOrder(persisted, tier, isLandscape = true),
+                    "$tier with the strip on keeps $persisted",
+                    persisted,
+                    effectiveAppListSortOrder(persisted, tier, letterStrip = true),
                 )
             }
+        }
+    }
+
+    @Test
+    fun theStripShowsOnlyWhenOnAndSortedByName() {
+        for (sortOrder in AppListSortOrder.values()) {
+            assertEquals("on, $sortOrder", sortOrder.isAlphabetical, showsLetterStrip(true, sortOrder))
+            assertEquals("off, $sortOrder", false, showsLetterStrip(false, sortOrder))
         }
     }
 }

@@ -324,36 +324,37 @@ class LauncherViewModelShowDockedInListTest {
     }
 
     @Test
-    fun landscapeSortsListByNameEvenUnderUsageSort() {
-        // Usage sort, with "Maps" launched most: portrait lists Maps first, but
-        // landscape (the letter strip's jump needs name order) lists A–Z, in
-        // Compact too; back in portrait the usage order returns.
+    fun letterStripKeepsANameSortInCompactAndPersists() {
+        // With the letter strip on, a name sort survives the Compact tier (the
+        // strip reaches apps there) instead of switching to usage; turning the
+        // strip off brings the usage override back. "Maps" is launched most, so
+        // the two orders visibly diverge. The setting outlives the ViewModel.
         seedApp("Apple", "com.example.apple")
         seedApp("Maps", "com.example.maps")
         seedApp("Zebra", "com.example.zebra")
         val viewModel = newViewModel()
         idle()
+        viewModel.setAppListSortOrder(AppListSortOrder.Alphabetical)
+        idle()
         val maps = viewModel.uiState.value.filteredApps.first { it.name == "Maps" }
         repeat(5) { AppLaunchStatsStore(context).recordLaunch(maps.id) }
-        // Choosing the sort recomputes the list against the recorded launches.
-        viewModel.setAppListSortOrder(AppListSortOrder.Usage)
-        idle()
         val tracked = setOf("Apple", "Maps", "Zebra")
         fun order() = viewModel.uiState.value.filteredApps.map { it.name }.filter { it in tracked }
-        assertEquals("Maps", order().first())
 
-        viewModel.setLandscapeHome(true)
-        idle()
-        assertEquals(listOf("Apple", "Maps", "Zebra"), order())
-
+        viewModel.setLetterStripEnabled(true)
         viewModel.setHomeLandscapeTier(HomeLandscapeTier.Compact)
         idle()
         assertEquals(listOf("Apple", "Maps", "Zebra"), order())
 
-        viewModel.setHomeLandscapeTier(HomeLandscapeTier.Full)
-        viewModel.setLandscapeHome(false)
+        viewModel.setLetterStripEnabled(false)
         idle()
         assertEquals("Maps", order().first())
+
+        viewModel.setLetterStripEnabled(true)
+        idle()
+        val reloaded = newViewModel()
+        idle()
+        assertTrue(reloaded.uiState.value.isLetterStripEnabled)
     }
 
     private fun newViewModel(): LauncherViewModel = LauncherViewModel(

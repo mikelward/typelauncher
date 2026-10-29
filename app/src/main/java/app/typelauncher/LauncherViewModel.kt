@@ -451,6 +451,7 @@ internal class LauncherViewModel(
             dockIconSizeDp = dockSettingsStore.dockIconSizeDp,
             isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
             appListSortOrder = dockSettingsStore.appListSortOrder,
+            isLetterStripEnabled = dockSettingsStore.isLetterStripEnabled,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
             isKeyboardFloating = dockSettingsStore.isKeyboardFloating,
             isWallpaperShown = dockSettingsStore.isWallpaperShown,
@@ -1706,14 +1707,6 @@ internal class LauncherViewModel(
         // sort.
         refreshFilteredApps()
         LauncherDebugLog.event("setHomeLandscapeTier tier=%s", tier)
-    }
-
-    fun setLandscapeHome(isLandscape: Boolean) {
-        if (_uiState.value.isLandscapeHome == isLandscape) return
-        _uiState.update { it.copy(isLandscapeHome = isLandscape) }
-        // Landscape sorts the list by name (see effectiveAppListSortOrder).
-        refreshFilteredApps()
-        LauncherDebugLog.event("setLandscapeHome landscape=%s", isLandscape)
     }
 
     /**
@@ -4987,6 +4980,15 @@ internal class LauncherViewModel(
         _uiState.update { it.copy(appListSortOrder = sortOrder) }
         refreshLists()
         logState("setAppListSortOrder")
+    }
+
+    fun setLetterStripEnabled(isEnabled: Boolean) {
+        dockSettingsStore.isLetterStripEnabled = isEnabled
+        _uiState.update { it.copy(isLetterStripEnabled = isEnabled) }
+        // A name sort keeps its order in the Compact tier while the strip is on
+        // (see effectiveAppListSortOrder), so the lists may reorder.
+        refreshLists()
+        logState("setLetterStripEnabled=%s", isEnabled)
     }
 
     fun setLandscapeDockPosition(position: LandscapeDockPosition) {

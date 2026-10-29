@@ -340,21 +340,30 @@ class MainActivityRobolectricScreenshotTest {
         saveScreenshot("compose_home_landscape_dock_no_keyboard_robolectric.png", widthPx = 2400, heightPx = 1080)
     }
 
-    // Landscape Home lists apps by name with an A–Z strip on the list's
-    // trailing edge; tapping a letter jumps the list to that letter's first app.
+    // With "Letter strip" on and the list sorted by name, Home puts a strip of
+    // every letter down each side of the list; tapping a letter jumps the list
+    // to that letter's first app.
     @Test
     @Config(qualifiers = "w914dp-h411dp-420dpi")
     fun screenshot_landscape_letterStrip_jumpsToLetter() {
         composeRule.waitForIdle()
         val viewModel = composeRule.activity.viewModel
-        assertTrue(viewModel.uiState.value.isLandscapeHome)
+        viewModel.setAppListSortOrder(AppListSortOrder.Alphabetical)
+        viewModel.setLetterStripEnabled(true)
+        composeRule.waitForIdle()
         val names = viewModel.uiState.value.filteredApps.map { it.displayName }
-        assertEquals("landscape lists apps by name", names.sortedBy { it.lowercase() }, names)
-        composeRule.onNodeWithTag(APP_LIST_LETTER_STRIP_TAG).assertIsDisplayed()
+        val letters = names.map { appListLetter(it) }.distinct()
+        val list = composeRule.onNodeWithTag(APPS_LIST_TAG).getBoundsInRoot()
+        val start = composeRule.onNodeWithTag(APP_LIST_LETTER_STRIP_START_TAG).getBoundsInRoot()
+        val end = composeRule.onNodeWithTag(APP_LIST_LETTER_STRIP_END_TAG).getBoundsInRoot()
+        assertTrue("one strip left of the list ($start, list $list)", start.right <= list.left)
+        assertTrue("one strip right of the list ($end, list $list)", end.left >= list.right)
+        for (strip in listOf(APP_LIST_LETTER_STRIP_START_TAG, APP_LIST_LETTER_STRIP_END_TAG)) {
+            letters.forEach { composeRule.onNodeWithTag("$strip:$it").assertIsDisplayed() }
+        }
 
         val target = names.last()
-        val letter = appListLetter(target)
-        composeRule.onNodeWithTag("$APP_LIST_LETTER_TAG:$letter").performClick()
+        composeRule.onNodeWithTag("$APP_LIST_LETTER_STRIP_END_TAG:${appListLetter(target)}").performClick()
         composeRule.waitForIdle()
         composeRule.onNodeWithText(target).assertIsDisplayed()
 
@@ -365,12 +374,41 @@ class MainActivityRobolectricScreenshotTest {
         )
     }
 
-    // Portrait keeps the user's own sort and has no letter strip.
+    // "Letter strip" is off by default, and landscape keeps the user's own
+    // sort rather than switching to names.
     @Test
-    fun portrait_hasNoLetterStrip() {
+    @Config(qualifiers = "w914dp-h411dp-420dpi")
+    fun landscape_byDefault_hasNoLetterStripAndKeepsTheSort() {
         composeRule.waitForIdle()
-        assertFalse(composeRule.activity.viewModel.uiState.value.isLandscapeHome)
-        composeRule.onNodeWithTag(APP_LIST_LETTER_STRIP_TAG).assertDoesNotExist()
+        val state = composeRule.activity.viewModel.uiState.value
+        assertFalse(state.isLetterStripEnabled)
+        assertEquals(state.appListSortOrder, state.renderedAppListSortOrder())
+        composeRule.onNodeWithTag(APP_LIST_LETTER_STRIP_START_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(APP_LIST_LETTER_STRIP_END_TAG).assertDoesNotExist()
+    }
+
+    // The strip works in portrait too, only while the list sorts by name, and
+    // reads down the screen the way the list does.
+    @Test
+    fun portrait_letterStrip_showsOnlyUnderANameSort() {
+        composeRule.waitForIdle()
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setLetterStripEnabled(true)
+        viewModel.setAppListSortOrder(AppListSortOrder.Usage)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(APP_LIST_LETTER_STRIP_START_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(APP_LIST_LETTER_STRIP_END_TAG).assertDoesNotExist()
+
+        viewModel.setAppListSortOrder(AppListSortOrder.AlphabeticalReversed)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(APP_LIST_LETTER_STRIP_START_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(APP_LIST_LETTER_STRIP_END_TAG).assertIsDisplayed()
+        // Name ↑ puts A at the bottom, so the strip reads Z to A going down.
+        val letters = viewModel.uiState.value.filteredApps.map { appListLetter(it.displayName) }.distinct()
+        val tops = letters.map {
+            composeRule.onNodeWithTag("$APP_LIST_LETTER_STRIP_START_TAG:$it").getBoundsInRoot().top.value
+        }
+        assertEquals("letters run bottom to top in list order", tops.sortedDescending(), tops)
     }
 
     // A 6x2 portrait dock flattens into a single reading-order landscape row —
