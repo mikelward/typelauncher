@@ -583,6 +583,65 @@ class MainActivityRobolectricScreenshotTest {
         )
     }
 
+    // Each side takes only the columns it needs: eight personal apps wrap to
+    // two columns at full size, while the one work app stays in a single,
+    // narrower column at the same size.
+    @Test
+    @Config(qualifiers = "w914dp-h411dp-420dpi")
+    fun screenshot_landscape_dockOnBothSides_eachSideTakesItsOwnColumns() {
+        composeRule.waitForIdle()
+        val viewModel = composeRule.activity.viewModel
+        val personalApps = viewModel.uiState.value.filteredApps.filter { app -> !app.isWorkApp }
+        personalApps.take(8).forEach { app -> viewModel.toggleDock(app, maxDockedApps = 1) }
+        personalApps.drop(8).forEach { app -> viewModel.markAsActiveWorkAppForTest(app.packageName) }
+        viewModel.setWorkDockEnabled(true)
+        composeRule.waitForIdle()
+        viewModel.uiState.value.filteredApps
+            .filter { app -> app.isWorkApp && !app.isWorkDocked }
+            .forEach { app -> viewModel.toggleDock(app, maxDockedApps = 1) }
+        viewModel.setLandscapeDockPosition(LandscapeDockPosition.BothSides)
+        composeRule.waitForIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(8, state.dockedApps.size)
+        assertTrue("expected docked work apps", state.workDockedApps.isNotEmpty())
+        val personalSlots = state.dockedApps.map { app ->
+            composeRule.onNodeWithTag("$DOCK_APP_TAG:${app.displayName}").getBoundsInRoot()
+        }
+        val workSlots = state.workDockedApps.map { app ->
+            composeRule.onNodeWithTag("$WORK_DOCK_APP_TAG:${app.displayName}").getBoundsInRoot()
+        }
+        assertEquals(
+            "personal dock in two columns",
+            2,
+            personalSlots.map { slot -> kotlin.math.round(slot.left.value) }.distinct().size,
+        )
+        assertEquals(
+            "work dock in one column",
+            1,
+            workSlots.map { slot -> kotlin.math.round(slot.left.value) }.distinct().size,
+        )
+        val personalCard = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+        val workCard = composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).getBoundsInRoot()
+        assertTrue(
+            "the one-column work card is narrower ($workCard vs $personalCard)",
+            workCard.right - workCard.left < personalCard.right - personalCard.left,
+        )
+        (personalSlots.map { it to personalCard } + workSlots.map { it to workCard }).forEach { (slot, card) ->
+            assertTrue("$slot whole in $card", slot.top >= card.top && slot.bottom <= card.bottom)
+        }
+        val slotHeights = (personalSlots + workSlots).map { slot -> kotlin.math.round((slot.bottom - slot.top).value) }
+        assertEquals("one icon size on both sides ($slotHeights)", 1, slotHeights.distinct().size)
+
+        // At the window's own height, for the reason the shrink-to-fit
+        // capture above gives.
+        saveScreenshot(
+            "compose_home_landscape_dock_both_sides_own_columns_robolectric.png",
+            widthPx = 2400,
+            heightPx = composeRule.activity.window.decorView.rootView.height,
+        )
+    }
+
     @Test
     @Config(qualifiers = "w600dp-h240dp-420dpi")
     fun screenshot_landscape_short_showsDockWithoutSearchBox() {
