@@ -1,6 +1,9 @@
 package app.typelauncher
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -52,6 +55,43 @@ class SettingsScreenTest {
             }
         }
         composeRule.waitForIdle()
+    }
+
+    // "Letter strip" sits under "Sort apps by": its switch reports the setting
+    // and stays live under a usage sort, where a line says when it applies.
+    @Test
+    fun letterStripSwitchTogglesAndSaysWhenItApplies() {
+        var sortOrder by mutableStateOf(AppListSortOrder.Usage)
+        var toggled: Boolean? = null
+        composeRule.setContent {
+            TypeLauncherTheme {
+                SettingsScreen(
+                    state = LauncherUiState(appListSortOrder = sortOrder, isLetterStripEnabled = false),
+                    innerPadding = PaddingValues(),
+                    onCloseSettings = {},
+                    onRequestDefaultLauncher = {},
+                    onDockEnabledChanged = {},
+                    onAppListLayoutChanged = {},
+                    onDockVisibleIconCountChanged = {},
+                    onAppListSortOrderChanged = {},
+                    onLetterStripEnabledChanged = { toggled = it },
+                    onUnhideApp = {},
+                    onOpenLauncherAppInfo = {},
+                    onOpenPlayUpdate = {},
+                    onCompletePlayUpdate = {},
+                    onDismissPlayUpdate = {},
+                )
+            }
+        }
+        val hint = "When sorted by name"
+        composeRule.onNodeWithTag(LETTER_STRIP_SWITCH_TAG).performScrollTo().assertIsOff()
+        composeRule.onNodeWithText(hint).assertExists()
+        composeRule.onNodeWithTag(LETTER_STRIP_SWITCH_TAG).performClick()
+        assertEquals(true, toggled)
+
+        sortOrder = AppListSortOrder.AlphabeticalReversed
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(hint).assertDoesNotExist()
     }
 
     // Regression coverage for the crash prompt's relocation from a Home

@@ -596,6 +596,18 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * "Letter strip": while the app list sorts by name, a letter strip down each
+     * side of it jumps the list to a letter. Opt-in, so it defaults off.
+     */
+    var isLetterStripEnabled: Boolean
+        get() = sharedPreferences.getBoolean(KEY_LETTER_STRIP, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_LETTER_STRIP, value)
+                .apply()
+        }
+
+    /**
      * When on, the empty-query Home shows the device wallpaper in the app-list
      * slot instead of the browse list until the user starts typing — an opt-in,
      * so it defaults off to preserve the browse-first Home for existing users.
@@ -1016,6 +1028,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_LANDSCAPE_DOCK_POSITION = "landscape_dock_position"
         const val KEY_ICON_THEME = "icon_theme"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
+        const val KEY_LETTER_STRIP = "letter_strip"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
         const val KEY_KEYBOARD_FLOATING = "keyboard_floating"
         const val KEY_SHOW_WALLPAPER = "show_wallpaper"

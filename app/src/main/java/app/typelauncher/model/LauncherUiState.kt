@@ -764,6 +764,10 @@ internal data class LauncherUiState(
     // and whether the settings switch is interactable.
     val isWorkProfileActive: Boolean = false,
     val appListSortOrder: AppListSortOrder = AppListSortOrder.Usage,
+    // "Letter strip" (off by default): while the list sorts by name, a letter
+    // strip down each side of the blank-query list jumps it to a letter. See
+    // [showsLetterStrip].
+    val isLetterStripEnabled: Boolean = false,
     // When true (default), the search field auto-focuses on launch and
     // `SearchCard` calls `keyboard.show()` so the user can start typing
     // immediately. When false, the search field renders unfocused and
@@ -838,10 +842,6 @@ internal data class LauncherUiState(
     // mode, resume re-show) and the cold-start home-ready IME wait read one
     // value. Always [HomeLandscapeTier.Full] in portrait.
     val homeLandscapeTier: HomeLandscapeTier = HomeLandscapeTier.Full,
-    // Whether Home's window is wider than it is tall. Pushed from the Compose
-    // layer (and seeded by `MainActivity`) like [homeLandscapeTier]: the
-    // landscape app list sorts by name so its letter strip can jump.
-    val isLandscapeHome: Boolean = false,
     // True while the keyboard is up in the landscape
     // [HomeLandscapeTier.DockNoKeyboard] state: that tier shows the dock with
     // the keyboard down, so when the user raises the keyboard the dock yields
@@ -946,35 +946,48 @@ internal data class LauncherUiState(
 /**
  * The sort order the app list actually renders under, given the persisted
  * "Sort apps by" [persisted] choice, the current landscape [tier], and whether
- * Home is in a wider-than-portrait window ([isLandscape]).
+ * the "Letter strip" setting is on ([letterStrip]).
  *
- * Landscape always sorts by name, top to bottom (`Alphabetical`): the letter
- * strip beside the list jumps to a letter, which only works when each letter's
- * apps are one contiguous run. Otherwise the cramped-landscape
- * [HomeLandscapeTier.Compact] state sorts by usage with the most-used app at
- * the visual bottom (`UsageReversed`) — only reachable when the caller doesn't
- * know the window is landscape (the Compact tier is landscape-only). Every
- * other state — all of portrait — honors [persisted].
+ * The cramped-landscape [HomeLandscapeTier.Compact] state sorts by usage with
+ * the most-used app at the visual bottom (`UsageReversed`) regardless of the
+ * persisted choice: the app list is the only launch surface there (the docks
+ * are dropped and the search box is hidden), so the most-launched apps belong
+ * under the thumb, closest to where a pull-up brings the keyboard. The one
+ * exception is a name sort with the letter strip on, which keeps its order so
+ * the strip — the way to reach an app when the keyboard doesn't fit — still
+ * shows. Every other state — all of portrait, and the Full and DockNoKeyboard
+ * landscape tiers — honors [persisted].
  */
 internal fun effectiveAppListSortOrder(
     persisted: AppListSortOrder,
     tier: HomeLandscapeTier,
-    isLandscape: Boolean = false,
+    letterStrip: Boolean = false,
 ): AppListSortOrder = when {
-    isLandscape -> AppListSortOrder.Alphabetical
-    tier == HomeLandscapeTier.Compact -> AppListSortOrder.UsageReversed
-    else -> persisted
+    tier != HomeLandscapeTier.Compact -> persisted
+    letterStrip && persisted.isAlphabetical -> persisted
+    else -> AppListSortOrder.UsageReversed
 }
 
-/** [effectiveAppListSortOrder] for this state's setting, tier and orientation. */
+/** [effectiveAppListSortOrder] for this state's setting, tier and letter strip. */
 internal fun LauncherUiState.renderedAppListSortOrder(): AppListSortOrder =
-    effectiveAppListSortOrder(appListSortOrder, homeLandscapeTier, isLandscapeHome)
+    effectiveAppListSortOrder(appListSortOrder, homeLandscapeTier, isLetterStripEnabled)
+
+/** Whether this order sorts by name, either way up. */
+internal val AppListSortOrder.isAlphabetical: Boolean
+    get() = this == AppListSortOrder.Alphabetical || this == AppListSortOrder.AlphabeticalReversed
 
 /**
- * The first letter of [displayName], uppercased, as the landscape letter strip
- * reads it (accents kept; [appListLetterSections] decides which letters group
- * together). Anything that isn't a letter (a digit, a symbol, an empty name)
- * reads as `#`.
+ * Whether the app list shows its letter strip: the setting is on and the list
+ * renders [sortOrder] by name, since a jump needs each letter's apps in one
+ * run. The caller also keeps it to the blank-query list.
+ */
+internal fun showsLetterStrip(enabled: Boolean, sortOrder: AppListSortOrder): Boolean =
+    enabled && sortOrder.isAlphabetical
+
+/**
+ * The first letter of [displayName], uppercased, as the letter strip reads it
+ * (accents kept; [appListLetterSections] decides which letters group together).
+ * Anything that isn't a letter (a digit, a symbol, an empty name) reads as `#`.
  */
 internal fun appListLetter(displayName: String): String {
     val first = displayName.trimStart().firstOrNull() ?: return "#"

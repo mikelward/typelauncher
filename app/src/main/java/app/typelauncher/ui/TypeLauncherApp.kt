@@ -316,6 +316,7 @@ internal fun TypeLauncherApp(
             onDockVisibleIconCountChanged = viewModel::setDockVisibleIconCount,
             onWorkDockEnabledChanged = viewModel::setWorkDockEnabled,
             onAppListSortOrderChanged = viewModel::setAppListSortOrder,
+            onLetterStripEnabledChanged = viewModel::setLetterStripEnabled,
             onKeyboardAutoShownChanged = viewModel::setKeyboardAutoShown,
             onWallpaperShownChanged = viewModel::setWallpaperShown,
             onChangeWallpaper = viewModel::openWallpaperPicker,
@@ -356,7 +357,6 @@ internal fun TypeLauncherApp(
             onKeyboardReservationChanged = viewModel::setKeyboardReservation,
             onKeyboardFloatingChanged = viewModel::setKeyboardFloating,
             onHomeLandscapeTierChanged = viewModel::setHomeLandscapeTier,
-            onLandscapeHomeChanged = viewModel::setLandscapeHome,
             onDockSuppressedByKeyboardChanged = viewModel::setDockSuppressedByKeyboard,
             keyboardShowRequests = viewModel.keyboardShowRequests,
             appWidgetHost = appWidgetHost,
@@ -432,6 +432,7 @@ internal fun TypeLauncherApp(
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
+    onLetterStripEnabledChanged: (Boolean) -> Unit = {},
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onWallpaperShownChanged: (Boolean) -> Unit = {},
     onChangeWallpaper: () -> Unit = {},
@@ -472,7 +473,6 @@ internal fun TypeLauncherApp(
     onKeyboardReservationChanged: (KeyboardReservation) -> Unit = {},
     onKeyboardFloatingChanged: (Boolean) -> Unit = {},
     onHomeLandscapeTierChanged: (HomeLandscapeTier) -> Unit = {},
-    onLandscapeHomeChanged: (Boolean) -> Unit = {},
     onDockSuppressedByKeyboardChanged: (Boolean) -> Unit = {},
     keyboardShowRequests: SharedFlow<Unit> = MutableSharedFlow(),
     appWidgetHost: AppWidgetHost?,
@@ -545,11 +545,6 @@ internal fun TypeLauncherApp(
     val homeLandscapeTier = homeLandscape.tier
     LaunchedEffect(homeLandscapeTier) {
         onHomeLandscapeTierChanged(homeLandscapeTier)
-    }
-    val landscapeConfiguration = LocalConfiguration.current
-    val isLandscapeHome = landscapeConfiguration.screenWidthDp > landscapeConfiguration.screenHeightDp
-    LaunchedEffect(isLandscapeHome) {
-        onLandscapeHomeChanged(isLandscapeHome)
     }
     val autoShowKeyboardFits = homeLandscapeTier == HomeLandscapeTier.Full
     HomeReadySignal(
@@ -959,6 +954,7 @@ internal fun TypeLauncherApp(
                         onDockVisibleIconCountChanged = onDockVisibleIconCountChanged,
                         onWorkDockEnabledChanged = onWorkDockEnabledChanged,
                         onAppListSortOrderChanged = onAppListSortOrderChanged,
+                        onLetterStripEnabledChanged = onLetterStripEnabledChanged,
                         onKeyboardAutoShownChanged = onKeyboardAutoShownChanged,
                         onWallpaperShownChanged = onWallpaperShownChanged,
                         onChangeWallpaper = onChangeWallpaper,
