@@ -494,8 +494,8 @@ class MainActivityRobolectricScreenshotTest {
         )
     }
 
-    // "Both sides" cuts the column in half: the first half down the left edge,
-    // the rest down the right.
+    // "Both sides" with only the personal dock showing cuts its column in half:
+    // the first half down the left edge, the rest down the right.
     @Test
     @Config(qualifiers = "w914dp-h411dp-420dpi")
     fun screenshot_landscape_dockOnBothSides_splitsTheColumn() {
@@ -522,6 +522,64 @@ class MainActivityRobolectricScreenshotTest {
             "compose_home_landscape_dock_both_sides_robolectric.png",
             widthPx = 2400,
             heightPx = 1080,
+        )
+    }
+
+    // With the work dock showing too, "Both sides" gives each dock a side: the
+    // personal dock down the left edge, the work dock down the right. Seven
+    // personal apps don't fit one column at the full icon size, so both sides
+    // shrink to one smaller size with every icon whole, and the two cards
+    // share their top and bottom edges.
+    @Test
+    @Config(qualifiers = "w914dp-h411dp-420dpi")
+    fun screenshot_landscape_dockOnBothSides_personalLeftWorkRightShrunkToFit() {
+        composeRule.waitForIdle()
+        val viewModel = composeRule.activity.viewModel
+        val personalApps = viewModel.uiState.value.filteredApps.filter { app -> !app.isWorkApp }
+        personalApps.take(7).forEach { app -> viewModel.toggleDock(app, maxDockedApps = 1) }
+        personalApps.drop(7).forEach { app -> viewModel.markAsActiveWorkAppForTest(app.packageName) }
+        viewModel.setWorkDockEnabled(true)
+        composeRule.waitForIdle()
+        viewModel.uiState.value.filteredApps
+            .filter { app -> app.isWorkApp && !app.isWorkDocked }
+            .forEach { app -> viewModel.toggleDock(app, maxDockedApps = 1) }
+        viewModel.setLandscapeDockPosition(LandscapeDockPosition.BothSides)
+        composeRule.waitForIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(7, state.dockedApps.size)
+        assertTrue("expected docked work apps", state.workDockedApps.isNotEmpty())
+        val personalSlots = state.dockedApps.map { app ->
+            composeRule.onNodeWithTag("$DOCK_APP_TAG:${app.displayName}").getBoundsInRoot()
+        }
+        val workSlots = state.workDockedApps.map { app ->
+            composeRule.onNodeWithTag("$WORK_DOCK_APP_TAG:${app.displayName}").getBoundsInRoot()
+        }
+        assertTrue("personal dock on the left ($personalSlots)", personalSlots.all { it.right.value < 914f / 2 })
+        assertTrue("work dock on the right ($workSlots)", workSlots.all { it.left.value > 914f / 2 })
+        val personalCard = composeRule.onNodeWithTag(DOCK_CARD_TAG).getBoundsInRoot()
+        val workCard = composeRule.onNodeWithTag(WORK_DOCK_CARD_TAG).getBoundsInRoot()
+        personalSlots.forEach { slot ->
+            assertTrue("$slot whole in $personalCard", slot.top >= personalCard.top && slot.bottom <= personalCard.bottom)
+        }
+        workSlots.forEach { slot ->
+            assertTrue("$slot whole in $workCard", slot.top >= workCard.top && slot.bottom <= workCard.bottom)
+        }
+        assertEquals("cards share a top", personalCard.top.value, workCard.top.value, 1f)
+        assertEquals("cards share a bottom", personalCard.bottom.value, workCard.bottom.value, 1f)
+        val slotHeights = (personalSlots + workSlots).map { slot -> kotlin.math.round((slot.bottom - slot.top).value) }
+        assertEquals("one icon size on both sides ($slotHeights)", 1, slotHeights.distinct().size)
+        val fullSlotDp = dockIconSizing(411, state.dockIconSizeDp).iconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP
+        assertTrue("icons shrank to fit (slot ${slotHeights.first()}dp, full ${fullSlotDp}dp)", slotHeights.first() < fullSlotDp)
+
+        // At the window's own height: the fitted icon size follows the height
+        // to the pixel, and the 1080px the other landscape captures use is a
+        // pixel or two taller than this window, which would refit the dock
+        // mid-capture to a size whose icons haven't loaded.
+        saveScreenshot(
+            "compose_home_landscape_dock_both_sides_by_profile_robolectric.png",
+            widthPx = 2400,
+            heightPx = composeRule.activity.window.decorView.rootView.height,
         )
     }
 

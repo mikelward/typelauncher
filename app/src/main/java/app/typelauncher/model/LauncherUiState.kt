@@ -129,8 +129,13 @@ internal enum class DockLayout {
  *   reading-order row below the app list (see `landscapeDockPositions`).
  * - [Right]: the dock flattens into one reading-order column along the right
  *   edge, so it takes width instead of the short screen's scarce height.
- * - [BothSides]: the same column cut in half, the first half down the left
- *   edge and the rest down the right (see [splitLandscapeDockPositions]).
+ * - [BothSides]: with both the personal and work docks showing, the personal
+ *   dock runs down the left edge and the work dock down the right; with one
+ *   dock showing, its column is cut in half, the first half down the left edge
+ *   and the rest down the right (see [splitLandscapeDockPositions]).
+ *
+ * The side columns fit the window's height by shrinking, then wrapping, their
+ * icons (see [sideDockFit]).
  *
  * Portrait always keeps the dock at the bottom.
  */
@@ -337,22 +342,89 @@ internal fun landscapeDockPositions(
  * The two halves of a dock split across both edges of a landscape window
  * ([LandscapeDockPosition.BothSides]): the flattened reading order (see
  * [landscapeDockPositions]) is cut in half, the first half — rounded up —
- * becoming the left column and the rest the right, each a single column
- * counted from row 0. Like the flatten, a pure render-time transform: the
- * persisted portrait grid is never rewritten.
+ * becoming the left strip and the rest the right, each laid out in reading
+ * order across [columnCount] columns (one, unless [sideDockFit] wraps the
+ * strips) counted from row 0. Like the flatten, a pure render-time transform:
+ * the persisted portrait grid is never rewritten.
  */
 internal fun splitLandscapeDockPositions(
     occupantIds: List<String>,
     persistedPositions: Map<String, DockPosition>,
     portraitColumnCount: Int,
+    columnCount: Int = 1,
 ): Pair<Map<String, DockPosition>, Map<String, DockPosition>> {
     val order = landscapeDockPositions(occupantIds, persistedPositions, portraitColumnCount, 1)
         .entries
         .sortedBy { (_, position) -> position.row }
         .map { (occupantId, _) -> occupantId }
     val leftCount = (order.size + 1) / 2
-    fun column(ids: List<String>) = ids.withIndex().associate { (index, id) -> id to DockPosition(index, 0) }
-    return column(order.take(leftCount)) to column(order.drop(leftCount))
+    val columns = columnCount.coerceAtLeast(1)
+    fun strip(ids: List<String>) = ids.withIndex().associate { (index, id) ->
+        id to DockPosition(index / columns, index % columns)
+    }
+    return strip(order.take(leftCount)) to strip(order.drop(leftCount))
+}
+
+// The most icon columns a side-column dock card wraps to (see [sideDockFit]).
+internal const val SIDE_DOCK_MAX_COLUMNS = 2
+
+/**
+ * How a side-column dock ("Landscape dock" Right or Both sides) fits the
+ * window's height: the icon columns every card takes and the one icon size
+ * every card draws at.
+ */
+internal data class SideDockFit(val columns: Int, val iconSizeDp: Int)
+
+/**
+ * Height, in dp, of one side column's stack of dock cards: [cards] holds each
+ * card's occupant count, top to bottom (an empty card still takes a row, for
+ * its add button), laid out [columns] wide at [iconSizeDp].
+ */
+internal fun sideDockHeightDp(
+    cards: List<Int>,
+    columns: Int,
+    iconSizeDp: Int,
+    layout: DockLayout,
+    fontScale: Float = 1f,
+): Int {
+    if (cards.isEmpty()) return 0
+    val columnCount = columns.coerceAtLeast(1)
+    val slotDp = dockSlotHeightDp(iconSizeDp, layout, fontScale)
+    val cardsDp = cards.sumOf { count ->
+        val rows = (count.coerceAtLeast(1) + columnCount - 1) / columnCount
+        SECTION_CARD_PADDING_DP * 2 + rows * slotDp + (rows - 1) * DOCK_ITEM_SPACING_DP
+    }
+    return cardsDp + (cards.size - 1) * HOME_CARD_SPACING_DP
+}
+
+/**
+ * Fits the side-column dock into [availableHeightDp]. [sides] holds each side
+ * column's cards, as [sideDockHeightDp] takes them: one side for Right, two for
+ * Both sides.
+ *
+ * The icons shrink to fit — from [maxIconSizeDp] (the "Icons per row" size)
+ * down to [MIN_DOCK_APP_ICON_SIZE_DP] — rather than clip. When even the
+ * minimum doesn't fit in one column, the cards wrap to two columns, which
+ * halves the rows and so lets the icons grow back, then shrink again as more
+ * apps arrive. Past two columns at the minimum, the cards keep that and scroll.
+ * Every side shares the one size and column count, so the two sides of Both
+ * sides match.
+ */
+internal fun sideDockFit(
+    availableHeightDp: Int,
+    sides: List<List<Int>>,
+    maxIconSizeDp: Int,
+    layout: DockLayout,
+    fontScale: Float = 1f,
+): SideDockFit {
+    val minIconSizeDp = MIN_DOCK_APP_ICON_SIZE_DP.coerceAtMost(maxIconSizeDp)
+    for (columns in 1..SIDE_DOCK_MAX_COLUMNS) {
+        val iconSizeDp = (maxIconSizeDp downTo minIconSizeDp).firstOrNull { size ->
+            sides.all { cards -> sideDockHeightDp(cards, columns, size, layout, fontScale) <= availableHeightDp }
+        }
+        if (iconSizeDp != null) return SideDockFit(columns, iconSizeDp)
+    }
+    return SideDockFit(SIDE_DOCK_MAX_COLUMNS, minIconSizeDp)
 }
 
 /**

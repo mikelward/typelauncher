@@ -309,13 +309,26 @@ internal fun HomeScreen(
     val dockSizing = dockIconSizing(dockReferenceWidthDp, state.dockIconSizeDp)
     val dockIconCount = dockSizing.slotCount
     val dockIconSizeDp = dockSizing.iconSizeDp
+    val isWiderThanPortrait = configuration.screenWidthDp > configuration.screenHeightDp
+    // "Landscape dock" set to Right or Both sides turns the flattened row into a
+    // reading-order column beside the search box and app list (Both sides puts
+    // the personal dock on the left and the work dock on the right, or cuts a
+    // lone dock in half), so the dock takes width instead of the short screen's
+    // scarce height. Portrait ignores the setting.
+    val isDockOnSide = isWiderThanPortrait && state.landscapeDockPosition != LandscapeDockPosition.Bottom
+    val isDockSplit = isWiderThanPortrait && state.landscapeDockPosition == LandscapeDockPosition.BothSides
+    // The size the side-column dock draws its icons at once they shrink to fit
+    // the window's height (see `sideDockFit`), reported from its measure pass;
+    // null until a side column has measured.
+    var sideDockIconSizeDp by remember { mutableStateOf<Int?>(null) }
+    val renderedDockIconSizeDp = if (isDockOnSide) sideDockIconSizeDp ?: dockIconSizeDp else dockIconSizeDp
     // Each surface's rendered size, reported to the view model for the icon warm-up.
     // Computed here rather than there because the dock size is clamped to fit the row
     // and the list size follows the layout setting -- recomputing either off-screen
     // could name a size nothing draws, and warming a size nothing reads warms nothing.
     val iconWarmUpDensity = LocalDensity.current
     val dockFolderCellSizeDp = (
-        (dockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp -
+        (renderedDockIconSizeDp + DOCK_ITEM_VERTICAL_PADDING_DP).dp -
             (DOCK_FOLDER_TILE_PADDING_DP * 2 + DOCK_FOLDER_MINI_GAP_DP).dp
         ) / 2
     val appListIconSizeDp = if (state.appListLayout == AppListLayout.NameBeside) {
@@ -323,11 +336,11 @@ internal fun HomeScreen(
     } else {
         dockIconSizeDp.dp
     }
-    LaunchedEffect(appListIconSizeDp, dockIconSizeDp, dockFolderCellSizeDp, iconWarmUpDensity) {
+    LaunchedEffect(appListIconSizeDp, renderedDockIconSizeDp, dockFolderCellSizeDp, iconWarmUpDensity) {
         with(iconWarmUpDensity) {
             onRenderedIconSizes(
                 appListIconSizeDp.roundToPx().coerceAtLeast(1),
-                dockIconSizeDp.dp.roundToPx().coerceAtLeast(1),
+                renderedDockIconSizeDp.dp.roundToPx().coerceAtLeast(1),
                 dockFolderCellSizeDp.roundToPx().coerceAtLeast(1),
             )
         }
@@ -341,13 +354,6 @@ internal fun HomeScreen(
     // any overflow wraps to a second row, exactly as the portrait grid would.
     // The portrait positions in state are never rewritten; this is a pure
     // render-time reflow (rotating back restores the grid).
-    val isWiderThanPortrait = configuration.screenWidthDp > configuration.screenHeightDp
-    // "Landscape dock" set to Right or Both sides turns the flattened row into a
-    // single reading-order column beside the search box and app list (Both
-    // sides cuts it in half, left and right), so the dock takes width instead
-    // of the short screen's scarce height. Portrait ignores the setting.
-    val isDockOnSide = isWiderThanPortrait && state.landscapeDockPosition != LandscapeDockPosition.Bottom
-    val isDockSplit = isWiderThanPortrait && state.landscapeDockPosition == LandscapeDockPosition.BothSides
     val personalDockOccupantIds = state.dockedApps.map { app -> app.id } +
         state.dockFolders.map { folder -> folder.id }
     val workDockOccupantIds = state.workDockedApps.map { app -> app.id } +
@@ -408,6 +414,11 @@ internal fun HomeScreen(
     )
 
     val showWorkDock = state.isWorkDockEnabled && state.isWorkProfileActive
+    // Both sides with both docks showing gives each dock a side of its own:
+    // personal down the left edge, work down the right. A lone dock is cut in
+    // half across the two sides instead.
+    val isDockSplitByProfile = isDockSplit && state.isDockEnabled && showWorkDock
+    val isDockHalved = isDockSplit && !isDockSplitByProfile
     // --- Search-time dock reveal (long-press with an active query). ---
     // Typing hides the dock (see `isDockSlotPresent`), which leaves a filtered
     // search hit with no drag-to-dock target. Arming a long-press on a list app
@@ -684,10 +695,10 @@ internal fun HomeScreen(
     // (64) of chrome while the real chrome is only ~48 — so mirror that ~16dp
     // here, otherwise the last icon wraps to a second row at exact-fit widths.
     // The flattened landscape row is wider (`dockColumnCount`), so the centered
-    // island grows to match.
+    // island grows to match; a side column is as wide as its fitted columns.
     val dockRowSlackDp = DOCK_ITEM_SPACING_DP * 2
-    val dockCardWidthDp = (
-        dockRowContentWidthDp(dockColumnCount, dockIconSizeDp) +
+    fun dockCardWidthDp(columns: Int, iconSizeDp: Int) = (
+        dockRowContentWidthDp(columns, iconSizeDp) +
             dockRowSlackDp + SECTION_CARD_PADDING_DP * 2
         ).dp
     // Custom Layout (not Column) so the dock's max-height constraint is
@@ -751,15 +762,39 @@ internal fun HomeScreen(
     LaunchedEffect(isPersonalDockPresent) {
         if (!isPersonalDockPresent) personalDockDropTarget = null
     }
-    // Under Both sides a half with no occupants renders no card, except the
-    // right half of an empty dock, which keeps the empty card (and its add
-    // hint). A half that renders no card publishes no drop geometry.
-    val personalLeftCardShown = isDockSplit && personalDockSplitPositions.first.isNotEmpty()
-    val personalRightCardShown = !isDockSplit ||
+    // When a lone dock is halved across Both sides, a half with no occupants
+    // renders no card, except the right half of an empty dock, which keeps the
+    // empty card (and its add hint). A half that renders no card publishes no
+    // drop geometry. A whole dock (any other layout, including a side of its
+    // own) is the "right" card here: it publishes the dock's main geometry.
+    val personalLeftCardShown = isDockHalved && personalDockSplitPositions.first.isNotEmpty()
+    val personalRightCardShown = !isDockHalved ||
         personalDockSplitPositions.second.isNotEmpty() || personalDockSplitPositions.first.isEmpty()
-    val workLeftCardShown = isDockSplit && workDockSplitPositions.first.isNotEmpty()
-    val workRightCardShown = !isDockSplit ||
+    val workLeftCardShown = isDockHalved && workDockSplitPositions.first.isNotEmpty()
+    val workRightCardShown = !isDockHalved ||
         workDockSplitPositions.second.isNotEmpty() || workDockSplitPositions.first.isEmpty()
+    // Each side column's cards, top to bottom, by occupant count: what
+    // `sideDockFit` fits to the window's height. Empty for a bottom dock.
+    val sideDockCards: List<List<Int>> = when {
+        !isDockOnSide -> emptyList()
+        isDockSplitByProfile -> listOf(listOf(personalDockOccupantIds.size), listOf(workDockOccupantIds.size))
+        isDockHalved -> listOf(
+            listOfNotNull(
+                personalDockSplitPositions.first.size.takeIf { state.isDockEnabled && personalLeftCardShown },
+                workDockSplitPositions.first.size.takeIf { showWorkDock && workLeftCardShown },
+            ),
+            listOfNotNull(
+                personalDockSplitPositions.second.size.takeIf { state.isDockEnabled && personalRightCardShown },
+                workDockSplitPositions.second.size.takeIf { showWorkDock && workRightCardShown },
+            ),
+        )
+        else -> listOf(
+            listOfNotNull(
+                personalDockOccupantIds.size.takeIf { state.isDockEnabled },
+                workDockOccupantIds.size.takeIf { showWorkDock },
+            ),
+        )
+    }
     LaunchedEffect(isPersonalDockPresent, personalLeftCardShown, personalRightCardShown) {
         if (!isPersonalDockPresent || !personalLeftCardShown) personalDockDropTargetLeft = null
         if (!personalRightCardShown) personalDockDropTarget = null
@@ -870,29 +905,60 @@ internal fun HomeScreen(
     // The dock cards (personal above work), shared between the in-layout
     // dock slot (blank query) and the search-time reveal (active query +
     // long-press) — only ever composed in one of the two places at a time.
-    // [strip] picks which occupants render: the whole dock, or one half of a
-    // Both sides split.
-    val homeDockCards: @Composable (DockStrip) -> Unit = { strip ->
+    // [strip] picks which occupants render: the whole dock (both docks, or one
+    // of them on a side of its own), or one half of a lone dock split across
+    // Both sides. The cards lay out [cardColumns] wide at [cardIconSizeDp];
+    // [cardMinHeight], when set, stretches each card to that height with its
+    // icons centered.
+    val dockCardsColumn: @Composable (
+        strip: DockStrip,
+        cardColumns: Int,
+        cardIconSizeDp: Int,
+        cardMinHeight: Dp?,
+    ) -> Unit = { strip, cardColumns, cardIconSizeDp, cardMinHeight ->
+        // A side column lays its strip out at the fitted column count.
         val personalPositions = when (strip) {
-            DockStrip.Whole -> personalDockRenderPositions
-            DockStrip.Left -> personalDockSplitPositions.first
-            DockStrip.Right -> personalDockSplitPositions.second
+            DockStrip.Whole, DockStrip.Personal -> if (isDockOnSide) {
+                landscapeDockPositions(personalDockOccupantIds, state.dockPositions, dockIconCount, cardColumns)
+            } else {
+                personalDockRenderPositions
+            }
+            DockStrip.Left, DockStrip.Right -> splitLandscapeDockPositions(
+                personalDockOccupantIds,
+                state.dockPositions,
+                dockIconCount,
+                cardColumns,
+            ).let { halves -> if (strip == DockStrip.Left) halves.first else halves.second }
+            DockStrip.Work -> emptyMap()
         }
         val workPositions = when (strip) {
-            DockStrip.Whole -> workDockRenderPositions
-            DockStrip.Left -> workDockSplitPositions.first
-            DockStrip.Right -> workDockSplitPositions.second
+            DockStrip.Whole, DockStrip.Work -> if (isDockOnSide) {
+                landscapeDockPositions(workDockOccupantIds, state.workDockPositions, dockIconCount, cardColumns)
+            } else {
+                workDockRenderPositions
+            }
+            DockStrip.Left, DockStrip.Right -> splitLandscapeDockPositions(
+                workDockOccupantIds,
+                state.workDockPositions,
+                dockIconCount,
+                cardColumns,
+            ).let { halves -> if (strip == DockStrip.Left) halves.first else halves.second }
+            DockStrip.Personal -> emptyMap()
         }
         val showPersonalCard = state.isDockEnabled && when (strip) {
-            DockStrip.Whole -> true
+            DockStrip.Whole, DockStrip.Personal -> true
             DockStrip.Left -> personalLeftCardShown
             DockStrip.Right -> personalRightCardShown
+            DockStrip.Work -> false
         }
         val showWorkCard = showWorkDock && when (strip) {
-            DockStrip.Whole -> true
+            DockStrip.Whole, DockStrip.Work -> true
             DockStrip.Left -> workLeftCardShown
             DockStrip.Right -> workRightCardShown
+            DockStrip.Personal -> false
         }
+        val personalWhole = strip == DockStrip.Whole || strip == DockStrip.Personal
+        val workWhole = strip == DockStrip.Whole || strip == DockStrip.Work
         // In a wider-than-portrait window, narrow the dock card(s) to
         // the width their icons occupy and center them, so the gray
         // card sits as an island with the screen background showing in
@@ -906,7 +972,7 @@ internal fun HomeScreen(
         // card(s) vertically in that strip, within thumb reach of a phone
         // held in landscape.
         val dockColumnModifier = if (isWiderThanPortrait) {
-            Modifier.width(dockCardWidthDp)
+            Modifier.width(dockCardWidthDp(cardColumns, cardIconSizeDp))
         } else {
             Modifier.fillMaxWidth()
         }
@@ -920,24 +986,25 @@ internal fun HomeScreen(
             ) {
                 if (showPersonalCard) {
                     DockCard(
-                        dockedApps = if (strip == DockStrip.Whole) {
+                        dockedApps = if (personalWhole) {
                             state.dockedApps
                         } else {
                             state.dockedApps.filter { app -> app.id in personalPositions }
                         },
                         dockPositions = personalPositions,
-                        dockFolders = if (strip == DockStrip.Whole) {
+                        dockFolders = if (personalWhole) {
                             state.dockFolders
                         } else {
                             state.dockFolders.filter { folder -> folder.id in personalPositions }
                         },
-                        dockIconSizeDp = dockIconSizeDp,
-                        dockIconCount = dockColumnCount,
+                        dockIconSizeDp = cardIconSizeDp,
+                        dockIconCount = cardColumns,
+                        minHeight = cardMinHeight,
                         dockLayout = state.dockLayout,
                         modifier = Modifier.weight(1f, fill = false),
                         reorderEnabled = !isWiderThanPortrait,
                         companionDropTarget = when (strip) {
-                            DockStrip.Whole -> null
+                            DockStrip.Whole, DockStrip.Personal, DockStrip.Work -> null
                             DockStrip.Left -> personalDockDropTarget
                             DockStrip.Right -> personalDockDropTargetLeft
                         },
@@ -1018,19 +1085,20 @@ internal fun HomeScreen(
                         (workRows - 1) * DOCK_ITEM_SPACING_DP +
                         SECTION_CARD_PADDING_DP * 2
                     DockCard(
-                        dockedApps = if (strip == DockStrip.Whole) {
+                        dockedApps = if (workWhole) {
                             state.workDockedApps
                         } else {
                             state.workDockedApps.filter { app -> app.id in workPositions }
                         },
                         dockPositions = workPositions,
-                        dockFolders = if (strip == DockStrip.Whole) {
+                        dockFolders = if (workWhole) {
                             state.workDockFolders
                         } else {
                             state.workDockFolders.filter { folder -> folder.id in workPositions }
                         },
-                        dockIconSizeDp = dockIconSizeDp,
-                        dockIconCount = dockColumnCount,
+                        dockIconSizeDp = cardIconSizeDp,
+                        dockIconCount = cardColumns,
+                        minHeight = cardMinHeight,
                         dockLayout = state.dockLayout,
                         // A side column has the window's height to share, so
                         // the work card splits it with the personal card (each
@@ -1042,7 +1110,7 @@ internal fun HomeScreen(
                         },
                         reorderEnabled = !isWiderThanPortrait,
                         companionDropTarget = when (strip) {
-                            DockStrip.Whole -> null
+                            DockStrip.Whole, DockStrip.Personal, DockStrip.Work -> null
                             DockStrip.Left -> workDockDropTarget
                             DockStrip.Right -> workDockDropTargetLeft
                         },
@@ -1087,6 +1155,31 @@ internal fun HomeScreen(
                     )
                 }
             }
+        }
+    }
+    val homeDockCards: @Composable (DockStrip) -> Unit = { strip ->
+        if (isDockOnSide) {
+            // A side column fits the window's height (see `sideDockFit`),
+            // measured with the keyboard down, so raising it to type scrolls
+            // the cards rather than reshuffling them under the finger. Each
+            // strip fits all the side columns, so both draw one size.
+            BoxWithConstraints(modifier = Modifier.fillMaxHeight()) {
+                val fontScale = LocalDensity.current.fontScale
+                val fit = sideDockFit(
+                    availableHeightDp = (maxHeight + primaryBottomPadding).value.toInt(),
+                    sides = sideDockCards,
+                    maxIconSizeDp = dockIconSizeDp,
+                    layout = state.dockLayout,
+                    fontScale = fontScale,
+                )
+                LaunchedEffect(fit.iconSizeDp) { sideDockIconSizeDp = fit.iconSizeDp }
+                // Both sides holds one card a side, each the column's full
+                // height with its icons centered, so the two sides line up
+                // with each other and with the search box and app list.
+                dockCardsColumn(strip, fit.columns, fit.iconSizeDp, if (isDockSplit) maxHeight else null)
+            }
+        } else {
+            dockCardsColumn(strip, dockColumnCount, dockIconSizeDp, null)
         }
     }
     Layout(
@@ -1362,7 +1455,13 @@ internal fun HomeScreen(
             // the rare case where its natural content exceeds the remaining
             // budget.
             if (isDockSlotPresent) {
-                homeDockCards(if (isDockSplit) DockStrip.Right else DockStrip.Whole)
+                homeDockCards(
+                    when {
+                        isDockSplitByProfile -> DockStrip.Work
+                        isDockHalved -> DockStrip.Right
+                        else -> DockStrip.Whole
+                    },
+                )
             } else {
                 Spacer(modifier = Modifier.size(0.dp))
             }
@@ -1401,10 +1500,11 @@ internal fun HomeScreen(
             } else {
                 Spacer(modifier = Modifier.size(0.dp))
             }
-            // Index 5: the left half of a Both sides dock (the right half is
-            // index 2), or a zero-size spacer.
+            // Index 5: the left side of a Both sides dock — the personal dock
+            // when the work dock takes the right side (index 2), else the left
+            // half of a lone dock — or a zero-size spacer.
             if (isDockSlotPresent && isDockSplit) {
-                homeDockCards(DockStrip.Left)
+                homeDockCards(if (isDockSplitByProfile) DockStrip.Personal else DockStrip.Left)
             } else {
                 Spacer(modifier = Modifier.size(0.dp))
             }
@@ -1944,6 +2044,10 @@ private fun DockCard(
     // the same dock (a merge, or back in place) instead of counting as off the
     // dock. Null in every other layout.
     companionDropTarget: DockDropTarget? = null,
+    // Stretches the card to at least this height, icons centered, so the two
+    // sides of a Both sides dock share their top and bottom edges. Null: the
+    // card is as tall as its icons.
+    minHeight: Dp? = null,
 ) {
     // Drag-to-reorder state is hoisted here so the pointer loop can compare
     // the dragged icon's center against every rendered slot, including empty
@@ -2154,7 +2258,18 @@ private fun DockCard(
         // stays composed (just hidden + non-interactive via the opaque overlay)
         // so it still defines the card's size; the folder overlay matches that
         // size and scrolls internally when the folder has more apps than fit.
-        Box(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (minHeight != null) {
+                        Modifier.heightIn(min = (minHeight - (SECTION_CARD_PADDING_DP * 2).dp).coerceAtLeast(0.dp))
+                    } else {
+                        Modifier
+                    },
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
         // Every dock slot is a direct sibling under one parent so each
         // `key(slotKey)` movable group lives in the same Compose
         // slot-table parent. That preserves per-icon `pointerInput`
@@ -3707,11 +3822,17 @@ internal sealed interface FolderMemberDropTarget {
  * on release — the dock doesn't move during an app-list drag, so a snapshot is
  * enough.
  */
-/** Which occupants a Home dock strip renders: the whole dock, or one half of a Both sides split. */
+/**
+ * Which occupants a Home dock strip renders: both whole docks, one whole dock
+ * on a side of its own ([Personal], [Work]), or one half of a lone dock split
+ * across Both sides ([Left], [Right]).
+ */
 internal enum class DockStrip {
     Whole,
     Left,
     Right,
+    Personal,
+    Work,
 }
 
 internal data class DockDropTarget(
