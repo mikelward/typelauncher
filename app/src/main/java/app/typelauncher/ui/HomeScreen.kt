@@ -1162,7 +1162,8 @@ internal fun HomeScreen(
             // A side column fits the window's height (see `sideDockFit`),
             // measured with the keyboard down, so raising it to type scrolls
             // the cards rather than reshuffling them under the finger. Each
-            // strip fits all the side columns, so both draw one size.
+            // strip fits all the side columns, so both draw one size, and
+            // takes its own side's column count.
             BoxWithConstraints(modifier = Modifier.fillMaxHeight()) {
                 val fontScale = LocalDensity.current.fontScale
                 val fit = sideDockFit(
@@ -1176,7 +1177,11 @@ internal fun HomeScreen(
                 // Both sides holds one card a side, each the column's full
                 // height with its icons centered, so the two sides line up
                 // with each other and with the search box and app list.
-                dockCardsColumn(strip, fit.columns, fit.iconSizeDp, if (isDockSplit) maxHeight else null)
+                // `sideDockCards` lists the left side first under Both sides,
+                // and the one column under Right.
+                val side = if (strip == DockStrip.Right || strip == DockStrip.Work) 1 else 0
+                val columns = fit.columns.getOrElse(side) { 1 }
+                dockCardsColumn(strip, columns, fit.iconSizeDp, if (isDockSplit) maxHeight else null)
             }
         } else {
             dockCardsColumn(strip, dockColumnCount, dockIconSizeDp, null)

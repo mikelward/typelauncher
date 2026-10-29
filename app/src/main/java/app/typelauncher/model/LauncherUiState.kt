@@ -370,10 +370,10 @@ internal const val SIDE_DOCK_MAX_COLUMNS = 2
 
 /**
  * How a side-column dock ("Landscape dock" Right or Both sides) fits the
- * window's height: the icon columns every card takes and the one icon size
- * every card draws at.
+ * window's height: the icon columns each side's cards take ([columns], one
+ * entry per side) and the one icon size every card draws at.
  */
-internal data class SideDockFit(val columns: Int, val iconSizeDp: Int)
+internal data class SideDockFit(val columns: List<Int>, val iconSizeDp: Int)
 
 /**
  * Height, in dp, of one side column's stack of dock cards: [cards] holds each
@@ -404,11 +404,12 @@ internal fun sideDockHeightDp(
  *
  * The icons shrink to fit — from [maxIconSizeDp] (the "Icons per row" size)
  * down to [MIN_DOCK_APP_ICON_SIZE_DP] — rather than clip. When even the
- * minimum doesn't fit in one column, the cards wrap to two columns, which
- * halves the rows and so lets the icons grow back, then shrink again as more
- * apps arrive. Past two columns at the minimum, the cards keep that and scroll.
- * Every side shares the one size and column count, so the two sides of Both
- * sides match.
+ * minimum doesn't fit in one column, that side's cards wrap to two columns,
+ * which halves the rows and so lets the icons grow back, then shrink again as
+ * more apps arrive. Past two columns at the minimum, the cards keep that and
+ * scroll. Each side takes only the columns it needs, so a two-column personal
+ * dock can sit opposite a one-column work dock, but every side shares the one
+ * size: the largest that fits every side in its columns.
  */
 internal fun sideDockFit(
     availableHeightDp: Int,
@@ -418,13 +419,18 @@ internal fun sideDockFit(
     fontScale: Float = 1f,
 ): SideDockFit {
     val minIconSizeDp = MIN_DOCK_APP_ICON_SIZE_DP.coerceAtMost(maxIconSizeDp)
-    for (columns in 1..SIDE_DOCK_MAX_COLUMNS) {
-        val iconSizeDp = (maxIconSizeDp downTo minIconSizeDp).firstOrNull { size ->
-            sides.all { cards -> sideDockHeightDp(cards, columns, size, layout, fontScale) <= availableHeightDp }
-        }
-        if (iconSizeDp != null) return SideDockFit(columns, iconSizeDp)
+    fun fits(cards: List<Int>, columns: Int, size: Int) =
+        sideDockHeightDp(cards, columns, size, layout, fontScale) <= availableHeightDp
+    // A side's columns don't depend on the shared size: one that can't fit a
+    // column even at the minimum can't at any size the fit settles on.
+    val columns = sides.map { cards ->
+        (1..SIDE_DOCK_MAX_COLUMNS).firstOrNull { columns -> fits(cards, columns, minIconSizeDp) }
+            ?: SIDE_DOCK_MAX_COLUMNS
     }
-    return SideDockFit(SIDE_DOCK_MAX_COLUMNS, minIconSizeDp)
+    val iconSizeDp = (maxIconSizeDp downTo minIconSizeDp).firstOrNull { size ->
+        sides.indices.all { side -> fits(sides[side], columns[side], size) }
+    } ?: minIconSizeDp
+    return SideDockFit(columns, iconSizeDp)
 }
 
 /**
