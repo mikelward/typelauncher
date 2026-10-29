@@ -510,6 +510,10 @@
 - [ ] **Pick one landscape dock position.** "Landscape dock" ships Bottom,
       Right and Both sides side by side so each can be tried on a device;
       keep the winner (or keep the choice) and delete the rest.
+      - [x] Both sides: personal dock left, work dock right, shrunk to fit
+            and wrapped to two columns past the 32dp floor (maintainer's
+            choice 2026-10-29). **Needs a device check** that 36–37dp side
+            icons and their folder previews still read well.
 - [ ] **Landscape search when the keyboard doesn't fit.** The search box
       hides in phone landscape because the keyboard plus one result row won't
       fit. An app can't size or place the keyboard (it is the IME's own

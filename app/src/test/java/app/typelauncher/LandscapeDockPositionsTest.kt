@@ -188,6 +188,23 @@ class LandscapeDockPositionsTest {
     }
 
     @Test
+    fun bothSidesHalvesWrapInReadingOrderWhenTheFitWidensThem() {
+        // `sideDockFit` can wrap a strip to two columns: each half then reads
+        // left to right, top to bottom.
+        val (left, right) = splitLandscapeDockPositions(sixByTwoIds, sixByTwoPositions, portraitColumns, 2)
+        assertEquals(
+            mapOf(
+                "a" to DockPosition(0, 0), "b" to DockPosition(0, 1),
+                "c" to DockPosition(1, 0), "d" to DockPosition(1, 1),
+                "e" to DockPosition(2, 0), "f" to DockPosition(2, 1),
+            ),
+            left,
+        )
+        assertEquals(DockPosition(0, 0), right["g"])
+        assertEquals(DockPosition(2, 1), right["l"])
+    }
+
+    @Test
     fun bothSidesOfAnEmptyDockAreEmpty() {
         val (left, right) = splitLandscapeDockPositions(emptyList(), emptyMap(), portraitColumns)
         assertEquals(emptyMap<String, DockPosition>(), left)
