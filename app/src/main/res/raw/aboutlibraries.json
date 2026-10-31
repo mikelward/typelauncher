@@ -2960,7 +2960,7 @@
         },
         {
             "uniqueId": "com.google.firebase:firebase-config",
-            "artifactVersion": "24.0.0",
+            "artifactVersion": "24.0.1",
             "name": "com.google.firebase:firebase-config",
             "description": "",
             "developers": [
@@ -2998,7 +2998,7 @@
         },
         {
             "uniqueId": "com.google.firebase:firebase-crashlytics",
-            "artifactVersion": "21.0.0",
+            "artifactVersion": "21.0.1",
             "name": "com.google.firebase:firebase-crashlytics",
             "description": "",
             "developers": [
@@ -3165,7 +3165,7 @@
         },
         {
             "uniqueId": "com.google.firebase:firebase-sessions",
-            "artifactVersion": "4.0.0",
+            "artifactVersion": "4.0.1",
             "name": "com.google.firebase:firebase-sessions",
             "description": "",
             "developers": [
@@ -3300,7 +3300,7 @@
         },
         {
             "uniqueId": "com.mikelward.androidlog:logging-android",
-            "artifactVersion": "5.1.83",
+            "artifactVersion": "5.1.95",
             "name": "androidlog logging-android",
             "description": "The Android sinks and bug-report transport for androidlog.",
             "website": "https://github.com/mikelward/androidlog",
@@ -3318,7 +3318,7 @@
         },
         {
             "uniqueId": "com.mikelward.androidlog:logging-core",
-            "artifactVersion": "5.1.83",
+            "artifactVersion": "5.1.95",
             "name": "androidlog logging-core",
             "description": "The privacy floor and ring buffer, testable without Android.",
             "website": "https://github.com/mikelward/androidlog",
