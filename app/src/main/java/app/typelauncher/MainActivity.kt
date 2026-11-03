@@ -914,6 +914,20 @@ class MainActivity : ComponentActivity() {
         isPluggedInFlow.value = false
         LauncherDebugLog.activityCallback(this, "MainActivity.onStop")
         stopListeningSafely()
+        // Withdraw the keyboard request on the way out. Leaving in the middle
+        // of the keyboard's open animation (swiping away a moment after Home
+        // appears) cancels the animation but leaves the window still
+        // requesting the keyboard. Coming back without a Home intent (Back or
+        // recents), the keyboard could then stop partway up with a gap above
+        // it, and the show request on window focus was skipped because the
+        // window already counted the keyboard as shown. Clearing the request
+        // makes every return a fresh open. Android only honors an IME hide
+        // from the focused window, so this can't hide another app's keyboard.
+        // Not across a recreate: the launcher stays on screen, and hiding
+        // there would flicker the keyboard of someone mid-search.
+        if (!isChangingConfigurations && !restartingForWallpaperWindowMode) {
+            window.insetsController?.hide(WindowInsets.Type.ime())
+        }
         if (::viewModel.isInitialized) {
             // Before anything else: a warm-up still running would put back what the
             // trim below is about to free, and would do it in the states the trim
