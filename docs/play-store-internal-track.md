@@ -53,7 +53,7 @@ The first AAB for any new app must be uploaded through the Play Console UI; the 
 
 **Option A — let CI build it (recommended).** Add the four release-keystore secrets from the table below (everything except `PLAY_SERVICE_ACCOUNT_JSON`), then run the workflow from the Actions tab: **CI → Run workflow**, against `main`. The build signs an AAB and skips the Play upload (the service-account secret isn't set yet), but the `Build the release AAB` job is decoupled from that upload, so you still get the bundle two ways:
 
-- attached to a [GitHub release](https://github.com/mikelward/typelauncher/releases), tagged `v` + the build's versionCode — permanent, and `gh release download <tag>` works against it. Take the one with the highest versionCode rather than the topmost: releases are ordered by when they were created, and two `deploy` runs queue rather than cancel, so an older build can publish last and sit on top;
+- attached to a [GitHub release](https://github.com/mikelward/typelauncher/releases), tagged `v` + the build's versionCode — permanent, and `gh release download <tag>` works against it. The topmost is the newest: releases are ordered by when they were published, and an older push's `deploy` that reaches the release step after a newer one published stands down rather than publishing;
 - as a workflow artifact called `app-release-aab`, which expires after 30 days.
 
 Take it from the release and upload that through Play Console.
@@ -160,6 +160,7 @@ Play rejects an AAB whose `versionCode` is `<=` the highest one already on any t
 - **`APK specifies a version code that has already been used.`** — usually means CI ran on a shallow clone and `git rev-list --count HEAD` came up short. The workflow uses `fetch-depth: 0`; check that the checkout step ran with it.
 - **`The caller does not have permission`** — service account doesn't have "Release to testing tracks" on the app yet, or the invite hasn't propagated. Re-check Play Console → Users and permissions.
 - **`Package not found: app.typelauncher`** — the listing doesn't exist yet on Play Console, or the very first AAB hasn't been uploaded manually. Do step 2 above.
+- **`Publish a GitHub release` says a later push already published** — an older push's deploy reached that step after a newer one had published a higher versionCode. Standing down is correct: it keeps the newest release the newest build, and it stands the Play upload down too so Play cannot receive the older bundle either. The older push's commits are not lost — the notes range still measures from the last Play publication.
 
 ## Manual upload from a workstation
 

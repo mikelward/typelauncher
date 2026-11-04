@@ -1,7 +1,7 @@
 ---
 trigger: always_on
 alwaysApply: true
-last_modified: 2026-10-26
+last_modified: 2026-11-04
 ---
 
 # Type Launcher
@@ -123,3 +123,5 @@ Shared by every mikelward repo and the user-level agent config; canonical in mik
 - **Translations**. Wait until the maintainer approves the English.
 - **Privacy**. The app list, layout, search history, accounts and widget contents never
   leave the device; screenshots use fixtures.
+- **Shared script**. `scripts/publish-github-release.sh` is identical across the Android
+  apps: change them all.
