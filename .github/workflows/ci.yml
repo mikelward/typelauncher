@@ -1861,16 +1861,38 @@ jobs:
         # Marked a prerelease because this pipeline only ever reaches
         # Play's internal track — nothing here promotes a build to
         # production, so nothing here should claim to.
+        #
+        # Supersession is the script's own check, not this `if:`. Nothing
+        # here reaches Play, so nothing rejects a stale bundle the way
+        # Play's API does, and the Releases page orders by publication time
+        # — so an older push whose deploy runs late would sit on top reading
+        # as current. It asks the release list, which is the record of what
+        # published; folding it into "Build release notes"' guard instead
+        # would be wrong, because that guard keys on a successful *Play*
+        # upload precisely because it doubles as the notes' range base.
+        #
+        # When it finds itself superseded the script sets RELEASE_SUPERSEDED,
+        # and the Play steps below skip on it too: stopping at this step would
+        # leave the older bundle going to Play whenever the newer run's own
+        # upload skipped or failed — which is precisely the case where a
+        # newer prerelease exists and no newer Play release does. This step's
+        # own condition is a superset of theirs, so whenever they run it has
+        # run and the variable is set.
         if: |
           needs.release-build.outputs.signed == 'true' &&
           env.RELEASE_NOTES_SKIP != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_SHA: ${{ github.sha }}
+          AAB_PATH: app/build/outputs/bundle/release/app-release.aab
+          ASSET_BASE: typelauncher
         # The body lives in `scripts/publish-github-release.sh`, which
         # `scripts/publish_github_release_test.py` drives against a stubbed
         # `gh` on every pull request. This job cannot run on one, so an
-        # inline body could only ever be verified by merging it.
+        # inline body could only ever be verified by merging it. Nothing in
+        # that script is app-specific: the bundle path and asset base name
+        # come in here, so the file stays byte-identical across the siblings
+        # that publish this way.
         run: scripts/publish-github-release.sh
 
       - name: Compose Play Store release notes
@@ -1881,11 +1903,13 @@ jobs:
         # the layout the action expects. When that earlier step set
         # RELEASE_NOTES_SKIP=true (every commit in the push was ci: /
         # docs / dotfile housekeeping) the gate below skips this and the
-        # upload step.
+        # upload step; so does RELEASE_SUPERSEDED, set by the release step
+        # above.
         if: |
           needs.release-build.outputs.signed == 'true' &&
           env.HAS_PLAY_SA == 'true' &&
-          env.RELEASE_NOTES_SKIP != 'true'
+          env.RELEASE_NOTES_SKIP != 'true' &&
+          env.RELEASE_SUPERSEDED != 'true'
         # `deploy` job: writes `PLAY_WHATSNEW_DIR=${RUNNER_TEMP}/whatsnew`. The
         # release-notes text itself goes to a file, never through $GITHUB_ENV;
         # the env write is only the fixed directory path.
@@ -1904,12 +1928,17 @@ jobs:
         # `test:` / `tests:`) or pure docs / dotfile housekeeping
         # (`.github/`, `.claude/`, …) — no Play-worthy
         # "What's new" entry exists, so shipping a release would be
-        # redundant. See docs/play-store-internal-track.md for the Play
-        # Console / service-account setup the upload depends on.
+        # redundant. Skipped too on RELEASE_SUPERSEDED, set by the release
+        # step above when a later push has already published a higher
+        # versionCode: Play accepts an older bundle whenever the newer run's
+        # own upload skipped or failed, so standing down there has to stand
+        # this down as well. See docs/play-store-internal-track.md for the
+        # Play Console / service-account setup the upload depends on.
         if: |
           needs.release-build.outputs.signed == 'true' &&
           env.HAS_PLAY_SA == 'true' &&
-          env.RELEASE_NOTES_SKIP != 'true'
+          env.RELEASE_NOTES_SKIP != 'true' &&
+          env.RELEASE_SUPERSEDED != 'true'
         uses: r0adkll/upload-google-play@a80b0bcdcfdfcc2d026f2bc73f726760b2cbc967  # post-v1.1.5: fixes DEP0040/DEP0169 Node.js deprecation warnings
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
