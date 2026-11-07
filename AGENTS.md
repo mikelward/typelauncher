@@ -1,7 +1,7 @@
 ---
 trigger: always_on
 alwaysApply: true
-last_modified: 2026-11-04
+last_modified: 2026-11-07
 ---
 
 # Type Launcher
@@ -115,10 +115,35 @@ Shared by every mikelward repo and the user-level agent config; canonical in mik
   sets up the SDK. There's no emulator here: frame timing needs a device.
 - **CI failures**. Read the failing-tests comment first; CI builds the PR merged with
   `main`.
-- **What's new**. Every commit subject ships in Play's release notes: write it for
-  users. Prefix the rest `ci:`, `test:`, `internal:`, `docs:` or `refactor:`.
-- **After a merge**. Report the new versionCode.
-- **Release notes since N**. Up to five user-facing bullets, what users most need first.
+- **What's new**. Every commit subject in a push to `main` ships to Play's "What's new":
+  `ci.yml` skips prefixed and pure docs/dotfile commits and writes the rest oldest-first
+  into `whatsnew-en-US` as `• ` bullets (repeats once), bodies dropped, trailing ones past
+  Play's 500-character cap cut, so squash supporting commits. The PR title never lands
+  (rebase merge), so title **every** commit like a changelog line (maintainer,
+  2026-10-23): an imperative verb, then the feature in the user's plain words, sentence
+  case, ≤ ~70 characters (`Fix drag and drop in the dock`, not `Arm dock
+  carousel-suppression on long-press`; `Improve …`, `Add …`), an optional parenthetical
+  saying how. No internal symbols, scenario or mechanism: those and file:line go in the
+  body. PR titles and release notes match.
+- **Prefixes**. A prefix promises no user-visible effect, overriding the fleet's list:
+  `ci:` CI/workflow (snapshot regenerations, action bumps); `docs:` documentation only,
+  `PRIVACY.md` included ("What's new" is a store field nobody sees at update time);
+  `internal:` build config and plumbing; `refactor:` behavior-preserving; `test:` /
+  `tests:` test-only. Never `build:`: CI doesn't filter it, so it ships. A commit that also
+  changes production behavior goes bare. A dependency the app ships is bare; a test- or
+  build-only bump you write keeps `internal:` (the weekly batch can't tell them apart and
+  lands bare).
+- **After a merge**. Report the versionCode (`git rev-list --count origin/main` after a
+  refspec fetch, with `--unshallow` while shallow, or it undercounts): `Need versionCode 72
+  (b81c23d) or higher to test PR #52's fix`.
+- **Release notes since N**. Up to five `• ` end-user bullets worded as titles, in one
+  code block for commits N+1..`origin/main` (freshly fetched), one per feature however
+  many commits built it, reading bodies where a subject is unclear. Rank by what the user
+  risks without it (maintainer, 2026-10-23): something broken or wrong first, polish last.
+  Skip prefixed, docs and CI commits, dependency bumps (unless nothing else changed — then
+  one bullet), and anything the range added then undid; a reworked feature by its final
+  state. Range above, one line below naming what was left out. Offline, only from a
+  complete local `main`, saying it may be behind; a shallow one can't answer.
 - **Copy and icons**. Concise copy, standard Material icons.
 - **Translations**. Wait until the maintainer approves the English.
 - **Privacy**. The app list, layout, search history, accounts and widget contents never
