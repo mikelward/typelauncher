@@ -127,6 +127,7 @@
     <string name="settings_dock_enabled_title">Mostra el dock</string>
     <string name="settings_work_dock_enabled_title">Mostra el dock de feina</string>
     <string name="settings_work_dock_disabled_toast">Perfil de feina en pausa</string>
+    <string name="work_widget_still_starting">Les aplicacions de feina encara s\'estan iniciant. Torna-ho a provar d\'aquí a un moment.</string>
     <string name="settings_keyboard_auto_show_title">Mostra el teclat automàticament</string>
     <string name="settings_show_agenda_title">Mostra l\'agenda</string>
     <string name="settings_theme_title">Tema</string>

@@ -128,6 +128,7 @@
     <string name="settings_dock_enabled_title">הצגת הדוק</string>
     <string name="settings_work_dock_enabled_title">הצגת דוק עבודה</string>
     <string name="settings_work_dock_disabled_toast">פרופיל העבודה מושהה</string>
+    <string name="work_widget_still_starting">אפליקציות העבודה עדיין מופעלות. אפשר לנסות שוב בעוד רגע.</string>
     <string name="settings_keyboard_auto_show_title">הצגת מקלדת אוטומטית</string>
     <string name="settings_show_agenda_title">הצגת סדר יום</string>
     <string name="settings_theme_title">ערכת נושא</string>

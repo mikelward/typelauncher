@@ -127,6 +127,7 @@
     <string name="settings_dock_enabled_title">Прикажи док</string>
     <string name="settings_work_dock_enabled_title">Прикажи пословни док</string>
     <string name="settings_work_dock_disabled_toast">Пословни профил је паузиран</string>
+    <string name="work_widget_still_starting">Пословне апликације се још покрећу. Пробајте поново за тренутак.</string>
     <string name="settings_keyboard_auto_show_title">Аутоматски приказуј тастатуру</string>
     <string name="settings_show_agenda_title">Прикажи агенду</string>
     <string name="settings_theme_title">Тема</string>

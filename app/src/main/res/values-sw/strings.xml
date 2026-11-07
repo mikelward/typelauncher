@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">Onyesha dock</string>
     <string name="settings_work_dock_enabled_title">Onyesha dock ya kazi</string>
     <string name="settings_work_dock_disabled_toast">Wasifu wa kazi umesitishwa</string>
+    <string name="work_widget_still_starting">Programu za kazi bado zinaanza. Jaribu tena baada ya muda mfupi.</string>
     <string name="settings_keyboard_auto_show_title">Onyesha kibodi kiotomatiki</string>
     <string name="settings_show_agenda_title">Onyesha ratiba</string>
     <string name="settings_theme_title">Mandhari</string>

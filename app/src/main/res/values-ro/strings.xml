@@ -127,6 +127,7 @@
     <string name="settings_dock_enabled_title">Afișează dock-ul</string>
     <string name="settings_work_dock_enabled_title">Afișează dock-ul de muncă</string>
     <string name="settings_work_dock_disabled_toast">Profilul de muncă este în pauză</string>
+    <string name="work_widget_still_starting">Aplicațiile de muncă încă pornesc. Încearcă din nou peste câteva momente.</string>
     <string name="settings_keyboard_auto_show_title">Afișează tastatura automat</string>
     <string name="settings_show_agenda_title">Afișează agenda</string>
     <string name="settings_theme_title">Temă</string>

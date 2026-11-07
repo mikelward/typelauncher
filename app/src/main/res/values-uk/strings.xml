@@ -128,6 +128,7 @@
     <string name="settings_dock_enabled_title">Показувати док</string>
     <string name="settings_work_dock_enabled_title">Показувати робочий док</string>
     <string name="settings_work_dock_disabled_toast">Робочий профіль призупинено</string>
+    <string name="work_widget_still_starting">Робочі додатки ще запускаються. Повторіть спробу за мить.</string>
     <string name="settings_keyboard_auto_show_title">Автоматично показувати клавіатуру</string>
     <string name="settings_show_agenda_title">Показувати розклад</string>
     <string name="settings_theme_title">Тема</string>

@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">ഡോക്ക് കാണിക്കുക</string>
     <string name="settings_work_dock_enabled_title">വർക്ക് ഡോക്ക് കാണിക്കുക</string>
     <string name="settings_work_dock_disabled_toast">വർക്ക് പ്രൊഫൈൽ താൽക്കാലികമായി നിർത്തി</string>
+    <string name="work_widget_still_starting">വർക്ക് ആപ്പുകൾ ഇപ്പോഴും ആരംഭിക്കുകയാണ്. അൽപ്പസമയത്തിന് ശേഷം വീണ്ടും ശ്രമിക്കുക.</string>
     <string name="settings_keyboard_auto_show_title">കീബോർഡ് സ്വയമേവ കാണിക്കുക</string>
     <string name="settings_show_agenda_title">അജണ്ട കാണിക്കുക</string>
     <string name="settings_theme_title">തീം</string>

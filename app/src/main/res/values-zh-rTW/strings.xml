@@ -125,6 +125,7 @@
     <string name="settings_dock_enabled_title">顯示 Dock</string>
     <string name="settings_work_dock_enabled_title">顯示工作 Dock</string>
     <string name="settings_work_dock_disabled_toast">工作資料已暫停</string>
+    <string name="work_widget_still_starting">工作應用程式仍在啟動中，請稍後再試。</string>
     <string name="settings_keyboard_auto_show_title">自動顯示鍵盤</string>
     <string name="settings_show_agenda_title">顯示日程</string>
     <string name="settings_theme_title">主題</string>

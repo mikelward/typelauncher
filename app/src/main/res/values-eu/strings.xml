@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">Erakutsi atrakalekua</string>
     <string name="settings_work_dock_enabled_title">Erakutsi laneko atrakalekua</string>
     <string name="settings_work_dock_disabled_toast">Laneko profila pausatuta dago</string>
+    <string name="work_widget_still_starting">Laneko aplikazioak abiarazten ari dira oraindik. Saiatu berriro une batean.</string>
     <string name="settings_keyboard_auto_show_title">Erakutsi teklatua automatikoki</string>
     <string name="settings_show_agenda_title">Erakutsi agenda</string>
     <string name="settings_theme_title">Itxura</string>

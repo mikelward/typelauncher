@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">Vis dock</string>
     <string name="settings_work_dock_enabled_title">Vis jobbdock</string>
     <string name="settings_work_dock_disabled_toast">Jobbprofilen er satt på pause</string>
+    <string name="work_widget_still_starting">Jobbapper starter fortsatt. Prøv igjen om et øyeblikk.</string>
     <string name="settings_keyboard_auto_show_title">Vis tastatur automatisk</string>
     <string name="settings_show_agenda_title">Vis agenda</string>
     <string name="settings_theme_title">Tema</string>

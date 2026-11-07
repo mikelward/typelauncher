@@ -127,6 +127,7 @@
     <string name="settings_dock_enabled_title">Rādīt doku</string>
     <string name="settings_work_dock_enabled_title">Rādīt darba doku</string>
     <string name="settings_work_dock_disabled_toast">Darba profils ir apturēts</string>
+    <string name="work_widget_still_starting">Darba lietotnes vēl tiek palaistas. Pēc brīža mēģiniet vēlreiz.</string>
     <string name="settings_keyboard_auto_show_title">Rādīt tastatūru automātiski</string>
     <string name="settings_show_agenda_title">Rādīt darba kārtību</string>
     <string name="settings_theme_title">Motīvs</string>

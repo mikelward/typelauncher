@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">ಡಾಕ್ ತೋರಿಸಿ</string>
     <string name="settings_work_dock_enabled_title">ಕೆಲಸದ ಡಾಕ್ ತೋರಿಸಿ</string>
     <string name="settings_work_dock_disabled_toast">ಕೆಲಸದ ಪ್ರೊಫೈಲ್ ವಿರಾಮಗೊಂಡಿದೆ</string>
+    <string name="work_widget_still_starting">ಕೆಲಸದ ಆ್ಯಪ್‌ಗಳು ಇನ್ನೂ ಪ್ರಾರಂಭವಾಗುತ್ತಿವೆ. ಸ್ವಲ್ಪ ಸಮಯದ ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
     <string name="settings_keyboard_auto_show_title">ಕೀಬೋರ್ಡ್ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ತೋರಿಸಿ</string>
     <string name="settings_show_agenda_title">ಅಜೆಂಡಾ ತೋರಿಸಿ</string>
     <string name="settings_theme_title">ಥೀಮ್</string>

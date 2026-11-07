@@ -127,6 +127,7 @@
     <string name="settings_dock_enabled_title">Mostrar dock</string>
     <string name="settings_work_dock_enabled_title">Mostrar dock de trabalho</string>
     <string name="settings_work_dock_disabled_toast">Perfil de trabalho pausado</string>
+    <string name="work_widget_still_starting">Os apps de trabalho ainda estão sendo iniciados. Tente de novo em instantes.</string>
     <string name="settings_keyboard_auto_show_title">Mostrar teclado automaticamente</string>
     <string name="settings_show_agenda_title">Mostrar agenda</string>
     <string name="settings_theme_title">Tema</string>

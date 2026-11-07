@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">Покажи дока</string>
     <string name="settings_work_dock_enabled_title">Покажи служебния док</string>
     <string name="settings_work_dock_disabled_toast">Служебният профил е спрян</string>
+    <string name="work_widget_still_starting">Служебните приложения още се стартират. Опитайте отново след малко.</string>
     <string name="settings_keyboard_auto_show_title">Автоматично показване на клавиатурата</string>
     <string name="settings_show_agenda_title">Покажи дневния ред</string>
     <string name="settings_theme_title">Тема</string>

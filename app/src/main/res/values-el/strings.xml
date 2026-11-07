@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">Εμφάνιση Dock</string>
     <string name="settings_work_dock_enabled_title">Εμφάνιση Dock εργασίας</string>
     <string name="settings_work_dock_disabled_toast">Το προφίλ εργασίας είναι σε παύση</string>
+    <string name="work_widget_still_starting">Οι εφαρμογές εργασίας ξεκινούν ακόμα. Δοκιμάστε ξανά σε λίγο.</string>
     <string name="settings_keyboard_auto_show_title">Αυτόματη εμφάνιση πληκτρολογίου</string>
     <string name="settings_show_agenda_title">Εμφάνιση ατζέντας</string>
     <string name="settings_theme_title">Θέμα</string>

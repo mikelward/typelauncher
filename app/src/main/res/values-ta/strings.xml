@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">டாக்கைக் காட்டு</string>
     <string name="settings_work_dock_enabled_title">பணி டாக்கைக் காட்டு</string>
     <string name="settings_work_dock_disabled_toast">பணிச் சுயவிவரம் இடைநிறுத்தப்பட்டது</string>
+    <string name="work_widget_still_starting">பணி ஆப்ஸ் இன்னும் தொடங்கிக்கொண்டிருக்கின்றன. சிறிது நேரத்தில் மீண்டும் முயலவும்.</string>
     <string name="settings_keyboard_auto_show_title">விசைப்பலகையை தானாக காட்டு</string>
     <string name="settings_show_agenda_title">அஜெண்டாவைக் காட்டு</string>
     <string name="settings_theme_title">தீம்</string>

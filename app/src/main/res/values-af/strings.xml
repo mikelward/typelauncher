@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">Wys dok</string>
     <string name="settings_work_dock_enabled_title">Wys werkdok</string>
     <string name="settings_work_dock_disabled_toast">Werkprofiel is gepouseer</string>
+    <string name="work_widget_still_starting">Werkprogramme begin nog. Probeer weer oor ’n oomblik.</string>
     <string name="settings_keyboard_auto_show_title">Wys sleutelbord outomaties</string>
     <string name="settings_show_agenda_title">Wys agenda</string>
     <string name="settings_theme_title">Tema</string>

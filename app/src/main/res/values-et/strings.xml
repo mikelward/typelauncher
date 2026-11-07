@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">Kuva dokk</string>
     <string name="settings_work_dock_enabled_title">Kuva töödokk</string>
     <string name="settings_work_dock_disabled_toast">Tööprofiil on peatatud</string>
+    <string name="work_widget_still_starting">Töörakendused alles käivituvad. Proovi hetke pärast uuesti.</string>
     <string name="settings_keyboard_auto_show_title">Kuva klaviatuur automaatselt</string>
     <string name="settings_show_agenda_title">Kuva päevakava</string>
     <string name="settings_theme_title">Teema</string>

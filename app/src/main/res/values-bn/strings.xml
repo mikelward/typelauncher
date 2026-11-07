@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">ডক দেখান</string>
     <string name="settings_work_dock_enabled_title">কাজের ডক দেখান</string>
     <string name="settings_work_dock_disabled_toast">ওয়ার্ক প্রোফাইল স্থগিত</string>
+    <string name="work_widget_still_starting">ওয়ার্ক অ্যাপ এখনও চালু হচ্ছে। একটু পরে আবার চেষ্টা করুন।</string>
     <string name="settings_keyboard_auto_show_title">কীবোর্ড স্বয়ংক্রিয়ভাবে দেখান</string>
     <string name="settings_show_agenda_title">এজেন্ডা দেখান</string>
     <string name="settings_theme_title">থিম</string>

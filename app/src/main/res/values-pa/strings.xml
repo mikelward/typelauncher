@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">ਡਾਕ ਦਿਖਾਓ</string>
     <string name="settings_work_dock_enabled_title">ਵਰਕ ਡਾਕ ਦਿਖਾਓ</string>
     <string name="settings_work_dock_disabled_toast">ਵਰਕ ਪ੍ਰੋਫਾਈਲ ਰੋਕੀ ਗਈ ਹੈ</string>
+    <string name="work_widget_still_starting">ਵਰਕ ਐਪਾਂ ਹਾਲੇ ਸ਼ੁਰੂ ਹੋ ਰਹੀਆਂ ਹਨ। ਥੋੜ੍ਹੀ ਦੇਰ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।</string>
     <string name="settings_keyboard_auto_show_title">ਕੀਬੋਰਡ ਆਪਣੇ ਆਪ ਦਿਖਾਓ</string>
     <string name="settings_show_agenda_title">ਏਜੰਡਾ ਦਿਖਾਓ</string>
     <string name="settings_theme_title">ਥੀਮ</string>

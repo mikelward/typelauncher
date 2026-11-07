@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">Visa dock</string>
     <string name="settings_work_dock_enabled_title">Visa jobbdock</string>
     <string name="settings_work_dock_disabled_toast">Jobbprofilen är pausad</string>
+    <string name="work_widget_still_starting">Jobbappar startar fortfarande. Försök igen om en stund.</string>
     <string name="settings_keyboard_auto_show_title">Visa tangentbordet automatiskt</string>
     <string name="settings_show_agenda_title">Visa agenda</string>
     <string name="settings_theme_title">Tema</string>

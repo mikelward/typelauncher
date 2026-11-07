@@ -128,6 +128,7 @@
     <string name="settings_dock_enabled_title">Pokaż dock</string>
     <string name="settings_work_dock_enabled_title">Pokaż dock służbowy</string>
     <string name="settings_work_dock_disabled_toast">Profil służbowy jest wstrzymany</string>
+    <string name="work_widget_still_starting">Aplikacje służbowe wciąż się uruchamiają. Spróbuj ponownie za chwilę.</string>
     <string name="settings_keyboard_auto_show_title">Pokazuj klawiaturę automatycznie</string>
     <string name="settings_show_agenda_title">Pokaż agendę</string>
     <string name="settings_theme_title">Motyw</string>

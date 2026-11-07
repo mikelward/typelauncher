@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">Näytä telakka</string>
     <string name="settings_work_dock_enabled_title">Näytä työtelakka</string>
     <string name="settings_work_dock_disabled_toast">Työprofiili on tauolla</string>
+    <string name="work_widget_still_starting">Työsovellukset käynnistyvät vielä. Yritä hetken päästä uudelleen.</string>
     <string name="settings_keyboard_auto_show_title">Näytä näppäimistö automaattisesti</string>
     <string name="settings_show_agenda_title">Näytä kalenteri</string>
     <string name="settings_theme_title">Teema</string>
