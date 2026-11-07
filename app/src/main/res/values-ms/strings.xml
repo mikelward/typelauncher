@@ -125,6 +125,7 @@
     <string name="settings_dock_enabled_title">Tunjukkan dok</string>
     <string name="settings_work_dock_enabled_title">Tunjukkan dok kerja</string>
     <string name="settings_work_dock_disabled_toast">Profil kerja dijeda</string>
+    <string name="work_widget_still_starting">Apl kerja masih dimulakan. Cuba lagi sebentar nanti.</string>
     <string name="settings_keyboard_auto_show_title">Tunjukkan papan kekunci secara automatik</string>
     <string name="settings_show_agenda_title">Tunjukkan agenda</string>
     <string name="settings_theme_title">Tema</string>

@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">Bonisa i-dock</string>
     <string name="settings_work_dock_enabled_title">Bonisa i-dock yomsebenzi</string>
     <string name="settings_work_dock_disabled_toast">Iphrofayela yomsebenzi imisiwe</string>
+    <string name="work_widget_still_starting">Izinhlelo zokusebenza zomsebenzi zisaqala. Zama futhi emzuzwini.</string>
     <string name="settings_keyboard_auto_show_title">Bonisa ikhibhodi ngokuzenzakalelayo</string>
     <string name="settings_show_agenda_title">Bonisa i-ajenda</string>
     <string name="settings_theme_title">Indikimba</string>

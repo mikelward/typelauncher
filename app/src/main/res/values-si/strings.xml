@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">Dock පෙන්වන්න</string>
     <string name="settings_work_dock_enabled_title">රැකියා Dock පෙන්වන්න</string>
     <string name="settings_work_dock_disabled_toast">රැකියා පැතිකඩ විරාම කර ඇත</string>
+    <string name="work_widget_still_starting">රැකියා යෙදුම් තවමත් ආරම්භ වෙමින් පවතී. මොහොතකින් නැවත උත්සාහ කරන්න.</string>
     <string name="settings_keyboard_auto_show_title">යතුරුපුවරුව ස්වයංක්‍රීයව පෙන්වන්න</string>
     <string name="settings_show_agenda_title">න්‍යාය පත්‍රය පෙන්වන්න</string>
     <string name="settings_theme_title">තේමාව</string>

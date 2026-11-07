@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">डॉक दिखाएं</string>
     <string name="settings_work_dock_enabled_title">वर्क डॉक दिखाएं</string>
     <string name="settings_work_dock_disabled_toast">वर्क प्रोफ़ाइल रोक दी गई है</string>
+    <string name="work_widget_still_starting">वर्क ऐप्लिकेशन अभी शुरू हो रहे हैं. थोड़ी देर में फिर से कोशिश करें.</string>
     <string name="settings_keyboard_auto_show_title">कीबोर्ड अपने आप दिखाएं</string>
     <string name="settings_show_agenda_title">एजेंडा दिखाएं</string>
     <string name="settings_theme_title">थीम</string>

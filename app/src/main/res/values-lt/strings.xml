@@ -128,6 +128,7 @@
     <string name="settings_dock_enabled_title">Rodyti doką</string>
     <string name="settings_work_dock_enabled_title">Rodyti darbo doką</string>
     <string name="settings_work_dock_disabled_toast">Darbo profilis sustabdytas</string>
+    <string name="work_widget_still_starting">Darbo programos dar paleidžiamos. Bandykite dar kartą po akimirkos.</string>
     <string name="settings_keyboard_auto_show_title">Rodyti klaviatūrą automatiškai</string>
     <string name="settings_show_agenda_title">Rodyti darbotvarkę</string>
     <string name="settings_theme_title">Tema</string>

@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">Dock tonen</string>
     <string name="settings_work_dock_enabled_title">Werkdock tonen</string>
     <string name="settings_work_dock_disabled_toast">Werkprofiel is gepauzeerd</string>
+    <string name="work_widget_still_starting">Werk-apps worden nog gestart. Probeer het zo opnieuw.</string>
     <string name="settings_keyboard_auto_show_title">Toetsenbord automatisch tonen</string>
     <string name="settings_show_agenda_title">Agenda tonen</string>
     <string name="settings_theme_title">Thema</string>

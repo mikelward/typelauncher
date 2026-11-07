@@ -127,6 +127,7 @@
     <string name="settings_dock_enabled_title">Prikaži dock</string>
     <string name="settings_work_dock_enabled_title">Prikaži poslovni dock</string>
     <string name="settings_work_dock_disabled_toast">Poslovni profil je pauziran</string>
+    <string name="work_widget_still_starting">Poslovne aplikacije još se pokreću. Pokušajte ponovno za trenutak.</string>
     <string name="settings_keyboard_auto_show_title">Automatski prikaži tipkovnicu</string>
     <string name="settings_show_agenda_title">Prikaži agendu</string>
     <string name="settings_theme_title">Tema</string>

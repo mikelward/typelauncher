@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">ዶክ አሳይ</string>
     <string name="settings_work_dock_enabled_title">የሥራ ዶክ አሳይ</string>
     <string name="settings_work_dock_disabled_toast">የሥራ መገለጫ ቆሟል</string>
+    <string name="work_widget_still_starting">የሥራ መተግበሪያዎች ገና እየጀመሩ ነው። ትንሽ ቆይተው እንደገና ይሞክሩ።</string>
     <string name="settings_keyboard_auto_show_title">ኪቦርድ በራስ-ሰር አሳይ</string>
     <string name="settings_show_agenda_title">አጀንዳ አሳይ</string>
     <string name="settings_theme_title">ገጽታ</string>

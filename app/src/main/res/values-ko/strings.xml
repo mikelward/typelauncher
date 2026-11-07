@@ -125,6 +125,7 @@
     <string name="settings_dock_enabled_title">독 표시</string>
     <string name="settings_work_dock_enabled_title">업무용 독 표시</string>
     <string name="settings_work_dock_disabled_toast">업무 프로필이 일시 중지됨</string>
+    <string name="work_widget_still_starting">업무 앱이 아직 시작 중입니다. 잠시 후 다시 시도하세요.</string>
     <string name="settings_keyboard_auto_show_title">키보드 자동 표시</string>
     <string name="settings_show_agenda_title">일정 표시</string>
     <string name="settings_theme_title">테마</string>

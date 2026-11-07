@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">ଡକ୍ ଦେଖାନ୍ତୁ</string>
     <string name="settings_work_dock_enabled_title">କାମ ଡକ୍ ଦେଖାନ୍ତୁ</string>
     <string name="settings_work_dock_disabled_toast">କାମ ପ୍ରୋଫାଇଲ୍ ସ୍ଥଗିତ ଅଛି</string>
+    <string name="work_widget_still_starting">କାମ ଆପ୍ସ ଏବେ ବି ଆରମ୍ଭ ହେଉଛି। କିଛି ସମୟ ପରେ ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।</string>
     <string name="settings_keyboard_auto_show_title">କୀବୋର୍ଡ୍ ସ୍ୱୟଂଚାଳିତ ଭାବେ ଦେଖାନ୍ତୁ</string>
     <string name="settings_show_agenda_title">ଏଜେଣ୍ଡା ଦେଖାନ୍ତୁ</string>
     <string name="settings_theme_title">ଥିମ୍</string>

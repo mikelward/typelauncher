@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">Dokk megjelenítése</string>
     <string name="settings_work_dock_enabled_title">Munkahelyi dokk megjelenítése</string>
     <string name="settings_work_dock_disabled_toast">A munkahelyi profil szüneteltetve van</string>
+    <string name="work_widget_still_starting">A munkahelyi alkalmazások még indulnak. Próbálja újra egy pillanat múlva.</string>
     <string name="settings_keyboard_auto_show_title">Billentyűzet automatikus megjelenítése</string>
     <string name="settings_show_agenda_title">Napirend megjelenítése</string>
     <string name="settings_theme_title">Téma</string>

@@ -128,6 +128,7 @@
     <string name="settings_dock_enabled_title">Показывать док</string>
     <string name="settings_work_dock_enabled_title">Показывать рабочий док</string>
     <string name="settings_work_dock_disabled_toast">Рабочий профиль приостановлен</string>
+    <string name="work_widget_still_starting">Рабочие приложения ещё запускаются. Повторите попытку через несколько секунд.</string>
     <string name="settings_keyboard_auto_show_title">Автоматически показывать клавиатуру</string>
     <string name="settings_show_agenda_title">Показывать расписание</string>
     <string name="settings_theme_title">Тема</string>

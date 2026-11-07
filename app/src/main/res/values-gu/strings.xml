@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">ડૉક બતાવો</string>
     <string name="settings_work_dock_enabled_title">વર્ક ડૉક બતાવો</string>
     <string name="settings_work_dock_disabled_toast">વર્ક પ્રોફાઇલ થોભાવી છે</string>
+    <string name="work_widget_still_starting">વર્ક ઍપ હજી શરૂ થઈ રહી છે. થોડી વારમાં ફરી પ્રયાસ કરો.</string>
     <string name="settings_keyboard_auto_show_title">કીબોર્ડ આપમેળે બતાવો</string>
     <string name="settings_show_agenda_title">એજન્ડા બતાવો</string>
     <string name="settings_theme_title">થીમ</string>

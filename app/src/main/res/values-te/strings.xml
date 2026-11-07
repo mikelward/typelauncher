@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">డాక్‌ను చూపించు</string>
     <string name="settings_work_dock_enabled_title">పని డాక్‌ను చూపించు</string>
     <string name="settings_work_dock_disabled_toast">వర్క్ ప్రొఫైల్ నిలిపివేయబడింది</string>
+    <string name="work_widget_still_starting">వర్క్ యాప్‌లు ఇంకా ప్రారంభమవుతున్నాయి. కొద్దిసేపటి తర్వాత మళ్లీ ప్రయత్నించండి.</string>
     <string name="settings_keyboard_auto_show_title">కీబోర్డ్‌ను స్వయంచాలకంగా చూపించు</string>
     <string name="settings_show_agenda_title">అజెండాను చూపించు</string>
     <string name="settings_theme_title">థీమ్</string>

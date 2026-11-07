@@ -125,6 +125,7 @@
     <string name="settings_dock_enabled_title">បង្ហាញ Dock</string>
     <string name="settings_work_dock_enabled_title">បង្ហាញ Dock ការងារ</string>
     <string name="settings_work_dock_disabled_toast">ប្រវត្តិរូបការងារត្រូវបានផ្អាក</string>
+    <string name="work_widget_still_starting">កម្មវិធីការងារនៅតែកំពុងចាប់ផ្ដើម។ សូមព្យាយាមម្ដងទៀតបន្តិចទៀត។</string>
     <string name="settings_keyboard_auto_show_title">បង្ហាញក្តារចុចដោយស្វ័យប្រវត្តិ</string>
     <string name="settings_show_agenda_title">បង្ហាញកាលវិភាគ</string>
     <string name="settings_theme_title">រូបរាង</string>

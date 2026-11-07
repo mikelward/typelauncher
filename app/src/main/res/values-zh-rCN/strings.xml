@@ -125,6 +125,7 @@
     <string name="settings_dock_enabled_title">显示程序坞</string>
     <string name="settings_work_dock_enabled_title">显示工作程序坞</string>
     <string name="settings_work_dock_disabled_toast">工作资料已暂停</string>
+    <string name="work_widget_still_starting">工作应用仍在启动。请稍后重试。</string>
     <string name="settings_keyboard_auto_show_title">自动显示键盘</string>
     <string name="settings_show_agenda_title">显示日程</string>
     <string name="settings_theme_title">主题</string>

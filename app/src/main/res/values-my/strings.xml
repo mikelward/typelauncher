@@ -125,6 +125,7 @@
     <string name="settings_dock_enabled_title">Dock ပြသမည်</string>
     <string name="settings_work_dock_enabled_title">အလုပ် Dock ပြသမည်</string>
     <string name="settings_work_dock_disabled_toast">အလုပ်ပရိုဖိုင် ခေတ္တရပ်ထားသည်</string>
+    <string name="work_widget_still_starting">အလုပ်အက်ပ်များ စတင်နေဆဲဖြစ်သည်။ ခဏအကြာတွင် ထပ်စမ်းကြည့်ပါ။</string>
     <string name="settings_keyboard_auto_show_title">ကီးဘုတ်အလိုအလျောက်ပြသမည်</string>
     <string name="settings_show_agenda_title">အစီအစဉ်ပြသမည်</string>
     <string name="settings_theme_title">အပြင်အဆင်</string>

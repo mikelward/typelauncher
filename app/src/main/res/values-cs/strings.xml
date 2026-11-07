@@ -128,6 +128,7 @@
     <string name="settings_dock_enabled_title">Zobrazit dock</string>
     <string name="settings_work_dock_enabled_title">Zobrazit pracovní dock</string>
     <string name="settings_work_dock_disabled_toast">Pracovní profil je pozastaven</string>
+    <string name="work_widget_still_starting">Pracovní aplikace se ještě spouštějí. Zkuste to za chvíli znovu.</string>
     <string name="settings_keyboard_auto_show_title">Zobrazovat klávesnici automaticky</string>
     <string name="settings_show_agenda_title">Zobrazit agendu</string>
     <string name="settings_theme_title">Motiv</string>

@@ -126,6 +126,7 @@
     <string name="settings_dock_enabled_title">Dock\'u göster</string>
     <string name="settings_work_dock_enabled_title">İş dock\'unu göster</string>
     <string name="settings_work_dock_disabled_toast">İş profili duraklatıldı</string>
+    <string name="work_widget_still_starting">İş uygulamaları hâlâ başlatılıyor. Biraz sonra tekrar deneyin.</string>
     <string name="settings_keyboard_auto_show_title">Klavyeyi otomatik göster</string>
     <string name="settings_show_agenda_title">Ajandayı göster</string>
     <string name="settings_theme_title">Tema</string>

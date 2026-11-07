@@ -125,6 +125,7 @@
     <string name="settings_dock_enabled_title">ສະແດງ Dock</string>
     <string name="settings_work_dock_enabled_title">ສະແດງ Dock ວຽກ</string>
     <string name="settings_work_dock_disabled_toast">ໂປຣໄຟລ໌ວຽກຖືກຢຸດຊົ່ວຄາວ</string>
+    <string name="work_widget_still_starting">ແອັບວຽກຍັງກຳລັງເລີ່ມຕົ້ນ. ລອງໃໝ່ອີກຄັ້ງໃນອີກບໍ່ດົນ.</string>
     <string name="settings_keyboard_auto_show_title">ສະແດງແປ້ນພິມອັດຕະໂນມັດ</string>
     <string name="settings_show_agenda_title">ສະແດງກຳນົດການ</string>
     <string name="settings_theme_title">ຮູບແບບ</string>

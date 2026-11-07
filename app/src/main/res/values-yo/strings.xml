@@ -125,6 +125,7 @@
     <string name="settings_dock_enabled_title">Fihàn dock</string>
     <string name="settings_work_dock_enabled_title">Fihàn dock iṣẹ́</string>
     <string name="settings_work_dock_disabled_toast">A ti dáwọ́ profáìlì iṣẹ́ dúró</string>
+    <string name="work_widget_still_starting">Àwọn áàpù iṣẹ́ ṣì ń bẹ̀rẹ̀. Gbìyànjú lẹ́ẹ̀kan sí i láìpẹ́.</string>
     <string name="settings_keyboard_auto_show_title">Fihàn kíbọ́dù ní àlátinúdá</string>
     <string name="settings_show_agenda_title">Fihàn ètò ọjọ́</string>
     <string name="settings_theme_title">Àkòrí</string>
