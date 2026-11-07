@@ -905,6 +905,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         LauncherDebugLog.activityCallback(this, "MainActivity.onPause")
+        if (::appWidgetHost.isInitialized) appWidgetHost.onLauncherPaused()
         LauncherTelemetry.setCustomKey(TelemetryKey.FOREGROUND, false.toString())
         super.onPause()
     }
@@ -1567,7 +1568,9 @@ class MainActivity : ComponentActivity() {
      * lets the misbound sweep judge a work widget whose binding resolved to
      * nothing while the profile was away — the ViewModel's managed-profile
      * receiver bumps the refresh token on exactly those events, so a sweep is
-     * requested on each bump (the initial value is not an event).
+     * requested on each bump (the initial value is not an event). The host
+     * also starts watching for dead taps on the rebuilt work widgets (see
+     * [WorkWidgetTapCheck]).
      */
     private fun observeWorkProfileAvailability() {
         lifecycleScope.launch {
@@ -1575,7 +1578,10 @@ class MainActivity : ComponentActivity() {
                 .map { it.workProfileWidgetRefreshToken }
                 .distinctUntilChanged()
                 .drop(1)
-                .collect { reconcileMisboundWidgets() }
+                .collect {
+                    appWidgetHost.onWorkProfileAvailable()
+                    reconcileMisboundWidgets()
+                }
         }
     }
 
