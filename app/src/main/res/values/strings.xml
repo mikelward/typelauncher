@@ -162,6 +162,9 @@
     <string name="settings_dock_enabled_title">Show dock</string>
     <string name="settings_work_dock_enabled_title">Show work dock</string>
     <string name="settings_work_dock_disabled_toast">Work profile is paused</string>
+    <!-- Toast when a tap on a work widget opened nothing just after the work profile was turned on. -->
+    <!-- TODO: translate -->
+    <string name="work_widget_still_starting" tools:ignore="MissingTranslation">Work apps are still starting. Try again in a moment.</string>
     <string name="settings_keyboard_auto_show_title">Show keyboard automatically</string>
     <string name="settings_show_wallpaper_title">Show wallpaper</string>
     <string name="settings_wallpaper_title">Wallpaper</string>

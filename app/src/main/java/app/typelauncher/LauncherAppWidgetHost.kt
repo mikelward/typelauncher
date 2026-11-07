@@ -8,11 +8,14 @@ import android.content.SharedPreferences
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.Process
+import android.os.SystemClock
 import android.util.SizeF
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.ViewConfiguration
 import android.widget.RemoteViews
+import android.widget.Toast
 import androidx.annotation.VisibleForTesting
 import java.util.WeakHashMap
 import java.util.concurrent.Executor
@@ -282,6 +285,51 @@ internal class LauncherAppWidgetHost(
      */
     var onChildScrollChange: ((Boolean) -> Unit)? = null
 
+    private val workWidgetTapCheck = WorkWidgetTapCheck()
+    private val deadTapCheck = Runnable {
+        val tap = workWidgetTapCheck.onCheckDue() ?: return@Runnable
+        LauncherDebugLog.event(
+            "workWidgetTap openedNothing widgetId=%s afterMs=%s stale=%s sinceProfileAvailableMs=%s providerUpdated=%s",
+            tap.widgetId,
+            WorkWidgetTapCheck.CHECK_DELAY_MILLIS,
+            tap.stale,
+            tap.sinceProfileAvailableMillis,
+            tap.providerUpdated,
+        )
+        if (tap.stale) Toast.makeText(appContext, R.string.work_widget_still_starting, Toast.LENGTH_SHORT).show()
+    }
+
+    /**
+     * The work profile became available or unlocked, so its widgets are
+     * being rebuilt from content saved before it stopped. See
+     * [WorkWidgetTapCheck].
+     */
+    fun onWorkProfileAvailable() {
+        workWidgetTapCheck.onWorkProfileAvailable(SystemClock.elapsedRealtime())
+    }
+
+    /** Time since [onWorkProfileAvailable], for the log; null if it hasn't happened. */
+    internal fun sinceWorkProfileAvailableMillis(): Long? =
+        workWidgetTapCheck.sinceProfileAvailableMillis(SystemClock.elapsedRealtime())
+
+    /**
+     * A tap landed on a work-profile widget. If the launcher hasn't paused
+     * [WorkWidgetTapCheck.CHECK_DELAY_MILLIS] later, the tap opened nothing:
+     * it is logged, and a tap on content from before the profile came back
+     * says the work apps are still starting.
+     */
+    internal fun onWorkWidgetTapped(widgetId: Int, providerUpdated: Boolean) {
+        workWidgetTapCheck.onTap(widgetId, providerUpdated, SystemClock.elapsedRealtime())
+        mainHandler.removeCallbacks(deadTapCheck)
+        mainHandler.postDelayed(deadTapCheck, WorkWidgetTapCheck.CHECK_DELAY_MILLIS)
+    }
+
+    /** The launcher paused: whatever the last widget tap was, it opened something. */
+    fun onLauncherPaused() {
+        workWidgetTapCheck.onLauncherPaused()
+        mainHandler.removeCallbacks(deadTapCheck)
+    }
+
     internal fun registerView(view: LauncherAppWidgetHostView) {
         views[view] = Unit
     }
@@ -319,6 +367,35 @@ internal open class LauncherAppWidgetHostView(
     // fires many of those, which would spam the ring buffer and evict the
     // armed/gesture-start lines this logging exists to preserve).
     private var longPressTimerArmedForLogging = false
+    // The current gesture is still a tap: no move past slop, no child claim,
+    // no cancel. Read at ACTION_UP to report work-widget taps to the host.
+    private var gestureIsTap = false
+    // The widget id this view was last bound to. `setAppWidget` runs once in
+    // `AppWidgetHost.createView`, which then hands over the content Android
+    // saved, and once more from the card's factory with the same id; only a
+    // new id starts over.
+    private var boundWidgetId: Int? = null
+    // The next update is the saved content `createView` hands over, not
+    // something the provider sent.
+    private var awaitingSavedContent = false
+
+    /**
+     * The widget's app has sent content since this view was bound. Until it
+     * does, a work widget rebuilt after its profile came back shows content
+     * from before, whose tap actions may be dead (see [WorkWidgetTapCheck]).
+     */
+    internal var providerUpdatedSinceBound: Boolean = false
+        private set
+
+    /**
+     * The widget belongs to the work profile. `getProfile` reads the
+     * provider's uid, no IPC; a malformed info counts as personal.
+     */
+    internal open val isWorkProfileWidget: Boolean
+        get() = runCatching {
+            val profile = appWidgetInfo?.profile
+            profile != null && profile != Process.myUserHandle()
+        }.getOrDefault(false)
     // Holds the latest RemoteViews delivered while the host's defer flag was
     // set. Overwriting on every push is intentional — only the latest needs
     // to paint when the deferral lifts; intermediate updates are typically
@@ -358,9 +435,28 @@ internal open class LauncherAppWidgetHostView(
     override fun setAppWidget(appWidgetId: Int, info: AppWidgetProviderInfo?) {
         super.setAppWidget(appWidgetId, info)
         setPadding(0, 0, 0, 0)
+        if (boundWidgetId != appWidgetId) {
+            boundWidgetId = appWidgetId
+            awaitingSavedContent = true
+            providerUpdatedSinceBound = false
+        }
     }
 
     final override fun updateAppWidget(remoteViews: RemoteViews?) {
+        if (awaitingSavedContent) {
+            awaitingSavedContent = false
+        } else if (!providerUpdatedSinceBound) {
+            providerUpdatedSinceBound = true
+            // Once per bound view: when a work widget's app first sends content
+            // after the profile came back is what tells a dead-tap window apart.
+            if (isWorkProfileWidget) {
+                LauncherDebugLog.event(
+                    "workWidget providerUpdated widgetId=%s sinceProfileAvailableMs=%s",
+                    appWidgetId,
+                    host.sinceWorkProfileAvailableMillis(),
+                )
+            }
+        }
         if (host.deferRemoteViewsApply) {
             // Park the latest RemoteViews. The provider's background fetch
             // already ran in its own process; we just postpone the
@@ -464,7 +560,10 @@ internal open class LauncherAppWidgetHostView(
      */
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         when (ev.actionMasked) {
-            MotionEvent.ACTION_DOWN -> host.onChildScrollChange?.invoke(false)
+            MotionEvent.ACTION_DOWN -> {
+                host.onChildScrollChange?.invoke(false)
+                gestureIsTap = true
+            }
             MotionEvent.ACTION_MOVE -> {
                 // Slop cancellation must live here as well as in
                 // onInterceptTouchEvent: when this view consumed the DOWN
@@ -477,6 +576,7 @@ internal open class LauncherAppWidgetHostView(
                 // gestures a child owns (intercept already cancelled).
                 if (abs(ev.x - downX) > touchSlop || abs(ev.y - downY) > touchSlop) {
                     removeCallbacks(checkLongPress)
+                    gestureIsTap = false
                 }
             }
             MotionEvent.ACTION_UP,
@@ -486,6 +586,11 @@ internal open class LauncherAppWidgetHostView(
             }
         }
         val handled = super.dispatchTouchEvent(ev)
+        if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
+            val tapped = ev.actionMasked == MotionEvent.ACTION_UP && gestureIsTap && !hasPerformedLongPress
+            gestureIsTap = false
+            if (tapped && isWorkProfileWidget) host.onWorkWidgetTapped(appWidgetId, providerUpdatedSinceBound)
+        }
         // This backstop is the *only* place that ever sees UP/CANCEL for a
         // gesture whose ACTION_DOWN never landed on a child (a gap or
         // non-interactive area of the widget's RemoteViews content): per
@@ -568,6 +673,7 @@ internal open class LauncherAppWidgetHostView(
     override fun requestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
         if (disallowIntercept) {
             host.onChildScrollChange?.invoke(true)
+            gestureIsTap = false
             // The descendant owns the gesture from here on and the framework
             // skips onInterceptTouchEvent — including its MOVE-past-slop and
             // UP/CANCEL cancellation branches — for the rest of it. A timer
