@@ -106,7 +106,13 @@ internal class LauncherViewModel(
     private val dockedAppStore = DockedAppStore(app)
     private val workDockedAppStore = DockedAppStore(app, DockedAppStore.WORK_PREFERENCES_NAME)
     private val hiddenAppStore = HiddenAppStore(app)
-    private val appFolderStore = AppFolderStore(app)
+    // Choices the AI made under older instructions (before a folder was added,
+    // say) are dropped here, before anything reads them, so it sorts again.
+    private val appFolderStore = AppFolderStore(app).also { store ->
+        if (store.forgetAiChoicesUnlessMadeBy(AI_SORT_PROMPT_VERSION)) {
+            LauncherDebugLog.event("aiSort instructions changed; sorting again")
+        }
+    }
     private val renamedAppStore = RenamedAppStore(app)
     private val customBadgeStore = CustomBadgeStore(app)
     private val iconOverrideStore = IconOverrideStore(app)

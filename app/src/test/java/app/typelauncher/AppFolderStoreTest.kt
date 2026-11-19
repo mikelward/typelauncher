@@ -91,4 +91,23 @@ class AppFolderStoreTest {
         assertEquals(emptyMap<String, AppCategory>(), cleared.aiAssignments)
         assertEquals(mapOf("mine" to AppCategory.Tools), cleared.assignments)
     }
+
+    @Test
+    fun aiChoicesFromOtherInstructions_areForgotten_once_andTheUsersFilingsKept() {
+        AppFolderStore(context).apply {
+            forgetAiChoicesUnlessMadeBy(1)
+            assign("mine", AppCategory.Tools)
+            assignByAi(mapOf("a" to AppCategory.Finance))
+        }
+
+        // Same instructions: kept.
+        assertFalse(AppFolderStore(context).forgetAiChoicesUnlessMadeBy(1))
+        assertEquals(mapOf("a" to AppCategory.Finance), AppFolderStore(context).aiAssignments)
+
+        // New instructions (a folder added): forgotten, the user's kept, and only once.
+        assertTrue(AppFolderStore(context).forgetAiChoicesUnlessMadeBy(2))
+        assertEquals(emptyMap<String, AppCategory>(), AppFolderStore(context).aiAssignments)
+        assertEquals(mapOf("mine" to AppCategory.Tools), AppFolderStore(context).assignments)
+        assertFalse(AppFolderStore(context).forgetAiChoicesUnlessMadeBy(2))
+    }
 }

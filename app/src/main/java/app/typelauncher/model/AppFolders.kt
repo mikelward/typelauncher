@@ -20,6 +20,7 @@ internal enum class AppCategory(val storageKey: String) {
     Finance("finance"),
     Games("games"),
     Health("health"),
+    Home("home"),
     Media("media"),
     News("news"),
     Productivity("productivity"),

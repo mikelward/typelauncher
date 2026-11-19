@@ -145,6 +145,9 @@ internal fun buildAiSortPrompt(apps: List<AiSortInput>): String = buildString {
         appendLine("${category.storageKey}: $description")
     }
     appendLine()
+    appendLine("Examples: $AI_SORT_EXAMPLES.")
+    appendLine("Choose tools only for a utility no other folder fits, and other only when nothing fits.")
+    appendLine()
     appendLine("Answer with one line per app, as \"number: folder\", and nothing else.")
     appendLine()
     apps.forEachIndexed { index, app ->
@@ -176,19 +179,36 @@ private val AI_SORT_LINE = Regex("""^\W*(\d+)\W+([A-Za-z]+)""")
 private fun String.sanitizedForPrompt(): String =
     replace(Regex("""\s+"""), " ").trim().take(AI_SORT_MAX_LABEL_CHARS)
 
+// Well-known apps with their folders. A small model follows examples more
+// reliably than descriptions; Waze and Apple TV are here because it filed them
+// under tools and other (maintainer, 2026-11-19).
+private const val AI_SORT_EXAMPLES =
+    "Waze is travel, Google Maps is travel, Apple TV is media, Netflix is media, Spotify is media, " +
+        "WhatsApp is social, Robinhood is finance, Google Wallet is finance, Amazon is shopping, " +
+        "Google Home is home, Gmail is productivity, Chrome is tools, Calculator is tools"
+
 private val AI_SORT_FOLDER_DESCRIPTIONS = listOf(
     AppCategory.Finance to "banking, payments, wallets and payment cards, money transfer, investing, budgeting, crypto",
     AppCategory.Games to "games of any kind",
     AppCategory.Health to "fitness, workouts, health, medical, meditation, sleep, period tracking",
-    AppCategory.Media to "music, podcasts, video, streaming, TV, photos, camera, gallery, books, audiobooks",
+    AppCategory.Home to "smart home, home devices and security cameras, thermostats, property, real estate, rentals, household utilities",
+    AppCategory.Media to "TV and movie apps, video streaming, music, podcasts, photos, camera, gallery, books, audiobooks",
     AppCategory.News to "news, magazines, newspapers",
     AppCategory.Productivity to "email, calendar, notes, documents, office, tasks, work, learning, education",
     AppCategory.Shopping to "shopping, marketplaces, food delivery, groceries, coupons",
     AppCategory.Social to "messaging, chat, calls, social networks, dating, communities",
-    AppCategory.Tools to "browsers, files, calculators, clocks, weather, settings, keyboards, utilities, security",
-    AppCategory.Travel to "maps, navigation, rideshare, transit, airlines, hotels, travel booking, cars",
+    AppCategory.Tools to "browsers, files, calculators, clocks, weather, settings, keyboards, other utilities",
+    AppCategory.Travel to "maps, navigation and traffic, rideshare, transit, parking, airlines, hotels, travel booking, cars",
     AppCategory.Other to "anything that fits none of the above",
 )
+
+/**
+ * A fingerprint of the instructions every prompt starts with: the folders and
+ * what goes in each. It changes when a folder is added or a description is
+ * reworded, and the AI's earlier choices are then dropped so every app is
+ * sorted under the new instructions (see `AppFolderStore`).
+ */
+internal val AI_SORT_PROMPT_VERSION: Int = buildAiSortPrompt(emptyList()).hashCode().let { if (it == 0) 1 else it }
 
 /** Apps asked about per model call: enough to amortize it, few enough to stay accurate. */
 internal const val AI_SORT_BATCH_SIZE = 15

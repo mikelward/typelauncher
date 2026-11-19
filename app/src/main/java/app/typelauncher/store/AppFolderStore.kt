@@ -70,6 +70,22 @@ internal class AppFolderStore(context: Context) {
         }
     }
 
+    /**
+     * Forgets the AI's choices if they were made under different instructions
+     * than [promptVersion] (a new folder, or a reworded description), so the
+     * apps are sorted again under the new ones; the user's filings are kept.
+     * Returns whether it forgot them.
+     */
+    fun forgetAiChoicesUnlessMadeBy(promptVersion: Int): Boolean = synchronized(lock) {
+        val stored = sharedPreferences.getInt(KEY_AI_PROMPT_VERSION, 0)
+        if (stored == promptVersion) return@synchronized false
+        sharedPreferences.edit().putInt(KEY_AI_PROMPT_VERSION, promptVersion).apply()
+        if (aiFilings.isEmpty()) return@synchronized false
+        aiFilings.clear()
+        saveAi()
+        true
+    }
+
     /** Forgets every choice the AI made, so it sorts again from scratch. */
     fun clearAiAssignments() {
         synchronized(lock) {
@@ -112,6 +128,7 @@ internal class AppFolderStore(context: Context) {
         private const val KEY_AI_ENABLED = "ai_enabled"
         private const val KEY_AI_OFFER_ANSWERED = "ai_offer_answered"
         private const val KEY_AI_ASSIGNMENTS = "ai_assignments"
+        private const val KEY_AI_PROMPT_VERSION = "ai_prompt_version"
 
         // App ids never contain a newline (other stores split on it too) or a
         // tab; they are user hash, component and package names.

@@ -187,6 +187,8 @@
     <!-- TODO: translate -->
     <string name="app_folder_health" tools:ignore="MissingTranslation">Health</string>
     <!-- TODO: translate -->
+    <string name="app_folder_home" tools:ignore="MissingTranslation">Home</string>
+    <!-- TODO: translate -->
     <string name="app_folder_media" tools:ignore="MissingTranslation">Media</string>
     <!-- TODO: translate -->
     <string name="app_folder_news" tools:ignore="MissingTranslation">News</string>
