@@ -54,6 +54,8 @@ class AppListFoldersUiTest {
         // Its members stay inside it until it opens.
         composeRule.onNodeWithTag("$APP_ROW_TAG:Chess").assertDoesNotExist()
         composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Chess").assertDoesNotExist()
+        // Drawn as its category icon, in the app's own icon footprint.
+        composeRule.onNodeWithTag(APP_LIST_FOLDER_ICON_TAG, useUnmergedTree = true).assertExists()
         composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:games").performClick()
         assertEquals(games, opened)
     }

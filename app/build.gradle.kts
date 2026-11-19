@@ -646,6 +646,23 @@ tasks.register("exportBundledLicenses") {
                 "licenses" to listOf("Apache-2.0"),
                 "funding" to emptyList<Any>(),
             ),
+            // CategoryIcons: the app-list folder icons, copied from the
+            // Material Symbols SVGs in google/material-design-icons.
+            mapOf(
+                "uniqueId" to "com.google:material-symbols",
+                "name" to "Material Symbols",
+                "description" to
+                    "Material Symbols drawn for the app-list folders. The paths are held in the app.",
+                "website" to "https://fonts.google.com/icons",
+                "developers" to listOf(mapOf("name" to "Google")),
+                "organization" to mapOf("name" to "Google"),
+                "scm" to mapOf(
+                    "connection" to "scm:git:https://github.com/google/material-design-icons.git",
+                    "url" to "https://github.com/google/material-design-icons",
+                ),
+                "licenses" to listOf("Apache-2.0"),
+                "funding" to emptyList<Any>(),
+            ),
         )
         val ids = libraries.map { it["uniqueId"] as String }.filter { it in bundled }.toSet()
         // An org.jetbrains.compose module that redirects to its androidx namesake
