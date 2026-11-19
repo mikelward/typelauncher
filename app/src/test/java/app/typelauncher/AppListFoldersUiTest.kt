@@ -454,6 +454,21 @@ class AppListFoldersUiTest {
     }
 
     @Test
+    fun longPressOnAFolder_mergesItIntoAnother_butNotItselfOrOther() {
+        var merged: Pair<AppFolderDef, AppFolderDef>? = null
+        compose(apps = listOf(mail), folders = listOf(games), folderMenu = folderMenu(onMerge = { from, into -> merged = from to into }))
+
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:games").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$APP_FOLDER_MERGE_ACTION_TAG:games").performClick()
+        composeRule.onNodeWithText("Merge Games into").assertExists()
+        composeRule.onNodeWithTag("$APP_FOLDER_MERGE_OPTION_TAG:games").assertDoesNotExist()
+        composeRule.onNodeWithTag("$APP_FOLDER_MERGE_OPTION_TAG:other").assertDoesNotExist()
+        composeRule.onNodeWithTag("$APP_FOLDER_MERGE_OPTION_TAG:kids").performScrollTo().performClick()
+
+        assertEquals(games.folder to AppFolderDef.builtIn(AppCategory.Kids), merged)
+    }
+
+    @Test
     fun other_hasNoMenu() {
         val other = AppListFolder(AppFolderDef.builtIn(AppCategory.Other), listOf(app("Notes")))
         compose(apps = listOf(mail), folders = listOf(games, other), folderMenu = folderMenu())
@@ -466,6 +481,7 @@ class AppListFoldersUiTest {
         folders: List<AppFolderDef> = activeAppFolders(emptyList(), emptySet()),
         onMove: (InstalledApp, String?) -> Unit = { _, _ -> },
         onDelete: (AppFolderDef) -> Unit = {},
+        onMerge: (AppFolderDef, AppFolderDef) -> Unit = { _, _ -> },
     ) = AppFolderMenu(
         folders = folders,
         folderOf = { null },
@@ -473,6 +489,7 @@ class AppListFoldersUiTest {
         onCreate = { _, _, _ -> },
         onEdit = { _, _, _ -> },
         onDelete = onDelete,
+        onMerge = onMerge,
     )
 
     private fun compose(

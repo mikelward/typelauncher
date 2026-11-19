@@ -297,6 +297,7 @@ internal fun HomeScreen(
     onCreateAppFolder: (InstalledApp, String, FolderIcon) -> Unit = { _, _, _ -> },
     onEditAppFolder: (AppFolderDef, String, FolderIcon) -> Unit = { _, _, _ -> },
     onDeleteAppFolder: (AppFolderDef) -> Unit = {},
+    onMergeAppFolder: (AppFolderDef, AppFolderDef) -> Unit = { _, _ -> },
     onAiSortEnabledChanged: (Boolean) -> Unit = {},
     onDismissAiSortOffer: () -> Unit = {},
     onAcceptGridOffer: () -> Unit = {},
@@ -1324,6 +1325,7 @@ internal fun HomeScreen(
                 onCreateAppFolder,
                 onEditAppFolder,
                 onDeleteAppFolder,
+                onMergeAppFolder,
             ) {
                 if (state.isAppFoldersEnabled) {
                     val activeKeys = state.appFolders.mapTo(HashSet()) { it.key }
@@ -1336,6 +1338,7 @@ internal fun HomeScreen(
                         onCreate = onCreateAppFolder,
                         onEdit = onEditAppFolder,
                         onDelete = onDeleteAppFolder,
+                        onMerge = onMergeAppFolder,
                     )
                 } else {
                     null

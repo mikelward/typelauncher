@@ -85,16 +85,43 @@ internal class AppFolderStore(context: Context) {
      */
     fun deleteFolder(key: String) {
         if (key == AppCategory.Other.storageKey) return
+        synchronized(lock) { removeFolder(key) }
+    }
+
+    /**
+     * Merges the folder [source] into [target]: every app filed in [source]
+     * by the user, or by the AI if [withAiChoices] (AI sorting is on, so its
+     * choices count), and every app in [members] (those there by their
+     * manifest, say), is filed in [target] as if the user had moved it, then
+     * [source] is deleted. Apps hidden or in a paused profile move
+     * too, since their filings are here whether or not they're listed. One
+     * save, however many apps move.
+     */
+    fun mergeFolder(source: String, target: String, members: Collection<String>, withAiChoices: Boolean) {
+        if (source == AppCategory.Other.storageKey || source == target) return
         synchronized(lock) {
-            if (AppCategory.fromStorageKey(key) != null) {
-                deletedBuiltIns += key
-                sharedPreferences.edit().putStringSet(KEY_DELETED_FOLDERS, deletedBuiltIns.toSet()).apply()
-            } else if (customFolders.removeAll { it.key == key }) {
-                saveFolders()
+            filings.replaceAll { _, key -> if (key == source) target else key }
+            if (withAiChoices) {
+                for ((id, key) in aiFilings) {
+                    if (key == source && !filings.containsKey(id)) filings[id] = target
+                }
             }
-            if (filings.values.removeAll { it == key }) save()
-            if (aiFilings.values.removeAll { it == key }) saveAi()
+            for (id in members) filings[id] = target
+            save()
+            removeFolder(source)
         }
+    }
+
+    // Callers hold `lock`.
+    private fun removeFolder(key: String) {
+        if (AppCategory.fromStorageKey(key) != null) {
+            deletedBuiltIns += key
+            sharedPreferences.edit().putStringSet(KEY_DELETED_FOLDERS, deletedBuiltIns.toSet()).apply()
+        } else if (customFolders.removeAll { it.key == key }) {
+            saveFolders()
+        }
+        if (filings.values.removeAll { it == key }) save()
+        if (aiFilings.values.removeAll { it == key }) saveAi()
     }
 
     /** Brings back every built-in folder the user deleted. */

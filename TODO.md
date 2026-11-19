@@ -116,7 +116,7 @@
   5. **Close button at the end of an open folder** (shipped, maintainer, 2026-11-19): a ✕ item at the list's visual bottom, as dock folders have, in place of the header's.
   6. **Custom folders and icons** (shipped, maintainer, 2026-11-19): "New folder" in "Move to folder", with a name and an icon from a set of Material Symbols; long-press a folder to edit (the user's own) or delete it (any but Other); Settings restores deleted built-ins.
   6a. **AI sorts into the folders in use** (shipped, maintainer, 2026-11-19): the prompt lists the active folders, the user's own by name, and drops deleted ones, with a re-sort when the set changes. New built-ins: Food, Government, Internet, Kids, Music and Photos (both out of Media), Pets & animals, Sports, Transport (maps, transit, rideshare; Travel keeps flights and hotels) and Weather. Waze and Netflix's games (`com.netflix.NGP.*`) are filed by a fixed rule, and Red Dead Redemption is an example game.
-  6b. **Merge folders** (maintainer, 2026-11-19: "create a few too many and let users choose which ones to keep"): "Merge into…" on a folder's long press files its apps into the chosen folder and deletes it.
+  6b. **Merge folders** (shipped, maintainer, 2026-11-19: "create a few too many and let users choose which ones to keep"): "Merge into…" on a folder's long press files its apps into the chosen folder and deletes it.
   7. **Search matches folder names** (maintainer, 2026-11-19): typing a folder's name shows the folder and the apps in it.
 
 - **Kiosk mode follow-ups.** The widget-only, screen-on-while-plugged-in display shipped; still to come, each its own PR:

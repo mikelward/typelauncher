@@ -222,6 +222,8 @@ internal class AppFolderMenu(
     val onCreate: (InstalledApp, String, FolderIcon) -> Unit,
     val onEdit: (AppFolderDef, String, FolderIcon) -> Unit,
     val onDelete: (AppFolderDef) -> Unit,
+    /** Files the first folder's apps into the second, then deletes the first. */
+    val onMerge: (AppFolderDef, AppFolderDef) -> Unit,
 )
 
 internal val LocalAppFolderMenu = staticCompositionLocalOf<AppFolderMenu?> { null }
@@ -277,14 +279,16 @@ private fun Modifier.folderClickable(
 }
 
 /**
- * A folder's long-press menu: "Edit folder" for one the user made, and
- * "Delete folder" for any but Other, each through its dialog.
+ * A folder's long-press menu: "Edit folder" for one the user made, then
+ * "Merge into…" and "Delete folder" for any but Other, each through its
+ * dialog.
  */
 @Composable
 private fun AppListFolderActions(folder: AppFolderDef, expanded: Boolean, onDismiss: () -> Unit) {
     val menu = LocalAppFolderMenu.current ?: return
     var editing by rememberSaveable(folder.key) { mutableStateOf(false) }
     var deleting by rememberSaveable(folder.key) { mutableStateOf(false) }
+    var merging by rememberSaveable(folder.key) { mutableStateOf(false) }
     LauncherDropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         if (folder.category == null) {
             DropdownMenuItem(
@@ -296,6 +300,14 @@ private fun AppListFolderActions(folder: AppFolderDef, expanded: Boolean, onDism
                 },
             )
         }
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_folder_menu_merge)) },
+            modifier = Modifier.testTag("$APP_FOLDER_MERGE_ACTION_TAG:${folder.key}"),
+            onClick = {
+                onDismiss()
+                merging = true
+            },
+        )
         DropdownMenuItem(
             text = { LauncherMenuItemText(stringResource(R.string.app_folder_menu_delete)) },
             modifier = Modifier.testTag("$APP_FOLDER_DELETE_ACTION_TAG:${folder.key}"),
@@ -313,6 +325,19 @@ private fun AppListFolderActions(folder: AppFolderDef, expanded: Boolean, onDism
                 editing = false
             },
             onDismiss = { editing = false },
+        )
+    }
+    if (merging) {
+        MergeAppFolderDialog(
+            name = folderLabel(folder),
+            // Not into itself, nor into Other: that would pin its apps there,
+            // out of the AI's reach, when deleting already sorts them again.
+            targets = menu.folders.filter { it.key != folder.key && !it.isOther },
+            onPick = { target ->
+                menu.onMerge(folder, target)
+                merging = false
+            },
+            onDismiss = { merging = false },
         )
     }
     if (deleting) {
@@ -751,6 +776,47 @@ internal fun AppFolderEditDialogContent(
             }
         }
     }
+}
+
+/** Picks the folder to merge [name] into. Picking merges and closes the dialog. */
+@Composable
+internal fun MergeAppFolderDialog(
+    name: String,
+    targets: List<AppFolderDef>,
+    onPick: (AppFolderDef) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.app_folder_merge_title, name)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                for (target in targets) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(role = Role.Button, onClick = { onPick(target) })
+                            .padding(vertical = 8.dp)
+                            .testTag("$APP_FOLDER_MERGE_OPTION_TAG:${target.key}"),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Icon(
+                            imageVector = target.icon.vector(),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp),
+                        )
+                        Text(folderLabel(target), style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.app_folder_picker_cancel)) }
+        },
+    )
 }
 
 /** Asks before deleting a folder; its apps stay installed and are sorted again. */
