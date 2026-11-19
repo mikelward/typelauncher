@@ -69,6 +69,8 @@ private fun labelCategory(label: String): AppCategory? {
     // Brands first, as whole words or runs of them: "Fly Delta", "My Bupa",
     // "Priority Pass", and "Royal Mail" before "mail" makes it email.
     val padded = words.filter { it.isNotEmpty() }.joinToString(" ", prefix = " ", postfix = " ")
+    // The phone app itself, whatever package it comes in.
+    if (padded == " phone " || padded == " dialer ") return AppCategory.Phone
     LABEL_BRANDS.firstOrNull { (brand, _) -> " $brand " in padded }?.let { return it.second }
     return LABEL_WORDS.firstOrNull { (keyword, _) ->
         words.any { word ->
@@ -96,6 +98,26 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "saily" to AppCategory.Phone,
     "esim" to AppCategory.Phone,
     "suzerain" to AppCategory.Games,
+    // A newspaper, before "courier" makes it Post.
+    "courier mail" to AppCategory.News,
+    "security camera" to AppCategory.Home,
+    "home security" to AppCategory.Home,
+    "tfl" to AppCategory.Transport,
+    "transperth" to AppCategory.Transport,
+    // AI assistants by name, now that "AI" alone doesn't file an app.
+    "claude" to AppCategory.Ai,
+    "perplexity" to AppCategory.Ai,
+    "grok" to AppCategory.Ai,
+    "deepseek" to AppCategory.Ai,
+    "meta ai" to AppCategory.Ai,
+    "le chat" to AppCategory.Ai,
+) + listOf(
+    // Mobile carriers, by brand (maintainer, 2026-11-19).
+    "ee", "vodafone", "telstra", "optus", "t mobile", "verizon", "at t", "o2", "giffgaff", "lebara",
+    "lycamobile", "2degrees", "spark nz", "one nz", "skinny mobile", "rogers", "telus", "koodo",
+    "freedom mobile", "boost mobile", "cricket wireless", "mint mobile", "tesco mobile", "sky mobile",
+    "voxi", "smarty mobile", "amaysim", "aldi mobile", "id mobile", "airalo", "truecaller",
+).map { it to AppCategory.Phone } + listOf(
     "thefork" to AppCategory.Food,
     "the fork" to AppCategory.Food,
     "opentable" to AppCategory.Food,
@@ -125,8 +147,9 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
 ).map { it to AppCategory.Post }
 
 // Keywords that must start a word: "ebook" sits inside "Facebook" and
-// "Notebook" (Codex on PR #866).
-private val WORD_START_ONLY = setOf("ebook")
+// "Notebook" (Codex on PR #866), "sport" inside "Transport" and "Passport"
+// (Codex on PR #875), "parent" inside "Transparent".
+private val WORD_START_ONLY = setOf("ebook", "parent", "sport")
 
 // Keywords that must be a whole word: "git" ends "legit", and "code" a
 // "barcode" scanner.
@@ -153,17 +176,29 @@ private val LABEL_WORDS = listOf(
     "vpn" to AppCategory.Internet,
     "gallery" to AppCategory.Photos,
     "photos" to AppCategory.Photos,
+    // Home security cameras before "camera".
+    "surveillance" to AppCategory.Home,
+    "cctv" to AppCategory.Home,
     "camera" to AppCategory.Photos,
+    // Sports and betting before "news" and "casino": "BBC Sport - News &
+    // Live Scores", "bet365 - Sportsbook & Casino".
+    "sport" to AppCategory.Sports,
+    "scores" to AppCategory.Sports,
+    "betting" to AppCategory.Sports,
     "news" to AppCategory.News,
     "messages" to AppCategory.Social,
     "messenger" to AppCategory.Social,
     "messaging" to AppCategory.Social,
     "weather" to AppCategory.Weather,
     "maps" to AppCategory.Transport,
+    "parking" to AppCategory.Transport,
+    "transit" to AppCategory.Transport,
+    "transport" to AppCategory.Transport,
     "airways" to AppCategory.Travel,
     "airlines" to AppCategory.Travel,
     "airline" to AppCategory.Travel,
-    "flights" to AppCategory.Travel,
+    // "Flights", "Flightradar24".
+    "flight" to AppCategory.Travel,
     "music" to AppCategory.Music,
     "audiobook" to AppCategory.Reading,
     "kindle" to AppCategory.Reading,
@@ -191,14 +226,14 @@ private val LABEL_WORDS = listOf(
     "code" to AppCategory.Code,
     "git" to AppCategory.Code,
     "ssh" to AppCategory.Code,
-    // Whole words only: "Thai" and "Dubai" aren't AI. Not "Gemini", which is
-    // also a crypto exchange; Google's is in the table.
+    // Not the word "AI": it names a feature far more often than an
+    // assistant ("AI Photo Editor", "AI Tutor"), so AI apps go by name and
+    // package instead. Not "Gemini", which is also a crypto exchange;
+    // Google's is in the table.
     "chatgpt" to AppCategory.Ai,
     "copilot" to AppCategory.Ai,
-    "ai" to AppCategory.Ai,
-    // Last, so a more specific word wins ("Barclays Mobile Banking" is Finance).
-    "phone" to AppCategory.Phone,
-    "mobile" to AppCategory.Phone,
+    // Not "phone" or "mobile": far more banks, games and utilities say so
+    // ("RBC Mobile", "Find My Phone") than carriers, which go by brand.
     "telecom" to AppCategory.Phone,
 )
 
@@ -235,25 +270,26 @@ private val KNOWN_PACKAGE_PREFIXES = listOf(
 // Fallback stems, in order: the first that a package or label word matches
 // (see stemMatches) files the app.
 private val GUESS_RULES = listOf(
-    AppCategory.Kids to listOf("kids", "toddler", "children"),
+    AppCategory.Kids to listOf("kids", "toddler", "children", "baby", "pregnancy", "parent", "parenting"),
     AppCategory.Games to listOf("game", "games", "solitaire", "sudoku", "mahjong", "chess", "puzzle", "casino", "slots", "poker", "crossword"),
     AppCategory.Weather to listOf("weather", "forecast", "radar"),
     AppCategory.Government to listOf("gov", "government", "council"),
     AppCategory.Finance to listOf("bank", "banking", "finance", "invest", "trading", "crypto", "wallet", "insurance", "mortgage", "budget"),
     AppCategory.Food to listOf("food", "recipe", "pizza", "eats", "takeaway", "grocery", "groceries", "restaurant", "burger", "coffee"),
     AppCategory.Music to listOf("music", "radio", "podcast", "karaoke"),
+    AppCategory.Media to listOf("movie", "movies", "stream", "drama", "dramas", "series"),
     AppCategory.Photos to listOf("photo", "camera", "gallery", "selfie"),
     AppCategory.Sports to listOf("sport", "football", "soccer", "basketball", "cricket", "rugby", "nfl", "nba", "espn"),
     AppCategory.Health to listOf("health", "fitness", "gym", "workout", "yoga", "meditation", "sleep", "pharmacy", "medical", "doctor", "patient"),
     AppCategory.Learning to listOf("learn", "school", "education", "edu", "dictionary", "language", "course", "study", "flashcards"),
     AppCategory.Pets to listOf("pet", "pets", "dog", "dogs", "vet", "petcare"),
-    AppCategory.Transport to listOf("transit", "metro", "rail", "railway", "bus", "taxi", "parking", "maps", "navigation", "scooter"),
+    AppCategory.Transport to listOf("transit", "metro", "rail", "railway", "bus", "taxi", "parking", "maps", "navigation", "scooter", "car", "cars", "vehicle", "charging", "fuel", "petrol"),
     AppCategory.Travel to listOf("airline", "airways", "flight", "hotel", "travel", "booking"),
     AppCategory.Reading to listOf("ebook", "audiobook", "kindle", "comic", "manga", "novel", "librar"),
     AppCategory.Shopping to listOf("shop", "deals", "coupon", "marketplace"),
     AppCategory.Code to listOf("coding", "programming", "developer", "terminal", "ssh", "git", "python", "javascript"),
     AppCategory.Internet to listOf("browser", "internet", "vpn", "wifi", "speedtest"),
-    AppCategory.Phone to listOf("phone", "telecom", "dialer", "esim"),
+    AppCategory.Phone to listOf("telecom", "dialer", "esim"),
     AppCategory.Post to listOf("parcel", "courier", "postal", "freight"),
     AppCategory.News to listOf("news", "newspaper", "headlines"),
     AppCategory.Social to listOf("chat", "messenger", "messaging", "messages", "social", "dating"),
