@@ -289,6 +289,26 @@
     <!-- TODO: translate -->
     <string name="app_folder_finance" tools:ignore="MissingTranslation">Finance</string>
     <!-- TODO: translate -->
+    <string name="app_folder_food" tools:ignore="MissingTranslation">Food</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_government" tools:ignore="MissingTranslation">Government</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_internet" tools:ignore="MissingTranslation">Internet</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_kids" tools:ignore="MissingTranslation">Kids</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_music" tools:ignore="MissingTranslation">Music</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_pets" tools:ignore="MissingTranslation">Pets &amp; animals</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_photos" tools:ignore="MissingTranslation">Photos</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_sports" tools:ignore="MissingTranslation">Sports</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_transport" tools:ignore="MissingTranslation">Transport</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_weather" tools:ignore="MissingTranslation">Weather</string>
+    <!-- TODO: translate -->
     <string name="app_folder_games" tools:ignore="MissingTranslation">Games</string>
     <!-- TODO: translate -->
     <string name="app_folder_health" tools:ignore="MissingTranslation">Health</string>

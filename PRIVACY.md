@@ -249,7 +249,8 @@ you choose an app to send it to and can review what it contains first.
 **Sort with on-device AI** is off unless you turn it on, and it is offered only
 on phones with Android's on-device AI service (AICore). When it is on, Type
 Launcher asks the Gemini Nano model on your phone which folder each app
-belongs in, giving it each app's name and package name. The model runs on your
+belongs in, giving it each app's name and package name and the names of your
+folders, including any you made. The model runs on your
 phone; according to Google, AICore keeps no record of what it is asked or what
 it answers.
 

@@ -135,41 +135,121 @@ private const val AICORE_PACKAGE = "com.google.android.aicore"
 internal data class AiSortInput(val id: String, val label: String, val packageName: String)
 
 /**
- * The prompt for one batch: what each folder is for, then the apps, numbered.
- * Each folder is described by what goes in it, because "Social" or "Tools"
- * alone leaves the small model to guess where messaging or a browser belongs.
+ * The folders AI sorting files into: the ones in use, built-in and the
+ * user's own, each under the word the model answers with. A built-in is its
+ * storage key ("games"); a folder the user made is its name, lowercased
+ * ("kids stuff"). Where a name repeats a built-in's word, the built-in keeps
+ * it.
  */
-internal fun buildAiSortPrompt(apps: List<AiSortInput>): String = buildString {
-    appendLine("Put each Android app into exactly one folder. The folders:")
-    for ((category, description) in AI_SORT_FOLDER_DESCRIPTIONS) {
-        appendLine("${category.storageKey}: $description")
+internal class AiSortFolders(val folders: List<AppFolderDef>) {
+    private val keyByWord: Map<String, String>
+
+    // Any answer word, as whole words, longest first so "kids stuff" wins
+    // over "kids".
+    val wordPattern: Regex
+
+    init {
+        val words = LinkedHashMap<String, String>()
+        // Built-ins first, so a user folder whose name reads the same
+        // ("(Games)") can't take a built-in's answers.
+        for (folder in folders.sortedBy { it.category == null }) words.putIfAbsent(answerWord(folder), folder.key)
+        for ((singular, category) in AI_SORT_SINGULARS) {
+            if (category.storageKey in words.values) words.putIfAbsent(singular, category.storageKey)
+        }
+        keyByWord = words
+        wordPattern = Regex(
+            words.keys.filter { it.isNotEmpty() }.sortedByDescending { it.length }
+                .joinToString("|", prefix = "(?<![\\p{L}\\p{N}])(", postfix = ")(?![\\p{L}\\p{N}])") { Regex.escape(it) },
+            RegexOption.IGNORE_CASE,
+        )
     }
-    appendLine()
-    appendLine("Examples: $AI_SORT_EXAMPLES.")
-    appendLine("Choose tools only for a utility no other folder fits, and other only when nothing fits.")
-    appendLine()
-    appendLine("Answer with one line per app, as \"number: folder\", and nothing else.")
-    appendLine()
-    apps.forEachIndexed { index, app ->
-        appendLine("${index + 1}. ${app.label.sanitizedForPrompt()} (${app.packageName})")
+
+    /** The key of the folder [word] names, if any. */
+    fun keyFor(word: String): String? = keyByWord[plainWords(word)]
+
+    /**
+     * A fingerprint of the instructions every prompt starts with: the folders
+     * and what goes in each. It changes when a folder is added, deleted or
+     * renamed, or a description reworded, and the AI's earlier choices are
+     * then dropped so every app is sorted under the new instructions (see
+     * `AppFolderStore`). Never 0, the "unset" a fresh install stores.
+     */
+    val version: Int get() = buildAiSortPrompt(emptyList(), this).hashCode().let { if (it == 0) 1 else it }
+
+    companion object {
+        val Default = AiSortFolders(activeAppFolders(emptyList(), emptySet()))
+
+        /**
+         * A user folder's name in letters, digits and spaces only, so the
+         * answer reads the same with or without its brackets or emoji
+         * ("Work (personal)" is "work personal"); its key if nothing's left.
+         */
+        fun answerWord(folder: AppFolderDef): String =
+            folder.category?.storageKey ?: plainWords(folder.name).ifEmpty { folder.key }
+
+        fun plainWords(text: String): String =
+            text.replace(NOT_A_WORD, " ").trim().lowercase().take(AI_SORT_MAX_LABEL_CHARS)
+
+        private val NOT_A_WORD = Regex("""[^\p{L}\p{N}-]+""")
     }
 }
 
 /**
- * Reads the model's answer back into a folder for the apps in [apps] it
+ * The prompt for one batch: what each folder is for, then the apps, numbered.
+ * Each built-in folder is described by what goes in it, because "Social" or
+ * "Tools" alone leaves the small model to guess where messaging or a browser
+ * belongs; a folder the user made has only its name to go on.
+ */
+internal fun buildAiSortPrompt(apps: List<AiSortInput>, folders: AiSortFolders = AiSortFolders.Default): String =
+    buildString {
+        appendLine("Put each Android app into exactly one folder. The folders:")
+        val active = HashSet<AppCategory>()
+        for (folder in folders.folders) {
+            val description = folder.category?.let { AI_SORT_FOLDER_DESCRIPTIONS[it] } ?: AI_SORT_USER_FOLDER
+            folder.category?.let(active::add)
+            appendLine("${AiSortFolders.answerWord(folder)}: $description")
+        }
+        appendLine()
+        val examples = AI_SORT_EXAMPLES.filter { (_, category) -> category in active }
+        if (examples.isNotEmpty()) {
+            appendLine(
+                examples.joinToString(", ", prefix = "Examples: ", postfix = ".") { (app, category) ->
+                    "$app is ${category.storageKey}"
+                },
+            )
+        }
+        if (AppCategory.Tools in active) {
+            appendLine("Choose tools only for a utility no other folder fits, and other only when nothing fits.")
+        } else {
+            appendLine("Choose other only when nothing fits.")
+        }
+        appendLine()
+        appendLine("Answer with one line per app, as \"number: folder\", and nothing else.")
+        appendLine()
+        apps.forEachIndexed { index, app ->
+            appendLine("${index + 1}. ${app.label.sanitizedForPrompt()} (${app.packageName})")
+        }
+    }
+
+/**
+ * Reads the model's answer back into a folder key for the apps in [apps] it
  * covers. Small models don't keep strictly to "number: folder": they echo
  * the app ("3. The Walking Dead (com.x): games"), drop the number, bold
  * things, or write a folder in the singular. So each line is read loosely.
  * The app is the one the leading number points to or, without one, the one
- * whose name comes first in the line. The folder is the word right after the number
- * when that's a folder name ("1: media (BBC News)"); otherwise the last folder
- * name left once the app's own name, its package and anything in parentheses
- * are taken out, so an app named "BBC News" or "Google Home" isn't read as its
- * own answer. A line with no folder left is skipped, and so is an app the
- * answer leaves out; the caller decides what to do about those.
+ * whose name comes first in the line. The folder is the one named right after
+ * the number ("1: media (BBC News)"); otherwise the last folder named once the
+ * app's own name, its package and anything in parentheses are taken out, so
+ * an app named "BBC News" or "Google Home" isn't read as its own answer. A
+ * line with no folder left is skipped, and so is an app the answer leaves
+ * out; the caller decides what to do about those.
  */
-internal fun parseAiSortAnswer(answer: String, apps: List<AiSortInput>): Map<String, AppCategory> {
-    val result = LinkedHashMap<String, AppCategory>()
+internal fun parseAiSortAnswer(
+    answer: String,
+    apps: List<AiSortInput>,
+    folders: AiSortFolders = AiSortFolders.Default,
+): Map<String, String> {
+    val result = LinkedHashMap<String, String>()
     // Longest names first, so "Google Home" wins over "Home" where both start.
     val byLabel = apps.map { it to it.label.sanitizedForPrompt().lowercase() }
         .filter { (_, label) -> label.isNotEmpty() }
@@ -185,9 +265,9 @@ internal fun parseAiSortAnswer(answer: String, apps: List<AiSortInput>): Map<Str
             byLabel.mapNotNull { (app, label) -> wholeWords(label).find(line)?.let { app to it.range.first } }
                 .minByOrNull { (_, at) -> at }?.first
         } ?: continue
-        val category = answerIn(if (numbered != null) line.substring(numbered.range.last + 1) else line, app)
+        val key = answerIn(if (numbered != null) line.substring(numbered.range.last + 1) else line, app, folders)
             ?: continue
-        result.putIfAbsent(app.id, category)
+        result.putIfAbsent(app.id, key)
     }
     return result
 }
@@ -196,28 +276,41 @@ internal fun parseAiSortAnswer(answer: String, apps: List<AiSortInput>): Map<Str
  * The folder [text] (a line after its number) gives for [app]. The app's
  * name, if echoed first, is skipped, and so is anything in parentheses and
  * the package, so "BBC News" or "Google Home" in an echo isn't read as the
- * answer. Then the first word is the answer if it's a folder name ("media
- * (BBC News)"), else the last folder name left ("The Walking Dead: games").
- * When nothing's left but the app's name is itself a folder name ("1: news"
- * for an app called News), that name is the answer.
+ * answer. Then a folder named first is the answer ("media (BBC News)"), else
+ * the last folder named ("The Walking Dead: games"). When nothing's left but
+ * the app's name is itself a folder name ("1: news" for an app called News),
+ * that name is the answer.
  */
-private fun answerIn(text: String, app: AiSortInput): AppCategory? {
+private fun answerIn(text: String, app: AiSortInput, folders: AiSortFolders): String? {
     val label = app.label.sanitizedForPrompt()
     val trimmed = text.trimStart { !it.isLetterOrDigit() }
+    // A folder whose name starts with the app's ("home stuff" for an app
+    // called Home) is an answer, not an echo.
+    folders.wordPattern.find(AiSortFolders.plainWords(trimmed))
+        ?.takeIf { it.range.first == 0 && it.value.length > AiSortFolders.plainWords(label).length }
+        ?.let { return folders.keyFor(it.value) }
     // Whole words only: an app called Learn doesn't eat "learning".
     val echoed = label.isNotEmpty() && wholeWords(label).find(trimmed)?.range?.first == 0
     var rest = if (echoed) trimmed.substring(label.length) else trimmed
-    rest = rest.replace(AI_SORT_PARENTHESES, " ")
     if (app.packageName.isNotEmpty()) rest = rest.replace(app.packageName, " ", ignoreCase = true)
+    // A folder named first, read with its brackets and symbols as spaces, so
+    // "1: work (personal)" finds a folder named "Work (personal)".
+    val plain = AiSortFolders.plainWords(rest)
+    folders.wordPattern.find(plain)?.takeIf { it.range.first == 0 }?.let { return folders.keyFor(it.value) }
+    rest = rest.replace(AI_SORT_PARENTHESES, " ")
     // In a line found by the app's name rather than a number, the name may
     // come anywhere; take it out once.
     if (!echoed && label.isNotEmpty()) {
         val match = wholeWords(label).find(rest)
-        if (match != null && folderFor(label) == null) rest = rest.removeRange(match.range)
+        if (match != null && folders.keyFor(label) == null) rest = rest.removeRange(match.range)
     }
-    AI_SORT_FIRST_WORD.find(rest)?.value?.let(::folderFor)?.let { return it }
-    AI_SORT_FOLDER_WORD.findAll(rest).lastOrNull()?.value?.let(::folderFor)?.let { return it }
-    return if (echoed) folderFor(label) else null
+    val named = folders.wordPattern.findAll(rest).toList()
+    val first = named.firstOrNull()
+    if (first != null && rest.substring(0, first.range.first).none { it.isLetterOrDigit() }) {
+        return folders.keyFor(first.value)
+    }
+    named.lastOrNull()?.let { return folders.keyFor(it.value) }
+    return if (echoed) folders.keyFor(label) else null
 }
 
 // [text] as whole words, in any case.
@@ -226,19 +319,13 @@ private fun wholeWords(text: String) =
 
 private val AI_SORT_PARENTHESES = Regex("""\([^)]*\)""")
 
-// The first word after the leading number: "1: media", "**2.** Games".
-private val AI_SORT_FIRST_WORD = Regex("""[A-Za-z]+""")
-
-private fun folderFor(word: String): AppCategory? = when (val key = word.lowercase()) {
-    "game" -> AppCategory.Games
-    "tool" -> AppCategory.Tools
-    else -> AppCategory.fromStorageKey(key)
-}
-
-// Any folder key as a whole word, singular "game" and "tool" too.
-private val AI_SORT_FOLDER_WORD = Regex(
-    "\\b(" + (AppCategory.entries.map { it.storageKey } + listOf("game", "tool")).joinToString("|") + ")\\b",
-    RegexOption.IGNORE_CASE,
+// Singulars a small model writes for a folder named in the plural.
+private val AI_SORT_SINGULARS = listOf(
+    "game" to AppCategory.Games,
+    "tool" to AppCategory.Tools,
+    "photo" to AppCategory.Photos,
+    "pet" to AppCategory.Pets,
+    "sport" to AppCategory.Sports,
 )
 
 // "12: games", "**12.** Games", "12) games": the app's number in the prompt.
@@ -248,38 +335,72 @@ private val AI_SORT_LEADING_NUMBER = Regex("""^\W*(\d+)\b""")
 private fun String.sanitizedForPrompt(): String =
     replace(Regex("""\s+"""), " ").trim().take(AI_SORT_MAX_LABEL_CHARS)
 
-// Well-known apps with their folders. A small model follows examples more
-// reliably than descriptions; Waze and Apple TV are here because it filed them
-// under tools and other (maintainer, 2026-11-19).
-private const val AI_SORT_EXAMPLES =
-    "Waze is travel, Google Maps is travel, Apple TV is media, Netflix is media, Spotify is media, " +
-        "WhatsApp is social, Robinhood is finance, Google Wallet is finance, Amazon is shopping, " +
-        "Google Home is home, Octopus Energy is home, Duolingo is learning, Drops is learning, Coursera is learning, Gmail is productivity, " +
-        "Chrome is tools, Calculator is tools, The Walking Dead is games, Dysmantle is games"
+// Well-known apps with their folders, each kept only while its folder is in
+// use. A small model follows examples more reliably than descriptions; Waze,
+// Apple TV and Red Dead Redemption are here because it filed them under tools,
+// other and media (maintainer, 2026-11-19).
+private val AI_SORT_EXAMPLES = listOf(
+    "Waze" to AppCategory.Transport,
+    "Google Maps" to AppCategory.Transport,
+    "Uber" to AppCategory.Transport,
+    "Booking.com" to AppCategory.Travel,
+    "AccuWeather" to AppCategory.Weather,
+    "Apple TV" to AppCategory.Media,
+    "Netflix" to AppCategory.Media,
+    "Spotify" to AppCategory.Music,
+    "Google Photos" to AppCategory.Photos,
+    "WhatsApp" to AppCategory.Social,
+    "Robinhood" to AppCategory.Finance,
+    "Google Wallet" to AppCategory.Finance,
+    "Amazon" to AppCategory.Shopping,
+    "Uber Eats" to AppCategory.Food,
+    "Google Home" to AppCategory.Home,
+    "Octopus Energy" to AppCategory.Home,
+    "Duolingo" to AppCategory.Learning,
+    "Drops" to AppCategory.Learning,
+    "Coursera" to AppCategory.Learning,
+    "YouTube Kids" to AppCategory.Kids,
+    "ESPN" to AppCategory.Sports,
+    "IRS2Go" to AppCategory.Government,
+    "Rover" to AppCategory.Pets,
+    "Gmail" to AppCategory.Productivity,
+    "Chrome" to AppCategory.Internet,
+    "Calculator" to AppCategory.Tools,
+    "The Walking Dead" to AppCategory.Games,
+    "Dysmantle" to AppCategory.Games,
+    "Red Dead Redemption" to AppCategory.Games,
+)
 
-private val AI_SORT_FOLDER_DESCRIPTIONS = listOf(
-    AppCategory.Finance to "banking, payments, wallets and payment cards, money transfer, investing, budgeting, crypto",
-    AppCategory.Games to "games of any kind",
+private const val AI_SORT_USER_FOLDER = "a folder the user made; use it for apps that fit its name"
+
+private val AI_SORT_FOLDER_DESCRIPTIONS = mapOf(
+    AppCategory.Finance to "banking, payments, wallets and payment cards, money transfer, investing, budgeting, crypto, insurance",
+    AppCategory.Food to "food and grocery delivery, restaurants, takeaway, recipes and cooking, coffee",
+    AppCategory.Games to "games of any kind, including games from Netflix",
+    AppCategory.Government to "government services, taxes, ID cards and driver's licenses, benefits, voting, city and council services",
     AppCategory.Health to "fitness, workouts, health, medical, meditation, sleep, period tracking",
     AppCategory.Home to "smart home, home devices and security cameras, thermostats, property, real estate, rentals, household utilities and energy suppliers",
-    AppCategory.Learning to "language learning, e-learning and online courses, education, school and university, kids' learning, reference",
-    AppCategory.Media to "TV and movie apps, video streaming, music, podcasts, photos, camera, gallery, books, audiobooks",
+    AppCategory.Internet to "web browsers, VPNs, Wi-Fi and network tools, internet and mobile phone providers",
+    AppCategory.Kids to "apps made for children, kids' games and learning, parental controls",
+    AppCategory.Learning to "language learning, e-learning and online courses, education, school and university, reference",
+    AppCategory.Media to "TV and movie apps, video streaming, books, audiobooks, comics",
+    AppCategory.Music to "music streaming and players, podcasts, radio, making music",
     AppCategory.News to "news, magazines, newspapers",
+    AppCategory.Pets to "pets and animals, pet care, vets, wildlife, birdwatching",
+    AppCategory.Photos to "camera, photo gallery, photo editing and printing",
     AppCategory.Productivity to "email, calendar, notes, documents, office, tasks, work",
-    AppCategory.Shopping to "shopping, marketplaces, food delivery, groceries, coupons",
+    AppCategory.Shopping to "shopping, marketplaces, coupons",
     AppCategory.Social to "messaging, chat, calls, social networks, dating, communities",
-    AppCategory.Tools to "browsers, files, calculators, clocks, weather, settings, keyboards, other utilities",
-    AppCategory.Travel to "maps, navigation and traffic, rideshare, transit, parking, airlines, airports and border control, hotels, travel booking, car rental, cars",
+    AppCategory.Sports to "sports scores and news, teams and leagues, fantasy sports, sports streaming",
+    AppCategory.Tools to "files, calculators, clocks, settings, keyboards, other utilities",
+    AppCategory.Transport to "maps, navigation and traffic, public transit, trains and buses, rideshare and taxis, parking, EV charging, bikes and scooters, cars",
+    AppCategory.Travel to "airlines and flights, airports and border control, hotels, travel booking, car rental",
+    AppCategory.Weather to "weather forecasts, radar, air quality",
     AppCategory.Other to "anything that fits none of the above",
 )
 
-/**
- * A fingerprint of the instructions every prompt starts with: the folders and
- * what goes in each. It changes when a folder is added or a description is
- * reworded, and the AI's earlier choices are then dropped so every app is
- * sorted under the new instructions (see `AppFolderStore`).
- */
-internal val AI_SORT_PROMPT_VERSION: Int = buildAiSortPrompt(emptyList()).hashCode().let { if (it == 0) 1 else it }
+/** The instructions' fingerprint with the built-in folders, none deleted. */
+internal val AI_SORT_PROMPT_VERSION: Int get() = AiSortFolders.Default.version
 
 /** Apps asked about per model call: enough to amortize it, few enough to stay accurate. */
 internal const val AI_SORT_BATCH_SIZE = 15

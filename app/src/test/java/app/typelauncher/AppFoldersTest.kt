@@ -18,12 +18,12 @@ class AppFoldersTest {
     @Test
     fun declaredCategory_mapsManifestCategories() {
         assertEquals(AppCategory.Games, declaredAppCategory(ApplicationInfo.CATEGORY_GAME, 0))
-        assertEquals(AppCategory.Media, declaredAppCategory(ApplicationInfo.CATEGORY_AUDIO, 0))
+        assertEquals(AppCategory.Music, declaredAppCategory(ApplicationInfo.CATEGORY_AUDIO, 0))
         assertEquals(AppCategory.Media, declaredAppCategory(ApplicationInfo.CATEGORY_VIDEO, 0))
-        assertEquals(AppCategory.Media, declaredAppCategory(ApplicationInfo.CATEGORY_IMAGE, 0))
+        assertEquals(AppCategory.Photos, declaredAppCategory(ApplicationInfo.CATEGORY_IMAGE, 0))
         assertEquals(AppCategory.Social, declaredAppCategory(ApplicationInfo.CATEGORY_SOCIAL, 0))
         assertEquals(AppCategory.News, declaredAppCategory(ApplicationInfo.CATEGORY_NEWS, 0))
-        assertEquals(AppCategory.Travel, declaredAppCategory(ApplicationInfo.CATEGORY_MAPS, 0))
+        assertEquals(AppCategory.Transport, declaredAppCategory(ApplicationInfo.CATEGORY_MAPS, 0))
     }
 
     @Test
@@ -218,11 +218,24 @@ class AppFoldersTest {
 
         assertEquals(
             listOf(
-                "finance", "games", "health", "home", "custom-1", "learning", "media", "news",
-                "productivity", "shopping", "social", "travel", "custom-2", "other",
+                "finance", "food", "games", "government", "health", "home", "internet", "kids", "custom-1",
+                "learning", "media", "music", "news", "pets", "photos", "productivity", "shopping", "social",
+                "sports", "transport", "travel", "weather", "custom-2", "other",
             ),
             folders.map { it.key },
         )
+    }
+
+    @Test
+    fun wellKnownApps_goWhereTheyBelong_aheadOfTheAi_butNotTheUser() {
+        // The maintainer, 2026-11-19: Waze went to Tools and Netflix's games
+        // to Media.
+        val waze = app("Waze").copy(packageName = "com.waze")
+        val rdr = app("Red Dead Redemption").copy(packageName = "com.netflix.NGP.RedDeadRedemption")
+
+        assertEquals("transport", effective(waze, ai = mapOf(waze.id to "tools")))
+        assertEquals("games", effective(rdr, ai = mapOf(rdr.id to "media")))
+        assertEquals("tools", effective(waze, assignments = mapOf(waze.id to "tools")))
     }
 
     @Test

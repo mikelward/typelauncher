@@ -77,6 +77,97 @@ class LauncherViewModelAiSortTest {
     }
 
     @Test
+    fun aNewFolder_isOfferedToTheAi_andEveryAppIsSortedAgain() {
+        seedApp("Crayons", "com.example.crayons")
+        seedApp("Lego", "com.example.lego")
+        model.answer = { prompt -> answerFrom(prompt, emptyMap()) }
+        val viewModel = startedViewModel()
+        val firstPrompts = model.prompts.size
+        model.answer = { prompt -> answerFrom(prompt, mapOf("Lego" to "toys")) }
+
+        viewModel.createAppFolder(
+            viewModel.uiState.value.filteredApps.first { it.name == "Crayons" },
+            "Toys",
+            FolderIcon.ChildCare,
+        )
+        idle()
+
+        val prompt = model.prompts.drop(firstPrompts).first()
+        assertTrue(prompt, prompt.lines().any { it.startsWith("toys: ") })
+        assertFalse("the app the user filed isn't asked about", "Crayons" in prompt)
+        val toys = viewModel.uiState.value.appFolders.first { it.name == "Toys" }
+        assertEquals(toys.key, viewModel.uiState.value.appFolderAiAssignments[id(viewModel, "Lego")])
+    }
+
+    @Test
+    fun aDeletedFolder_isntOfferedToTheAi_andEveryAppIsSortedAgain() {
+        seedApp("Chess", "com.chess")
+        model.answer = { prompt -> answerFrom(prompt, mapOf("Chess" to "games")) }
+        val viewModel = startedViewModel()
+        val firstPrompts = model.prompts.size
+        model.answer = { prompt -> answerFrom(prompt, emptyMap()) }
+
+        viewModel.deleteAppFolder(AppFolderDef.builtIn(AppCategory.Games))
+        idle()
+
+        val prompt = model.prompts.drop(firstPrompts).first()
+        assertFalse(prompt, prompt.lines().any { it.startsWith("games: ") })
+        assertTrue("Chess" in prompt)
+        assertEquals("other", viewModel.uiState.value.appFolderAiAssignments[id(viewModel, "Chess")])
+    }
+
+    @Test
+    fun aWellKnownApp_isAskedAbout_onceItsFolderIsDeleted() {
+        // Codex on PR #860: with Transport gone, Waze needs the AI to find it a home.
+        seedApp("Waze", "com.waze")
+        model.answer = { prompt -> answerFrom(prompt, emptyMap()) }
+        val viewModel = startedViewModel()
+
+        viewModel.deleteAppFolder(AppFolderDef.builtIn(AppCategory.Transport))
+        idle()
+
+        assertTrue(model.prompts.any { "Waze (com.waze)" in it })
+    }
+
+    @Test
+    fun aFolderChangeDuringTheFirstSort_dropsItsAnswer_andSortsAgain() {
+        // Codex on PR #860: nothing stored yet, so nothing was "forgotten",
+        // but the answer in flight is for the old folders.
+        seedApp("Lego", "com.example.lego")
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        var calls = 0
+        model.suspendBefore = { if (calls++ == 0) gate.await() }
+        model.answer = { prompt ->
+            if ("toys: " in prompt) answerFrom(prompt, mapOf("Lego" to "toys")) else answerFrom(prompt, emptyMap())
+        }
+        val viewModel = startedViewModel()
+
+        viewModel.createAppFolder(
+            viewModel.uiState.value.filteredApps.first { it.name == "Lego" },
+            "Toys",
+            FolderIcon.ChildCare,
+        )
+        gate.complete(Unit)
+        idle()
+
+        val prompts = model.prompts
+        assertTrue(prompts.size >= 2)
+        assertTrue(prompts.last().lines().any { it.startsWith("toys: ") })
+    }
+
+    @Test
+    fun wellKnownApps_arentAskedAbout() {
+        seedApp("Waze", "com.waze")
+        seedApp("Notes", "com.example.notes")
+        model.answer = { prompt -> answerFrom(prompt, emptyMap()) }
+
+        startedViewModel()
+
+        assertFalse(model.prompts.any { "Waze (com.waze)" in it })
+        assertTrue(model.prompts.any { "Notes (com.example.notes)" in it })
+    }
+
+    @Test
     fun choicesFromOlderInstructions_areDroppedAtStart_soAppsAreSortedAgain() {
         // An update adds a folder (Home): what the AI chose without it goes.
         AppFolderStore(context).apply {
@@ -322,6 +413,7 @@ class LauncherViewModelAiSortTest {
     private class FakeModel : AppCategoryModel {
         var status = AiModelStatus.Available
         var answer: (String) -> String = { "" }
+        var suspendBefore: suspend () -> Unit = {}
         val prompts = mutableListOf<String>()
         var statusChecks = 0
         var downloads = 0
@@ -339,6 +431,7 @@ class LauncherViewModelAiSortTest {
 
         override suspend fun generate(prompt: String): String {
             prompts += prompt
+            suspendBefore()
             return answer(prompt)
         }
     }

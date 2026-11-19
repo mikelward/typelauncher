@@ -51,7 +51,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -109,7 +111,7 @@ internal class LauncherViewModel(
     // Choices the AI made under older instructions (before a folder was added,
     // say) are dropped here, before anything reads them, so it sorts again.
     private val appFolderStore = AppFolderStore(app).also { store ->
-        if (store.forgetAiChoicesUnlessMadeBy(AI_SORT_PROMPT_VERSION)) {
+        if (store.forgetAiChoicesUnlessMadeBy(AiSortFolders(store.folders).version)) {
             LauncherDebugLog.event("aiSort instructions changed; sorting again")
         }
     }
@@ -5144,8 +5146,13 @@ internal class LauncherViewModel(
     private fun aiSortWork(): AiSortWork {
         val filings = appFolderStore.assignments
         val sorted = appFolderStore.aiAssignments
+        // A well-known app goes where its rule says, unless that folder was
+        // deleted; then the AI finds it a home like any other.
+        val activeKeys = appFolderStore.folders.mapTo(HashSet()) { it.key }
         val candidates = visibleInstalledApps()
-            .filter { app -> !filings.containsKey(app.id) }
+            .filter { app ->
+                !filings.containsKey(app.id) && knownAppCategory(app.packageName)?.storageKey !in activeKeys
+            }
             .distinctBy { app -> app.id }
         val pending = candidates
             .filter { app -> app.id !in sorted }
@@ -5197,12 +5204,13 @@ internal class LauncherViewModel(
                 }
                 publishAiSort(AiSortPhase.Sorting, work)
                 val batch = work.pending.take(AI_SORT_BATCH_SIZE)
+                // The folders in use; a change to them restarts the sort.
+                val folders = AiSortFolders(appFolderStore.folders)
                 try {
-                    val parsed = parseAiSortAnswer(model.generate(buildAiSortPrompt(batch)), batch)
+                    val parsed = parseAiSortAnswer(model.generate(buildAiSortPrompt(batch, folders)), batch, folders)
                     // An app the answer left out is asked about again, up to
                     // AI_SORT_MAX_MISSES times, then filed in Other.
-                    val choices = LinkedHashMap<String, String>()
-                    for ((id, category) in parsed) choices[id] = category.storageKey
+                    val choices = LinkedHashMap(parsed)
                     for (app in batch) {
                         if (app.id in parsed) continue
                         val misses = (aiSortMisses[app.id] ?: 0) + 1
@@ -5214,6 +5222,9 @@ internal class LauncherViewModel(
                         batch.size,
                         parsed.size,
                     )
+                    // A folder change while the model was answering cancels
+                    // this sort; its answer is for the old folders.
+                    currentCoroutineContext().ensureActive()
                     appFolderStore.assignByAi(choices)
                     _uiState.update { it.copy(appFolderAiAssignments = appFolderStore.aiAssignments) }
                     busyRetries = 0
@@ -5293,7 +5304,6 @@ internal class LauncherViewModel(
         appFolderStore.deleteFolder(folder.key)
         LauncherDebugLog.event("deleteAppFolder folder=%s", folder.key)
         publishAppFolders()
-        maybeStartAiSort()
         logState("deleteAppFolder")
     }
 
@@ -5305,7 +5315,16 @@ internal class LauncherViewModel(
         logState("restoreAppFolders")
     }
 
+    // A folder added, deleted, renamed or restored changes what the AI is
+    // asked to sort into, so its earlier choices go and it sorts again.
     private fun publishAppFolders() {
+        if (appFolderStore.forgetAiChoicesUnlessMadeBy(AiSortFolders(appFolderStore.folders).version)) {
+            // Also when nothing was stored yet: an answer in flight is for
+            // the old folders.
+            LauncherDebugLog.event("aiSort folders changed; sorting again")
+            stopAiSort()
+            aiSortMisses.clear()
+        }
         _uiState.update {
             it.copy(
                 appFolders = appFolderStore.folders,
@@ -5314,6 +5333,7 @@ internal class LauncherViewModel(
                 appFolderAiAssignments = appFolderStore.aiAssignments,
             )
         }
+        maybeStartAiSort()
     }
 
     fun setLandscapeDockPosition(position: LandscapeDockPosition) {

@@ -115,7 +115,8 @@
   4. **Category icons for folders** (shipped; maintainer chose mock A, 2026-11-19, then style B: no tile, large monochrome glyph): a Material Symbol in place of the 2×2 preview, in an app icon's box in every list style.
   5. **Close button at the end of an open folder** (shipped, maintainer, 2026-11-19): a ✕ item at the list's visual bottom, as dock folders have, in place of the header's.
   6. **Custom folders and icons** (shipped, maintainer, 2026-11-19): "New folder" in "Move to folder", with a name and an icon from a set of Material Symbols; long-press a folder to edit (the user's own) or delete it (any but Other); Settings restores deleted built-ins.
-  6a. **AI sorts into the folders in use** (maintainer, 2026-11-19): the prompt lists the active folders, the user's own by name, and drops deleted ones, with a re-sort when the set changes. New built-ins with it: Food, Internet, Sports, Government (ID, driver's license), Music and Photos (both out of Media), Kids, Pets & Animals; maybe Weather, and Transport/Transit apart from Travel and flights. Also: Netflix's games (`com.netflix.NGP.*`) and Red Dead Redemption go in Games, not Media; Waze still lands in Tools on the maintainer's phone (check its versionCode is 1315 or later; else a fixed rule for well-known packages).
+  6a. **AI sorts into the folders in use** (shipped, maintainer, 2026-11-19): the prompt lists the active folders, the user's own by name, and drops deleted ones, with a re-sort when the set changes. New built-ins: Food, Government, Internet, Kids, Music and Photos (both out of Media), Pets & animals, Sports, Transport (maps, transit, rideshare; Travel keeps flights and hotels) and Weather. Waze and Netflix's games (`com.netflix.NGP.*`) are filed by a fixed rule, and Red Dead Redemption is an example game.
+  6b. **Merge folders** (maintainer, 2026-11-19: "create a few too many and let users choose which ones to keep"): "Merge into…" on a folder's long press files its apps into the chosen folder and deletes it.
   7. **Search matches folder names** (maintainer, 2026-11-19): typing a folder's name shows the folder and the apps in it.
 
 - **Kiosk mode follow-ups.** The widget-only, screen-on-while-plugged-in display shipped; still to come, each its own PR:
@@ -148,6 +149,15 @@
   - A first cut of the widget pages showing Home's icon bar for the pressed widget is parked on `claude/widget-page-icon-bar` (WIP, tests not updated), waiting on this decision.
 
 ### Decisions needing review
+
+- [ ] **New built-in folders** (2026-11-19): from the maintainer's list,
+      added Food, Government, Internet, Kids, Music, Pets & animals, Photos,
+      Sports, and (asked for outright) Transport and Weather. Guessed the
+      split: Transport takes maps, navigation, transit, rideshare, parking
+      and cars; Travel keeps flights, airports, hotels, booking and car
+      rental. Insurance went into Finance's description, kids' learning into
+      Kids, browsers from Tools into Internet, and groceries and food
+      delivery from Shopping into Food.
 
 - [ ] **Custom folder details** (2026-11-19): guessed that "New folder" lives
       in "Move to folder" and editing and deleting on a folder's long press;

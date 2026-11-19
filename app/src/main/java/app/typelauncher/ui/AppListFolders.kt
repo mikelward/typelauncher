@@ -62,17 +62,27 @@ import androidx.compose.ui.window.Dialog
 
 internal fun AppCategory.labelRes(): Int = when (this) {
     AppCategory.Finance -> R.string.app_folder_finance
+    AppCategory.Food -> R.string.app_folder_food
     AppCategory.Games -> R.string.app_folder_games
+    AppCategory.Government -> R.string.app_folder_government
     AppCategory.Health -> R.string.app_folder_health
     AppCategory.Home -> R.string.app_folder_home
+    AppCategory.Internet -> R.string.app_folder_internet
+    AppCategory.Kids -> R.string.app_folder_kids
     AppCategory.Learning -> R.string.app_folder_learning
     AppCategory.Media -> R.string.app_folder_media
+    AppCategory.Music -> R.string.app_folder_music
     AppCategory.News -> R.string.app_folder_news
+    AppCategory.Pets -> R.string.app_folder_pets
+    AppCategory.Photos -> R.string.app_folder_photos
     AppCategory.Productivity -> R.string.app_folder_productivity
     AppCategory.Shopping -> R.string.app_folder_shopping
     AppCategory.Social -> R.string.app_folder_social
+    AppCategory.Sports -> R.string.app_folder_sports
     AppCategory.Tools -> R.string.app_folder_tools
+    AppCategory.Transport -> R.string.app_folder_transport
     AppCategory.Travel -> R.string.app_folder_travel
+    AppCategory.Weather -> R.string.app_folder_weather
     AppCategory.Other -> R.string.app_folder_other
 }
 
