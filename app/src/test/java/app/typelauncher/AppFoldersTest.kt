@@ -24,7 +24,6 @@ class AppFoldersTest {
         assertEquals(AppCategory.Social, declaredAppCategory(ApplicationInfo.CATEGORY_SOCIAL, 0))
         assertEquals(AppCategory.News, declaredAppCategory(ApplicationInfo.CATEGORY_NEWS, 0))
         assertEquals(AppCategory.Travel, declaredAppCategory(ApplicationInfo.CATEGORY_MAPS, 0))
-        assertEquals(AppCategory.Productivity, declaredAppCategory(ApplicationInfo.CATEGORY_PRODUCTIVITY, 0))
     }
 
     @Test
@@ -32,6 +31,8 @@ class AppFoldersTest {
         assertNull(declaredAppCategory(ApplicationInfo.CATEGORY_UNDEFINED, 0))
         // No folder of ours fits accessibility apps.
         assertNull(declaredAppCategory(ApplicationInfo.CATEGORY_ACCESSIBILITY, 0))
+        // Android's junk drawer: banks, brokers and wallets declare it too.
+        assertNull(declaredAppCategory(ApplicationInfo.CATEGORY_PRODUCTIVITY, 0))
     }
 
     @Test
@@ -123,8 +124,9 @@ class AppFoldersTest {
     }
 
     @Test
-    fun aiChoice_filesAppsTheManifestDoesNot_butNeverOverridesTheManifestOrTheUser() {
-        val bank = app("Bank")
+    fun aiChoice_overridesTheManifest_butNeverTheUser() {
+        // A broker declaring "productivity" is the AI's to correct.
+        val bank = app("Bank", AppCategory.Productivity)
         val wallet = app("Wallet")
         val chess = app("Chess", AppCategory.Games)
         val sudoku = app("Sudoku", AppCategory.Games)
@@ -136,7 +138,6 @@ class AppFoldersTest {
             aiAssignments = mapOf(
                 bank.id to AppCategory.Finance,
                 wallet.id to AppCategory.Finance,
-                chess.id to AppCategory.Tools,
                 notes.id to AppCategory.Tools,
             ),
         )
@@ -161,6 +162,7 @@ class AppFoldersTest {
         val bank = app("Bank")
         assertEquals(AppCategory.Other, effectiveAppFolder(bank, emptyMap()))
         assertEquals(AppCategory.Finance, effectiveAppFolder(bank, emptyMap(), mapOf(bank.id to AppCategory.Finance)))
+        assertEquals(AppCategory.Social, effectiveAppFolder(chess, emptyMap(), mapOf(chess.id to AppCategory.Social)))
     }
 
     @Test

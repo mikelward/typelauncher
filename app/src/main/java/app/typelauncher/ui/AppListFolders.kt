@@ -136,8 +136,8 @@ internal class AppFolderMenu(
 internal val LocalAppFolderMenu = staticCompositionLocalOf<AppFolderMenu?> { null }
 
 /**
- * The folder an app is filed in: the user's choice if they made one, else its
- * manifest's, else the AI's, else Other.
+ * The folder an app is filed in: the user's choice if they made one, else the
+ * AI's (passed only while AI sorting is on), else its manifest's, else Other.
  */
 internal fun effectiveAppFolder(
     app: InstalledApp,
@@ -146,7 +146,7 @@ internal fun effectiveAppFolder(
 ): AppCategory? = if (assignments.containsKey(app.id)) {
     assignments[app.id]
 } else {
-    app.declaredCategory ?: aiAssignments[app.id] ?: AppCategory.Other
+    aiAssignments[app.id] ?: app.declaredCategory ?: AppCategory.Other
 }
 
 /** A closed folder as a name-beside row: its category icon, then the folder's name. */

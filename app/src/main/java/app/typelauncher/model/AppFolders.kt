@@ -40,9 +40,12 @@ internal enum class AppCategory(val storageKey: String) {
 /**
  * The folder an app's own manifest puts it in (`android:appCategory`), or null
  * when it declares none we map. Most apps declare nothing, and the platform's
- * list has no finance, shopping or health; those apps stay loose until the user
- * (or a later classifier) files them. [ApplicationInfo.FLAG_IS_GAME] is the
- * older way a game says so, and still the only one some games use.
+ * list has no finance, shopping or health. [ApplicationInfo.CATEGORY_PRODUCTIVITY]
+ * is ignored too: with nothing better to choose, it's Android's junk drawer,
+ * where banks, brokers and wallets end up (maintainer, 2026-11-19). Apps with
+ * no category here go to Other until the user or AI sorting files them.
+ * [ApplicationInfo.FLAG_IS_GAME] is the older way a game says so, and still
+ * the only one some games use.
  */
 internal fun declaredAppCategory(category: Int, flags: Int): AppCategory? = when (category) {
     ApplicationInfo.CATEGORY_GAME -> AppCategory.Games
@@ -53,7 +56,6 @@ internal fun declaredAppCategory(category: Int, flags: Int): AppCategory? = when
     ApplicationInfo.CATEGORY_SOCIAL -> AppCategory.Social
     ApplicationInfo.CATEGORY_NEWS -> AppCategory.News
     ApplicationInfo.CATEGORY_MAPS -> AppCategory.Travel
-    ApplicationInfo.CATEGORY_PRODUCTIVITY -> AppCategory.Productivity
     else -> if (flags and FLAG_IS_GAME != 0) AppCategory.Games else null
 }
 
@@ -81,8 +83,10 @@ internal data class AppListGrouping(
 /**
  * Groups [apps] into folders. An app goes where the user put it, if they did
  * ([assignments] maps an app id to its folder, or to null for "no folder");
- * otherwise where its manifest says ([InstalledApp.declaredCategory]);
- * otherwise where "Sort with on-device AI" put it ([aiAssignments]).
+ * otherwise where "Sort with on-device AI" put it ([aiAssignments]), which
+ * the caller passes only while that's on; otherwise where its manifest says
+ * ([InstalledApp.declaredCategory]). The AI comes before the manifest because
+ * manifests are often wrong: a broker or bank declaring "productivity", say.
  *
  * A folder needs at least [minMembers] apps, so a lone game doesn't get a
  * folder of its own. A folder the user filed an app into always shows, even
@@ -110,7 +114,7 @@ internal fun groupAppList(
         val category = if (assignments.containsKey(app.id)) {
             assignments[app.id]?.also { chosen += it } ?: continue
         } else {
-            app.declaredCategory ?: aiAssignments[app.id] ?: AppCategory.Other
+            aiAssignments[app.id] ?: app.declaredCategory ?: AppCategory.Other
         }
         categoryOf[app.id] = category
         counts[category] = (counts[category] ?: 0) + 1
