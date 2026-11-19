@@ -89,23 +89,19 @@ internal class AppFolderStore(context: Context) {
     }
 
     /**
-     * Merges the folder [source] into [target]: every app filed in [source]
-     * by the user, or by the AI if [withAiChoices] (AI sorting is on, so its
-     * choices count), and every app in [members] (those there by their
-     * manifest, say), is filed in [target] as if the user had moved it, then
-     * [source] is deleted. Apps hidden or in a paused profile move
-     * too, since their filings are here whether or not they're listed. One
-     * save, however many apps move.
+     * Merges the folder [source] into [target]: every app the user filed in
+     * [source], and every app in [members], is filed in [target] as if the
+     * user had moved it, then [source] is deleted. [members] are the apps
+     * actually in [source], by whatever placed them (the AI, the table, a
+     * manifest), worked out by the caller from every installed app, hidden
+     * and paused ones too. An AI choice alone doesn't move an app: with AI
+     * sorting off, or the table overriding it, it didn't put the app there
+     * (Codex on PRs #861 and #867). One save, however many apps move.
      */
-    fun mergeFolder(source: String, target: String, members: Collection<String>, withAiChoices: Boolean) {
+    fun mergeFolder(source: String, target: String, members: Collection<String>) {
         if (source == AppCategory.Other.storageKey || source == target) return
         synchronized(lock) {
             filings.replaceAll { _, key -> if (key == source) target else key }
-            if (withAiChoices) {
-                for ((id, key) in aiFilings) {
-                    if (key == source && !filings.containsKey(id)) filings[id] = target
-                }
-            }
             for (id in members) filings[id] = target
             save()
             removeFolder(source)
@@ -228,7 +224,7 @@ internal class AppFolderStore(context: Context) {
         private const val KEY_CUSTOM_FOLDERS = "custom_folders"
         private const val KEY_DELETED_FOLDERS = "deleted_folders"
         private const val KEY_NEXT_FOLDER_ID = "next_folder_id"
-        private const val CUSTOM_KEY_PREFIX = "custom-"
+        private const val CUSTOM_KEY_PREFIX = USER_FOLDER_KEY_PREFIX
 
         // A name is one line, so it can't break the stored format, and short.
         private fun cleanFolderName(name: String): String =

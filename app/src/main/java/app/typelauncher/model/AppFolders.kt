@@ -203,8 +203,12 @@ internal fun effectiveFolderKey(
         val chosen = assignments[app.id] ?: return null
         if (chosen in activeKeys) return chosen
     }
+    val aiChoice = aiAssignments[app.id]?.takeIf { it in activeKeys }
+    // The AI's pick of a folder the user made beats the table: the user
+    // asked for that folder, and the table can't know about it.
+    if (aiChoice != null && aiChoice.startsWith(USER_FOLDER_KEY_PREFIX)) return aiChoice
     app.knownCategory()?.storageKey?.takeIf { it in activeKeys }?.let { return it }
-    aiAssignments[app.id]?.takeIf { it in activeKeys }?.let { return it }
+    aiChoice?.let { return it }
     app.declaredCategory?.storageKey?.takeIf { it in activeKeys }?.let { return it }
     app.guessedCategory()?.storageKey?.takeIf { it in activeKeys }?.let { return it }
     return AppCategory.Other.storageKey
@@ -247,7 +251,9 @@ internal fun groupAppList(
     }
     val shown = folders.mapNotNullTo(HashSet()) { folder ->
         val count = counts[folder.key] ?: 0
-        folder.key.takeIf { it != other && (count >= minMembers || (count > 0 && it in chosen)) }
+        // A folder the user made shows with one app; a built-in needs two.
+        val isUsers = folder.category == null
+        folder.key.takeIf { it != other && (count >= minMembers || (count > 0 && (it in chosen || isUsers))) }
     }
     // One pass in list order: each app joins its folder if that folder shows,
     // else Other (unless it was kept out of folders).
@@ -270,6 +276,9 @@ internal fun groupAppList(
 }
 
 internal const val MIN_APP_FOLDER_MEMBERS = 2
+
+/** The key prefix of a folder the user made (see `AppFolderStore.createFolder`). */
+internal const val USER_FOLDER_KEY_PREFIX = "custom-"
 
 /**
  * Whether typing [query] finds the folder called [label]: the start of its
