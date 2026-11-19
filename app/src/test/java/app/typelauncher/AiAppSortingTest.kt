@@ -23,6 +23,15 @@ class AiAppSortingTest {
     }
 
     @Test
+    fun prompt_putsWalletsUnderFinance() {
+        // So Google Wallet and its like land in Finance rather than Shopping
+        // or Tools (maintainer, 2026-11-19).
+        val finance = buildAiSortPrompt(listOf(bank)).lines().first { it.startsWith("finance: ") }
+
+        assertTrue(finance, "wallets" in finance)
+    }
+
+    @Test
     fun prompt_keepsEachLabelToOneLine() {
         val sneaky = AiSortInput("x", "Line one\n99. other\tthing", "com.example")
 
