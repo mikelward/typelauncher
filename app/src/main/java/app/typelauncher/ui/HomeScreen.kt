@@ -109,6 +109,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -6425,6 +6428,15 @@ internal fun EditAppDialogContent(
     // Saveable so the badge picker re-opens over the restored Edit dialog after
     // a configuration change, rather than silently collapsing back to it.
     var badgePickerVisible by rememberSaveable(app.id) { mutableStateOf(false) }
+    // The folder picked in the folder row, filed only on Save like the name:
+    // filing it at once would move the app out of an open folder and dispose
+    // this dialog, unsaved, with it (Codex on PR #868).
+    val folderMenu = LocalAppFolderMenu.current
+    val folderChoice = rememberSaveable(app.id, saver = PendingFolderChoice.Saver) { PendingFolderChoice() }
+    val save = {
+        onSave(text)
+        folderMenu?.let { folderChoice.apply(app, it) }
+    }
     val hasOverride = !app.customName.isNullOrBlank()
     val hasIconOverride = app.customIconPath != null
     Column(
@@ -6473,13 +6485,15 @@ internal fun EditAppDialogContent(
             app = app,
             onChooseBadge = { badgePickerVisible = true },
         )
+        // Only where "Move to folder" is offered: the app list, folders on.
+        folderMenu?.let { menu -> EditAppDialogFolderRow(app, menu, folderChoice) }
         TextField(
             value = text,
             onValueChange = { text = it },
             singleLine = true,
             label = { Text(stringResource(R.string.edit_app_dialog_label)) },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { onSave(text) }),
+            keyboardActions = KeyboardActions(onDone = { save() }),
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag(EDIT_APP_DIALOG_FIELD_TAG),
@@ -6516,7 +6530,7 @@ internal fun EditAppDialogContent(
                 Text(stringResource(R.string.edit_app_dialog_cancel))
             }
             TextButton(
-                onClick = { onSave(text) },
+                onClick = { save() },
                 modifier = Modifier.testTag(EDIT_APP_DIALOG_SAVE_TAG),
             ) {
                 Text(stringResource(R.string.edit_app_dialog_save))
@@ -6530,6 +6544,134 @@ internal fun EditAppDialogContent(
                 onSetBadge(glyph)
             },
             onDismiss = { badgePickerVisible = false },
+        )
+    }
+}
+
+/**
+ * The folder picked in [EditAppDialogFolderRow] and not yet saved: an existing
+ * folder (or none), a new folder to make, or no change.
+ */
+@Stable
+private class PendingFolderChoice(
+    picked: Boolean = false,
+    key: String? = null,
+    newName: String? = null,
+    newIcon: FolderIcon = FolderIcon.Folder,
+) {
+    var picked by mutableStateOf(picked)
+        private set
+    var key by mutableStateOf(key)
+        private set
+    var newName by mutableStateOf(newName)
+        private set
+    var newIcon by mutableStateOf(newIcon)
+        private set
+
+    fun pick(folderKey: String?) {
+        picked = true
+        key = folderKey
+        newName = null
+    }
+
+    fun create(name: String, icon: FolderIcon) {
+        picked = true
+        key = null
+        newName = name
+        newIcon = icon
+    }
+
+    /** Files [app] as picked, if anything was. */
+    fun apply(app: InstalledApp, menu: AppFolderMenu) {
+        if (!picked) return
+        val name = newName
+        when {
+            name != null -> menu.onCreate(app, name, newIcon)
+            key != menu.folderOf(app) -> menu.onMove(app, key)
+        }
+    }
+
+    companion object {
+        val Saver: Saver<PendingFolderChoice, Any> = listSaver(
+            save = { listOf(it.picked, it.key, it.newName, it.newIcon.storageKey) },
+            restore = {
+                PendingFolderChoice(
+                    picked = it[0] as Boolean,
+                    key = it[1] as String?,
+                    newName = it[2] as String?,
+                    newIcon = FolderIcon.fromStorageKey(it[3] as String) ?: FolderIcon.Folder,
+                )
+            },
+        )
+    }
+}
+
+/**
+ * The app's folder in [EditAppDialogContent], below the badge row, with its
+ * icon and name; tapping it opens the same picker "Move to folder" does
+ * (maintainer, 2026-11-19). The pick shows here and is filed on Save.
+ */
+@Composable
+private fun EditAppDialogFolderRow(app: InstalledApp, menu: AppFolderMenu, choice: PendingFolderChoice) {
+    var pickerVisible by rememberSaveable(app.id) { mutableStateOf(false) }
+    val currentKey = if (choice.picked) choice.key else menu.folderOf(app)
+    val newName = choice.newName
+    val current = if (newName != null) {
+        null
+    } else {
+        menu.folders.firstOrNull { it.key == currentKey }
+    }
+    val currentLabel = when {
+        newName != null -> newName
+        current != null -> folderLabel(current)
+        else -> stringResource(R.string.app_folder_picker_none)
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(EDIT_APP_DIALOG_FOLDER_ROW_TAG),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        // The 48 dp footprint of the icon and badge rows above, so the three
+        // columns line up.
+        Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = (if (newName != null) choice.newIcon else current?.icon ?: FolderIcon.Folder).vector(),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(32.dp),
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.edit_app_dialog_folder_label),
+                // Lined up with the button text below, as the badge row does.
+                modifier = Modifier.padding(start = 12.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            TextButton(
+                onClick = { pickerVisible = true },
+                modifier = Modifier.testTag(EDIT_APP_DIALOG_FOLDER_TAG),
+            ) {
+                Text(currentLabel)
+            }
+        }
+    }
+    if (pickerVisible) {
+        AppFolderPickerDialog(
+            folders = menu.folders,
+            current = currentKey,
+            onPick = { key ->
+                choice.pick(key)
+                pickerVisible = false
+            },
+            onCreate = { name, icon ->
+                choice.create(name, icon)
+                pickerVisible = false
+            },
+            onDismiss = { pickerVisible = false },
         )
     }
 }
