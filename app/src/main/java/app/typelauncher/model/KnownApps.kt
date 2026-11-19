@@ -96,6 +96,14 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "saily" to AppCategory.Phone,
     "esim" to AppCategory.Phone,
     "suzerain" to AppCategory.Games,
+) + listOf(
+    // Password managers, authenticators and privacy monitoring (maintainer,
+    // 2026-11-19). Not "keeper" (goalkeeper games) or "aura" (Aura Frames).
+    "1password", "bitwarden", "lastpass", "dashlane", "keepass", "keepassdx", "keepass2android",
+    "nordpass", "proton pass", "enpass", "roboform", "authy", "aegis", "2fas", "yubico",
+    "norton", "avast", "avg", "malwarebytes", "mcafee", "kaspersky", "bitdefender", "incogni",
+    "deleteme", "lifelock", "okta verify",
+).map { it to AppCategory.Security } + listOf(
     // Games whose names sound like something else (maintainer, 2026-11-19).
     "mini metro" to AppCategory.Games,
     "mini motorways" to AppCategory.Games,
@@ -125,6 +133,9 @@ private val LABEL_WORDS = listOf(
     "fitness" to AppCategory.Health,
     "gym" to AppCategory.Health,
     "workout" to AppCategory.Health,
+    "authenticator" to AppCategory.Security,
+    "password" to AppCategory.Security,
+    "antivirus" to AppCategory.Security,
     "parcel" to AppCategory.Post,
     "courier" to AppCategory.Post,
     "patient" to AppCategory.Health,
@@ -240,7 +251,8 @@ private val GUESS_RULES = listOf(
     AppCategory.Social to listOf("chat", "messenger", "messaging", "messages", "social", "dating"),
     AppCategory.Productivity to listOf("mail", "email", "calendar", "notes", "docs", "todo", "tasks", "office", "pdf", "meeting"),
     AppCategory.Home to listOf("smarthome", "thermostat", "doorbell", "realestate", "property", "energy"),
-    AppCategory.Tools to listOf("calculator", "clock", "alarm", "flashlight", "torch", "files", "filemanager", "keyboard", "cleaner", "battery", "backup", "authenticator", "password"),
+    AppCategory.Tools to listOf("calculator", "clock", "alarm", "flashlight", "torch", "files", "filemanager", "keyboard", "cleaner", "battery", "backup"),
+    AppCategory.Security to listOf("authenticator", "password", "passwords", "antivirus", "malware"),
 )
 
 /** Well-known apps by package. A wrong or retired package just never matches. */
@@ -434,10 +446,17 @@ private val KNOWN_PACKAGES = listOf(
     AppCategory.Pets to """
         com.rover.android com.chewy.android org.inaturalist.android
     """,
+    AppCategory.Security to """
+        com.google.android.apps.authenticator2 com.x8bit.bitwarden com.agilebits.onepassword
+        com.azure.authenticator com.authy.authy com.lastpass.lpandroid com.dashlane
+        com.beemdevelopment.aegis com.kunzisoft.keepass.free com.kunzisoft.keepass.pro
+        com.yubico.yubioath proton.android.pass org.malwarebytes.antimalware
+        com.avast.android.mobilesecurity com.symantec.mobilesecurity com.wsandroid.suite
+        com.bitdefender.security com.kms.free
+    """,
     AppCategory.Tools to """
         com.google.android.calculator com.google.android.deskclock com.google.android.apps.nbu.files
         com.google.android.inputmethod.latin com.android.settings
-        com.google.android.apps.authenticator2 com.x8bit.bitwarden com.agilebits.onepassword
         com.google.android.apps.recorder com.google.android.apps.subscriptions.red com.android.vending
         com.google.android.apps.wellbeing com.google.android.documentsui com.google.android.apps.adm
         com.google.android.apps.googleassistant com.google.ar.lens com.sec.android.app.popupcalculator
