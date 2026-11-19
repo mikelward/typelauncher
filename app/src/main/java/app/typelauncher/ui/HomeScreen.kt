@@ -7514,6 +7514,10 @@ internal fun SettingsScreen(
     onAiSortEnabledChanged: (Boolean) -> Unit = {},
     onResortAppsWithAi: () -> Unit = {},
     onRestoreAppFolders: () -> Unit = {},
+    onNewAppFolder: (String, FolderIcon) -> Unit = { _, _ -> },
+    onEditAppFolder: (AppFolderDef, String, FolderIcon) -> Unit = { _, _, _ -> },
+    onDeleteAppFolder: (AppFolderDef) -> Unit = {},
+    onMergeAppFolder: (AppFolderDef, AppFolderDef) -> Unit = { _, _ -> },
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onWallpaperShownChanged: (Boolean) -> Unit = {},
     onChangeWallpaper: () -> Unit = {},
@@ -7854,6 +7858,33 @@ internal fun SettingsScreen(
                         onCheckedChange = onAppFoldersEnabledChanged,
                         modifier = Modifier.testTag(APP_FOLDERS_SWITCH_TAG),
                     )
+                }
+                if (state.isAppFoldersEnabled) {
+                    var editingFolders by rememberSaveable { mutableStateOf(false) }
+                    TextButton(
+                        onClick = { editingFolders = true },
+                        modifier = Modifier.testTag(APP_FOLDERS_EDIT_TAG),
+                    ) {
+                        Text(stringResource(R.string.settings_app_folders_edit))
+                    }
+                    if (editingFolders) {
+                        val menu = AppFolderMenu(
+                            folders = state.appFolders,
+                            folderOf = { null },
+                            onMove = { _, _ -> },
+                            onCreate = { _, _, _ -> },
+                            onEdit = onEditAppFolder,
+                            onDelete = onDeleteAppFolder,
+                            onMerge = onMergeAppFolder,
+                        )
+                        CompositionLocalProvider(LocalAppFolderMenu provides menu) {
+                            EditAppFoldersDialog(
+                                folders = state.appFolders,
+                                onCreate = onNewAppFolder,
+                                onDismiss = { editingFolders = false },
+                            )
+                        }
+                    }
                 }
                 if (state.isAppFoldersEnabled && state.hasDeletedAppFolders) {
                     TextButton(

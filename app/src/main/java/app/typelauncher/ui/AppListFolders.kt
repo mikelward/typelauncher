@@ -284,7 +284,7 @@ private fun Modifier.folderClickable(
  * dialog.
  */
 @Composable
-private fun AppListFolderActions(folder: AppFolderDef, expanded: Boolean, onDismiss: () -> Unit) {
+internal fun AppListFolderActions(folder: AppFolderDef, expanded: Boolean, onDismiss: () -> Unit) {
     val menu = LocalAppFolderMenu.current ?: return
     var editing by rememberSaveable(folder.key) { mutableStateOf(false) }
     var deleting by rememberSaveable(folder.key) { mutableStateOf(false) }
@@ -815,6 +815,82 @@ internal fun MergeAppFolderDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.app_folder_picker_cancel)) }
+        },
+    )
+}
+
+/**
+ * Settings' "Edit folders": every folder in use, each opening the menu a
+ * long-pressed folder has (edit, merge, delete; Other has none), and "New
+ * folder". Needs [LocalAppFolderMenu] for those actions.
+ */
+@Composable
+internal fun EditAppFoldersDialog(
+    folders: List<AppFolderDef>,
+    onCreate: (String, FolderIcon) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var creating by rememberSaveable { mutableStateOf(false) }
+    if (creating) {
+        AppFolderEditDialog(
+            initial = null,
+            onSave = { name, icon ->
+                onCreate(name, icon)
+                creating = false
+            },
+            onDismiss = { creating = false },
+        )
+        return
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.app_folders_dialog_title)) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .testTag(APP_FOLDERS_EDIT_DIALOG_TAG),
+            ) {
+                for (folder in folders) {
+                    var menuOpen by remember(folder.key) { mutableStateOf(false) }
+                    Box {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(
+                                    if (folder.isOther) {
+                                        Modifier
+                                    } else {
+                                        Modifier.clickable(role = Role.Button, onClick = { menuOpen = true })
+                                    },
+                                )
+                                .padding(vertical = 8.dp)
+                                .testTag("$APP_FOLDERS_EDIT_ROW_TAG:${folder.key}"),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Icon(
+                                imageVector = folder.icon.vector(),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp),
+                            )
+                            Text(folderLabel(folder), style = MaterialTheme.typography.bodyLarge)
+                        }
+                        if (!folder.isOther) {
+                            AppListFolderActions(folder, expanded = menuOpen, onDismiss = { menuOpen = false })
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.app_folders_dialog_done)) }
+        },
+        dismissButton = {
+            TextButton(onClick = { creating = true }, modifier = Modifier.testTag(APP_FOLDER_PICKER_NEW_TAG)) {
+                Text(stringResource(R.string.app_folder_picker_new))
+            }
         },
     )
 }
