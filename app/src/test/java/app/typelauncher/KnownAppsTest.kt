@@ -48,6 +48,8 @@ class KnownAppsTest {
         for (label in listOf("RBC Mobile", "PUBG MOBILE", "Clap to Find My Phone", "Duo Mobile")) {
             assertEquals(label, null, knownAppCategory("com.example.q2", label))
         }
+        // "One NZ" is also Westpac's bank name there.
+        assertEquals(AppCategory.Finance, knownAppCategory("com.example.q5", "Westpac One NZ Mobile Banking"))
         for (label in listOf("EE", "My Telstra", "My Optus", "T-Mobile", "giffgaff", "2degrees NZ")) {
             assertEquals(label, AppCategory.Phone, knownAppCategory("com.example.q3", label))
         }

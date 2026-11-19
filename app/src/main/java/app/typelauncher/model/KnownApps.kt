@@ -151,7 +151,7 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
 ) + listOf(
     // Mobile carriers, by brand (maintainer, 2026-11-19).
     "ee", "vodafone", "telstra", "optus", "t mobile", "verizon", "at t", "o2", "giffgaff", "lebara",
-    "lycamobile", "2degrees", "spark nz", "one nz", "skinny mobile", "rogers", "telus", "koodo",
+    "lycamobile", "2degrees", "spark nz", "skinny mobile", "rogers", "telus", "koodo",
     "freedom mobile", "boost mobile", "cricket wireless", "mint mobile", "tesco mobile", "sky mobile",
     "voxi", "smarty mobile", "amaysim", "aldi mobile", "id mobile", "airalo", "truecaller",
 ).map { it to AppCategory.Phone } + listOf(
