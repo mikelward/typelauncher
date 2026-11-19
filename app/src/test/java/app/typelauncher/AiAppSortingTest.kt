@@ -32,6 +32,31 @@ class AiAppSortingTest {
     }
 
     @Test
+    fun prompt_hasAHomeFolderForSmartHomeAndProperty() {
+        val home = buildAiSortPrompt(listOf(bank)).lines().first { it.startsWith("home: ") }
+
+        assertTrue(home, "smart home" in home && "property" in home)
+    }
+
+    @Test
+    fun prompt_givesExamples_forTheAppsItGotWrong() {
+        // Waze went to tools and Apple TV to other (maintainer, 2026-11-19).
+        val prompt = buildAiSortPrompt(listOf(bank))
+
+        assertTrue(prompt, "Waze is travel" in prompt)
+        assertTrue(prompt, "Apple TV is media" in prompt)
+        assertTrue(prompt, "tools only for a utility no other folder fits" in prompt)
+    }
+
+    @Test
+    fun promptVersion_followsTheInstructions() {
+        // A fingerprint of the folder lines, never the "unset" 0 a fresh
+        // install stores, so the first launch after an update re-sorts.
+        assertEquals(buildAiSortPrompt(emptyList()).hashCode().let { if (it == 0) 1 else it }, AI_SORT_PROMPT_VERSION)
+        assertTrue(AI_SORT_PROMPT_VERSION != 0)
+    }
+
+    @Test
     fun prompt_keepsEachLabelToOneLine() {
         val sneaky = AiSortInput("x", "Line one\n99. other\tthing", "com.example")
 

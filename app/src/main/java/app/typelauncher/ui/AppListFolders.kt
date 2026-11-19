@@ -43,6 +43,7 @@ internal fun AppCategory.labelRes(): Int = when (this) {
     AppCategory.Finance -> R.string.app_folder_finance
     AppCategory.Games -> R.string.app_folder_games
     AppCategory.Health -> R.string.app_folder_health
+    AppCategory.Home -> R.string.app_folder_home
     AppCategory.Media -> R.string.app_folder_media
     AppCategory.News -> R.string.app_folder_news
     AppCategory.Productivity -> R.string.app_folder_productivity
@@ -57,6 +58,7 @@ internal fun AppCategory.icon(): ImageVector = when (this) {
     AppCategory.Finance -> CategoryIcons.Finance
     AppCategory.Games -> CategoryIcons.Games
     AppCategory.Health -> CategoryIcons.Health
+    AppCategory.Home -> CategoryIcons.Home
     AppCategory.Media -> CategoryIcons.Media
     AppCategory.News -> CategoryIcons.News
     AppCategory.Productivity -> CategoryIcons.Productivity

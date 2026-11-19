@@ -72,6 +72,20 @@ class LauncherViewModelAiSortTest {
     }
 
     @Test
+    fun choicesFromOlderInstructions_areDroppedAtStart_soAppsAreSortedAgain() {
+        // An update adds a folder (Home): what the AI chose without it goes.
+        AppFolderStore(context).apply {
+            forgetAiChoicesUnlessMadeBy(AI_SORT_PROMPT_VERSION + 1)
+            assignByAi(mapOf("someone" to AppCategory.Tools))
+        }
+
+        val viewModel = newViewModel()
+
+        assertEquals(emptyMap<String, AppCategory>(), viewModel.uiState.value.appFolderAiAssignments)
+        assertEquals(emptyMap<String, AppCategory>(), AppFolderStore(context).aiAssignments)
+    }
+
+    @Test
     fun sortsInBatches() {
         repeat(AI_SORT_BATCH_SIZE + 3) { index -> seedApp("App $index", "com.example.app$index") }
         model.answer = { "" } // Every app ends up in Other.
