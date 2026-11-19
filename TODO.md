@@ -113,7 +113,9 @@
   2. **Sort the rest with on-device AI** (shipped). Gemini Nano through ML Kit's Prompt API, opt-in, offered where AICore is installed, with progress in Settings and in the Other folder and a one-time offer at the top of Other. See `SPEC.md`.
   3. **Measure AI sorting on a device.** A debug-only screen that runs the classifier over about 200 popular apps with known folders and reports how many it got right, and which it got wrong, so the prompt can be tuned. Not measured yet: nothing here can run Gemini Nano.
   4. **Category icons for folders** (shipped; maintainer chose mock A, 2026-11-19, then style B: no tile, large monochrome glyph): a Material Symbol in place of the 2×2 preview, in an app icon's box in every list style.
-  5. **Search matches folder names** (maintainer, 2026-11-19): typing a folder's name shows the folder and the apps in it.
+  5. **Close button at the end of an open folder** (maintainer, 2026-11-19): a ✕ tile after the folder's apps, as dock folders have, rather than only the header's.
+  6. **Custom folders and icons** (maintainer idea, 2026-11-19): let the user add their own folders, named and with an icon of their choosing, beside the fixed set. Open: whether AI sorting may file into them (it would need their names in the prompt), and whether fixed folders can be renamed or hidden.
+  7. **Search matches folder names** (maintainer, 2026-11-19): typing a folder's name shows the folder and the apps in it.
 
 - **Kiosk mode follow-ups.** The widget-only, screen-on-while-plugged-in display shipped; still to come, each its own PR:
   1. **Show over the lock screen** — shipped. Still open: a device check that the display comes back over the lock screen after the power button, that the hold brings up the unlock prompt and shows Home only on success, and that a widget tapped while locked asks to unlock before opening its app. Kiosk mode's switch needs no lock-screen subtitle (maintainer, 2026-10-10).

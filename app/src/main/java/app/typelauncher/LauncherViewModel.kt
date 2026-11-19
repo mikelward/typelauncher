@@ -5080,6 +5080,8 @@ internal class LauncherViewModel(
     fun resortAppsWithAi() {
         stopAiSort()
         appFolderStore.clearAiAssignments()
+        // A fresh sort gives every app its full retries (Codex on PR #857).
+        aiSortMisses.clear()
         _uiState.update { it.copy(appFolderAiAssignments = emptyMap(), aiSort = AiSortProgress()) }
         aiSortPausedUntilReturn = false
         maybeStartAiSort()
@@ -5110,6 +5112,9 @@ internal class LauncherViewModel(
     // Home, or by the user turning sorting on or asking to re-sort.
     private var aiSortPausedUntilReturn = false
     private var aiSortJob: Job? = null
+
+    // Answers each app was left out of this session (see AI_SORT_MAX_MISSES).
+    private val aiSortMisses = HashMap<String, Int>()
     private var aiModel: AppCategoryModel? = null
 
     /** Starts sorting if it's wanted, possible now, and not already running. */
@@ -5191,7 +5196,21 @@ internal class LauncherViewModel(
                 publishAiSort(AiSortPhase.Sorting, work)
                 val batch = work.pending.take(AI_SORT_BATCH_SIZE)
                 try {
-                    val choices = parseAiSortAnswer(model.generate(buildAiSortPrompt(batch)), batch)
+                    val parsed = parseAiSortAnswer(model.generate(buildAiSortPrompt(batch)), batch)
+                    // An app the answer left out is asked about again, up to
+                    // AI_SORT_MAX_MISSES times, then filed in Other.
+                    val choices = LinkedHashMap(parsed)
+                    for (app in batch) {
+                        if (app.id in parsed) continue
+                        val misses = (aiSortMisses[app.id] ?: 0) + 1
+                        aiSortMisses[app.id] = misses
+                        if (misses >= AI_SORT_MAX_MISSES) choices[app.id] = AppCategory.Other
+                    }
+                    LauncherDebugLog.event(
+                        "aiSort batch size=%s answered=%s",
+                        batch.size,
+                        parsed.size,
+                    )
                     appFolderStore.assignByAi(choices)
                     _uiState.update { it.copy(appFolderAiAssignments = appFolderStore.aiAssignments) }
                     busyRetries = 0
