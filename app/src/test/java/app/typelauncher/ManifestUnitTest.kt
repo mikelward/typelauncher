@@ -16,7 +16,8 @@ class ManifestUnitTest {
         val manifest = parseManifest()
         val application = manifest.getElementsByTagName("application").item(0)
         val activity = manifest.getElementsByTagName("activity").item(0)
-        val queryIntents = manifest.getElementsByTagName("queries").item(0).elementChildren()
+        val queries = manifest.getElementsByTagName("queries").item(0).elementChildren()
+        val queryIntents = queries.filter { it.nodeName == "intent" }
         val applicationAttrs = application.attributes
         val attrs = activity.attributes
         val permissions = manifest.getElementsByTagName("uses-permission")
@@ -58,7 +59,13 @@ class ManifestUnitTest {
         // activities (so the home-resolution diagnostic can see the full
         // candidate list rather than a visibility-filtered one, which would
         // make another launcher indistinguishable from the system chooser).
-        assertEquals(listOf("intent", "intent"), queryIntents.map { it.nodeName })
+        assertEquals(listOf("intent", "intent", "package"), queries.map { it.nodeName })
+        // One queried package: AICore, so Settings can offer AI sorting
+        // without calling ML Kit before the user opts in.
+        assertEquals(
+            listOf("com.google.android.aicore"),
+            queries.filter { it.nodeName == "package" }.map { it.attributes.getNamedItem("android:name").nodeValue },
+        )
         assertEquals(
             listOf("android.intent.category.LAUNCHER", "android.intent.category.HOME"),
             queryIntents.map { intent ->

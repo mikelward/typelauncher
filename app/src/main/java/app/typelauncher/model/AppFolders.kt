@@ -81,7 +81,8 @@ internal data class AppListGrouping(
 /**
  * Groups [apps] into folders. An app goes where the user put it, if they did
  * ([assignments] maps an app id to its folder, or to null for "no folder");
- * otherwise where its manifest says ([InstalledApp.declaredCategory]).
+ * otherwise where its manifest says ([InstalledApp.declaredCategory]);
+ * otherwise where "Sort with on-device AI" put it ([aiAssignments]).
  *
  * A folder needs at least [minMembers] apps, so a lone game doesn't get a
  * folder of its own. A folder the user filed an app into always shows, even
@@ -98,6 +99,7 @@ internal data class AppListGrouping(
 internal fun groupAppList(
     apps: List<InstalledApp>,
     assignments: Map<String, AppCategory?>,
+    aiAssignments: Map<String, AppCategory> = emptyMap(),
     minMembers: Int = MIN_APP_FOLDER_MEMBERS,
 ): AppListGrouping {
     // Each app's folder before the size rule; "no folder" apps are absent.
@@ -108,7 +110,7 @@ internal fun groupAppList(
         val category = if (assignments.containsKey(app.id)) {
             assignments[app.id]?.also { chosen += it } ?: continue
         } else {
-            app.declaredCategory ?: AppCategory.Other
+            app.declaredCategory ?: aiAssignments[app.id] ?: AppCategory.Other
         }
         categoryOf[app.id] = category
         counts[category] = (counts[category] ?: 0) + 1

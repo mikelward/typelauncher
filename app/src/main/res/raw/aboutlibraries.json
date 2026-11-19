@@ -3208,7 +3208,7 @@
         },
         {
             "uniqueId": "com.google.guava:guava",
-            "artifactVersion": "31.1-android",
+            "artifactVersion": "32.0.0-jre",
             "name": "Guava: Google Core Libraries for Java",
             "description": "Guava is a suite of core and expanded libraries that include\n    utility classes, Google's collections, I/O classes, and\n    much more.",
             "website": "https://github.com/google/guava",
@@ -3256,7 +3256,7 @@
         },
         {
             "uniqueId": "com.google.j2objc:j2objc-annotations",
-            "artifactVersion": "1.3",
+            "artifactVersion": "2.8",
             "name": "J2ObjC Annotations",
             "description": "A set of annotations that provide additional information to the J2ObjC\n    translator to modify the result of translation.",
             "website": "https://github.com/google/j2objc/",
@@ -3264,12 +3264,72 @@
                 
             ],
             "scm": {
-                "connection": "scm:svn:http://svn.sonatype.org/spice/tags/oss-parent-7/j2objc-annotations",
-                "developerConnection": "scm:svn:https://svn.sonatype.org/spice/tags/oss-parent-7/j2objc-annotations",
-                "url": "http://svn.sonatype.org/spice/tags/oss-parent-7/j2objc-annotations"
+                "connection": "scm:svn:http://svn.sonatype.org/spice/trunk/oss/oss-parenti-9/j2objc-annotations",
+                "developerConnection": "scm:svn:https://svn.sonatype.org/spice/trunk/oss/oss-parent-9/j2objc-annotations",
+                "url": "http://svn.sonatype.org/spice/trunk/oss/oss-parent-9/j2objc-annotations"
             },
             "licenses": [
                 "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.mlkit:common",
+            "artifactVersion": "18.11.0",
+            "name": "common",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "9962f44671a86e167c028415c7e21548"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.mlkit:genai-common",
+            "artifactVersion": "1.0.0-beta5",
+            "name": "genai-common",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "9962f44671a86e167c028415c7e21548"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.mlkit:genai-prompt",
+            "artifactVersion": "1.0.0-beta5",
+            "name": "genai-prompt",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "9962f44671a86e167c028415c7e21548"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.mlkit:genai-schema",
+            "artifactVersion": "1.0.0-alpha2",
+            "name": "genai-schema",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "ASDKL"
             ],
             "funding": [
                 
@@ -3506,10 +3566,10 @@
         },
         {
             "uniqueId": "org.checkerframework:checker-qual",
-            "artifactVersion": "3.12.0",
+            "artifactVersion": "3.33.0",
             "name": "Checker Qual",
             "description": "checker-qual contains annotations (type qualifiers) that a programmer\nwrites to specify Java code for type-checking by the Checker Framework.",
-            "website": "https://checkerframework.org",
+            "website": "https://checkerframework.org/",
             "developers": [
                 {
                     "name": "Michael Ernst",
@@ -3521,7 +3581,7 @@
                 }
             ],
             "scm": {
-                "connection": "scm:git:git://github.com/typetools/checker-framework.git",
+                "connection": "scm:git:https://github.com/typetools/checker-framework.git",
                 "developerConnection": "scm:git:ssh://git@github.com/typetools/checker-framework.git",
                 "url": "https://github.com/typetools/checker-framework.git"
             },
@@ -3700,7 +3760,7 @@
         },
         {
             "uniqueId": "org.jetbrains.kotlinx:kotlinx-coroutines-android",
-            "artifactVersion": "1.10.2",
+            "artifactVersion": "1.11.0",
             "name": "kotlinx-coroutines-android",
             "description": "Coroutines support libraries for Kotlin",
             "website": "https://github.com/Kotlin/kotlinx.coroutines",
@@ -3722,7 +3782,7 @@
         },
         {
             "uniqueId": "org.jetbrains.kotlinx:kotlinx-coroutines-core",
-            "artifactVersion": "1.10.2",
+            "artifactVersion": "1.11.0",
             "name": "kotlinx-coroutines-core",
             "description": "Coroutines support libraries for Kotlin",
             "website": "https://github.com/Kotlin/kotlinx.coroutines",
@@ -3743,9 +3803,53 @@
             ]
         },
         {
+            "uniqueId": "org.jetbrains.kotlinx:kotlinx-coroutines-guava",
+            "artifactVersion": "1.11.0",
+            "name": "kotlinx-coroutines-guava",
+            "description": "Coroutines support libraries for Kotlin",
+            "website": "https://github.com/Kotlin/kotlinx.coroutines",
+            "developers": [
+                {
+                    "name": "JetBrains Team",
+                    "organisationUrl": "https://www.jetbrains.com"
+                }
+            ],
+            "scm": {
+                "url": "https://github.com/Kotlin/kotlinx.coroutines"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
             "uniqueId": "org.jetbrains.kotlinx:kotlinx-coroutines-play-services",
-            "artifactVersion": "1.10.2",
+            "artifactVersion": "1.11.0",
             "name": "kotlinx-coroutines-play-services",
+            "description": "Coroutines support libraries for Kotlin",
+            "website": "https://github.com/Kotlin/kotlinx.coroutines",
+            "developers": [
+                {
+                    "name": "JetBrains Team",
+                    "organisationUrl": "https://www.jetbrains.com"
+                }
+            ],
+            "scm": {
+                "url": "https://github.com/Kotlin/kotlinx.coroutines"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.kotlinx:kotlinx-coroutines-reactive",
+            "artifactVersion": "1.11.0",
+            "name": "kotlinx-coroutines-reactive",
             "description": "Coroutines support libraries for Kotlin",
             "website": "https://github.com/Kotlin/kotlinx.coroutines",
             "developers": [
@@ -3856,6 +3960,28 @@
             ]
         },
         {
+            "uniqueId": "org.reactivestreams:reactive-streams",
+            "artifactVersion": "1.0.3",
+            "name": "reactive-streams",
+            "description": "A Protocol for Asynchronous Non-Blocking Data Sequence",
+            "website": "http://www.reactive-streams.org/",
+            "developers": [
+                {
+                    "name": "Reactive Streams SIG"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:git@github.com:reactive-streams/reactive-streams.git",
+                "url": "git@github.com:reactive-streams/reactive-streams.git"
+            },
+            "licenses": [
+                "CC0-1.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
             "uniqueId": "androidx.compose.material:material-icons",
             "name": "Material Icons",
             "description": "Material Design icons drawn by the launcher. The vectors are held in the app rather than pulled from androidx.compose.material's icon modules.",
@@ -3881,6 +4007,11 @@
         }
     ],
     "licenses": {
+        "9962f44671a86e167c028415c7e21548": {
+            "name": "ML Kit Terms of Service",
+            "url": "https://developers.google.com/ml-kit/terms",
+            "hash": "9962f44671a86e167c028415c7e21548"
+        },
         "ASDKL": {
             "name": "Android Software Development Kit License",
             "url": "https://developer.android.com/studio/terms.html",
@@ -3901,6 +4032,13 @@
             "internalHash": "BSD-3-Clause",
             "spdxId": "BSD-3-Clause",
             "hash": "BSD-3-Clause"
+        },
+        "CC0-1.0": {
+            "name": "Creative Commons Zero v1.0 Universal",
+            "url": "https://spdx.org/licenses/CC0-1.0.html",
+            "internalHash": "CC0-1.0",
+            "spdxId": "CC0-1.0",
+            "hash": "CC0-1.0"
         },
         "MIT": {
             "name": "MIT License",

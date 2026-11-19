@@ -197,6 +197,26 @@
     <string name="app_folder_travel" tools:ignore="MissingTranslation">Travel</string>
     <!-- TODO: translate -->
     <string name="app_folder_other" tools:ignore="MissingTranslation">Other</string>
+    <!-- "Sort with on-device AI": its Settings switch and action, what it's doing, and its offer at the top of the Other folder. -->
+    <!-- TODO: translate -->
+    <string name="settings_ai_sort_title" tools:ignore="MissingTranslation">Sort with on-device AI</string>
+    <!-- TODO: translate -->
+    <string name="settings_ai_sort_resort" tools:ignore="MissingTranslation">Re-sort all apps</string>
+    <!-- TODO: translate -->
+    <string name="ai_sort_status_unavailable" tools:ignore="MissingTranslation">Not available on this phone</string>
+    <!-- TODO: translate -->
+    <string name="ai_sort_status_downloading" tools:ignore="MissingTranslation">Downloading the AI model…</string>
+    <!-- TODO: translate -->
+    <string name="ai_sort_status_sorting" tools:ignore="MissingTranslation">Sorting %1$d of %2$d…</string>
+    <!-- TODO: translate -->
+    <plurals name="ai_sort_status_done" tools:ignore="MissingTranslation">
+        <item quantity="one">Sorted %d app</item>
+        <item quantity="other">Sorted %d apps</item>
+    </plurals>
+    <!-- TODO: translate -->
+    <string name="ai_sort_status_paused" tools:ignore="MissingTranslation">Paused for now</string>
+    <!-- TODO: translate -->
+    <string name="ai_sort_offer_title" tools:ignore="MissingTranslation">Sort these with on-device AI?</string>
     <string name="settings_dock_enabled_title">Show dock</string>
     <string name="settings_work_dock_enabled_title">Show work dock</string>
     <string name="settings_work_dock_disabled_toast">Work profile is paused</string>

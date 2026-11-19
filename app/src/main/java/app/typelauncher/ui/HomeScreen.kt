@@ -294,6 +294,8 @@ internal fun HomeScreen(
     onAppFoldersEnabledChanged: (Boolean) -> Unit = {},
     onDismissAppFoldersOffer: () -> Unit = {},
     onMoveAppToFolder: (InstalledApp, AppCategory?) -> Unit = { _, _ -> },
+    onAiSortEnabledChanged: (Boolean) -> Unit = {},
+    onDismissAiSortOffer: () -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
     // The app-list folder open in place, by its category's storage key. Closes
@@ -1279,8 +1281,17 @@ internal fun HomeScreen(
             // stay flat so type-to-launch is unchanged. One pass over the list,
             // redone only when the list or a filing changes.
             val showsAppFolders = state.isAppFoldersEnabled && state.query.isBlank()
-            val appListGrouping = remember(state.filteredApps, state.appFolderAssignments, showsAppFolders) {
-                if (showsAppFolders) groupAppList(state.filteredApps, state.appFolderAssignments) else null
+            val appListGrouping = remember(
+                state.filteredApps,
+                state.appFolderAssignments,
+                state.appFolderAiAssignments,
+                showsAppFolders,
+            ) {
+                if (showsAppFolders) {
+                    groupAppList(state.filteredApps, state.appFolderAssignments, state.appFolderAiAssignments)
+                } else {
+                    null
+                }
             }
             val openAppFolder = appListGrouping?.folders?.firstOrNull { folder ->
                 folder.category.storageKey == openAppFolderKey
@@ -1295,10 +1306,17 @@ internal fun HomeScreen(
                     !state.isSettingsOpen &&
                     state.contactActionsMode == null,
             ) { openAppFolderKey = null }
-            val appFolderMenu = remember(state.isAppFoldersEnabled, state.appFolderAssignments, onMoveAppToFolder) {
+            val appFolderMenu = remember(
+                state.isAppFoldersEnabled,
+                state.appFolderAssignments,
+                state.appFolderAiAssignments,
+                onMoveAppToFolder,
+            ) {
                 if (state.isAppFoldersEnabled) {
                     AppFolderMenu(
-                        folderOf = { app -> effectiveAppFolder(app, state.appFolderAssignments) },
+                        folderOf = { app ->
+                            effectiveAppFolder(app, state.appFolderAssignments, state.appFolderAiAssignments)
+                        },
                         onMove = onMoveAppToFolder,
                     )
                 } else {
@@ -1373,6 +1391,20 @@ internal fun HomeScreen(
                     showFoldersOffer = state.isAppFoldersOfferPending && state.query.isBlank(),
                     onAcceptFoldersOffer = { onAppFoldersEnabledChanged(true) },
                     onDismissFoldersOffer = onDismissAppFoldersOffer,
+                    // The Other folder holds what's left to sort, so AI sorting
+                    // shows its progress, or offers itself, at the top of it.
+                    openFolderNote = if (openAppFolder?.category == AppCategory.Other && state.isAiSortSupported) {
+                        {
+                            OtherFolderAiNote(
+                                progress = if (state.isAiSortEnabled) state.aiSort else AiSortProgress(),
+                                showOffer = state.isAiSortOfferPending,
+                                onAccept = { onAiSortEnabledChanged(true) },
+                                onDismiss = onDismissAiSortOffer,
+                            )
+                        }
+                    } else {
+                        null
+                    },
                 )
             }
             val contactActionsMode = state.contactActionsMode
@@ -4672,6 +4704,8 @@ internal fun AppsCard(
     showFoldersOffer: Boolean = false,
     onAcceptFoldersOffer: () -> Unit = {},
     onDismissFoldersOffer: () -> Unit = {},
+    // Shown under the open folder's header, when set.
+    openFolderNote: (@Composable () -> Unit)? = null,
 ) {
     // "No results" means no apps AND no content sections: a content-only
     // result set still renders the scrollable list, whose bounds must stay
@@ -4876,6 +4910,7 @@ internal fun AppsCard(
                                 openFolder = openFolder,
                                 onOpenFolder = onOpenFolder,
                                 onCloseFolder = onCloseFolder,
+                                openFolderNote = openFolderNote,
                             )
                         }
                         if (letterSections.isNotEmpty()) {
@@ -4940,7 +4975,7 @@ internal fun AppsCard(
                                     .testTag(APPS_LIST_TAG),
                             ) {
                                 if (!reverseLayout) {
-                                    appListFolderItems(folders, openFolder, reverseLayout, onOpenFolder, onCloseFolder)
+                                    appListFolderItems(folders, openFolder, reverseLayout, onOpenFolder, onCloseFolder, openFolderNote)
                                 }
                                 itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
                                     AppRow(
@@ -4962,7 +4997,7 @@ internal fun AppsCard(
                                     )
                                 }
                                 if (reverseLayout) {
-                                    appListFolderItems(folders, openFolder, reverseLayout, onOpenFolder, onCloseFolder)
+                                    appListFolderItems(folders, openFolder, reverseLayout, onOpenFolder, onCloseFolder, openFolderNote)
                                 }
                                 if (showStoreSearchRow) {
                                     storeSearchItem(query = query, onSearchAppStore = onSearchAppStore)
@@ -5187,6 +5222,7 @@ internal fun IconOnlyAppGrid(
     openFolder: AppListFolder? = null,
     onOpenFolder: (AppListFolder) -> Unit = {},
     onCloseFolder: () -> Unit = {},
+    openFolderNote: (@Composable () -> Unit)? = null,
 ) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive((iconSizeDp + 8).dp),
@@ -5208,7 +5244,7 @@ internal fun IconOnlyAppGrid(
         ),
     ) {
         if (!reverseLayout) {
-            appListFolderItems(folders, openFolder, iconSizeDp, showLabel, onOpenFolder, onCloseFolder)
+            appListFolderItems(folders, openFolder, iconSizeDp, showLabel, onOpenFolder, onCloseFolder, openFolderNote)
         }
         itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
             IconOnlyAppButton(
@@ -5232,7 +5268,7 @@ internal fun IconOnlyAppGrid(
             )
         }
         if (reverseLayout) {
-            appListFolderItems(folders, openFolder, iconSizeDp, showLabel, onOpenFolder, onCloseFolder)
+            appListFolderItems(folders, openFolder, iconSizeDp, showLabel, onOpenFolder, onCloseFolder, openFolderNote)
         }
         val showStoreSearchRow = query.isNotBlank()
         if (showStoreSearchRow) {
@@ -5269,9 +5305,15 @@ private fun LazyListScope.appListFolderItems(
     reverseLayout: Boolean,
     onOpenFolder: (AppListFolder) -> Unit,
     onCloseFolder: () -> Unit,
+    openFolderNote: (@Composable () -> Unit)?,
 ) {
     if (openFolder != null) {
+        // The note goes under the header: before it in data order when the
+        // list is reversed, since item 0 is then at the bottom.
+        val note = openFolderNote
+        if (reverseLayout && note != null) item(key = APP_LIST_FOLDER_NOTE_KEY) { note() }
         item(key = APP_LIST_FOLDER_HEADER_KEY) { AppListFolderHeader(openFolder, onCloseFolder) }
+        if (!reverseLayout && note != null) item(key = APP_LIST_FOLDER_NOTE_KEY) { note() }
     }
     items(if (reverseLayout) folders.asReversed() else folders, key = { folder -> folder.id }) { folder ->
         AppListFolderRow(folder, iconSizeDp = APP_ROW_ICON_SIZE_DP, onOpen = onOpenFolder)
@@ -5293,10 +5335,16 @@ private fun LazyGridScope.appListFolderItems(
     showLabel: Boolean,
     onOpenFolder: (AppListFolder) -> Unit,
     onCloseFolder: () -> Unit,
+    openFolderNote: (@Composable () -> Unit)?,
 ) {
     if (openFolder != null) {
+        // Header and note in one full-width item, so a reversed grid can't
+        // swap them.
         item(key = APP_LIST_FOLDER_HEADER_KEY, span = { GridItemSpan(maxLineSpan) }) {
-            AppListFolderHeader(openFolder, onCloseFolder)
+            Column {
+                AppListFolderHeader(openFolder, onCloseFolder)
+                openFolderNote?.invoke()
+            }
         }
     }
     if (folders.isNotEmpty()) {
@@ -5309,6 +5357,7 @@ private fun LazyGridScope.appListFolderItems(
 private const val APP_LIST_FOLDER_BLOCK_KEY = "app_list_folder_block"
 
 private const val APP_LIST_FOLDER_HEADER_KEY = "app_list_folder_header"
+private const val APP_LIST_FOLDER_NOTE_KEY = "app_list_folder_note"
 
 /**
  * The typed-search content sections (contacts, then calendar events), appended
@@ -7382,6 +7431,8 @@ internal fun SettingsScreen(
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onLetterStripEnabledChanged: (Boolean) -> Unit = {},
     onAppFoldersEnabledChanged: (Boolean) -> Unit = {},
+    onAiSortEnabledChanged: (Boolean) -> Unit = {},
+    onResortAppsWithAi: () -> Unit = {},
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onWallpaperShownChanged: (Boolean) -> Unit = {},
     onChangeWallpaper: () -> Unit = {},
@@ -7721,6 +7772,16 @@ internal fun SettingsScreen(
                         checked = state.isAppFoldersEnabled,
                         onCheckedChange = onAppFoldersEnabledChanged,
                         modifier = Modifier.testTag(APP_FOLDERS_SWITCH_TAG),
+                    )
+                }
+                // Only where the phone has AICore, and only with folders on,
+                // since sorting is into those folders.
+                if (state.isAppFoldersEnabled && state.isAiSortSupported) {
+                    AiSortSettingsRows(
+                        isEnabled = state.isAiSortEnabled,
+                        progress = state.aiSort,
+                        onEnabledChanged = onAiSortEnabledChanged,
+                        onResort = onResortAppsWithAi,
                     )
                 }
                 Text(

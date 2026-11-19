@@ -123,12 +123,44 @@ class AppFoldersTest {
     }
 
     @Test
+    fun aiChoice_filesAppsTheManifestDoesNot_butNeverOverridesTheManifestOrTheUser() {
+        val bank = app("Bank")
+        val wallet = app("Wallet")
+        val chess = app("Chess", AppCategory.Games)
+        val sudoku = app("Sudoku", AppCategory.Games)
+        val notes = app("Notes")
+
+        val grouping = groupAppList(
+            listOf(bank, wallet, chess, sudoku, notes),
+            assignments = mapOf(notes.id to AppCategory.Productivity),
+            aiAssignments = mapOf(
+                bank.id to AppCategory.Finance,
+                wallet.id to AppCategory.Finance,
+                chess.id to AppCategory.Tools,
+                notes.id to AppCategory.Tools,
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                AppListFolder(AppCategory.Finance, listOf(bank, wallet)),
+                AppListFolder(AppCategory.Games, listOf(chess, sudoku)),
+                AppListFolder(AppCategory.Productivity, listOf(notes)),
+            ),
+            grouping.folders,
+        )
+    }
+
+    @Test
     fun effectiveFolder_prefersTheUsersFiling() {
         val chess = app("Chess", AppCategory.Games)
 
         assertEquals(AppCategory.Games, effectiveAppFolder(chess, emptyMap()))
         assertNull(effectiveAppFolder(chess, mapOf(chess.id to null)))
         assertEquals(AppCategory.Tools, effectiveAppFolder(chess, mapOf(chess.id to AppCategory.Tools)))
+        val bank = app("Bank")
+        assertEquals(AppCategory.Other, effectiveAppFolder(bank, emptyMap()))
+        assertEquals(AppCategory.Finance, effectiveAppFolder(bank, emptyMap(), mapOf(bank.id to AppCategory.Finance)))
     }
 
     @Test

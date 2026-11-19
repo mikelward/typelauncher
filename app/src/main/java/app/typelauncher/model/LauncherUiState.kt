@@ -854,6 +854,14 @@ internal data class LauncherUiState(
     val appFolderAssignments: Map<String, AppCategory?> = emptyMap(),
     // Whether Home still offers, once, to turn folders on.
     val isAppFoldersOfferPending: Boolean = false,
+    // "Sort with on-device AI": the folder it chose for each app it sorted,
+    // whether this device can run it (AICore is installed), whether it's on,
+    // whether the Other folder still offers it, and what it's doing now.
+    val appFolderAiAssignments: Map<String, AppCategory> = emptyMap(),
+    val isAiSortSupported: Boolean = false,
+    val isAiSortEnabled: Boolean = false,
+    val isAiSortOfferPending: Boolean = false,
+    val aiSort: AiSortProgress = AiSortProgress(),
     // When true (default), the search field auto-focuses on launch and
     // `SearchCard` calls `keyboard.show()` so the user can start typing
     // immediately. When false, the search field renders unfocused and

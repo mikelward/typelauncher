@@ -5,11 +5,16 @@ import android.content.Intent
 import android.os.Process
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.longClick
@@ -147,6 +152,96 @@ class AppListFoldersUiTest {
         composeRule.onNodeWithTag("$MOVE_TO_FOLDER_ACTION_TAG:Mail").assertDoesNotExist()
     }
 
+    @Test
+    fun openFolderNote_showsUnderTheHeader() {
+        val other = AppListFolder(AppCategory.Other, listOf(mail))
+        compose(
+            apps = other.apps,
+            openFolder = other,
+            openFolderNote = {
+                OtherFolderAiNote(
+                    progress = AiSortProgress(AiSortPhase.Sorting, sorted = 40, total = 120),
+                    showOffer = false,
+                    onAccept = {},
+                    onDismiss = {},
+                )
+            },
+        )
+
+        val header = composeRule.onNodeWithTag(APP_LIST_FOLDER_HEADER_TAG).fetchSemanticsNode().boundsInRoot
+        val note = composeRule.onNodeWithTag(AI_SORT_PROGRESS_TAG).fetchSemanticsNode().boundsInRoot
+        val app = composeRule.onNodeWithTag("$APP_ROW_TAG:Mail").fetchSemanticsNode().boundsInRoot
+        assertTrue(header.bottom <= note.top && note.bottom <= app.top)
+        composeRule.onNodeWithText("Sorting 40 of 120…").assertExists()
+    }
+
+    @Test
+    fun aiOffer_bothAnswersReachTheirCallbacks() {
+        var accepted = false
+        var dismissed = false
+        composeRule.setContent {
+            TypeLauncherTheme {
+                OtherFolderAiNote(
+                    progress = AiSortProgress(),
+                    showOffer = true,
+                    onAccept = { accepted = true },
+                    onDismiss = { dismissed = true },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(AI_SORT_OFFER_DISMISS_TAG).performClick()
+        composeRule.onNodeWithTag(AI_SORT_OFFER_ACCEPT_TAG).performClick()
+        assertTrue(dismissed)
+        assertTrue(accepted)
+    }
+
+    @Test
+    fun aiNote_progressReplacesTheOffer_andNothingShowsWhenIdle() {
+        var progress by mutableStateOf(AiSortProgress(AiSortPhase.Downloading))
+        var showOffer by mutableStateOf(true)
+        composeRule.setContent {
+            TypeLauncherTheme {
+                OtherFolderAiNote(progress = progress, showOffer = showOffer, onAccept = {}, onDismiss = {})
+            }
+        }
+        composeRule.onNodeWithTag(AI_SORT_PROGRESS_TAG).assertExists()
+        composeRule.onNodeWithTag(AI_SORT_OFFER_TAG).assertDoesNotExist()
+        composeRule.onNodeWithText("Downloading the AI model…").assertExists()
+
+        progress = AiSortProgress(AiSortPhase.Done, sorted = 3, total = 3)
+        showOffer = false
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(AI_SORT_PROGRESS_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(AI_SORT_OFFER_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun aiSettings_showWhatItsDoing_andReSortOnlyWhileOn() {
+        var enabled by mutableStateOf(true)
+        var resorted = false
+        composeRule.setContent {
+            TypeLauncherTheme {
+                Column {
+                    AiSortSettingsRows(
+                        isEnabled = enabled,
+                        progress = AiSortProgress(AiSortPhase.Done, sorted = 1, total = 1),
+                        onEnabledChanged = { enabled = it },
+                        onResort = { resorted = true },
+                    )
+                }
+            }
+        }
+        composeRule.onNodeWithText("Sorted 1 app").assertExists()
+        composeRule.onNodeWithTag(AI_SORT_RESORT_TAG).performClick()
+        assertTrue(resorted)
+
+        composeRule.onNodeWithTag(AI_SORT_SWITCH_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(AI_SORT_STATUS_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(AI_SORT_RESORT_TAG).assertDoesNotExist()
+    }
+
     private fun compose(
         layout: AppListLayout = AppListLayout.NameBeside,
         apps: List<InstalledApp>,
@@ -159,6 +254,7 @@ class AppListFoldersUiTest {
         onAcceptFoldersOffer: () -> Unit = {},
         onDismissFoldersOffer: () -> Unit = {},
         reverseLayout: Boolean = false,
+        openFolderNote: (@androidx.compose.runtime.Composable () -> Unit)? = null,
     ) {
         composeRule.setContent {
             TypeLauncherTheme {
@@ -185,6 +281,7 @@ class AppListFoldersUiTest {
                         showFoldersOffer = showFoldersOffer,
                         onAcceptFoldersOffer = onAcceptFoldersOffer,
                         onDismissFoldersOffer = onDismissFoldersOffer,
+                        openFolderNote = openFolderNote,
                     )
                 }
             }

@@ -71,4 +71,24 @@ class AppFolderStoreTest {
 
         assertEquals(mapOf("a" to AppCategory.Games, "c" to null), parsed)
     }
+
+    @Test
+    fun aiChoicesPersist_andClearingThemKeepsTheUsersFilings() {
+        AppFolderStore(context).apply {
+            isAiSortEnabled = true
+            isAiOfferAnswered = true
+            assign("mine", AppCategory.Tools)
+            assignByAi(mapOf("a" to AppCategory.Finance, "b" to AppCategory.Other))
+        }
+
+        val reopened = AppFolderStore(context)
+        assertTrue(reopened.isAiSortEnabled)
+        assertTrue(reopened.isAiOfferAnswered)
+        assertEquals(mapOf("a" to AppCategory.Finance, "b" to AppCategory.Other), reopened.aiAssignments)
+
+        reopened.clearAiAssignments()
+        val cleared = AppFolderStore(context)
+        assertEquals(emptyMap<String, AppCategory>(), cleared.aiAssignments)
+        assertEquals(mapOf("mine" to AppCategory.Tools), cleared.assignments)
+    }
 }

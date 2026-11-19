@@ -716,6 +716,12 @@ dependencies {
     // size. Raster overrides (PNG/JPEG/WEBP) go through Android's
     // `BitmapFactory` instead and don't need this dependency.
     implementation(libs.androidsvg)
+    // On-device Gemini Nano through Android's AICore (Google Maven, ML Kit
+    // terms; beta). Used only by "Sort with on-device AI" to file apps into
+    // app-list folders. Prompts run on the device; ML Kit itself sends Google
+    // usage diagnostics (device model, OS build, languages) once it is used,
+    // so nothing calls it until that opt-in switch is on. See PRIVACY.md.
+    implementation(libs.mlkit.genai.prompt)
     // Reads the committed res/raw/aboutlibraries.json for the Licenses page.
     // Only `produceLibraries` and the `Libs`/`Library` model are used -- the
     // artifact's own list UI is not.
