@@ -247,6 +247,8 @@
     <!-- TODO: translate -->
     <string name="folder_icon_call" tools:ignore="MissingTranslation">Phone</string>
     <!-- TODO: translate -->
+    <string name="folder_icon_markunread_mailbox" tools:ignore="MissingTranslation">Mailbox</string>
+    <!-- TODO: translate -->
     <string name="folder_icon_account_balance" tools:ignore="MissingTranslation">Government</string>
     <!-- TODO: translate -->
     <string name="folder_icon_badge" tools:ignore="MissingTranslation">ID</string>
@@ -318,6 +320,8 @@
     <string name="app_folder_pets" tools:ignore="MissingTranslation">Pets &amp; animals</string>
     <!-- TODO: translate -->
     <string name="app_folder_photos" tools:ignore="MissingTranslation">Photos</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_post" tools:ignore="MissingTranslation">Post &amp; parcels</string>
     <!-- TODO: translate -->
     <string name="app_folder_sports" tools:ignore="MissingTranslation">Sports</string>
     <!-- TODO: translate -->

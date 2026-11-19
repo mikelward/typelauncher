@@ -100,6 +100,12 @@ class KnownAppsTest {
         )) {
             assertEquals(label, category, knownAppCategory("com.example.q", label))
         }
+        // The maintainer, 2026-11-19: a Post & parcels folder.
+        for (label in listOf("Australia Post", "DPD", "FedEx", "UPS", "Royal Mail", "Parcel Tracker", "CouriersPlease")) {
+            assertEquals(label, AppCategory.Post, knownAppCategory("com.example.post", label))
+        }
+        assertEquals(AppCategory.Productivity, knownAppCategory("com.example.mail", "Proton Mail"))
+        assertNull(knownAppCategory("com.example.wp", "The Washington Post"))
         // Brands are whole words.
         assertNull(knownAppCategory("com.example.r", "Unified Remote"))
         assertNull(knownAppCategory("com.example.s", "Priority Tasks"))
