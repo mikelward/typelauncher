@@ -96,6 +96,14 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "saily" to AppCategory.Phone,
     "esim" to AppCategory.Phone,
     "suzerain" to AppCategory.Games,
+    "thefork" to AppCategory.Food,
+    "the fork" to AppCategory.Food,
+    "opentable" to AppCategory.Food,
+    "pret" to AppCategory.Food,
+    "fire tv" to AppCategory.Media,
+    "antigravity" to AppCategory.Code,
+    // Parking; ahead of "phone", which would make it Phone.
+    "paybyphone" to AppCategory.Transport,
 ) + listOf(
     // Password managers, authenticators and privacy monitoring (maintainer,
     // 2026-11-19). Not "keeper" (goalkeeper games) or "aura" (Aura Frames).
