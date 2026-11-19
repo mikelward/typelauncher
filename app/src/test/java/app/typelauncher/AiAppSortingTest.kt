@@ -54,7 +54,7 @@ class AiAppSortingTest {
 
         assertTrue(lines.first { it.startsWith("learning: ") }.let { "language learning" in it && "e-learning" in it })
         assertTrue(lines.any { "Drops is learning" in it && "Coursera is learning" in it })
-        assertTrue(lines.first { it.startsWith("productivity: ") }.let { "education" !in it && "learning" !in it })
+        assertTrue(lines.first { it.startsWith("office: ") }.let { "education" !in it && "learning" !in it })
     }
 
     @Test

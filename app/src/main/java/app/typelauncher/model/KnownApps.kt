@@ -253,9 +253,9 @@ private val LABEL_WORDS = listOf(
     "podcasts" to AppCategory.Music,
     "calculator" to AppCategory.Tools,
     "clock" to AppCategory.Tools,
-    "calendar" to AppCategory.Productivity,
-    "email" to AppCategory.Productivity,
-    "mail" to AppCategory.Productivity,
+    "calendar" to AppCategory.Office,
+    "email" to AppCategory.Office,
+    "mail" to AppCategory.Office,
     "wallet" to AppCategory.Finance,
     "bank" to AppCategory.Finance,
     "banking" to AppCategory.Finance,
@@ -344,7 +344,7 @@ private val GUESS_RULES = listOf(
     AppCategory.Post to listOf("parcel", "courier", "postal", "freight"),
     AppCategory.News to listOf("news", "newspaper", "headlines"),
     AppCategory.Social to listOf("chat", "messenger", "messaging", "messages", "social", "dating"),
-    AppCategory.Productivity to listOf("mail", "email", "calendar", "notes", "docs", "todo", "tasks", "office", "pdf", "meeting"),
+    AppCategory.Office to listOf("mail", "email", "calendar", "notes", "docs", "todo", "tasks", "office", "pdf", "meeting"),
     AppCategory.Home to listOf("smarthome", "thermostat", "doorbell", "realestate", "property", "energy"),
     AppCategory.Tools to listOf("calculator", "clock", "alarm", "flashlight", "torch", "files", "filemanager", "keyboard", "cleaner", "battery", "backup"),
     AppCategory.Security to listOf("authenticator", "password", "passwords", "antivirus", "malware"),
@@ -401,7 +401,7 @@ private val KNOWN_PACKAGES = listOf(
         com.bumble.app co.hinge.app xyz.blueskyweb.app org.joinmastodon.android com.nextdoor
         com.google.android.contacts
     """,
-    AppCategory.Productivity to """
+    AppCategory.Office to """
         com.google.android.gm com.microsoft.office.outlook com.google.android.calendar
         com.google.android.keep com.google.android.apps.docs com.google.android.apps.docs.editors.docs
         com.google.android.apps.docs.editors.sheets com.google.android.apps.docs.editors.slides

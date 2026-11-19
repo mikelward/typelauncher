@@ -246,9 +246,9 @@ class AppListFoldersUiTest {
 
         composeRule.onNodeWithTag("$APP_ROW_TAG:Mail").performTouchInput { longClick() }
         composeRule.onNodeWithTag("$MOVE_TO_FOLDER_ACTION_TAG:Mail").performClick()
-        composeRule.onNodeWithTag("$APP_FOLDER_PICKER_OPTION_TAG:productivity").performClick()
+        composeRule.onNodeWithTag("$APP_FOLDER_PICKER_OPTION_TAG:office").performClick()
 
-        assertEquals(mail to "productivity", moved)
+        assertEquals(mail to "office", moved)
     }
 
     @Test
@@ -533,7 +533,7 @@ class AppListFoldersUiTest {
 
         // Codex on PR #868: filed only on Save, since filing it moves the app
         // out of an open folder, and the dialog, unsaved, with it.
-        composeRule.onNodeWithTag(EDIT_APP_DIALOG_FOLDER_TAG).assertTextEquals("Kids")
+        composeRule.onNodeWithTag(EDIT_APP_DIALOG_FOLDER_TAG).assertTextEquals("Kids & parenting")
         assertEquals(null, moved)
         composeRule.onNodeWithTag(EDIT_APP_DIALOG_SAVE_TAG).performClick()
 

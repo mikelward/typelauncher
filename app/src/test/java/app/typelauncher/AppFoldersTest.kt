@@ -133,7 +133,7 @@ class AppFoldersTest {
     @Test
     fun aiChoice_overridesTheManifest_butNeverTheUser() {
         // A broker declaring "productivity" is the AI's to correct.
-        val bank = app("Bank", AppCategory.Productivity)
+        val bank = app("Bank", AppCategory.Office)
         val wallet = app("Wallet")
         val chess = app("Chess", AppCategory.Games)
         val sudoku = app("Sudoku", AppCategory.Games)
@@ -141,7 +141,7 @@ class AppFoldersTest {
 
         val grouping = group(
             listOf(bank, wallet, chess, sudoku, notes),
-            assignments = mapOf(notes.id to AppCategory.Productivity),
+            assignments = mapOf(notes.id to AppCategory.Office),
             aiAssignments = mapOf(
                 bank.id to AppCategory.Finance,
                 wallet.id to AppCategory.Finance,
@@ -153,7 +153,7 @@ class AppFoldersTest {
             listOf(
                 folder(AppCategory.Finance, listOf(bank, wallet)),
                 folder(AppCategory.Games, listOf(chess, sudoku)),
-                folder(AppCategory.Productivity, listOf(notes)),
+                folder(AppCategory.Office, listOf(notes)),
             ),
             grouping.folders,
         )
@@ -227,8 +227,9 @@ class AppFoldersTest {
         assertEquals(
             listOf(
                 "ai", "betting", "code", "design", "events", "finance", "food", "games", "government", "health", "home",
-                "internet", "jobs", "kids", "custom-1", "learning", "media", "music", "news", "pets", "phone", "photos", "post",
-                "productivity", "reading", "rewards", "security", "shopping", "social",
+                // "Office & productivity" (maintainer, 2026-11-19) sorts under O.
+                "internet", "jobs", "kids", "custom-1", "learning", "media", "music", "news", "office", "pets", "phone",
+                "photos", "post", "reading", "rewards", "security", "shopping", "social",
                 "sports", "transport", "travel", "weather", "custom-2", "other",
             ),
             folders.map { it.key },
@@ -327,7 +328,7 @@ class AppFoldersTest {
     @Test
     fun productivity_isAnOfficeBuilding_andJobsTakesTheBriefcase() {
         // The maintainer, 2026-11-19.
-        assertEquals(FolderIcon.Business, AppCategory.Productivity.icon)
+        assertEquals(FolderIcon.Business, AppCategory.Office.icon)
         assertEquals(FolderIcon.Work, AppCategory.Jobs.icon)
     }
 

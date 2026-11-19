@@ -53,7 +53,7 @@ class LauncherViewModelAiSortTest {
 
     @Test
     fun sortsEveryAppTheUserLeftUnfiled_manifestCategoryOrNot_andSaysSo() {
-        // Finance apps often declare "productivity", since Android's manifest
+        // Finance apps often declare "office", since Android's manifest
         // categories have no finance; so the AI is asked about them too
         // (maintainer, 2026-11-19: Robinhood, Monzo and Wallet in Productivity).
         seedApp("Fintastic", "com.example.fintastic", ApplicationInfo.CATEGORY_PRODUCTIVITY)
@@ -61,7 +61,7 @@ class LauncherViewModelAiSortTest {
         seedApp("Chess", "com.example.chess", ApplicationInfo.CATEGORY_GAME)
         seedApp("Notes", "com.example.notes")
         model.answer = { prompt -> answerFrom(prompt, mapOf("Fintastic" to "finance", "Notes" to "tools")) }
-        val viewModel = startedViewModel(fileFirst = "Notes" to AppCategory.Productivity)
+        val viewModel = startedViewModel(fileFirst = "Notes" to AppCategory.Office)
 
         val state = viewModel.uiState.value
         assertEquals(1, model.prompts.size)
@@ -182,7 +182,7 @@ class LauncherViewModelAiSortTest {
         startedViewModel()
 
         assertFalse(model.prompts.any { "Waze (com.waze" in it })
-        assertTrue(model.prompts.any { "Notes (com.example.notes; suggested productivity)" in it })
+        assertTrue(model.prompts.any { "Notes (com.example.notes; suggested office)" in it })
     }
 
     @Test

@@ -29,7 +29,7 @@ com.einnovation.temu	Temu: Shop Like a Billionaire	shopping
 com.reddit.frontpage	Reddit	social
 com.zhiliaoapp.musically.go	TikTok Lite - Faster TikTok	social
 com.ss.android.ttmd.video	PineDrama - Short Dramas	media
-com.microsoft.teams	Microsoft Teams	productivity
+com.microsoft.teams	Microsoft Teams	office
 com.freereels.app	FreeReels - Dramas & Reels	media
 com.instagram.android	Instagram	social
 dinnerdeal.android.customer	EatClub - Restaurant Deals	food
@@ -43,9 +43,9 @@ com.transferwise.android	Wise: International Transfers	finance
 com.shopback.app	ShopBack: Cashback & Rewards	rewards
 au.com.ing.banking	ING Banking - Do Your Thing	finance
 com.rbc.mobile.rjj0	Avion Rewards	rewards
-com.microsoft.office.word	Microsoft Word: Edit Documents	productivity
+com.microsoft.office.word	Microsoft Word: Edit Documents	office
 com.twitter.android	X	social
-pdf.pdfreader.viewer.editor.free	PDF Reader - Easy PDF	productivity
+pdf.pdfreader.viewer.editor.free	PDF Reader - Easy PDF	office
 com.larus.wolf	Dola: Smart AI Assistant	ai
 nz.com.kmart	Kmart Shop Low Prices For Life	shopping
 air.ITVMobilePlayer	ITVX	media
@@ -94,7 +94,7 @@ com.freecash.app2	Freecash: Get Rewarded	rewards
 com.instagram.barcelona	Threads	social
 com.costco.app.android	Costco Wholesale	shopping
 com.dd.doordash	DoorDash: Food, Grocery, More	food
-us.zoom.videomeetings	Zoom Workplace	productivity
+us.zoom.videomeetings	Zoom Workplace	office
 au.com.seek	SEEK: Jobs, Job Search & Work	jobs
 com.tracerofficial	AHEALTH: Get Healthy Get Paid	health
 com.bendigobank.mobile	Bendigo Bank	finance
@@ -112,7 +112,7 @@ com.sap.mdc.loblaw.nativ	PC Optimum	shopping
 com.enflick.android.TextNow	TextNow: Call + Text Unlimited	phone
 me.lyft.android	Lyft	transport
 nz.co.asb.asbmobile	ASB Mobile Banking	finance
-com.adobe.reader	Acrobat Reader: PDF Converter	productivity
+com.adobe.reader	Acrobat Reader: PDF Converter	office
 com.tubitv	Tubi: Free Movies & Live TV	media
 bbc.iplayer.android	BBC iPlayer	media
 com.microsoft.emmx	Microsoft Edge	internet
@@ -176,17 +176,17 @@ com.fox.foxone	FOX One: Live News, Sports, TV	media
 com.dpd.yourdpd	DPD	post
 au.com.optus.selfservice	My Optus	phone
 com.aircanada	Air Canada + Aeroplan	travel
-com.trusted.pdfeditor.pdfreader	PDF ProX: PDF Reader & Editor	productivity
+com.trusted.pdfeditor.pdfreader	PDF ProX: PDF Reader & Editor	office
 authenticator.two.factor.authentication.otp	Authenticator App - SafeAuth	security
 com.ubercab.eats	Uber Eats: Food and Grocery	food
 com.suno.android	Suno - AI Music & Songs Maker	music
 com.scee.psxandroid	PlayStation App	games
 com.ebay.mobile	eBay online shopping & selling	shopping
 com.kick.mobile	KICK: Live Streaming	media
-com.dbrsoft.pdf.file.plus	PDF File Plus	productivity
+com.dbrsoft.pdf.file.plus	PDF File Plus	office
 ch.protonvpn.android	Proton VPN: Secure & Fast VPN	internet
 com.kumadrama.doku	Doku: Binge. Create. Repeat	media
-com.google.android.apps.docs.editors.docs	Google Docs	productivity
+com.google.android.apps.docs.editors.docs	Google Docs	office
 com.cvs.launchers.cvs	CVS Health	health
 com.clean.smart.cleanpro	Smart Clean Pro	tools
 nz.co.telecom.smartphone.android	Spark NZ	phone
@@ -212,7 +212,7 @@ ee.mtakso.client	Bolt: Request a Ride	transport
 com.starlink.mobile	Starlink	internet
 com.mobile5.greggs	Greggs App - Food & Drink	food
 com.phonecleaner.junk.storage.cleaner	Clean Pro - AI Cleaner	tools
-com.pdfexpert.docre.qvzmk	PDF Master Pro & Doc Reader	productivity
+com.pdfexpert.docre.qvzmk	PDF Master Pro & Doc Reader	office
 com.triumpharcade.tcg	Rips by Triumph	shopping
 com.newsbreak.crimeradar	CrimeRadar by TownTalk	news
 org.westpac.bank	Westpac	finance
@@ -228,7 +228,7 @@ au.com.nab.mobile	NAB Mobile Banking	finance
 com.truecaller	Truecaller: Spam Call Blocker	phone
 com.certsy.app	SEEK Pass	jobs
 jbl.stc.com	JBL Headphones	music
-com.microsoft.office.powerpoint	Microsoft PowerPoint	productivity
+com.microsoft.office.powerpoint	Microsoft PowerPoint	office
 com.mcdonalds.au.gma	MyMacca's	food
 com.radio.pocketfm	Pocket FM: Audio Dramas	reading
 com.onlinehomeshop.app	Online Home Shop	shopping
@@ -243,7 +243,7 @@ nz.co.smartinvest.mobileapp	Smart Invest NZ	finance
 com.dramawave.app	DramaWave - Dramas & Reels	media
 com.hastingsdirect.mobile	Hastings Direct Insurance	finance
 nz.co.nzpost	NZ Post	post
-com.microsoft.office.excel	Microsoft Excel: Spreadsheets	productivity
+com.microsoft.office.excel	Microsoft Excel: Spreadsheets	office
 com.apple.atve.androidtv.appletv	Apple TV: Shows, Movies & More	media
 com.reels.kivo	KivoReels	media
 ca.autotrader.userapp	AutoTrader - Shop Cars Online	transport

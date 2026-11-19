@@ -132,7 +132,7 @@ class KnownAppsTest {
         for (label in listOf("Australia Post", "DPD", "FedEx", "UPS", "Royal Mail", "Parcel Tracker", "CouriersPlease")) {
             assertEquals(label, AppCategory.Post, knownAppCategory("com.example.post", label))
         }
-        assertEquals(AppCategory.Productivity, knownAppCategory("com.example.mail", "Proton Mail"))
+        assertEquals(AppCategory.Office, knownAppCategory("com.example.mail", "Proton Mail"))
         assertNull(knownAppCategory("com.example.wp", "The Washington Post"))
         // The maintainer, 2026-11-19: Mini Metro is a game, not Transport.
         assertEquals(AppCategory.Games, knownAppCategory("com.example.mm", "Mini Metro"))
