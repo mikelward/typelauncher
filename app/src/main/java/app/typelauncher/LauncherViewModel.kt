@@ -5174,7 +5174,9 @@ internal class LauncherViewModel(
             .distinctBy { app -> app.id }
         val pending = candidates
             .filter { app -> app.id !in sorted }
-            .map { app -> AiSortInput(app.id, app.name, app.packageName) }
+            .map { app ->
+                AiSortInput(app.id, app.name, app.packageName, app.knownCategory() ?: app.guessedCategory())
+            }
         return AiSortWork(total = candidates.size, pending = pending)
     }
 
