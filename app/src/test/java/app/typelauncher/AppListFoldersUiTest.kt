@@ -15,7 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.unit.dp
@@ -39,7 +44,7 @@ class AppListFoldersUiTest {
     private val chess = app("Chess", AppCategory.Games)
     private val sudoku = app("Sudoku", AppCategory.Games)
     private val mail = app("Mail")
-    private val games = AppListFolder(AppCategory.Games, listOf(chess, sudoku))
+    private val games = AppListFolder(AppFolderDef.builtIn(AppCategory.Games), listOf(chess, sudoku))
 
     @Test
     fun closedFolderRow_tapOpensIt() = assertClosedFolderOpens(AppListLayout.NameBeside)
@@ -64,8 +69,8 @@ class AppListFoldersUiTest {
     fun reversedGrid_keepsFoldersLeftToRightInFolderOrder() {
         // A reversed grid flips its rows but not the order within a row, so the
         // folders must still read Games, Social, Other (Codex on PR #850).
-        val social = AppListFolder(AppCategory.Social, listOf(app("Chat"), app("Zoom")))
-        val other = AppListFolder(AppCategory.Other, listOf(app("Notes")))
+        val social = AppListFolder(AppFolderDef.builtIn(AppCategory.Social), listOf(app("Chat"), app("Zoom")))
+        val other = AppListFolder(AppFolderDef.builtIn(AppCategory.Other), listOf(app("Notes")))
         compose(
             layout = AppListLayout.IconOnly,
             apps = listOf(mail),
@@ -230,17 +235,17 @@ class AppListFoldersUiTest {
 
     @Test
     fun moveToFolder_filesTheApp() {
-        var moved: Pair<InstalledApp, AppCategory?>? = null
+        var moved: Pair<InstalledApp, String?>? = null
         compose(
             apps = listOf(mail),
-            folderMenu = AppFolderMenu(folderOf = { null }, onMove = { app, category -> moved = app to category }),
+            folderMenu = folderMenu(onMove = { app, key -> moved = app to key }),
         )
 
         composeRule.onNodeWithTag("$APP_ROW_TAG:Mail").performTouchInput { longClick() }
         composeRule.onNodeWithTag("$MOVE_TO_FOLDER_ACTION_TAG:Mail").performClick()
         composeRule.onNodeWithTag("$APP_FOLDER_PICKER_OPTION_TAG:productivity").performClick()
 
-        assertEquals(mail to AppCategory.Productivity, moved)
+        assertEquals(mail to "productivity", moved)
     }
 
     @Test
@@ -253,7 +258,7 @@ class AppListFoldersUiTest {
 
     @Test
     fun openFolderNote_showsUnderTheHeader() {
-        val other = AppListFolder(AppCategory.Other, listOf(mail))
+        val other = AppListFolder(AppFolderDef.builtIn(AppCategory.Other), listOf(mail))
         compose(
             apps = other.apps,
             openFolder = other,
@@ -340,6 +345,135 @@ class AppListFoldersUiTest {
         composeRule.onNodeWithTag(AI_SORT_STATUS_TAG).assertDoesNotExist()
         composeRule.onNodeWithTag(AI_SORT_RESORT_TAG).assertDoesNotExist()
     }
+
+    @Test
+    fun moveToFolder_listsTheUsersFolders_andOffersANewOne() {
+        val kids = AppFolderDef("custom-1", null, "Kids", FolderIcon.ChildCare)
+        var moved: Pair<InstalledApp, String?>? = null
+        compose(
+            apps = listOf(mail),
+            folderMenu = folderMenu(
+                folders = activeAppFolders(listOf(kids), setOf("games")),
+                onMove = { app, key -> moved = app to key },
+            ),
+        )
+
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Mail").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$MOVE_TO_FOLDER_ACTION_TAG:Mail").performClick()
+        // A deleted folder isn't offered.
+        composeRule.onNodeWithTag("$APP_FOLDER_PICKER_OPTION_TAG:games").assertDoesNotExist()
+        composeRule.onNodeWithTag(APP_FOLDER_PICKER_NEW_TAG).assertExists()
+        composeRule.onNodeWithTag("$APP_FOLDER_PICKER_OPTION_TAG:custom-1").performClick()
+
+        assertEquals(mail to "custom-1", moved)
+    }
+
+    @Test
+    fun folderEditor_needsAName_thenSavesItWithTheChosenIcon() {
+        var saved: Pair<String, FolderIcon>? = null
+        composeRule.setContent {
+            TypeLauncherTheme {
+                AppFolderEditDialogContent(initial = null, onSave = { name, icon -> saved = name to icon }, onDismiss = {})
+            }
+        }
+
+        composeRule.onNodeWithTag(APP_FOLDER_SAVE_TAG).assertIsNotEnabled()
+        composeRule.onNodeWithTag(APP_FOLDER_NAME_FIELD_TAG).performTextInput("Kids")
+        composeRule.onNodeWithTag("$APP_FOLDER_ICON_OPTION_TAG:child_care").performScrollTo().performClick()
+        composeRule.onNodeWithTag(APP_FOLDER_SAVE_TAG).performClick()
+
+        assertEquals("Kids" to FolderIcon.ChildCare, saved)
+    }
+
+    @Test
+    fun folderEditor_keepsSaveInView_onAShortScreen() {
+        // Codex on PR #859: landscape, or the keyboard up.
+        composeRule.setContent {
+            TypeLauncherTheme {
+                Box(modifier = Modifier.height(320.dp)) {
+                    AppFolderEditDialogContent(initial = null, onSave = { _, _ -> }, onDismiss = {})
+                }
+            }
+        }
+
+        composeRule.onNodeWithTag(APP_FOLDER_SAVE_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun folderEditor_namesEachIcon_forTalkBack() {
+        composeRule.setContent {
+            TypeLauncherTheme {
+                AppFolderEditDialogContent(initial = null, onSave = { _, _ -> }, onDismiss = {})
+            }
+        }
+
+        composeRule.onNodeWithTag("$APP_FOLDER_ICON_OPTION_TAG:folder").assertContentDescriptionEquals("Folder")
+        composeRule.onNodeWithTag("$APP_FOLDER_ICON_OPTION_TAG:child_care").performScrollTo()
+            .assertContentDescriptionEquals("Kids")
+    }
+
+    @Test
+    fun folderEditor_startsFromTheFoldersOwnNameAndIcon() {
+        var saved: Pair<String, FolderIcon>? = null
+        val kids = AppFolderDef("custom-1", null, "Kids", FolderIcon.ChildCare)
+        composeRule.setContent {
+            TypeLauncherTheme {
+                AppFolderEditDialogContent(initial = kids, onSave = { name, icon -> saved = name to icon }, onDismiss = {})
+            }
+        }
+
+        composeRule.onNodeWithTag(APP_FOLDER_SAVE_TAG).performClick()
+
+        assertEquals("Kids" to FolderIcon.ChildCare, saved)
+    }
+
+    @Test
+    fun longPressOnAFolder_deletesItOnceConfirmed() {
+        var deleted: AppFolderDef? = null
+        compose(apps = listOf(mail), folders = listOf(games), folderMenu = folderMenu(onDelete = { deleted = it }))
+
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:games").performTouchInput { longClick() }
+        // Built-in folders keep their name and icon.
+        composeRule.onNodeWithTag("$APP_FOLDER_EDIT_ACTION_TAG:games").assertDoesNotExist()
+        composeRule.onNodeWithTag("$APP_FOLDER_DELETE_ACTION_TAG:games").performClick()
+        composeRule.onNodeWithText("Delete Games?").assertExists()
+        composeRule.onNodeWithTag(APP_FOLDER_DELETE_CONFIRM_TAG).performClick()
+
+        assertEquals(games.folder, deleted)
+    }
+
+    @Test
+    fun longPressOnTheUsersFolderTile_offersToEditIt() {
+        val kids = AppListFolder(AppFolderDef("custom-1", null, "Kids", FolderIcon.ChildCare), listOf(chess, sudoku))
+        compose(layout = AppListLayout.NameBelow, apps = listOf(mail), folders = listOf(kids), folderMenu = folderMenu())
+
+        composeRule.onNodeWithText("Kids").assertExists()
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:custom-1").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$APP_FOLDER_EDIT_ACTION_TAG:custom-1").assertExists()
+        composeRule.onNodeWithTag("$APP_FOLDER_DELETE_ACTION_TAG:custom-1").assertExists()
+    }
+
+    @Test
+    fun other_hasNoMenu() {
+        val other = AppListFolder(AppFolderDef.builtIn(AppCategory.Other), listOf(app("Notes")))
+        compose(apps = listOf(mail), folders = listOf(games, other), folderMenu = folderMenu())
+
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:other").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$APP_FOLDER_DELETE_ACTION_TAG:other").assertDoesNotExist()
+    }
+
+    private fun folderMenu(
+        folders: List<AppFolderDef> = activeAppFolders(emptyList(), emptySet()),
+        onMove: (InstalledApp, String?) -> Unit = { _, _ -> },
+        onDelete: (AppFolderDef) -> Unit = {},
+    ) = AppFolderMenu(
+        folders = folders,
+        folderOf = { null },
+        onMove = onMove,
+        onCreate = { _, _, _ -> },
+        onEdit = { _, _, _ -> },
+        onDelete = onDelete,
+    )
 
     private fun compose(
         layout: AppListLayout = AppListLayout.NameBeside,

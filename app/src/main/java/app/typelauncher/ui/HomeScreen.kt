@@ -293,7 +293,10 @@ internal fun HomeScreen(
     // App-list folders: the Home offer's answer, and filing an app.
     onAppFoldersEnabledChanged: (Boolean) -> Unit = {},
     onDismissAppFoldersOffer: () -> Unit = {},
-    onMoveAppToFolder: (InstalledApp, AppCategory?) -> Unit = { _, _ -> },
+    onMoveAppToFolder: (InstalledApp, String?) -> Unit = { _, _ -> },
+    onCreateAppFolder: (InstalledApp, String, FolderIcon) -> Unit = { _, _, _ -> },
+    onEditAppFolder: (AppFolderDef, String, FolderIcon) -> Unit = { _, _, _ -> },
+    onDeleteAppFolder: (AppFolderDef) -> Unit = {},
     onAiSortEnabledChanged: (Boolean) -> Unit = {},
     onDismissAiSortOffer: () -> Unit = {},
     onAcceptGridOffer: () -> Unit = {},
@@ -1288,18 +1291,19 @@ internal fun HomeScreen(
             val aiFolders = if (state.isAiSortEnabled) state.appFolderAiAssignments else emptyMap()
             val appListGrouping = remember(
                 state.filteredApps,
+                state.appFolders,
                 state.appFolderAssignments,
                 aiFolders,
                 showsAppFolders,
             ) {
                 if (showsAppFolders) {
-                    groupAppList(state.filteredApps, state.appFolderAssignments, aiFolders)
+                    groupAppList(state.filteredApps, state.appFolders, state.appFolderAssignments, aiFolders)
                 } else {
                     null
                 }
             }
             val openAppFolder = appListGrouping?.folders?.firstOrNull { folder ->
-                folder.category.storageKey == openAppFolderKey
+                folder.folder.key == openAppFolderKey
             }
             // Back closes an open folder, but only once nothing sits over the
             // list: this handler is composed after TypeLauncherApp's, so it
@@ -1313,16 +1317,25 @@ internal fun HomeScreen(
             ) { openAppFolderKey = null }
             val appFolderMenu = remember(
                 state.isAppFoldersEnabled,
+                state.appFolders,
                 state.appFolderAssignments,
                 aiFolders,
                 onMoveAppToFolder,
+                onCreateAppFolder,
+                onEditAppFolder,
+                onDeleteAppFolder,
             ) {
                 if (state.isAppFoldersEnabled) {
+                    val activeKeys = state.appFolders.mapTo(HashSet()) { it.key }
                     AppFolderMenu(
+                        folders = state.appFolders,
                         folderOf = { app ->
-                            effectiveAppFolder(app, state.appFolderAssignments, aiFolders)
+                            effectiveFolderKey(app, activeKeys, state.appFolderAssignments, aiFolders)
                         },
                         onMove = onMoveAppToFolder,
+                        onCreate = onCreateAppFolder,
+                        onEdit = onEditAppFolder,
+                        onDelete = onDeleteAppFolder,
                     )
                 } else {
                     null
@@ -1390,7 +1403,7 @@ internal fun HomeScreen(
                     draggedAppId = draggingListAppId,
                     folders = if (openAppFolder == null) appListGrouping?.folders.orEmpty() else emptyList(),
                     openFolder = openAppFolder,
-                    onOpenFolder = { folder -> openAppFolderKey = folder.category.storageKey },
+                    onOpenFolder = { folder -> openAppFolderKey = folder.folder.key },
                     onCloseFolder = { openAppFolderKey = null },
                     folderMenu = appFolderMenu,
                     showFoldersOffer = state.isAppFoldersOfferPending && state.query.isBlank(),
@@ -1403,7 +1416,7 @@ internal fun HomeScreen(
                     onDismissFoldersOffer = onDismissAppFoldersOffer,
                     // The Other folder holds what's left to sort, so AI sorting
                     // shows its progress, or offers itself, at the top of it.
-                    openFolderNote = if (openAppFolder?.category == AppCategory.Other && state.isAiSortSupported) {
+                    openFolderNote = if (openAppFolder?.folder?.isOther == true && state.isAiSortSupported) {
                         {
                             OtherFolderAiNote(
                                 progress = if (state.isAiSortEnabled) state.aiSort else AiSortProgress(),
@@ -5322,7 +5335,7 @@ internal fun IconOnlyAppGrid(
  * They go at the visual top of the list, which is the data start, or the data
  * end when [reverseLayout] puts item 0 at the bottom; the caller places the
  * call accordingly, and this reverses the folders so they still read top to
- * bottom in [AppCategory] order.
+ * bottom in folder order.
  */
 private fun LazyListScope.appListFolderItems(
     folders: List<AppListFolder>,
@@ -6266,9 +6279,14 @@ private fun AppActionsMenu(
     }
     if (folderDialogVisible && folderMenu != null) {
         AppFolderPickerDialog(
+            folders = folderMenu.folders,
             current = folderMenu.folderOf(app),
-            onPick = { category ->
-                folderMenu.onMove(app, category)
+            onPick = { key ->
+                folderMenu.onMove(app, key)
+                folderDialogVisible = false
+            },
+            onCreate = { name, icon ->
+                folderMenu.onCreate(app, name, icon)
                 folderDialogVisible = false
             },
             onDismiss = { folderDialogVisible = false },
@@ -7481,6 +7499,7 @@ internal fun SettingsScreen(
     onAppFoldersEnabledChanged: (Boolean) -> Unit = {},
     onAiSortEnabledChanged: (Boolean) -> Unit = {},
     onResortAppsWithAi: () -> Unit = {},
+    onRestoreAppFolders: () -> Unit = {},
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onWallpaperShownChanged: (Boolean) -> Unit = {},
     onChangeWallpaper: () -> Unit = {},
@@ -7821,6 +7840,14 @@ internal fun SettingsScreen(
                         onCheckedChange = onAppFoldersEnabledChanged,
                         modifier = Modifier.testTag(APP_FOLDERS_SWITCH_TAG),
                     )
+                }
+                if (state.isAppFoldersEnabled && state.hasDeletedAppFolders) {
+                    TextButton(
+                        onClick = onRestoreAppFolders,
+                        modifier = Modifier.testTag(APP_FOLDERS_RESTORE_TAG),
+                    ) {
+                        Text(stringResource(R.string.settings_app_folders_restore))
+                    }
                 }
                 // Only where the phone has AICore, and only with folders on,
                 // since sorting is into those folders.

@@ -179,6 +179,112 @@
     <string name="app_folder_picker_none" tools:ignore="MissingTranslation">No folder</string>
     <!-- TODO: translate -->
     <string name="app_folder_picker_cancel" tools:ignore="MissingTranslation">Cancel</string>
+    <!-- The folder icon picker's icons, as TalkBack reads them. -->
+    <!-- TODO: translate -->
+    <string name="folder_icon_folder" tools:ignore="MissingTranslation">Folder</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_star" tools:ignore="MissingTranslation">Star</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_paid" tools:ignore="MissingTranslation">Money</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_sports_esports" tools:ignore="MissingTranslation">Games</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_favorite" tools:ignore="MissingTranslation">Heart</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_home" tools:ignore="MissingTranslation">Home</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_school" tools:ignore="MissingTranslation">Learning</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_play_circle" tools:ignore="MissingTranslation">Video</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_newspaper" tools:ignore="MissingTranslation">News</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_work" tools:ignore="MissingTranslation">Work</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_shopping_bag" tools:ignore="MissingTranslation">Shopping</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_chat" tools:ignore="MissingTranslation">Chat</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_build" tools:ignore="MissingTranslation">Tools</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_travel" tools:ignore="MissingTranslation">Travel</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_directions_bus" tools:ignore="MissingTranslation">Bus</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_train" tools:ignore="MissingTranslation">Train</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_directions_car" tools:ignore="MissingTranslation">Car</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_flight" tools:ignore="MissingTranslation">Plane</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_restaurant" tools:ignore="MissingTranslation">Food</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_language" tools:ignore="MissingTranslation">Internet</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_translate" tools:ignore="MissingTranslation">Languages</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_sports_soccer" tools:ignore="MissingTranslation">Sports</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_fitness_center" tools:ignore="MissingTranslation">Fitness</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_apartment" tools:ignore="MissingTranslation">Office</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_code" tools:ignore="MissingTranslation">Programming</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_palette" tools:ignore="MissingTranslation">Art</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_family_restroom" tools:ignore="MissingTranslation">Family</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_child_care" tools:ignore="MissingTranslation">Kids</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_shield" tools:ignore="MissingTranslation">Insurance</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_lock" tools:ignore="MissingTranslation">Security</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_smartphone" tools:ignore="MissingTranslation">Phone</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_account_balance" tools:ignore="MissingTranslation">Government</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_badge" tools:ignore="MissingTranslation">ID</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_flag" tools:ignore="MissingTranslation">Country</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_menu_book" tools:ignore="MissingTranslation">Reading</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_partly_cloudy_day" tools:ignore="MissingTranslation">Weather</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_eco" tools:ignore="MissingTranslation">Nature</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_music_note" tools:ignore="MissingTranslation">Music</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_photo_camera" tools:ignore="MissingTranslation">Photos</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_pets" tools:ignore="MissingTranslation">Pets</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_more_horiz" tools:ignore="MissingTranslation">More</string>
+    <!-- Making, editing and deleting app-list folders. -->
+    <!-- TODO: translate -->
+    <string name="app_folder_picker_new" tools:ignore="MissingTranslation">New folder</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_new_title" tools:ignore="MissingTranslation">New folder</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_edit_title" tools:ignore="MissingTranslation">Edit folder</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_name_label" tools:ignore="MissingTranslation">Name</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_save" tools:ignore="MissingTranslation">Save</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_menu_edit" tools:ignore="MissingTranslation">Edit folder</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_menu_delete" tools:ignore="MissingTranslation">Delete folder</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_delete_title" tools:ignore="MissingTranslation">Delete %1$s?</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_delete_text" tools:ignore="MissingTranslation">Its apps stay installed and move to other folders.</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_delete_confirm" tools:ignore="MissingTranslation">Delete</string>
+    <!-- TODO: translate -->
+    <string name="settings_app_folders_restore" tools:ignore="MissingTranslation">Restore deleted folders</string>
     <!-- App list folder names. -->
     <!-- TODO: translate -->
     <string name="app_folder_finance" tools:ignore="MissingTranslation">Finance</string>

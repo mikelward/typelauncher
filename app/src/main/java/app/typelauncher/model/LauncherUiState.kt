@@ -849,9 +849,14 @@ internal data class LauncherUiState(
     // "Group apps into folders" (off by default): the blank-query app list
     // shows folders (see `groupAppList`) above the apps left loose.
     val isAppFoldersEnabled: Boolean = false,
-    // The folder the user filed each app into, by app id; null means "no
-    // folder". Apps with no entry follow their manifest's category.
-    val appFolderAssignments: Map<String, AppCategory?> = emptyMap(),
+    // The folders in use, in list order: built-ins not deleted, the user's
+    // own, then Other (see `activeAppFolders`), and whether any built-in was
+    // deleted, for Settings' "Restore deleted folders".
+    val appFolders: List<AppFolderDef> = activeAppFolders(emptyList(), emptySet()),
+    val hasDeletedAppFolders: Boolean = false,
+    // The folder key the user filed each app into, by app id; null means "no
+    // folder". Apps with no entry follow the AI, then their manifest.
+    val appFolderAssignments: Map<String, String?> = emptyMap(),
     // Whether Home still offers, once, to turn folders on.
     val isAppFoldersOfferPending: Boolean = false,
     // Whether Home still offers, once, to show apps as a grid ("Name below").
@@ -860,7 +865,7 @@ internal data class LauncherUiState(
     // "Sort with on-device AI": the folder it chose for each app it sorted,
     // whether this device can run it (AICore is installed), whether it's on,
     // whether the Other folder still offers it, and what it's doing now.
-    val appFolderAiAssignments: Map<String, AppCategory> = emptyMap(),
+    val appFolderAiAssignments: Map<String, String> = emptyMap(),
     val isAiSortSupported: Boolean = false,
     val isAiSortEnabled: Boolean = false,
     val isAiSortOfferPending: Boolean = false,

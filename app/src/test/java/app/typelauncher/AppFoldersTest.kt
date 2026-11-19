@@ -50,12 +50,12 @@ class AppFoldersTest {
         val mail = app("Mail")
         val sudoku = app("Sudoku", AppCategory.Games)
 
-        val grouping = groupAppList(listOf(chess, mail, sudoku), emptyMap())
+        val grouping = group(listOf(chess, mail, sudoku), emptyMap())
 
         assertEquals(
             listOf(
-                AppListFolder(AppCategory.Games, listOf(chess, sudoku)),
-                AppListFolder(AppCategory.Other, listOf(mail)),
+                folder(AppCategory.Games, listOf(chess, sudoku)),
+                folder(AppCategory.Other, listOf(mail)),
             ),
             grouping.folders,
         )
@@ -69,7 +69,7 @@ class AppFoldersTest {
         val chat = app("Chat", AppCategory.Social)
         val zoom = app("Zoom", AppCategory.Social)
 
-        val grouping = groupAppList(listOf(chess, mail, chat, zoom), emptyMap())
+        val grouping = group(listOf(chess, mail, chat, zoom), emptyMap())
 
         assertEquals(listOf(AppCategory.Social, AppCategory.Other), grouping.folders.map { it.category })
         assertEquals(listOf(chess, mail), grouping.folders[1].apps)
@@ -81,7 +81,7 @@ class AppFoldersTest {
         val chess = app("Chess", AppCategory.Games)
         val mail = app("Mail")
 
-        val grouping = groupAppList(listOf(chess, mail), emptyMap())
+        val grouping = group(listOf(chess, mail), emptyMap())
 
         assertEquals(emptyList<AppListFolder>(), grouping.folders)
         assertEquals(listOf(chess, mail), grouping.looseApps)
@@ -93,7 +93,7 @@ class AppFoldersTest {
         val chess = app("Chess", AppCategory.Games)
         val sudoku = app("Sudoku", AppCategory.Games)
 
-        val grouping = groupAppList(
+        val grouping = group(
             listOf(bank, chess, sudoku),
             mapOf(bank.id to AppCategory.Finance, chess.id to null),
         )
@@ -102,8 +102,8 @@ class AppFoldersTest {
         // "No folder", so loose. That leaves Sudoku alone, so it goes in Other.
         assertEquals(
             listOf(
-                AppListFolder(AppCategory.Finance, listOf(bank)),
-                AppListFolder(AppCategory.Other, listOf(sudoku)),
+                folder(AppCategory.Finance, listOf(bank)),
+                folder(AppCategory.Other, listOf(sudoku)),
             ),
             grouping.folders,
         )
@@ -117,7 +117,7 @@ class AppFoldersTest {
         val chat = app("Chat", AppCategory.Social)
         val sudoku = app("Sudoku", AppCategory.Games)
 
-        val grouping = groupAppList(listOf(zoom, chess, chat, sudoku), emptyMap())
+        val grouping = group(listOf(zoom, chess, chat, sudoku), emptyMap())
 
         assertEquals(listOf(AppCategory.Games, AppCategory.Social), grouping.folders.map { it.category })
         assertEquals(listOf(zoom, chat), grouping.folders[1].apps)
@@ -132,7 +132,7 @@ class AppFoldersTest {
         val sudoku = app("Sudoku", AppCategory.Games)
         val notes = app("Notes")
 
-        val grouping = groupAppList(
+        val grouping = group(
             listOf(bank, wallet, chess, sudoku, notes),
             assignments = mapOf(notes.id to AppCategory.Productivity),
             aiAssignments = mapOf(
@@ -144,9 +144,9 @@ class AppFoldersTest {
 
         assertEquals(
             listOf(
-                AppListFolder(AppCategory.Finance, listOf(bank, wallet)),
-                AppListFolder(AppCategory.Games, listOf(chess, sudoku)),
-                AppListFolder(AppCategory.Productivity, listOf(notes)),
+                folder(AppCategory.Finance, listOf(bank, wallet)),
+                folder(AppCategory.Games, listOf(chess, sudoku)),
+                folder(AppCategory.Productivity, listOf(notes)),
             ),
             grouping.folders,
         )
@@ -156,13 +156,73 @@ class AppFoldersTest {
     fun effectiveFolder_prefersTheUsersFiling() {
         val chess = app("Chess", AppCategory.Games)
 
-        assertEquals(AppCategory.Games, effectiveAppFolder(chess, emptyMap()))
-        assertNull(effectiveAppFolder(chess, mapOf(chess.id to null)))
-        assertEquals(AppCategory.Tools, effectiveAppFolder(chess, mapOf(chess.id to AppCategory.Tools)))
+        assertEquals("games", effective(chess))
+        assertNull(effective(chess, mapOf(chess.id to null)))
+        assertEquals("tools", effective(chess, mapOf(chess.id to "tools")))
         val bank = app("Bank")
-        assertEquals(AppCategory.Other, effectiveAppFolder(bank, emptyMap()))
-        assertEquals(AppCategory.Finance, effectiveAppFolder(bank, emptyMap(), mapOf(bank.id to AppCategory.Finance)))
-        assertEquals(AppCategory.Social, effectiveAppFolder(chess, emptyMap(), mapOf(chess.id to AppCategory.Social)))
+        assertEquals("other", effective(bank))
+        assertEquals("finance", effective(bank, ai = mapOf(bank.id to "finance")))
+        assertEquals("social", effective(chess, ai = mapOf(chess.id to "social")))
+    }
+
+    @Test
+    fun aDeletedFolder_isPassedOver_andItsAppsGoWhereTheyWouldOtherwise() {
+        // Games deleted: the user's filing into it and the AI's are passed
+        // over, and a game's manifest no longer files it there.
+        val folders = activeAppFolders(emptyList(), setOf("games", "finance"))
+        val chess = app("Chess", AppCategory.Games)
+        val sudoku = app("Sudoku")
+        val bank = app("Bank")
+        val chat = app("Chat", AppCategory.Social)
+        val zoom = app("Zoom", AppCategory.Social)
+
+        val grouping = groupAppList(
+            listOf(chess, sudoku, bank, chat, zoom),
+            folders,
+            assignments = mapOf(sudoku.id to "games"),
+            aiAssignments = mapOf(bank.id to "finance"),
+        )
+
+        assertEquals(listOf("social", "other"), grouping.folders.map { it.folder.key })
+        assertEquals(listOf(chess, sudoku, bank), grouping.folders[1].apps)
+    }
+
+    @Test
+    fun usersOwnFolder_takesTheAppsFiledInIt_inAlphabeticalPlace() {
+        val kids = AppFolderDef("custom-1", null, "Kids", FolderIcon.ChildCare)
+        val folders = activeAppFolders(listOf(kids), emptySet())
+        val chess = app("Chess", AppCategory.Games)
+        val sudoku = app("Sudoku", AppCategory.Games)
+        val crayons = app("Crayons")
+        val mail = app("Mail")
+
+        val grouping = groupAppList(
+            listOf(chess, sudoku, crayons, mail),
+            folders,
+            assignments = mapOf(crayons.id to "custom-1"),
+        )
+
+        assertEquals(listOf("games", "custom-1", "other"), grouping.folders.map { it.folder.key })
+        assertEquals(listOf(crayons), grouping.folders[1].apps)
+    }
+
+    @Test
+    fun activeFolders_mixTheUsersWithTheBuiltIns_alphabetically_withOtherLast() {
+        val folders = activeAppFolders(
+            listOf(
+                AppFolderDef("custom-2", null, "zoo", FolderIcon.Pets),
+                AppFolderDef("custom-1", null, "Kids", FolderIcon.ChildCare),
+            ),
+            setOf("tools"),
+        )
+
+        assertEquals(
+            listOf(
+                "finance", "games", "health", "home", "custom-1", "learning", "media", "news",
+                "productivity", "shopping", "social", "travel", "custom-2", "other",
+            ),
+            folders.map { it.key },
+        )
     }
 
     @Test
@@ -173,6 +233,31 @@ class AppFoldersTest {
         assertNull(AppCategory.fromStorageKey("unknown"))
         assertEquals(AppCategory.Other, AppCategory.entries.last())
     }
+
+    private val defaults = activeAppFolders(emptyList(), emptySet())
+
+    // The built-in folders, with filings by category, as most tests here use.
+    private fun group(
+        apps: List<InstalledApp>,
+        assignments: Map<String, AppCategory?>,
+        aiAssignments: Map<String, AppCategory> = emptyMap(),
+    ): AppListGrouping = groupAppList(
+        apps,
+        defaults,
+        assignments.mapValues { (_, category) -> category?.storageKey },
+        aiAssignments.mapValues { (_, category) -> category.storageKey },
+    )
+
+    private fun folder(category: AppCategory, apps: List<InstalledApp>) =
+        AppListFolder(AppFolderDef.builtIn(category), apps)
+
+    private val AppListFolder.category: AppCategory? get() = folder.category
+
+    private fun effective(
+        app: InstalledApp,
+        assignments: Map<String, String?> = emptyMap(),
+        ai: Map<String, String> = emptyMap(),
+    ): String? = effectiveFolderKey(app, defaults.mapTo(HashSet()) { it.key }, assignments, ai)
 
     private fun app(name: String, category: AppCategory? = null): InstalledApp = InstalledApp(
         name = name,

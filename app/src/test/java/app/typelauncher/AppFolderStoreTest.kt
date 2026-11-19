@@ -28,7 +28,7 @@ class AppFolderStoreTest {
 
         assertFalse(store.isEnabled)
         assertFalse(store.isOfferAnswered)
-        assertEquals(emptyMap<String, AppCategory?>(), store.assignments)
+        assertEquals(emptyMap<String, String?>(), store.assignments)
     }
 
     @Test
@@ -46,12 +46,12 @@ class AppFolderStoreTest {
     @Test
     fun filingsPersist_includingNoFolder() {
         AppFolderStore(context).apply {
-            assign("0:com.example.bank/.Main", AppCategory.Finance)
+            assign("0:com.example.bank/.Main", "finance")
             assign("0:com.example.chess/.Main", null)
         }
 
         val assignments = AppFolderStore(context).assignments
-        assertEquals(AppCategory.Finance, assignments["0:com.example.bank/.Main"])
+        assertEquals("finance", assignments["0:com.example.bank/.Main"])
         assertTrue(assignments.containsKey("0:com.example.chess/.Main"))
         assertEquals(null, assignments["0:com.example.chess/.Main"])
     }
@@ -59,17 +59,19 @@ class AppFolderStoreTest {
     @Test
     fun refilingReplacesTheEarlierFolder() {
         val store = AppFolderStore(context)
-        store.assign("a", AppCategory.Games)
-        store.assign("a", AppCategory.Tools)
+        store.assign("a", "games")
+        store.assign("a", "tools")
 
-        assertEquals(mapOf("a" to AppCategory.Tools), AppFolderStore(context).assignments)
+        assertEquals(mapOf("a" to "tools"), AppFolderStore(context).assignments)
     }
 
     @Test
     fun unreadableEntriesAreDropped_restKept() {
+        // A folder this build doesn't know (one since deleted, or from a newer
+        // version) is kept; grouping passes it over.
         val parsed = AppFolderStore.parse("a\tgames\nb\tfromthefuture\n\tsocial\nnot-a-pair\nc\tnone")
 
-        assertEquals(mapOf("a" to AppCategory.Games, "c" to null), parsed)
+        assertEquals(mapOf("a" to "games", "b" to "fromthefuture", "c" to null), parsed)
     }
 
     @Test
@@ -77,37 +79,111 @@ class AppFolderStoreTest {
         AppFolderStore(context).apply {
             isAiSortEnabled = true
             isAiOfferAnswered = true
-            assign("mine", AppCategory.Tools)
-            assignByAi(mapOf("a" to AppCategory.Finance, "b" to AppCategory.Other))
+            assign("mine", "tools")
+            assignByAi(mapOf("a" to "finance", "b" to "other"))
         }
 
         val reopened = AppFolderStore(context)
         assertTrue(reopened.isAiSortEnabled)
         assertTrue(reopened.isAiOfferAnswered)
-        assertEquals(mapOf("a" to AppCategory.Finance, "b" to AppCategory.Other), reopened.aiAssignments)
+        assertEquals(mapOf("a" to "finance", "b" to "other"), reopened.aiAssignments)
 
         reopened.clearAiAssignments()
         val cleared = AppFolderStore(context)
-        assertEquals(emptyMap<String, AppCategory>(), cleared.aiAssignments)
-        assertEquals(mapOf("mine" to AppCategory.Tools), cleared.assignments)
+        assertEquals(emptyMap<String, String>(), cleared.aiAssignments)
+        assertEquals(mapOf("mine" to "tools"), cleared.assignments)
     }
 
     @Test
     fun aiChoicesFromOtherInstructions_areForgotten_once_andTheUsersFilingsKept() {
         AppFolderStore(context).apply {
             forgetAiChoicesUnlessMadeBy(1)
-            assign("mine", AppCategory.Tools)
-            assignByAi(mapOf("a" to AppCategory.Finance))
+            assign("mine", "tools")
+            assignByAi(mapOf("a" to "finance"))
         }
 
         // Same instructions: kept.
         assertFalse(AppFolderStore(context).forgetAiChoicesUnlessMadeBy(1))
-        assertEquals(mapOf("a" to AppCategory.Finance), AppFolderStore(context).aiAssignments)
+        assertEquals(mapOf("a" to "finance"), AppFolderStore(context).aiAssignments)
 
         // New instructions (a folder added): forgotten, the user's kept, and only once.
         assertTrue(AppFolderStore(context).forgetAiChoicesUnlessMadeBy(2))
-        assertEquals(emptyMap<String, AppCategory>(), AppFolderStore(context).aiAssignments)
-        assertEquals(mapOf("mine" to AppCategory.Tools), AppFolderStore(context).assignments)
+        assertEquals(emptyMap<String, String>(), AppFolderStore(context).aiAssignments)
+        assertEquals(mapOf("mine" to "tools"), AppFolderStore(context).assignments)
         assertFalse(AppFolderStore(context).forgetAiChoicesUnlessMadeBy(2))
     }
+
+    @Test
+    fun usersFolders_persist_withTheirNameAndIcon_andCanBeEdited() {
+        val kids = AppFolderStore(context).createFolder("  Kids\tstuff\n ", FolderIcon.ChildCare)
+        val work = AppFolderStore(context).createFolder("Work", FolderIcon.Work)
+        assertEquals("custom-1", kids.key)
+        assertEquals("custom-2", work.key)
+
+        AppFolderStore(context).editFolder(kids.key, "Family", FolderIcon.FamilyRestroom)
+
+        val folders = AppFolderStore(context).folders
+        assertEquals(
+            AppFolderDef("custom-1", null, "Family", FolderIcon.FamilyRestroom),
+            folders.first { it.key == "custom-1" },
+        )
+        assertEquals("Work", folders.first { it.key == "custom-2" }.name)
+        assertEquals("other", folders.last().key)
+    }
+
+    @Test
+    fun aFolderName_isKeptToOneLine() {
+        val folder = AppFolderStore(context).createFolder("  Kids\tstuff\n ", FolderIcon.ChildCare)
+
+        assertEquals("Kids stuff", folder.name)
+        assertEquals("Kids stuff", AppFolderStore(context).folders.first { it.key == folder.key }.name)
+    }
+
+    @Test
+    fun deletingAFolder_dropsItsFilings_andANewFolderNeverReusesItsKey() {
+        val store = AppFolderStore(context)
+        val kids = store.createFolder("Kids", FolderIcon.ChildCare)
+        store.assign("crayons", kids.key)
+        store.assign("chess", "games")
+        store.assign("mail", "productivity")
+        store.assignByAi(mapOf("sudoku" to "games", "bank" to "finance"))
+
+        store.deleteFolder(kids.key)
+        store.deleteFolder("games")
+
+        val reopened = AppFolderStore(context)
+        assertEquals(mapOf("mail" to "productivity"), reopened.assignments)
+        assertEquals(mapOf("bank" to "finance"), reopened.aiAssignments)
+        assertTrue(reopened.hasDeletedBuiltIns)
+        assertFalse(reopened.folders.any { it.key == "games" || it.key == kids.key })
+        assertEquals("custom-2", reopened.createFolder("Kids", FolderIcon.ChildCare).key)
+    }
+
+    @Test
+    fun other_cantBeDeleted_andRestoringBringsBackTheBuiltIns() {
+        val store = AppFolderStore(context)
+        store.deleteFolder("other")
+        store.deleteFolder("games")
+        assertEquals("other", store.folders.last().key)
+
+        store.restoreBuiltInFolders()
+
+        val reopened = AppFolderStore(context)
+        assertFalse(reopened.hasDeletedBuiltIns)
+        assertEquals(activeAppFolders(emptyList(), emptySet()), reopened.folders)
+    }
+
+    @Test
+    fun unreadableFolders_areDropped_restKept() {
+        val parsed = AppFolderStore.parseFolders("custom-1\tpets\tZoo\ngames\tstar\tGames\ncustom-2\tunknown\tKids\ncustom-3\tstar\t")
+
+        assertEquals(
+            listOf(
+                AppFolderDef("custom-1", null, "Zoo", FolderIcon.Pets),
+                AppFolderDef("custom-2", null, "Kids", FolderIcon.Folder),
+            ),
+            parsed,
+        )
+    }
+
 }

@@ -465,6 +465,8 @@ internal class LauncherViewModel(
             appListSortOrder = dockSettingsStore.appListSortOrder,
             isLetterStripEnabled = dockSettingsStore.isLetterStripEnabled,
             isAppFoldersEnabled = appFolderStore.isEnabled,
+            appFolders = appFolderStore.folders,
+            hasDeletedAppFolders = appFolderStore.hasDeletedBuiltIns,
             appFolderAssignments = appFolderStore.assignments,
             isAppFoldersOfferPending = !appFolderStore.isOfferAnswered && !appFolderStore.isEnabled,
             isGridOfferPending = !dockSettingsStore.isGridOfferAnswered &&
@@ -5199,12 +5201,13 @@ internal class LauncherViewModel(
                     val parsed = parseAiSortAnswer(model.generate(buildAiSortPrompt(batch)), batch)
                     // An app the answer left out is asked about again, up to
                     // AI_SORT_MAX_MISSES times, then filed in Other.
-                    val choices = LinkedHashMap(parsed)
+                    val choices = LinkedHashMap<String, String>()
+                    for ((id, category) in parsed) choices[id] = category.storageKey
                     for (app in batch) {
                         if (app.id in parsed) continue
                         val misses = (aiSortMisses[app.id] ?: 0) + 1
                         aiSortMisses[app.id] = misses
-                        if (misses >= AI_SORT_MAX_MISSES) choices[app.id] = AppCategory.Other
+                        if (misses >= AI_SORT_MAX_MISSES) choices[app.id] = AppCategory.Other.storageKey
                     }
                     LauncherDebugLog.event(
                         "aiSort batch size=%s answered=%s",
@@ -5251,12 +5254,66 @@ internal class LauncherViewModel(
         logState("dismissAppFoldersOffer")
     }
 
-    /** Files [app] into [category]'s folder, or keeps it out of every folder when null. */
-    fun moveAppToFolder(app: InstalledApp, category: AppCategory?) {
-        LauncherDebugLog.event("moveAppToFolder package=%s folder=%s", app.packageName, category)
-        appFolderStore.assign(app.id, category)
+    /** Files [app] into the folder [key], or keeps it out of every folder when null. */
+    fun moveAppToFolder(app: InstalledApp, key: String?) {
+        LauncherDebugLog.event("moveAppToFolder package=%s folder=%s", app.packageName, key)
+        appFolderStore.assign(app.id, key)
         _uiState.update { it.copy(appFolderAssignments = appFolderStore.assignments) }
         logState("moveAppToFolder")
+    }
+
+    /**
+     * Makes a folder named [name] with [icon] and files [app] into it. A
+     * blank name makes nothing. The folder's name stays out of the log: it's
+     * the user's own text.
+     */
+    fun createAppFolder(app: InstalledApp, name: String, icon: FolderIcon) {
+        if (name.isBlank()) return
+        val folder = appFolderStore.createFolder(name, icon)
+        LauncherDebugLog.event("createAppFolder folder=%s icon=%s", folder.key, icon.storageKey)
+        appFolderStore.assign(app.id, folder.key)
+        publishAppFolders()
+        logState("createAppFolder")
+    }
+
+    /** Renames a folder the user made, or changes its icon. */
+    fun editAppFolder(folder: AppFolderDef, name: String, icon: FolderIcon) {
+        if (name.isBlank()) return
+        appFolderStore.editFolder(folder.key, name, icon)
+        LauncherDebugLog.event("editAppFolder folder=%s icon=%s", folder.key, icon.storageKey)
+        publishAppFolders()
+        logState("editAppFolder")
+    }
+
+    /**
+     * Deletes [folder]; its apps stay installed and are sorted again: by the
+     * AI while that's on, else by their manifest, else into Other.
+     */
+    fun deleteAppFolder(folder: AppFolderDef) {
+        appFolderStore.deleteFolder(folder.key)
+        LauncherDebugLog.event("deleteAppFolder folder=%s", folder.key)
+        publishAppFolders()
+        maybeStartAiSort()
+        logState("deleteAppFolder")
+    }
+
+    /** Settings' "Restore deleted folders": brings back the built-in folders. */
+    fun restoreAppFolders() {
+        appFolderStore.restoreBuiltInFolders()
+        LauncherDebugLog.event("restoreAppFolders")
+        publishAppFolders()
+        logState("restoreAppFolders")
+    }
+
+    private fun publishAppFolders() {
+        _uiState.update {
+            it.copy(
+                appFolders = appFolderStore.folders,
+                hasDeletedAppFolders = appFolderStore.hasDeletedBuiltIns,
+                appFolderAssignments = appFolderStore.assignments,
+                appFolderAiAssignments = appFolderStore.aiAssignments,
+            )
+        }
     }
 
     fun setLandscapeDockPosition(position: LandscapeDockPosition) {
