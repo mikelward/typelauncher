@@ -146,6 +146,84 @@ class LauncherViewModelAppFoldersTest {
     }
 
     @Test
+    fun typingAFoldersName_findsTheFolder_andItsAppsAfterTheNameMatches() {
+        // The maintainer, 2026-11-19: search matches folder names.
+        seedApp("Chess", "com.example.chess", category = ApplicationInfo.CATEGORY_GAME)
+        seedApp("Sudoku", "com.example.sudoku", category = ApplicationInfo.CATEGORY_GAME)
+        seedApp("Gamma", "com.example.gamma")
+        seedApp("Mail", "com.example.mail")
+        val viewModel = newViewModel()
+        idle()
+        viewModel.setAppFoldersEnabled(true)
+
+        viewModel.setQuery("gam")
+        idle()
+
+        val state = viewModel.uiState.value
+        assertEquals(listOf("games"), state.searchFolders.map { it.folder.key })
+        assertEquals(setOf("Chess", "Sudoku"), state.searchFolders.single().apps.map { it.name }.toSet())
+        val names = state.filteredApps.map { it.name }
+        assertEquals("Gamma", names.first())
+        assertTrue(names.containsAll(listOf("Chess", "Sudoku")))
+        assertFalse("Mail" in names)
+    }
+
+    @Test
+    fun folderSearch_findsOnlyFoldersTheListShows_withDockedAppsLeftOut() {
+        // Codex on PR #862: two docked games make no Games folder in the
+        // list, so search mustn't offer one that wouldn't open.
+        seedApp("Chess", "com.example.chess", category = ApplicationInfo.CATEGORY_GAME)
+        seedApp("Sudoku", "com.example.sudoku", category = ApplicationInfo.CATEGORY_GAME)
+        seedApp("Mail", "com.example.mail")
+        val viewModel = newViewModel()
+        idle()
+        viewModel.setAppFoldersEnabled(true)
+        for (name in listOf("Chess", "Sudoku")) {
+            val app = viewModel.uiState.value.filteredApps.first { it.name == name }
+            if (!app.isDocked) viewModel.toggleDock(app, maxDockedApps = 12)
+        }
+        idle()
+
+        viewModel.setQuery("gam")
+        idle()
+
+        assertTrue(viewModel.uiState.value.searchFolders.isEmpty())
+    }
+
+    @Test
+    fun folderSearch_followsAFolderChange_madeWhileSearching() {
+        // Codex on PR #862: deleting the folder a search found drops it.
+        seedApp("Chess", "com.example.chess", category = ApplicationInfo.CATEGORY_GAME)
+        seedApp("Sudoku", "com.example.sudoku", category = ApplicationInfo.CATEGORY_GAME)
+        val viewModel = newViewModel()
+        idle()
+        viewModel.setAppFoldersEnabled(true)
+        viewModel.setQuery("gam")
+        idle()
+        assertEquals(listOf("games"), viewModel.uiState.value.searchFolders.map { it.folder.key })
+
+        viewModel.deleteAppFolder(AppFolderDef.builtIn(AppCategory.Games))
+        idle()
+
+        assertTrue(viewModel.uiState.value.searchFolders.isEmpty())
+        assertTrue(viewModel.uiState.value.filteredApps.isEmpty())
+    }
+
+    @Test
+    fun folderSearch_isOff_whileFoldersAre() {
+        seedApp("Chess", "com.example.chess", category = ApplicationInfo.CATEGORY_GAME)
+        seedApp("Sudoku", "com.example.sudoku", category = ApplicationInfo.CATEGORY_GAME)
+        val viewModel = newViewModel()
+        idle()
+
+        viewModel.setQuery("gam")
+        idle()
+
+        assertTrue(viewModel.uiState.value.searchFolders.isEmpty())
+        assertTrue(viewModel.uiState.value.filteredApps.isEmpty())
+    }
+
+    @Test
     fun loadedApps_carryTheirManifestCategory() {
         seedApp("Chess", "com.example.chess", category = ApplicationInfo.CATEGORY_GAME)
         seedApp("Mail", "com.example.mail")

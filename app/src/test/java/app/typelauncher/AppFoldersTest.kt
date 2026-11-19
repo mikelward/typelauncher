@@ -5,7 +5,9 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.os.Process
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -236,6 +238,15 @@ class AppFoldersTest {
         assertEquals("transport", effective(waze, ai = mapOf(waze.id to "tools")))
         assertEquals("games", effective(rdr, ai = mapOf(rdr.id to "media")))
         assertEquals("tools", effective(waze, assignments = mapOf(waze.id to "tools")))
+    }
+
+    @Test
+    fun folderNames_matchByTheStartOfAnyWord_ignoringCase() {
+        assertTrue(folderNameMatches("Games", "gam"))
+        assertTrue(folderNameMatches("Pets & animals", "ANIM"))
+        assertTrue(folderNameMatches("Kids Stuff", "stu"))
+        assertFalse(folderNameMatches("Games", "ames"))
+        assertFalse(folderNameMatches("Games", " "))
     }
 
     @Test

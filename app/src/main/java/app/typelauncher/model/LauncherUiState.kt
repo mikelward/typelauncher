@@ -857,6 +857,9 @@ internal data class LauncherUiState(
     // The folder key the user filed each app into, by app id; null means "no
     // folder". Apps with no entry follow the AI, then their manifest.
     val appFolderAssignments: Map<String, String?> = emptyMap(),
+    // Folders whose name the query matches, with their apps; shown above
+    // typed results (see `folderSearchFor`). Empty with a blank query.
+    val searchFolders: List<AppListFolder> = emptyList(),
     // Whether Home still offers, once, to turn folders on.
     val isAppFoldersOfferPending: Boolean = false,
     // Whether Home still offers, once, to show apps as a grid ("Name below").

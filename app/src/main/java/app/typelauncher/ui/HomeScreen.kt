@@ -1404,9 +1404,19 @@ internal fun HomeScreen(
                     onCardBoundsChanged = { bounds -> appListBoundsInRoot = bounds },
                     appDrag = appListDragHandlers,
                     draggedAppId = draggingListAppId,
-                    folders = if (openAppFolder == null) appListGrouping?.folders.orEmpty() else emptyList(),
+                    // Typed search shows the folders the query names (see
+                    // `folderSearchFor`); opening one clears the query and
+                    // opens it in the browse list.
+                    folders = when {
+                        openAppFolder != null -> emptyList()
+                        state.query.isNotBlank() -> if (state.isAppFoldersEnabled) state.searchFolders else emptyList()
+                        else -> appListGrouping?.folders.orEmpty()
+                    },
                     openFolder = openAppFolder,
-                    onOpenFolder = { folder -> openAppFolderKey = folder.folder.key },
+                    onOpenFolder = { folder ->
+                        if (state.query.isNotBlank()) onClearQuery()
+                        openAppFolderKey = folder.folder.key
+                    },
                     onCloseFolder = { openAppFolderKey = null },
                     folderMenu = appFolderMenu,
                     showFoldersOffer = state.isAppFoldersOfferPending && state.query.isBlank(),

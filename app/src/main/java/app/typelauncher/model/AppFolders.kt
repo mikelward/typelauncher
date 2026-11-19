@@ -276,3 +276,17 @@ internal fun groupAppList(
 }
 
 internal const val MIN_APP_FOLDER_MEMBERS = 2
+
+/**
+ * Whether typing [query] finds the folder called [label]: the start of its
+ * name or of any word in it, ignoring case ("gam" finds Games, "anim" finds
+ * Pets & animals).
+ */
+internal fun folderNameMatches(label: String, query: String): Boolean {
+    val wanted = query.trim().lowercase()
+    if (wanted.isEmpty()) return false
+    val name = label.lowercase()
+    return name.startsWith(wanted) || name.split(FOLDER_NAME_WORD_BREAK).any { it.startsWith(wanted) }
+}
+
+private val FOLDER_NAME_WORD_BREAK = Regex("""[^\p{L}\p{N}]+""")
