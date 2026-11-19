@@ -125,6 +125,7 @@ internal fun FolderIcon.vector(): ImageVector = when (this) {
     FolderIcon.Shield -> CategoryIcons.Shield
     FolderIcon.Lock -> CategoryIcons.Lock
     FolderIcon.Call -> CategoryIcons.Call
+    FolderIcon.Key -> CategoryIcons.Key
     FolderIcon.MarkunreadMailbox -> CategoryIcons.MarkunreadMailbox
     FolderIcon.Smartphone -> CategoryIcons.Smartphone
     FolderIcon.AccountBalance -> CategoryIcons.AccountBalance
@@ -173,6 +174,7 @@ internal fun FolderIcon.descriptionRes(): Int = when (this) {
     FolderIcon.Shield -> R.string.folder_icon_shield
     FolderIcon.Lock -> R.string.folder_icon_lock
     FolderIcon.Call -> R.string.folder_icon_call
+    FolderIcon.Key -> R.string.folder_icon_key
     FolderIcon.MarkunreadMailbox -> R.string.folder_icon_markunread_mailbox
     FolderIcon.Smartphone -> R.string.folder_icon_smartphone
     FolderIcon.AccountBalance -> R.string.folder_icon_account_balance

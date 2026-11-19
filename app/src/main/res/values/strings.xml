@@ -243,6 +243,8 @@
     <!-- TODO: translate -->
     <string name="folder_icon_lock" tools:ignore="MissingTranslation">Security</string>
     <!-- TODO: translate -->
+    <string name="folder_icon_key" tools:ignore="MissingTranslation">Passwords</string>
+    <!-- TODO: translate -->
     <string name="folder_icon_smartphone" tools:ignore="MissingTranslation">Mobile phone</string>
     <!-- TODO: translate -->
     <string name="folder_icon_call" tools:ignore="MissingTranslation">Phone</string>

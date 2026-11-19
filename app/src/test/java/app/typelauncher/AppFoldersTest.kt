@@ -324,6 +324,12 @@ class AppFoldersTest {
     }
 
     @Test
+    fun security_usesAKeyIcon() {
+        // The maintainer, 2026-11-19: a key, not a padlock.
+        assertEquals(FolderIcon.Key, AppCategory.Security.icon)
+    }
+
+    @Test
     fun storageKeys_roundTrip() {
         for (category in AppCategory.entries) {
             assertEquals(category, AppCategory.fromStorageKey(category.storageKey))
