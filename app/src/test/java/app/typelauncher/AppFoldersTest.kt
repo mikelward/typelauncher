@@ -169,7 +169,8 @@ class AppFoldersTest {
         val bank = app("Acme")
         assertEquals("other", effective(bank))
         assertEquals("finance", effective(bank, ai = mapOf(bank.id to "finance")))
-        assertEquals("social", effective(chess, ai = mapOf(chess.id to "social")))
+        // A manifest saying "game" beats the AI (see aManifestGame_beatsTheAi_butNotTheUser).
+        assertEquals("games", effective(chess, ai = mapOf(chess.id to "social")))
     }
 
     @Test
@@ -304,6 +305,22 @@ class AppFoldersTest {
         assertEquals(listOf(github), grouping.folders.first { it.folder.key == "custom-1" }.apps)
         // A built-in choice still doesn't override the table.
         assertTrue(grouping.folders.none { it.folder.key == "games" })
+    }
+
+    @Test
+    fun aManifestGame_beatsTheAi_butNotTheUser() {
+        // The maintainer, 2026-11-19: the AI filed games that say so under
+        // Transport and Other.
+        val game = app("Subway", AppCategory.Games)
+        val video = app("Clips", AppCategory.Media)
+
+        assertEquals("games", effective(game, ai = mapOf(game.id to "transport")))
+        assertEquals("kids", effective(game, assignments = mapOf(game.id to "kids")))
+        // Other manifest categories still give way to the AI.
+        assertEquals("social", effective(video, ai = mapOf(video.id to "social")))
+        // And the AI is told.
+        assertEquals(AppCategory.Games, game.suggestedCategory())
+        assertEquals(AppCategory.Media, video.suggestedCategory())
     }
 
     @Test

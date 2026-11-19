@@ -96,6 +96,10 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "saily" to AppCategory.Phone,
     "esim" to AppCategory.Phone,
     "suzerain" to AppCategory.Games,
+    // Games whose names sound like something else (maintainer, 2026-11-19).
+    "mini metro" to AppCategory.Games,
+    "mini motorways" to AppCategory.Games,
+    "darkside detective" to AppCategory.Games,
 ) + listOf(
     // Post and couriers (maintainer, 2026-11-19).
     "australia post", "auspost", "royal mail", "usps", "fedex", "ups", "dhl", "dpd", "evri", "hermes",
@@ -205,6 +209,8 @@ private val KNOWN_PACKAGE_PREFIXES = listOf(
     "com.HoYoverse." to AppCategory.Games,
     "com.miHoYo." to AppCategory.Games,
     "com.tocaboca." to AppCategory.Kids,
+    // Dinosaur Polo Club: Mini Metro, Mini Motorways.
+    "nz.co.codepoint." to AppCategory.Games,
 )
 
 // Fallback stems, in order: the first that a package or label word matches

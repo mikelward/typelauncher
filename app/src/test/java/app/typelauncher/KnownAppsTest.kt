@@ -106,6 +106,10 @@ class KnownAppsTest {
         }
         assertEquals(AppCategory.Productivity, knownAppCategory("com.example.mail", "Proton Mail"))
         assertNull(knownAppCategory("com.example.wp", "The Washington Post"))
+        // The maintainer, 2026-11-19: Mini Metro is a game, not Transport.
+        assertEquals(AppCategory.Games, knownAppCategory("com.example.mm", "Mini Metro"))
+        assertEquals(AppCategory.Games, knownAppCategory("nz.co.codepoint.minimetro"))
+        assertEquals(AppCategory.Games, knownAppCategory("com.example.dd", "The Darkside Detective"))
         // Brands are whole words.
         assertNull(knownAppCategory("com.example.r", "Unified Remote"))
         assertNull(knownAppCategory("com.example.s", "Priority Tasks"))
