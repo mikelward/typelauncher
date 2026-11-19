@@ -52,7 +52,7 @@ class AiAppSortingTest {
         // Waze went to tools and Apple TV to other (maintainer, 2026-11-19).
         val prompt = buildAiSortPrompt(listOf(bank))
 
-        assertTrue(prompt, "Waze is travel" in prompt)
+        assertTrue(prompt, "Waze is transport" in prompt)
         assertTrue(prompt, "Apple TV is media" in prompt)
         assertTrue(prompt, "tools only for a utility no other folder fits" in prompt)
     }
@@ -62,7 +62,98 @@ class AiAppSortingTest {
         // A fingerprint of the folder lines, never the "unset" 0 a fresh
         // install stores, so the first launch after an update re-sorts.
         assertEquals(buildAiSortPrompt(emptyList()).hashCode().let { if (it == 0) 1 else it }, AI_SORT_PROMPT_VERSION)
+        // A folder added or deleted changes it too.
+        val withKids = AiSortFolders(activeAppFolders(listOf(AppFolderDef("custom-1", null, "Toys", FolderIcon.ChildCare)), emptySet()))
+        assertTrue(withKids.version != AI_SORT_PROMPT_VERSION)
+        assertTrue(AiSortFolders(activeAppFolders(emptyList(), setOf("games"))).version != AI_SORT_PROMPT_VERSION)
         assertTrue(AI_SORT_PROMPT_VERSION != 0)
+    }
+
+    @Test
+    fun prompt_listsOnlyTheFoldersInUse_withTheUsersOwnByName() {
+        // The maintainer, 2026-11-19: sort into the active folders, the
+        // user's own included.
+        val folders = AiSortFolders(
+            activeAppFolders(listOf(AppFolderDef("custom-1", null, "Kids Stuff", FolderIcon.ChildCare)), setOf("games", "tools")),
+        )
+
+        val lines = buildAiSortPrompt(listOf(bank), folders).lines()
+
+        assertTrue(lines.any { it.startsWith("kids stuff: ") })
+        assertFalse(lines.any { it.startsWith("games: ") || it.startsWith("tools: ") })
+        // Examples for a deleted folder would steer the model into it.
+        assertFalse(lines.any { "is games" in it || "is tools" in it })
+        assertTrue(lines.any { it == "Choose other only when nothing fits." })
+    }
+
+    @Test
+    fun prompt_hasTheNewBuiltIns_andMediaNoLongerTakesMusicOrPhotos() {
+        val lines = buildAiSortPrompt(listOf(bank)).lines()
+
+        for (word in listOf("food", "government", "internet", "kids", "music", "pets", "photos", "sports", "transport", "weather")) {
+            assertTrue(word, lines.any { it.startsWith("$word: ") })
+        }
+        val media = lines.first { it.startsWith("media: ") }
+        assertFalse(media, "music" in media || "photo" in media)
+        assertTrue(lines.any { "Red Dead Redemption is games" in it })
+        assertTrue(lines.first { it.startsWith("government: ") }.contains("driver's licenses"))
+    }
+
+    @Test
+    fun answer_readsTheUsersFolderNames_andSkipsDeletedOnes() {
+        val folders = AiSortFolders(
+            activeAppFolders(listOf(AppFolderDef("custom-1", null, "Kids Stuff", FolderIcon.ChildCare)), setOf("games")),
+        )
+        val answer = "1: Kids Stuff\n2: games\n3: photo"
+
+        assertEquals(
+            mapOf("a" to "custom-1", "c" to "photos"),
+            parseAiSortAnswer(answer, listOf(bank, chess, maps), folders),
+        )
+    }
+
+    @Test
+    fun answer_aBuiltInsWord_staysTheBuiltIns_whateverAUserFolderIsCalled() {
+        // Codex on PR #860: "(Games)" reads as "games" and sorts first.
+        val folders = AiSortFolders(
+            activeAppFolders(listOf(AppFolderDef("custom-1", null, "(Games)", FolderIcon.Star)), emptySet()),
+        )
+
+        assertEquals(mapOf("a" to "games"), parseAiSortAnswer("1: games", listOf(bank), folders))
+    }
+
+    @Test
+    fun answer_aUserFolderNamedAfterTheApp_isntReadAsAnEcho() {
+        // Codex on PR #860: an app called Home, a folder called Home Stuff.
+        val home = AiSortInput("h", "Home", "com.example.home")
+        val folders = AiSortFolders(
+            activeAppFolders(listOf(AppFolderDef("custom-1", null, "Home Stuff", FolderIcon.Home)), emptySet()),
+        )
+
+        assertEquals(mapOf("h" to "custom-1"), parseAiSortAnswer("1: home stuff", listOf(home), folders))
+        assertEquals(mapOf("h" to "tools"), parseAiSortAnswer("1. Home: tools", listOf(home), folders))
+    }
+
+    @Test
+    fun answer_readsAUserFolderNamedWithPunctuation() {
+        // Codex on PR #860: "Work (personal)", and a name led by an emoji.
+        val folders = AiSortFolders(
+            activeAppFolders(
+                listOf(
+                    AppFolderDef("custom-1", null, "Work (personal)", FolderIcon.Work),
+                    AppFolderDef("custom-2", null, "\u2B50 Faves", FolderIcon.Star),
+                ),
+                emptySet(),
+            ),
+        )
+        val prompt = buildAiSortPrompt(listOf(bank), folders)
+        val answer = "1: work (personal)\n2: Work personal\n3: \u2B50 faves"
+
+        assertTrue(prompt, prompt.lines().any { it.startsWith("work personal: ") })
+        assertEquals(
+            mapOf("a" to "custom-1", "b" to "custom-1", "c" to "custom-2"),
+            parseAiSortAnswer(answer, listOf(bank, chess, maps), folders),
+        )
     }
 
     @Test
@@ -84,7 +175,7 @@ class AiAppSortingTest {
         """.trimIndent()
 
         assertEquals(
-            mapOf("a" to AppCategory.Finance, "b" to AppCategory.Games, "c" to AppCategory.Travel),
+            mapOf("a" to "finance", "b" to "games", "c" to "travel"),
             parseAiSortAnswer(answer, listOf(bank, chess, maps)),
         )
     }
@@ -94,7 +185,7 @@ class AiAppSortingTest {
         val answer = "1: banking\n2: games"
 
         assertEquals(
-            mapOf("b" to AppCategory.Games),
+            mapOf("b" to "games"),
             parseAiSortAnswer(answer, listOf(bank, chess, maps)),
         )
     }
@@ -111,7 +202,7 @@ class AiAppSortingTest {
         """.trimIndent()
 
         assertEquals(
-            mapOf("w" to AppCategory.Games, "t" to AppCategory.Media),
+            mapOf("w" to "games", "t" to "media"),
             parseAiSortAnswer(answer, listOf(walkingDead, tv)),
         )
     }
@@ -130,7 +221,7 @@ class AiAppSortingTest {
         """.trimIndent()
 
         assertEquals(
-            mapOf("b" to AppCategory.Media, "h" to AppCategory.Tools),
+            mapOf("b" to "media", "h" to "tools"),
             parseAiSortAnswer(answer, listOf(bbc, home, shop)),
         )
     }
@@ -144,7 +235,7 @@ class AiAppSortingTest {
         val answer = "1: news\n2. Home: tools\n3. Games (com.example.games): games"
 
         assertEquals(
-            mapOf("n" to AppCategory.News, "h" to AppCategory.Tools, "g" to AppCategory.Games),
+            mapOf("n" to "news", "h" to "tools", "g" to "games"),
             parseAiSortAnswer(answer, listOf(news, home, games)),
         )
     }
@@ -157,7 +248,7 @@ class AiAppSortingTest {
         val answer = "1: learning\nGam: games"
 
         assertEquals(
-            mapOf("l" to AppCategory.Learning, "g" to AppCategory.Games),
+            mapOf("l" to "learning", "g" to "games"),
             parseAiSortAnswer(answer, listOf(learn, game)),
         )
     }
@@ -169,7 +260,7 @@ class AiAppSortingTest {
         val answer = "Chess: game\nGoogle Home: home\nHome - tool"
 
         assertEquals(
-            mapOf("b" to AppCategory.Games, "h" to AppCategory.Home, "x" to AppCategory.Tools),
+            mapOf("b" to "games", "h" to "home", "x" to "tools"),
             parseAiSortAnswer(answer, listOf(bank, chess, home, homeless)),
         )
     }
@@ -183,7 +274,7 @@ class AiAppSortingTest {
         val answer = "CNN: news\nNews: media"
 
         assertEquals(
-            mapOf("c" to AppCategory.News, "n" to AppCategory.Media),
+            mapOf("c" to "news", "n" to "media"),
             parseAiSortAnswer(answer, listOf(cnn, news)),
         )
     }
@@ -193,7 +284,7 @@ class AiAppSortingTest {
         val answer = "1: finance\n1: games\n7: social\nSure! Here you go."
 
         assertEquals(
-            mapOf("a" to AppCategory.Finance),
+            mapOf("a" to "finance"),
             parseAiSortAnswer(answer, listOf(bank)),
         )
     }

@@ -136,15 +136,16 @@ internal class AppFolderStore(context: Context) {
      * Forgets the AI's choices if they were made under different instructions
      * than [promptVersion] (a new folder, or a reworded description), so the
      * apps are sorted again under the new ones; the user's filings are kept.
-     * Returns whether it forgot them.
+     * Returns whether the instructions changed, choices stored or not.
      */
     fun forgetAiChoicesUnlessMadeBy(promptVersion: Int): Boolean = synchronized(lock) {
         val stored = sharedPreferences.getInt(KEY_AI_PROMPT_VERSION, 0)
         if (stored == promptVersion) return@synchronized false
         sharedPreferences.edit().putInt(KEY_AI_PROMPT_VERSION, promptVersion).apply()
-        if (aiFilings.isEmpty()) return@synchronized false
-        aiFilings.clear()
-        saveAi()
+        if (aiFilings.isNotEmpty()) {
+            aiFilings.clear()
+            saveAi()
+        }
         true
     }
 

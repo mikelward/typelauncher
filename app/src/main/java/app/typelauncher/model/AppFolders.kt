@@ -16,17 +16,27 @@ import androidx.compose.runtime.Immutable
  */
 internal enum class AppCategory(val storageKey: String, val icon: FolderIcon) {
     Finance("finance", FolderIcon.Paid),
+    Food("food", FolderIcon.Restaurant),
     Games("games", FolderIcon.SportsEsports),
+    Government("government", FolderIcon.AccountBalance),
     Health("health", FolderIcon.Favorite),
     Home("home", FolderIcon.Home),
+    Internet("internet", FolderIcon.Language),
+    Kids("kids", FolderIcon.ChildCare),
     Learning("learning", FolderIcon.School),
     Media("media", FolderIcon.PlayCircle),
+    Music("music", FolderIcon.MusicNote),
     News("news", FolderIcon.Newspaper),
+    Pets("pets", FolderIcon.Pets),
+    Photos("photos", FolderIcon.PhotoCamera),
     Productivity("productivity", FolderIcon.Work),
     Shopping("shopping", FolderIcon.ShoppingBag),
     Social("social", FolderIcon.Chat),
+    Sports("sports", FolderIcon.SportsSoccer),
     Tools("tools", FolderIcon.Build),
+    Transport("transport", FolderIcon.DirectionsBus),
     Travel("travel", FolderIcon.Travel),
+    Weather("weather", FolderIcon.PartlyCloudyDay),
 
     // Every app no other folder takes (see `groupAppList`).
     Other("other", FolderIcon.MoreHoriz),
@@ -137,14 +147,24 @@ internal fun activeAppFolders(custom: List<AppFolderDef>, deletedBuiltIns: Set<S
  */
 internal fun declaredAppCategory(category: Int, flags: Int): AppCategory? = when (category) {
     ApplicationInfo.CATEGORY_GAME -> AppCategory.Games
-    ApplicationInfo.CATEGORY_AUDIO,
-    ApplicationInfo.CATEGORY_VIDEO,
-    ApplicationInfo.CATEGORY_IMAGE,
-    -> AppCategory.Media
+    ApplicationInfo.CATEGORY_AUDIO -> AppCategory.Music
+    ApplicationInfo.CATEGORY_VIDEO -> AppCategory.Media
+    ApplicationInfo.CATEGORY_IMAGE -> AppCategory.Photos
     ApplicationInfo.CATEGORY_SOCIAL -> AppCategory.Social
     ApplicationInfo.CATEGORY_NEWS -> AppCategory.News
-    ApplicationInfo.CATEGORY_MAPS -> AppCategory.Travel
+    ApplicationInfo.CATEGORY_MAPS -> AppCategory.Transport
     else -> if (flags and FLAG_IS_GAME != 0) AppCategory.Games else null
+}
+
+/**
+ * The folder a few well-known apps always go in, ahead of the AI, which got
+ * them wrong on the maintainer's phone (2026-11-19): Waze went to Tools, and
+ * Netflix's games, which are separate apps from Netflix itself, to Media.
+ */
+internal fun knownAppCategory(packageName: String): AppCategory? = when {
+    packageName == "com.waze" -> AppCategory.Transport
+    packageName.startsWith("com.netflix.NGP.") -> AppCategory.Games
+    else -> null
 }
 
 // Deprecated in favor of CATEGORY_GAME, but games built before API 26 still set
@@ -171,7 +191,8 @@ internal data class AppListGrouping(
 /**
  * The key of the folder [app] is filed in among [activeKeys], or null for "no
  * folder": where the user put it, if they did ([assignments] maps an app id to
- * a folder key, or to null for "no folder"); otherwise where "Sort with
+ * a folder key, or to null for "no folder"); otherwise, for a few well-known
+ * apps, where [knownAppCategory] says; otherwise where "Sort with
  * on-device AI" put it ([aiAssignments]), which the caller passes only while
  * that's on; otherwise where its manifest says
  * ([InstalledApp.declaredCategory]); otherwise Other. A choice naming a folder
@@ -189,6 +210,7 @@ internal fun effectiveFolderKey(
         val chosen = assignments[app.id] ?: return null
         if (chosen in activeKeys) return chosen
     }
+    knownAppCategory(app.packageName)?.storageKey?.takeIf { it in activeKeys }?.let { return it }
     aiAssignments[app.id]?.takeIf { it in activeKeys }?.let { return it }
     app.declaredCategory?.storageKey?.takeIf { it in activeKeys }?.let { return it }
     return AppCategory.Other.storageKey
