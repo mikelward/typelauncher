@@ -208,7 +208,7 @@ class MainActivityRobolectricScreenshotTest {
         viewModel.setAppFoldersEnabled(true)
         val tools = viewModel.uiState.value.filteredApps.filter { it.name in setOf("Calculator", "Clock", "Files") }
         assertTrue("fixture needs at least two listed tools, got $tools", tools.size >= 2)
-        tools.forEach { app -> viewModel.moveAppToFolder(app, AppCategory.Tools) }
+        tools.forEach { app -> viewModel.moveAppToFolder(app, AppCategory.Tools.storageKey) }
         composeRule.waitForIdle()
 
         // Closed: the folder replaces its apps in the list.

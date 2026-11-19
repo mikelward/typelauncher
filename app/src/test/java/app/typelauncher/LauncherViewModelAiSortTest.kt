@@ -67,13 +67,13 @@ class LauncherViewModelAiSortTest {
         assertTrue(model.prompts.single(), "Monzo (co.uk.getmondo)" in model.prompts.single())
         assertTrue("manifest-filed apps are asked about too", "Chess" in model.prompts.single())
         assertFalse("user-filed apps aren't asked about", "Notes" in model.prompts.single())
-        assertEquals(AppCategory.Finance, state.appFolderAiAssignments[id(viewModel, "Monzo")])
+        assertEquals(AppCategory.Finance.storageKey, state.appFolderAiAssignments[id(viewModel, "Monzo")])
         // Type Launcher lists itself too, so it's sorted alongside.
         assertEquals(AiSortPhase.Done, state.aiSort.phase)
         assertEquals(state.aiSort.total, state.aiSort.sorted)
         assertEquals(state.appFolderAiAssignments.size, state.aiSort.total)
         // Kept for the next launch.
-        assertEquals(AppCategory.Finance, AppFolderStore(context).aiAssignments[id(viewModel, "Monzo")])
+        assertEquals(AppCategory.Finance.storageKey, AppFolderStore(context).aiAssignments[id(viewModel, "Monzo")])
     }
 
     @Test
@@ -81,13 +81,13 @@ class LauncherViewModelAiSortTest {
         // An update adds a folder (Home): what the AI chose without it goes.
         AppFolderStore(context).apply {
             forgetAiChoicesUnlessMadeBy(AI_SORT_PROMPT_VERSION + 1)
-            assignByAi(mapOf("someone" to AppCategory.Tools))
+            assignByAi(mapOf("someone" to AppCategory.Tools.storageKey))
         }
 
         val viewModel = newViewModel()
 
-        assertEquals(emptyMap<String, AppCategory>(), viewModel.uiState.value.appFolderAiAssignments)
-        assertEquals(emptyMap<String, AppCategory>(), AppFolderStore(context).aiAssignments)
+        assertEquals(emptyMap<String, String>(), viewModel.uiState.value.appFolderAiAssignments)
+        assertEquals(emptyMap<String, String>(), AppFolderStore(context).aiAssignments)
     }
 
     @Test
@@ -99,7 +99,7 @@ class LauncherViewModelAiSortTest {
 
         val monzo = id(viewModel, "Monzo")
         assertEquals(AI_SORT_MAX_MISSES, model.prompts.count { "Monzo" in it })
-        assertEquals(AppCategory.Other, viewModel.uiState.value.appFolderAiAssignments[monzo])
+        assertEquals(AppCategory.Other.storageKey, viewModel.uiState.value.appFolderAiAssignments[monzo])
         assertEquals(AiSortPhase.Done, viewModel.uiState.value.aiSort.phase)
     }
 
@@ -229,14 +229,14 @@ class LauncherViewModelAiSortTest {
         seedApp("Monzo", "co.uk.getmondo")
         model.answer = { prompt -> answerFrom(prompt, mapOf("Monzo" to "social")) }
         val viewModel = startedViewModel()
-        assertEquals(AppCategory.Social, viewModel.uiState.value.appFolderAiAssignments[id(viewModel, "Monzo")])
+        assertEquals(AppCategory.Social.storageKey, viewModel.uiState.value.appFolderAiAssignments[id(viewModel, "Monzo")])
 
         model.answer = { prompt -> answerFrom(prompt, mapOf("Monzo" to "finance")) }
         viewModel.resortAppsWithAi()
         idle()
 
         assertEquals(2, model.prompts.size)
-        assertEquals(AppCategory.Finance, viewModel.uiState.value.appFolderAiAssignments[id(viewModel, "Monzo")])
+        assertEquals(AppCategory.Finance.storageKey, viewModel.uiState.value.appFolderAiAssignments[id(viewModel, "Monzo")])
     }
 
     @Test
@@ -269,7 +269,7 @@ class LauncherViewModelAiSortTest {
         if (fileFirst != null) {
             viewModel.moveAppToFolder(
                 viewModel.uiState.value.filteredApps.first { it.name == fileFirst.first },
-                fileFirst.second,
+                fileFirst.second.storageKey,
             )
         }
         viewModel.setAppFoldersEnabled(true)

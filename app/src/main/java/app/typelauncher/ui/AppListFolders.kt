@@ -3,12 +3,20 @@ package app.typelauncher
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -17,6 +25,9 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TextField
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Switch
@@ -26,9 +37,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -36,9 +53,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 
 internal fun AppCategory.labelRes(): Int = when (this) {
     AppCategory.Finance -> R.string.app_folder_finance
@@ -56,21 +76,99 @@ internal fun AppCategory.labelRes(): Int = when (this) {
     AppCategory.Other -> R.string.app_folder_other
 }
 
-internal fun AppCategory.icon(): ImageVector = when (this) {
-    AppCategory.Finance -> CategoryIcons.Finance
-    AppCategory.Games -> CategoryIcons.Games
-    AppCategory.Health -> CategoryIcons.Health
-    AppCategory.Home -> CategoryIcons.Home
-    AppCategory.Learning -> CategoryIcons.Learning
-    AppCategory.Media -> CategoryIcons.Media
-    AppCategory.News -> CategoryIcons.News
-    AppCategory.Productivity -> CategoryIcons.Productivity
-    AppCategory.Shopping -> CategoryIcons.Shopping
-    AppCategory.Social -> CategoryIcons.Social
-    AppCategory.Tools -> CategoryIcons.Tools
-    AppCategory.Travel -> CategoryIcons.Travel
-    AppCategory.Other -> CategoryIcons.Other
+internal fun FolderIcon.vector(): ImageVector = when (this) {
+    FolderIcon.Folder -> CategoryIcons.Folder
+    FolderIcon.Star -> CategoryIcons.Star
+    FolderIcon.Paid -> CategoryIcons.Finance
+    FolderIcon.SportsEsports -> CategoryIcons.Games
+    FolderIcon.Favorite -> CategoryIcons.Health
+    FolderIcon.Home -> CategoryIcons.Home
+    FolderIcon.School -> CategoryIcons.Learning
+    FolderIcon.PlayCircle -> CategoryIcons.Media
+    FolderIcon.Newspaper -> CategoryIcons.News
+    FolderIcon.Work -> CategoryIcons.Productivity
+    FolderIcon.ShoppingBag -> CategoryIcons.Shopping
+    FolderIcon.Chat -> CategoryIcons.Social
+    FolderIcon.Build -> CategoryIcons.Tools
+    FolderIcon.Travel -> CategoryIcons.Travel
+    FolderIcon.DirectionsBus -> CategoryIcons.DirectionsBus
+    FolderIcon.Train -> CategoryIcons.Train
+    FolderIcon.DirectionsCar -> CategoryIcons.DirectionsCar
+    FolderIcon.Flight -> CategoryIcons.Flight
+    FolderIcon.Restaurant -> CategoryIcons.Restaurant
+    FolderIcon.Language -> CategoryIcons.Language
+    FolderIcon.Translate -> CategoryIcons.Translate
+    FolderIcon.SportsSoccer -> CategoryIcons.SportsSoccer
+    FolderIcon.FitnessCenter -> CategoryIcons.FitnessCenter
+    FolderIcon.Apartment -> CategoryIcons.Apartment
+    FolderIcon.Code -> CategoryIcons.Code
+    FolderIcon.Palette -> CategoryIcons.Palette
+    FolderIcon.FamilyRestroom -> CategoryIcons.FamilyRestroom
+    FolderIcon.ChildCare -> CategoryIcons.ChildCare
+    FolderIcon.Shield -> CategoryIcons.Shield
+    FolderIcon.Lock -> CategoryIcons.Lock
+    FolderIcon.Smartphone -> CategoryIcons.Smartphone
+    FolderIcon.AccountBalance -> CategoryIcons.AccountBalance
+    FolderIcon.Badge -> CategoryIcons.Badge
+    FolderIcon.Flag -> CategoryIcons.Flag
+    FolderIcon.MenuBook -> CategoryIcons.MenuBook
+    FolderIcon.PartlyCloudyDay -> CategoryIcons.PartlyCloudyDay
+    FolderIcon.Eco -> CategoryIcons.Eco
+    FolderIcon.MusicNote -> CategoryIcons.MusicNote
+    FolderIcon.PhotoCamera -> CategoryIcons.PhotoCamera
+    FolderIcon.Pets -> CategoryIcons.Pets
+    FolderIcon.MoreHoriz -> CategoryIcons.Other
 }
+
+/** What [FolderIcon] shows, in words, for TalkBack in the icon picker. */
+internal fun FolderIcon.descriptionRes(): Int = when (this) {
+    FolderIcon.Folder -> R.string.folder_icon_folder
+    FolderIcon.Star -> R.string.folder_icon_star
+    FolderIcon.Paid -> R.string.folder_icon_paid
+    FolderIcon.SportsEsports -> R.string.folder_icon_sports_esports
+    FolderIcon.Favorite -> R.string.folder_icon_favorite
+    FolderIcon.Home -> R.string.folder_icon_home
+    FolderIcon.School -> R.string.folder_icon_school
+    FolderIcon.PlayCircle -> R.string.folder_icon_play_circle
+    FolderIcon.Newspaper -> R.string.folder_icon_newspaper
+    FolderIcon.Work -> R.string.folder_icon_work
+    FolderIcon.ShoppingBag -> R.string.folder_icon_shopping_bag
+    FolderIcon.Chat -> R.string.folder_icon_chat
+    FolderIcon.Build -> R.string.folder_icon_build
+    FolderIcon.Travel -> R.string.folder_icon_travel
+    FolderIcon.DirectionsBus -> R.string.folder_icon_directions_bus
+    FolderIcon.Train -> R.string.folder_icon_train
+    FolderIcon.DirectionsCar -> R.string.folder_icon_directions_car
+    FolderIcon.Flight -> R.string.folder_icon_flight
+    FolderIcon.Restaurant -> R.string.folder_icon_restaurant
+    FolderIcon.Language -> R.string.folder_icon_language
+    FolderIcon.Translate -> R.string.folder_icon_translate
+    FolderIcon.SportsSoccer -> R.string.folder_icon_sports_soccer
+    FolderIcon.FitnessCenter -> R.string.folder_icon_fitness_center
+    FolderIcon.Apartment -> R.string.folder_icon_apartment
+    FolderIcon.Code -> R.string.folder_icon_code
+    FolderIcon.Palette -> R.string.folder_icon_palette
+    FolderIcon.FamilyRestroom -> R.string.folder_icon_family_restroom
+    FolderIcon.ChildCare -> R.string.folder_icon_child_care
+    FolderIcon.Shield -> R.string.folder_icon_shield
+    FolderIcon.Lock -> R.string.folder_icon_lock
+    FolderIcon.Smartphone -> R.string.folder_icon_smartphone
+    FolderIcon.AccountBalance -> R.string.folder_icon_account_balance
+    FolderIcon.Badge -> R.string.folder_icon_badge
+    FolderIcon.Flag -> R.string.folder_icon_flag
+    FolderIcon.MenuBook -> R.string.folder_icon_menu_book
+    FolderIcon.PartlyCloudyDay -> R.string.folder_icon_partly_cloudy_day
+    FolderIcon.Eco -> R.string.folder_icon_eco
+    FolderIcon.MusicNote -> R.string.folder_icon_music_note
+    FolderIcon.PhotoCamera -> R.string.folder_icon_photo_camera
+    FolderIcon.Pets -> R.string.folder_icon_pets
+    FolderIcon.MoreHoriz -> R.string.folder_icon_more_horiz
+}
+
+/** A folder's name: a built-in folder's in the user's language, else the name the user gave it. */
+@Composable
+internal fun folderLabel(folder: AppFolderDef): String =
+    folder.category?.let { stringResource(it.labelRes()) } ?: folder.name
 
 /**
  * A folder's icon: its category's glyph, large and monochrome, with no tile
@@ -78,7 +176,7 @@ internal fun AppCategory.icon(): ImageVector = when (this) {
  * takes, so the folder's name lines up with the apps' names.
  */
 @Composable
-internal fun CategoryIconTile(category: AppCategory, sizeDp: Int) {
+internal fun CategoryIconTile(icon: FolderIcon, sizeDp: Int) {
     Box(
         modifier = Modifier
             .size(sizeDp.dp)
@@ -86,7 +184,7 @@ internal fun CategoryIconTile(category: AppCategory, sizeDp: Int) {
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            imageVector = category.icon(),
+            imageVector = icon.vector(),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size((sizeDp * CATEGORY_GLYPH_FRACTION).dp),
@@ -98,32 +196,25 @@ internal fun CategoryIconTile(category: AppCategory, sizeDp: Int) {
 private const val CATEGORY_GLYPH_FRACTION = 0.95f
 
 /**
- * Lets the app list's long-press menus offer "Move to folder". Provided only
- * around the app list while folders are on, so the dock's and recents' menus,
- * which sit outside it, don't offer it.
+ * Lets the app list's long-press menus offer "Move to folder", and its
+ * folders offer to be edited or deleted. Provided only around the app list
+ * while folders are on, so the dock's and recents' menus, which sit outside
+ * it, don't offer it.
  */
 @Stable
 internal class AppFolderMenu(
-    /** The folder [InstalledApp] is filed in now, ignoring the minimum folder size. */
-    val folderOf: (InstalledApp) -> AppCategory?,
-    val onMove: (InstalledApp, AppCategory?) -> Unit,
+    /** The folders in use, in list order. */
+    val folders: List<AppFolderDef>,
+    /** The key of the folder [InstalledApp] is filed in now, ignoring the minimum folder size. */
+    val folderOf: (InstalledApp) -> String?,
+    val onMove: (InstalledApp, String?) -> Unit,
+    /** Makes a folder and moves the app into it. */
+    val onCreate: (InstalledApp, String, FolderIcon) -> Unit,
+    val onEdit: (AppFolderDef, String, FolderIcon) -> Unit,
+    val onDelete: (AppFolderDef) -> Unit,
 )
 
 internal val LocalAppFolderMenu = staticCompositionLocalOf<AppFolderMenu?> { null }
-
-/**
- * The folder an app is filed in: the user's choice if they made one, else the
- * AI's (passed only while AI sorting is on), else its manifest's, else Other.
- */
-internal fun effectiveAppFolder(
-    app: InstalledApp,
-    assignments: Map<String, AppCategory?>,
-    aiAssignments: Map<String, AppCategory> = emptyMap(),
-): AppCategory? = if (assignments.containsKey(app.id)) {
-    assignments[app.id]
-} else {
-    aiAssignments[app.id] ?: app.declaredCategory ?: AppCategory.Other
-}
 
 /** A closed folder as a name-beside row: its category icon, then the folder's name. */
 @Composable
@@ -133,22 +224,95 @@ internal fun AppListFolderRow(
     iconSizeDp: Int,
     onOpen: (AppListFolder) -> Unit,
 ) {
-    val label = stringResource(folder.category.labelRes())
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(role = Role.Button, onClick = { onOpen(folder) })
-            .padding(horizontal = 4.dp, vertical = 8.dp)
-            .testTag("$APP_LIST_FOLDER_TAG:${folder.category.storageKey}"),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        CategoryIconTile(folder.category, sizeDp = iconSizeDp)
-        Text(
-            label,
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground,
+    val label = folderLabel(folder.folder)
+    var menuOpen by remember { mutableStateOf(false) }
+    Box {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .folderClickable(folder, onOpen = onOpen, onLongPress = { menuOpen = true })
+                .padding(horizontal = 4.dp, vertical = 8.dp)
+                .testTag("$APP_LIST_FOLDER_TAG:${folder.folder.key}"),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            CategoryIconTile(folder.folder.icon, sizeDp = iconSizeDp)
+            Text(
+                label,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+        }
+        AppListFolderActions(folder.folder, expanded = menuOpen, onDismiss = { menuOpen = false })
+    }
+}
+
+/**
+ * A tap opens the folder; a long press opens its menu while there's one to
+ * show (see [AppListFolderActions]).
+ */
+@Composable
+private fun Modifier.folderClickable(
+    folder: AppListFolder,
+    onOpen: (AppListFolder) -> Unit,
+    onLongPress: () -> Unit,
+): Modifier {
+    val hasMenu = LocalAppFolderMenu.current != null && !folder.folder.isOther
+    return combinedClickable(
+        role = Role.Button,
+        onClick = { onOpen(folder) },
+        onLongClick = if (hasMenu) onLongPress else null,
+    )
+}
+
+/**
+ * A folder's long-press menu: "Edit folder" for one the user made, and
+ * "Delete folder" for any but Other, each through its dialog.
+ */
+@Composable
+private fun AppListFolderActions(folder: AppFolderDef, expanded: Boolean, onDismiss: () -> Unit) {
+    val menu = LocalAppFolderMenu.current ?: return
+    var editing by rememberSaveable(folder.key) { mutableStateOf(false) }
+    var deleting by rememberSaveable(folder.key) { mutableStateOf(false) }
+    LauncherDropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        if (folder.category == null) {
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.app_folder_menu_edit)) },
+                modifier = Modifier.testTag("$APP_FOLDER_EDIT_ACTION_TAG:${folder.key}"),
+                onClick = {
+                    onDismiss()
+                    editing = true
+                },
+            )
+        }
+        DropdownMenuItem(
+            text = { LauncherMenuItemText(stringResource(R.string.app_folder_menu_delete)) },
+            modifier = Modifier.testTag("$APP_FOLDER_DELETE_ACTION_TAG:${folder.key}"),
+            onClick = {
+                onDismiss()
+                deleting = true
+            },
+        )
+    }
+    if (editing) {
+        AppFolderEditDialog(
+            initial = folder,
+            onSave = { name, icon ->
+                menu.onEdit(folder, name, icon)
+                editing = false
+            },
+            onDismiss = { editing = false },
+        )
+    }
+    if (deleting) {
+        DeleteAppFolderDialog(
+            name = folderLabel(folder),
+            onConfirm = {
+                menu.onDelete(folder)
+                deleting = false
+            },
+            onDismiss = { deleting = false },
         )
     }
 }
@@ -164,17 +328,19 @@ internal fun AppListFolderTile(
     showLabel: Boolean,
     onOpen: (AppListFolder) -> Unit,
 ) {
-    val label = stringResource(folder.category.labelRes())
+    val label = folderLabel(folder.folder)
+    var menuOpen by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
-            .clickable(role = Role.Button, onClick = { onOpen(folder) })
+            .folderClickable(folder, onOpen = onOpen, onLongPress = { menuOpen = true })
             .semantics { contentDescription = label }
-            .testTag("$APP_LIST_FOLDER_TAG:${folder.category.storageKey}"),
+            .testTag("$APP_LIST_FOLDER_TAG:${folder.folder.key}"),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // The same 4 dp around the icon an app tile has, so the two line up.
         Box(modifier = Modifier.padding(4.dp)) {
-            CategoryIconTile(folder.category, sizeDp = iconSizeDp)
+            CategoryIconTile(folder.folder.icon, sizeDp = iconSizeDp)
+            AppListFolderActions(folder.folder, expanded = menuOpen, onDismiss = { menuOpen = false })
         }
         if (showLabel) {
             Text(
@@ -242,7 +408,7 @@ internal fun AppListFolderHeader(folder: AppListFolder) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            stringResource(folder.category.labelRes()),
+            folderLabel(folder.folder),
             modifier = Modifier
                 .weight(1f)
                 .padding(vertical = 12.dp),
@@ -392,13 +558,23 @@ private fun AppListOfferRow(
     }
 }
 
-/** Picks the folder for one app, or none. Picking closes the dialog. */
+/**
+ * Picks the folder for one app, or none, or makes a new one for it. Picking
+ * closes the dialog; "New folder" opens [AppFolderEditDialog] in its place.
+ */
 @Composable
 internal fun AppFolderPickerDialog(
-    current: AppCategory?,
-    onPick: (AppCategory?) -> Unit,
+    folders: List<AppFolderDef>,
+    current: String?,
+    onPick: (String?) -> Unit,
+    onCreate: (String, FolderIcon) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    var creating by rememberSaveable { mutableStateOf(false) }
+    if (creating) {
+        AppFolderEditDialog(initial = null, onSave = onCreate, onDismiss = onDismiss)
+        return
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.app_menu_move_to_folder)) },
@@ -408,34 +584,179 @@ internal fun AppFolderPickerDialog(
                     .verticalScroll(rememberScrollState())
                     .selectableGroup(),
             ) {
-                val options = listOf<AppCategory?>(null) + AppCategory.entries
-                for (option in options) {
-                    val label = option?.let { stringResource(it.labelRes()) }
-                        ?: stringResource(R.string.app_folder_picker_none)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = option == current,
-                                role = Role.RadioButton,
-                                onClick = { onPick(option) },
-                            )
-                            .padding(vertical = 4.dp)
-                            .testTag("$APP_FOLDER_PICKER_OPTION_TAG:${option?.storageKey ?: "none"}"),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        RadioButton(selected = option == current, onClick = null)
-                        Text(label, style = MaterialTheme.typography.bodyLarge)
-                    }
+                FolderPickerOption(
+                    label = stringResource(R.string.app_folder_picker_none),
+                    selected = current == null,
+                    tag = "$APP_FOLDER_PICKER_OPTION_TAG:none",
+                    onClick = { onPick(null) },
+                )
+                for (folder in folders) {
+                    FolderPickerOption(
+                        label = folderLabel(folder),
+                        selected = folder.key == current,
+                        tag = "$APP_FOLDER_PICKER_OPTION_TAG:${folder.key}",
+                        onClick = { onPick(folder.key) },
+                    )
                 }
             }
         },
-        confirmButton = {},
+        confirmButton = {
+            TextButton(onClick = { creating = true }, modifier = Modifier.testTag(APP_FOLDER_PICKER_NEW_TAG)) {
+                Text(stringResource(R.string.app_folder_picker_new))
+            }
+        },
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.app_folder_picker_cancel))
             }
+        },
+    )
+}
+
+@Composable
+private fun FolderPickerOption(label: String, selected: Boolean, tag: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .padding(vertical = 4.dp)
+            .testTag(tag),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+/**
+ * Names a new folder and picks its icon, or edits one the user made
+ * ([initial]). A `Dialog` around [AppFolderEditDialogContent] rather than an
+ * `AlertDialog`, for the reason [EditAppDialog] gives.
+ */
+@Composable
+internal fun AppFolderEditDialog(
+    initial: AppFolderDef?,
+    onSave: (String, FolderIcon) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+        ) {
+            AppFolderEditDialogContent(initial = initial, onSave = onSave, onDismiss = onDismiss)
+        }
+    }
+}
+
+/** [AppFolderEditDialog]'s body, apart so a test can compose it without the dialog window. */
+@Composable
+internal fun AppFolderEditDialogContent(
+    initial: AppFolderDef?,
+    onSave: (String, FolderIcon) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by rememberSaveable(initial?.key) { mutableStateOf(initial?.name.orEmpty()) }
+    var icon by rememberSaveable(initial?.key) { mutableStateOf(initial?.icon ?: FolderIcon.Folder) }
+    val canSave = name.isNotBlank()
+    Column(
+        modifier = Modifier
+            .padding(24.dp)
+            .testTag(APP_FOLDER_EDIT_DIALOG_TAG),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(
+            stringResource(if (initial == null) R.string.app_folder_new_title else R.string.app_folder_edit_title),
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        TextField(
+            value = name,
+            onValueChange = { name = it },
+            singleLine = true,
+            label = { Text(stringResource(R.string.app_folder_name_label)) },
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                imeAction = ImeAction.Done,
+            ),
+            keyboardActions = KeyboardActions(onDone = { if (canSave) onSave(name, icon) }),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(APP_FOLDER_NAME_FIELD_TAG),
+        )
+        // Scrolls on its own, below the name, and shrinks to what's left once
+        // the buttons have their room, so a short screen (landscape, or the
+        // keyboard up) keeps the name and buttons in view. Opens on the
+        // folder's own icon.
+        val initialIcon = remember { FolderIcon.entries.indexOf(icon) }
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(48.dp),
+            state = rememberLazyGridState(initialFirstVisibleItemIndex = initialIcon),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f, fill = false)
+                .heightIn(max = 208.dp)
+                .selectableGroup(),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            items(FolderIcon.entries, key = { it.storageKey }) { option ->
+                val selected = option == icon
+                val description = stringResource(option.descriptionRes())
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                            CircleShape,
+                        )
+                        .selectable(selected = selected, role = Role.RadioButton, onClick = { icon = option })
+                        .semantics { contentDescription = description }
+                        .testTag("$APP_FOLDER_ICON_OPTION_TAG:${option.storageKey}"),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = option.vector(),
+                        contentDescription = null,
+                        tint = if (selected) {
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+            }
+        }
+        Row(modifier = Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.app_folder_picker_cancel)) }
+            TextButton(
+                onClick = { onSave(name, icon) },
+                enabled = canSave,
+                modifier = Modifier.testTag(APP_FOLDER_SAVE_TAG),
+            ) {
+                Text(stringResource(R.string.app_folder_save))
+            }
+        }
+    }
+}
+
+/** Asks before deleting a folder; its apps stay installed and are sorted again. */
+@Composable
+internal fun DeleteAppFolderDialog(name: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.app_folder_delete_title, name)) },
+        text = { Text(stringResource(R.string.app_folder_delete_text)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm, modifier = Modifier.testTag(APP_FOLDER_DELETE_CONFIRM_TAG)) {
+                Text(stringResource(R.string.app_folder_delete_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.app_folder_picker_cancel)) }
         },
     )
 }

@@ -79,10 +79,47 @@ class LauncherViewModelAppFoldersTest {
         idle()
         val bank = viewModel.uiState.value.filteredApps.first { it.name == "Bank" }
 
-        viewModel.moveAppToFolder(bank, AppCategory.Finance)
+        viewModel.moveAppToFolder(bank, "finance")
 
-        assertEquals(AppCategory.Finance, viewModel.uiState.value.appFolderAssignments[bank.id])
-        assertEquals(AppCategory.Finance, newViewModel().uiState.value.appFolderAssignments[bank.id])
+        assertEquals("finance", viewModel.uiState.value.appFolderAssignments[bank.id])
+        assertEquals("finance", newViewModel().uiState.value.appFolderAssignments[bank.id])
+    }
+
+    @Test
+    fun newFolder_takesTheApp_andDeletingIt_letsTheAppBeSortedAgain() {
+        seedApp("Crayons", "com.example.crayons")
+        val viewModel = newViewModel()
+        idle()
+        val crayons = viewModel.uiState.value.filteredApps.first { it.name == "Crayons" }
+
+        viewModel.createAppFolder(crayons, "Kids", FolderIcon.ChildCare)
+
+        val kids = newViewModel().uiState.value.appFolders.first { it.name == "Kids" }
+        assertEquals(FolderIcon.ChildCare, kids.icon)
+        assertEquals(kids.key, viewModel.uiState.value.appFolderAssignments[crayons.id])
+
+        viewModel.editAppFolder(kids, "Family", FolderIcon.FamilyRestroom)
+        assertEquals("Family", viewModel.uiState.value.appFolders.first { it.key == kids.key }.name)
+
+        viewModel.deleteAppFolder(kids)
+
+        val state = newViewModel().uiState.value
+        assertFalse(state.appFolders.any { it.key == kids.key })
+        assertFalse(state.appFolderAssignments.containsKey(crayons.id))
+    }
+
+    @Test
+    fun deletedBuiltIns_comeBackOnRestore() {
+        val viewModel = newViewModel()
+        idle()
+
+        viewModel.deleteAppFolder(AppFolderDef.builtIn(AppCategory.Games))
+        assertTrue(viewModel.uiState.value.hasDeletedAppFolders)
+        assertFalse(newViewModel().uiState.value.appFolders.any { it.key == "games" })
+
+        viewModel.restoreAppFolders()
+        assertFalse(viewModel.uiState.value.hasDeletedAppFolders)
+        assertTrue(newViewModel().uiState.value.appFolders.any { it.key == "games" })
     }
 
     @Test

@@ -114,7 +114,8 @@
   3. **Measure AI sorting on a device.** A debug-only screen that runs the classifier over about 200 popular apps with known folders and reports how many it got right, and which it got wrong, so the prompt can be tuned. Not measured yet: nothing here can run Gemini Nano.
   4. **Category icons for folders** (shipped; maintainer chose mock A, 2026-11-19, then style B: no tile, large monochrome glyph): a Material Symbol in place of the 2×2 preview, in an app icon's box in every list style.
   5. **Close button at the end of an open folder** (shipped, maintainer, 2026-11-19): a ✕ item at the list's visual bottom, as dock folders have, in place of the header's.
-  6. **Custom folders and icons** (maintainer idea, 2026-11-19): let the user add their own folders, named and with an icon of their choosing, beside the fixed set. Open: whether AI sorting may file into them (it would need their names in the prompt), and whether fixed folders can be renamed or hidden.
+  6. **Custom folders and icons** (shipped, maintainer, 2026-11-19): "New folder" in "Move to folder", with a name and an icon from a set of Material Symbols; long-press a folder to edit (the user's own) or delete it (any but Other); Settings restores deleted built-ins.
+  6a. **AI sorts into the folders in use** (maintainer, 2026-11-19): the prompt lists the active folders, the user's own by name, and drops deleted ones, with a re-sort when the set changes. New built-ins with it: Food, Internet, Sports, Government (ID, driver's license), Music and Photos (both out of Media), Kids, Pets & Animals; maybe Weather, and Transport/Transit apart from Travel and flights. Also: Netflix's games (`com.netflix.NGP.*`) and Red Dead Redemption go in Games, not Media; Waze still lands in Tools on the maintainer's phone (check its versionCode is 1315 or later; else a fixed rule for well-known packages).
   7. **Search matches folder names** (maintainer, 2026-11-19): typing a folder's name shows the folder and the apps in it.
 
 - **Kiosk mode follow-ups.** The widget-only, screen-on-while-plugged-in display shipped; still to come, each its own PR:
@@ -147,6 +148,13 @@
   - A first cut of the widget pages showing Home's icon bar for the pressed widget is parked on `claude/widget-page-icon-bar` (WIP, tests not updated), waiting on this decision.
 
 ### Decisions needing review
+
+- [ ] **Custom folder details** (2026-11-19): guessed that "New folder" lives
+      in "Move to folder" and editing and deleting on a folder's long press;
+      that built-in folders can be deleted but not renamed; that a deleted
+      folder's apps are sorted again (the AI, else the manifest, else Other);
+      that user and built-in folders sort together alphabetically; and that
+      Settings' "Restore deleted folders" brings back the built-ins.
 
 - [ ] **Grid offer details** (2026-11-19): the maintainer asked for a banner
       like the folders one suggesting the grid, "maybe name below". Guessed:
