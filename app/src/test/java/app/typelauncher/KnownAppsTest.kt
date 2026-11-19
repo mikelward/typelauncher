@@ -117,6 +117,17 @@ class KnownAppsTest {
             assertEquals(label, AppCategory.Security, knownAppCategory("com.example.sec", label))
         }
         assertNull(knownAppCategory("com.example.af", "Aura Frames"))
+        for ((label, category) in listOf(
+            "TheFork" to AppCategory.Food,
+            "OpenTable" to AppCategory.Food,
+            "Pret" to AppCategory.Food,
+            "Amazon Fire TV" to AppCategory.Media,
+            "Antigravity" to AppCategory.Code,
+            "PayByPhone" to AppCategory.Transport,
+        )) {
+            assertEquals(label, category, knownAppCategory("com.example.t", label))
+        }
+        assertNull(knownAppCategory("com.example.u", "Interpreter"))
         // Brands are whole words.
         assertNull(knownAppCategory("com.example.r", "Unified Remote"))
         assertNull(knownAppCategory("com.example.s", "Priority Tasks"))
