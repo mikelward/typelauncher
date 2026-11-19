@@ -112,7 +112,7 @@
   1. **Folders from manifest categories, with manual filing** (shipped). The Settings switch, the one-time Home offer, "Move to folder", and folders that open in place.
   2. **Sort the rest with on-device AI** (shipped). Gemini Nano through ML Kit's Prompt API, opt-in, offered where AICore is installed, with progress in Settings and in the Other folder and a one-time offer at the top of Other. See `SPEC.md`.
   3. **Measure AI sorting on a device.** A debug-only screen that runs the classifier over about 200 popular apps with known folders and reports how many it got right, and which it got wrong, so the prompt can be tuned. Not measured yet: nothing here can run Gemini Nano.
-  4. **Category icons for folders** (shipped; maintainer chose mock A, 2026-11-19): a Material Symbol on a tile of the folder's own color, in place of the 2×2 preview, drawn like an app icon in every list style.
+  4. **Category icons for folders** (shipped; maintainer chose mock A, 2026-11-19, then style B: no tile, large monochrome glyph): a Material Symbol in place of the 2×2 preview, in an app icon's box in every list style.
   5. **Search matches folder names** (maintainer, 2026-11-19): typing a folder's name shows the folder and the apps in it.
 
 - **Kiosk mode follow-ups.** The widget-only, screen-on-while-plugged-in display shipped; still to come, each its own PR:
