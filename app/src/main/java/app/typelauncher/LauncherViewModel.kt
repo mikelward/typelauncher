@@ -5108,13 +5108,15 @@ internal class LauncherViewModel(
     /** The apps AI sorting is for, and those it hasn't sorted yet. */
     private class AiSortWork(val total: Int, val pending: List<AiSortInput>)
 
-    // Apps the manifest doesn't file and the user hasn't either. Visible apps
-    // only, so a hidden or paused app isn't asked about.
+    // Every app the user hasn't filed, manifest category or not: manifests are
+    // often wrong (a broker declaring "productivity"), so with AI sorting on
+    // the AI decides. Visible apps only, so a hidden or paused app isn't asked
+    // about.
     private fun aiSortWork(): AiSortWork {
         val filings = appFolderStore.assignments
         val sorted = appFolderStore.aiAssignments
         val candidates = visibleInstalledApps()
-            .filter { app -> app.declaredCategory == null && !filings.containsKey(app.id) }
+            .filter { app -> !filings.containsKey(app.id) }
             .distinctBy { app -> app.id }
         val pending = candidates
             .filter { app -> app.id !in sorted }

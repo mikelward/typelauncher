@@ -1281,14 +1281,17 @@ internal fun HomeScreen(
             // stay flat so type-to-launch is unchanged. One pass over the list,
             // redone only when the list or a filing changes.
             val showsAppFolders = state.isAppFoldersEnabled && state.query.isBlank()
+            // The AI's choices count only while AI sorting is on; off, the
+            // manifests file the apps again.
+            val aiFolders = if (state.isAiSortEnabled) state.appFolderAiAssignments else emptyMap()
             val appListGrouping = remember(
                 state.filteredApps,
                 state.appFolderAssignments,
-                state.appFolderAiAssignments,
+                aiFolders,
                 showsAppFolders,
             ) {
                 if (showsAppFolders) {
-                    groupAppList(state.filteredApps, state.appFolderAssignments, state.appFolderAiAssignments)
+                    groupAppList(state.filteredApps, state.appFolderAssignments, aiFolders)
                 } else {
                     null
                 }
@@ -1309,13 +1312,13 @@ internal fun HomeScreen(
             val appFolderMenu = remember(
                 state.isAppFoldersEnabled,
                 state.appFolderAssignments,
-                state.appFolderAiAssignments,
+                aiFolders,
                 onMoveAppToFolder,
             ) {
                 if (state.isAppFoldersEnabled) {
                     AppFolderMenu(
                         folderOf = { app ->
-                            effectiveAppFolder(app, state.appFolderAssignments, state.appFolderAiAssignments)
+                            effectiveAppFolder(app, state.appFolderAssignments, aiFolders)
                         },
                         onMove = onMoveAppToFolder,
                     )

@@ -47,8 +47,11 @@ class LauncherViewModelAiSortTest {
     }
 
     @Test
-    fun sortsOnlyAppsTheManifestAndUserLeaveUnfiled_andSaysSo() {
-        seedApp("Monzo", "co.uk.getmondo")
+    fun sortsEveryAppTheUserLeftUnfiled_manifestCategoryOrNot_andSaysSo() {
+        // Finance apps often declare "productivity", since Android's manifest
+        // categories have no finance; so the AI is asked about them too
+        // (maintainer, 2026-11-19: Robinhood, Monzo and Wallet in Productivity).
+        seedApp("Monzo", "co.uk.getmondo", ApplicationInfo.CATEGORY_PRODUCTIVITY)
         seedApp("Chess", "com.chess", ApplicationInfo.CATEGORY_GAME)
         seedApp("Notes", "com.example.notes")
         model.answer = { prompt -> answerFrom(prompt, mapOf("Monzo" to "finance", "Notes" to "tools")) }
@@ -57,7 +60,7 @@ class LauncherViewModelAiSortTest {
         val state = viewModel.uiState.value
         assertEquals(1, model.prompts.size)
         assertTrue(model.prompts.single(), "Monzo (co.uk.getmondo)" in model.prompts.single())
-        assertFalse("manifest-filed apps aren't asked about", "Chess" in model.prompts.single())
+        assertTrue("manifest-filed apps are asked about too", "Chess" in model.prompts.single())
         assertFalse("user-filed apps aren't asked about", "Notes" in model.prompts.single())
         assertEquals(AppCategory.Finance, state.appFolderAiAssignments[id(viewModel, "Monzo")])
         // Type Launcher lists itself too, so it's sorted alongside.
