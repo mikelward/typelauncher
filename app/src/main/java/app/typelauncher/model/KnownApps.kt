@@ -66,7 +66,11 @@ private fun stemMatches(word: String, stem: String): Boolean = when {
 private fun labelCategory(label: String): AppCategory? {
     if (label.isBlank()) return null
     val words = label.lowercase().split(LABEL_WORD_BREAK)
-    LABEL_WORDS.firstOrNull { (keyword, _) ->
+    // Brands first, as whole words or runs of them: "Fly Delta", "My Bupa",
+    // "Priority Pass", and "Royal Mail" before "mail" makes it email.
+    val padded = words.filter { it.isNotEmpty() }.joinToString(" ", prefix = " ", postfix = " ")
+    LABEL_BRANDS.firstOrNull { (brand, _) -> " $brand " in padded }?.let { return it.second }
+    return LABEL_WORDS.firstOrNull { (keyword, _) ->
         words.any { word ->
             when {
                 keyword in WHOLE_WORD_ONLY -> word == keyword
@@ -75,11 +79,7 @@ private fun labelCategory(label: String): AppCategory? {
                 else -> word.endsWith(keyword)
             }
         }
-    }?.let { return it.second }
-    // Brands, as whole words or runs of them: "Fly Delta", "My Bupa",
-    // "Priority Pass".
-    val padded = words.filter { it.isNotEmpty() }.joinToString(" ", prefix = " ", postfix = " ")
-    return LABEL_BRANDS.firstOrNull { (brand, _) -> " $brand " in padded }?.second
+    }?.second
 }
 
 // Brands whose app names say nothing else about them (maintainer,
@@ -96,7 +96,13 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "saily" to AppCategory.Phone,
     "esim" to AppCategory.Phone,
     "suzerain" to AppCategory.Games,
-)
+) + listOf(
+    // Post and couriers (maintainer, 2026-11-19).
+    "australia post", "auspost", "royal mail", "usps", "fedex", "ups", "dhl", "dpd", "evri", "hermes",
+    "parcelforce", "canada post", "nz post", "an post", "post office", "aramex", "sendle", "startrack",
+    "couriers please", "yodel", "gls", "deutsche post", "la poste", "postnl", "postnord", "correos",
+    "posti", "purolator", "packlink",
+).map { it to AppCategory.Post }
 
 // Keywords that must start a word: "ebook" sits inside "Facebook" and
 // "Notebook" (Codex on PR #866).
@@ -115,6 +121,8 @@ private val LABEL_WORDS = listOf(
     "fitness" to AppCategory.Health,
     "gym" to AppCategory.Health,
     "workout" to AppCategory.Health,
+    "parcel" to AppCategory.Post,
+    "courier" to AppCategory.Post,
     "patient" to AppCategory.Health,
     "peloton" to AppCategory.Health,
     "browser" to AppCategory.Internet,
@@ -221,6 +229,7 @@ private val GUESS_RULES = listOf(
     AppCategory.Code to listOf("coding", "programming", "developer", "terminal", "ssh", "git", "python", "javascript"),
     AppCategory.Internet to listOf("browser", "internet", "vpn", "wifi", "speedtest"),
     AppCategory.Phone to listOf("phone", "telecom", "dialer", "esim"),
+    AppCategory.Post to listOf("parcel", "courier", "postal", "freight"),
     AppCategory.News to listOf("news", "newspaper", "headlines"),
     AppCategory.Social to listOf("chat", "messenger", "messaging", "messages", "social", "dating"),
     AppCategory.Productivity to listOf("mail", "email", "calendar", "notes", "docs", "todo", "tasks", "office", "pdf", "meeting"),

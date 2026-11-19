@@ -77,6 +77,7 @@ internal fun AppCategory.labelRes(): Int = when (this) {
     AppCategory.News -> R.string.app_folder_news
     AppCategory.Pets -> R.string.app_folder_pets
     AppCategory.Phone -> R.string.app_folder_phone
+    AppCategory.Post -> R.string.app_folder_post
     AppCategory.Photos -> R.string.app_folder_photos
     AppCategory.Productivity -> R.string.app_folder_productivity
     AppCategory.Reading -> R.string.app_folder_reading
@@ -123,6 +124,7 @@ internal fun FolderIcon.vector(): ImageVector = when (this) {
     FolderIcon.Shield -> CategoryIcons.Shield
     FolderIcon.Lock -> CategoryIcons.Lock
     FolderIcon.Call -> CategoryIcons.Call
+    FolderIcon.MarkunreadMailbox -> CategoryIcons.MarkunreadMailbox
     FolderIcon.Smartphone -> CategoryIcons.Smartphone
     FolderIcon.AccountBalance -> CategoryIcons.AccountBalance
     FolderIcon.Badge -> CategoryIcons.Badge
@@ -170,6 +172,7 @@ internal fun FolderIcon.descriptionRes(): Int = when (this) {
     FolderIcon.Shield -> R.string.folder_icon_shield
     FolderIcon.Lock -> R.string.folder_icon_lock
     FolderIcon.Call -> R.string.folder_icon_call
+    FolderIcon.MarkunreadMailbox -> R.string.folder_icon_markunread_mailbox
     FolderIcon.Smartphone -> R.string.folder_icon_smartphone
     FolderIcon.AccountBalance -> R.string.folder_icon_account_balance
     FolderIcon.Badge -> R.string.folder_icon_badge
