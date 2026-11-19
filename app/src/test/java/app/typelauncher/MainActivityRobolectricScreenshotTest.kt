@@ -174,6 +174,35 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun screenshot_home_gridOffer() {
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(GRID_OFFER_TAG).assertIsDisplayed()
+        saveScreenshot("compose_home_grid_offer_robolectric.png")
+
+        composeRule.onNodeWithTag(GRID_OFFER_ACCEPT_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(GRID_OFFER_TAG).assertDoesNotExist()
+        assertEquals(AppListLayout.NameBelow, composeRule.activity.viewModel.uiState.value.appListLayout)
+    }
+
+    @Test
+    fun appFoldersOffer_goesFirst_thenTheGridOffer() {
+        // Fresh install with both offers pending: Home shows one at a time.
+        val viewModel = composeRule.activity.viewModel
+        viewModel.uiState.value.let { state ->
+            assertTrue(state.isGridOfferPending)
+        }
+        composeRule.onNodeWithTag(GRID_OFFER_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag(APP_FOLDERS_OFFER_TAG).assertIsDisplayed()
+
+        composeRule.onNodeWithTag(APP_FOLDERS_OFFER_DISMISS_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(GRID_OFFER_TAG).assertIsDisplayed()
+    }
+
+    @Test
     fun screenshot_home_appFolders_openInPlace() {
         val viewModel = composeRule.activity.viewModel
         viewModel.setAppFoldersEnabled(true)
@@ -4401,8 +4430,20 @@ class MainActivityRobolectricScreenshotTest {
                     // A fresh install offers app folders on Home. Answer it for
                     // every test but the one about the offer, so the other
                     // Home snapshots show the steady state.
-                    if (description.methodName != "screenshot_home_appFoldersOffer") {
+                    if (description.methodName !in listOf(
+                            "screenshot_home_appFoldersOffer",
+                            "appFoldersOffer_goesFirst_thenTheGridOffer",
+                        )
+                    ) {
                         AppFolderStore(application).isOfferAnswered = true
+                    }
+                    // Likewise the one-time grid offer.
+                    if (description.methodName !in listOf(
+                            "screenshot_home_gridOffer",
+                            "appFoldersOffer_goesFirst_thenTheGridOffer",
+                        )
+                    ) {
+                        DockSettingsStore(application).isGridOfferAnswered = true
                     }
                     // Every other test pins the shipping name, so the recorded
                     // snapshots show what Play users see. This one pins the

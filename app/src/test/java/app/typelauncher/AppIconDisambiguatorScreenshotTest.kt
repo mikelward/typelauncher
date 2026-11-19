@@ -169,6 +169,7 @@ class AppIconDisambiguatorScreenshotTest {
                     // Answer the one-time app folders offer, so the list
                     // under test starts at the top of the card.
                     AppFolderStore(application).isOfferAnswered = true
+                    DockSettingsStore(application).isGridOfferAnswered = true
                     seedAmbiguousApps()
                     base.evaluate()
                 }

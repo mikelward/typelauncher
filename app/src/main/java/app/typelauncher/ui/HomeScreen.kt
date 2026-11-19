@@ -296,6 +296,8 @@ internal fun HomeScreen(
     onMoveAppToFolder: (InstalledApp, AppCategory?) -> Unit = { _, _ -> },
     onAiSortEnabledChanged: (Boolean) -> Unit = {},
     onDismissAiSortOffer: () -> Unit = {},
+    onAcceptGridOffer: () -> Unit = {},
+    onDismissGridOffer: () -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
     // The app-list folder open in place, by its category's storage key. Closes
@@ -1392,6 +1394,11 @@ internal fun HomeScreen(
                     onCloseFolder = { openAppFolderKey = null },
                     folderMenu = appFolderMenu,
                     showFoldersOffer = state.isAppFoldersOfferPending && state.query.isBlank(),
+                    showGridOffer = state.isGridOfferPending &&
+                        state.appListLayout == AppListLayout.NameBeside &&
+                        state.query.isBlank(),
+                    onAcceptGridOffer = onAcceptGridOffer,
+                    onDismissGridOffer = onDismissGridOffer,
                     onAcceptFoldersOffer = { onAppFoldersEnabledChanged(true) },
                     onDismissFoldersOffer = onDismissAppFoldersOffer,
                     // The Other folder holds what's left to sort, so AI sorting
@@ -4709,6 +4716,11 @@ internal fun AppsCard(
     onDismissFoldersOffer: () -> Unit = {},
     // Shown under the open folder's header, when set.
     openFolderNote: (@Composable () -> Unit)? = null,
+    // The one-time offer to show apps as a grid, above the list. Never with
+    // the folders offer, which goes first.
+    showGridOffer: Boolean = false,
+    onAcceptGridOffer: () -> Unit = {},
+    onDismissGridOffer: () -> Unit = {},
 ) {
     // "No results" means no apps AND no content sections: a content-only
     // result set still renders the scrollable list, whose bounds must stay
@@ -4787,6 +4799,8 @@ internal fun AppsCard(
         ) {
             if (showFoldersOffer && !isLoading) {
                 AppFoldersOffer(onAccept = onAcceptFoldersOffer, onDismiss = onDismissFoldersOffer)
+            } else if (showGridOffer && !isLoading) {
+                GridLayoutOffer(onAccept = onAcceptGridOffer, onDismiss = onDismissGridOffer)
             }
             if (isLoading) {
                 Box(

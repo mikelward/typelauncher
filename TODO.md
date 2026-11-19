@@ -146,6 +146,12 @@
 
 ### Decisions needing review
 
+- [ ] **Grid offer details** (2026-11-19): the maintainer asked for a banner
+      like the folders one suggesting the grid, "maybe name below". Guessed:
+      "Show apps in a grid?" with "Show grid" (switching to Name below) and
+      "Not now"; shown only while the style is still Name beside, after the
+      folders offer, and retired for good by either answer or by choosing any
+      style in Settings.
 - [ ] **App-list folder details** (2026-11-19), guessed while building step 1
       of *App-list folders*:
       - A folder needs two apps, unless the user filed an app there; a lone

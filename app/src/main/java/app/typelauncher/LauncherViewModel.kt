@@ -461,6 +461,8 @@ internal class LauncherViewModel(
             isAppFoldersEnabled = appFolderStore.isEnabled,
             appFolderAssignments = appFolderStore.assignments,
             isAppFoldersOfferPending = !appFolderStore.isOfferAnswered && !appFolderStore.isEnabled,
+            isGridOfferPending = !dockSettingsStore.isGridOfferAnswered &&
+                dockSettingsStore.appListLayout == AppListLayout.NameBeside,
             appFolderAiAssignments = appFolderStore.aiAssignments,
             isAiSortEnabled = appFolderStore.isAiSortEnabled,
             isAiSortOfferPending = !appFolderStore.isAiOfferAnswered && !appFolderStore.isAiSortEnabled,
@@ -4986,8 +4988,22 @@ internal class LauncherViewModel(
 
     fun setAppListLayout(layout: AppListLayout) {
         dockSettingsStore.appListLayout = layout
-        _uiState.update { it.copy(appListLayout = layout) }
+        // Choosing a style is an answer to the grid offer too.
+        dockSettingsStore.isGridOfferAnswered = true
+        _uiState.update { it.copy(appListLayout = layout, isGridOfferPending = false) }
         logState("setAppListLayout")
+    }
+
+    /** "Show grid" on Home's one-time offer: the names-below grid. */
+    fun acceptGridOffer() {
+        setAppListLayout(AppListLayout.NameBelow)
+    }
+
+    /** Declines Home's offer to show apps as a grid, for good. */
+    fun dismissGridOffer() {
+        dockSettingsStore.isGridOfferAnswered = true
+        _uiState.update { it.copy(isGridOfferPending = false) }
+        logState("dismissGridOffer")
     }
 
     fun setDockLayout(layout: DockLayout) {

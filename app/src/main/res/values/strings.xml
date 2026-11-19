@@ -168,6 +168,11 @@
     <string name="app_folders_offer_accept" tools:ignore="MissingTranslation">Turn on</string>
     <!-- TODO: translate -->
     <string name="app_folders_offer_dismiss" tools:ignore="MissingTranslation">Not now</string>
+    <!-- The one-time offer on Home to show apps as a grid, names below; it shares "Not now" above. -->
+    <!-- TODO: translate -->
+    <string name="grid_offer_title" tools:ignore="MissingTranslation">Show apps in a grid?</string>
+    <!-- TODO: translate -->
+    <string name="grid_offer_accept" tools:ignore="MissingTranslation">Show grid</string>
     <!-- TODO: translate -->
     <string name="app_menu_move_to_folder" tools:ignore="MissingTranslation">Move to folder</string>
     <!-- TODO: translate -->
