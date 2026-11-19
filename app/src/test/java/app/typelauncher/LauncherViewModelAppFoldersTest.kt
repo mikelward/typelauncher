@@ -210,17 +210,42 @@ class LauncherViewModelAppFoldersTest {
     }
 
     @Test
-    fun folderSearch_isOff_whileFoldersAre() {
+    fun withFoldersOff_aFoldersName_findsDockedAppsToo() {
+        // Codex on PR #864: the dock hides while typing, and there's no folder
+        // to open, so a docked game must be found by "games" too.
         seedApp("Chess", "com.example.chess", category = ApplicationInfo.CATEGORY_GAME)
         seedApp("Sudoku", "com.example.sudoku", category = ApplicationInfo.CATEGORY_GAME)
         val viewModel = newViewModel()
+        idle()
+        val chess = viewModel.uiState.value.filteredApps.first { it.name == "Chess" }
+        if (!chess.isDocked) viewModel.toggleDock(chess, maxDockedApps = 12)
         idle()
 
         viewModel.setQuery("gam")
         idle()
 
+        assertTrue(viewModel.uiState.value.filteredApps.any { it.name == "Chess" })
+    }
+
+    @Test
+    fun withFoldersOff_aFoldersName_stillFindsItsApps_withoutTheFolder() {
+        // The maintainer, 2026-11-19: the folder name as text search matches,
+        // even with folders off.
+        seedApp("Chess", "com.example.chess", category = ApplicationInfo.CATEGORY_GAME)
+        seedApp("Sudoku", "com.example.sudoku", category = ApplicationInfo.CATEGORY_GAME)
+        seedApp("Notes", "com.example.notes")
+        val viewModel = newViewModel()
+        idle()
+
+        viewModel.setQuery("gam")
+        idle()
         assertTrue(viewModel.uiState.value.searchFolders.isEmpty())
-        assertTrue(viewModel.uiState.value.filteredApps.isEmpty())
+        assertEquals(setOf("Chess", "Sudoku"), viewModel.uiState.value.filteredApps.map { it.name }.toSet())
+
+        // Other isn't something to search for with folders off.
+        viewModel.setQuery("oth")
+        idle()
+        assertTrue(viewModel.uiState.value.filteredApps.none { it.name == "Notes" })
     }
 
     @Test
