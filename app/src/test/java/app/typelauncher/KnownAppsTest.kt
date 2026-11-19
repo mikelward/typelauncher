@@ -49,6 +49,21 @@ class KnownAppsTest {
         assertEquals(AppCategory.Finance, knownAppCategory("com.example.t", "Barclays Mobile Banking"))
         assertEquals(AppCategory.Phone, knownAppCategory("com.google.android.dialer"))
         assertEquals(AppCategory.Phone, knownAppCategory("com.tmobile.pr.mytmobile"))
+        // The maintainer, 2026-11-19: a Reading folder for books, audiobooks,
+        // Kindle and Audible.
+        assertEquals(AppCategory.Reading, knownAppCategory("com.amazon.kindle"))
+        assertEquals(AppCategory.Reading, knownAppCategory("com.audible.application"))
+        assertEquals(AppCategory.Reading, knownAppCategory("com.example.u", "BookBeat Audiobooks"))
+        assertEquals(AppCategory.Reading, knownAppCategory("com.example.v", "Kindle Unlimited"))
+        assertEquals(AppCategory.Reading, knownAppCategory("com.example.w", "Manga Plus"))
+        // Codex on PR #866: "ebook" must start a word, not end Facebook.
+        assertEquals(AppCategory.Reading, knownAppCategory("com.example.y", "eBook Reader"))
+        assertNull(knownAppCategory("com.example.z", "Facebook Lite"))
+        assertNull(knownAppCategory("com.example.z2", "Notebook"))
+        assertEquals(null, guessedAppCategory("com.facebook.lite", "Lite"))
+        // ...and library apps like Libby.
+        assertEquals(AppCategory.Reading, knownAppCategory("com.overdrive.mobile.android.libby"))
+        assertEquals(AppCategory.Reading, knownAppCategory("com.example.x", "Anytown Public Library"))
         // The maintainer, 2026-11-19: airlines are Travel, not Transport.
         assertEquals(AppCategory.Travel, knownAppCategory("com.example.n", "Virgin Atlantic Airways"))
         assertEquals(AppCategory.Travel, knownAppCategory("com.example.o", "Qantas Airlines"))
