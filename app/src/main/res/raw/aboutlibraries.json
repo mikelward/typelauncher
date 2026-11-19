@@ -4004,6 +4004,30 @@
             "funding": [
                 
             ]
+        },
+        {
+            "uniqueId": "com.google:material-symbols",
+            "name": "Material Symbols",
+            "description": "Material Symbols drawn for the app-list folders. The paths are held in the app.",
+            "website": "https://fonts.google.com/icons",
+            "developers": [
+                {
+                    "name": "Google"
+                }
+            ],
+            "organization": {
+                "name": "Google"
+            },
+            "scm": {
+                "connection": "scm:git:https://github.com/google/material-design-icons.git",
+                "url": "https://github.com/google/material-design-icons"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
         }
     ],
     "licenses": {
