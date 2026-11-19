@@ -854,6 +854,9 @@ internal data class LauncherUiState(
     val appFolderAssignments: Map<String, AppCategory?> = emptyMap(),
     // Whether Home still offers, once, to turn folders on.
     val isAppFoldersOfferPending: Boolean = false,
+    // Whether Home still offers, once, to show apps as a grid ("Name below").
+    // Home shows one offer at a time, the folders offer first.
+    val isGridOfferPending: Boolean = false,
     // "Sort with on-device AI": the folder it chose for each app it sorted,
     // whether this device can run it (AICore is installed), whether it's on,
     // whether the Other folder still offers it, and what it's doing now.

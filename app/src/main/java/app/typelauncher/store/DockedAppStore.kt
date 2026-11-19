@@ -608,6 +608,19 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
+     * True once the one-time offer on Home to show apps as a grid has been
+     * answered, either way, or the "App list/grid style" setting has been
+     * changed, which answers it too.
+     */
+    var isGridOfferAnswered: Boolean
+        get() = sharedPreferences.getBoolean(KEY_GRID_OFFER_ANSWERED, false)
+        set(value) {
+            sharedPreferences.edit()
+                .putBoolean(KEY_GRID_OFFER_ANSWERED, value)
+                .apply()
+        }
+
+    /**
      * When on, the empty-query Home shows the device wallpaper in the app-list
      * slot instead of the browse list until the user starts typing — an opt-in,
      * so it defaults off to preserve the browse-first Home for existing users.
@@ -1029,6 +1042,7 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_ICON_THEME = "icon_theme"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"
         const val KEY_LETTER_STRIP = "letter_strip"
+        const val KEY_GRID_OFFER_ANSWERED = "grid_offer_answered"
         const val KEY_KEYBOARD_AUTO_SHOWN = "keyboard_auto_shown"
         const val KEY_KEYBOARD_FLOATING = "keyboard_floating"
         const val KEY_SHOW_WALLPAPER = "show_wallpaper"

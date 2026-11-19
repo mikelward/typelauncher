@@ -282,24 +282,64 @@ internal fun AppListFolderHeader(folder: AppListFolder, onClose: () -> Unit) {
  */
 @Composable
 internal fun AppFoldersOffer(onAccept: () -> Unit, onDismiss: () -> Unit) {
+    AppListOfferRow(
+        title = stringResource(R.string.app_folders_offer_title),
+        acceptLabel = stringResource(R.string.app_folders_offer_accept),
+        tag = APP_FOLDERS_OFFER_TAG,
+        acceptTag = APP_FOLDERS_OFFER_ACCEPT_TAG,
+        dismissTag = APP_FOLDERS_OFFER_DISMISS_TAG,
+        onAccept = onAccept,
+        onDismiss = onDismiss,
+    )
+}
+
+/**
+ * The one-time offer to show apps as a grid, names below, in the same place
+ * and style as [AppFoldersOffer]. Either answer retires it for good; the
+ * "App list/grid style" setting keeps the choice.
+ */
+@Composable
+internal fun GridLayoutOffer(onAccept: () -> Unit, onDismiss: () -> Unit) {
+    AppListOfferRow(
+        title = stringResource(R.string.grid_offer_title),
+        acceptLabel = stringResource(R.string.grid_offer_accept),
+        tag = GRID_OFFER_TAG,
+        acceptTag = GRID_OFFER_ACCEPT_TAG,
+        dismissTag = GRID_OFFER_DISMISS_TAG,
+        onAccept = onAccept,
+        onDismiss = onDismiss,
+    )
+}
+
+/** A one-line question at the top of the app list, with "Not now" and an accept button. */
+@Composable
+private fun AppListOfferRow(
+    title: String,
+    acceptLabel: String,
+    tag: String,
+    acceptTag: String,
+    dismissTag: String,
+    onAccept: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 4.dp)
-            .testTag(APP_FOLDERS_OFFER_TAG),
+            .testTag(tag),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            stringResource(R.string.app_folders_offer_title),
+            title,
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onBackground,
         )
-        TextButton(onClick = onDismiss, modifier = Modifier.testTag(APP_FOLDERS_OFFER_DISMISS_TAG)) {
+        TextButton(onClick = onDismiss, modifier = Modifier.testTag(dismissTag)) {
             Text(stringResource(R.string.app_folders_offer_dismiss))
         }
-        TextButton(onClick = onAccept, modifier = Modifier.testTag(APP_FOLDERS_OFFER_ACCEPT_TAG)) {
-            Text(stringResource(R.string.app_folders_offer_accept))
+        TextButton(onClick = onAccept, modifier = Modifier.testTag(acceptTag)) {
+            Text(acceptLabel)
         }
     }
 }

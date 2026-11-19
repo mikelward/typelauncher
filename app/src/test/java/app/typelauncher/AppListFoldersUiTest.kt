@@ -125,6 +125,46 @@ class AppListFoldersUiTest {
     }
 
     @Test
+    fun gridOffer_bothAnswersReachTheirCallbacks_andFoldersOfferGoesFirst() {
+        var accepted = false
+        var dismissed = false
+        var foldersPending by mutableStateOf(true)
+        composeRule.setContent {
+            TypeLauncherTheme {
+                Box(modifier = Modifier.width(320.dp).height(480.dp)) {
+                    AppsCard(
+                        apps = listOf(mail),
+                        dockLimit = Int.MAX_VALUE,
+                        layout = AppListLayout.NameBeside,
+                        iconSizeDp = 43,
+                        highlightFirst = false,
+                        onLaunchApp = {},
+                        onOpenAppInfo = {},
+                        onToggleDock = { _, _ -> },
+                        onResetRank = {},
+                        onRenameApp = { _, _ -> },
+                        onHideApp = {},
+                        onUninstallApp = {},
+                        showFoldersOffer = foldersPending,
+                        showGridOffer = true,
+                        onAcceptGridOffer = { accepted = true },
+                        onDismissGridOffer = { dismissed = true },
+                    )
+                }
+            }
+        }
+        composeRule.onNodeWithTag(GRID_OFFER_TAG).assertDoesNotExist()
+
+        foldersPending = false
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Show apps in a grid?").assertExists()
+        composeRule.onNodeWithTag(GRID_OFFER_DISMISS_TAG).performClick()
+        composeRule.onNodeWithTag(GRID_OFFER_ACCEPT_TAG).performClick()
+        assertTrue(dismissed)
+        assertTrue(accepted)
+    }
+
+    @Test
     fun offer_hiddenUnlessPending() {
         compose(apps = listOf(mail))
 
