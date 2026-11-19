@@ -56,24 +56,24 @@ class LauncherViewModelAiSortTest {
         // Finance apps often declare "productivity", since Android's manifest
         // categories have no finance; so the AI is asked about them too
         // (maintainer, 2026-11-19: Robinhood, Monzo and Wallet in Productivity).
-        seedApp("Monzo", "co.uk.getmondo", ApplicationInfo.CATEGORY_PRODUCTIVITY)
-        seedApp("Chess", "com.chess", ApplicationInfo.CATEGORY_GAME)
+        seedApp("Fintastic", "com.example.fintastic", ApplicationInfo.CATEGORY_PRODUCTIVITY)
+        seedApp("Chess", "com.example.chess", ApplicationInfo.CATEGORY_GAME)
         seedApp("Notes", "com.example.notes")
-        model.answer = { prompt -> answerFrom(prompt, mapOf("Monzo" to "finance", "Notes" to "tools")) }
+        model.answer = { prompt -> answerFrom(prompt, mapOf("Fintastic" to "finance", "Notes" to "tools")) }
         val viewModel = startedViewModel(fileFirst = "Notes" to AppCategory.Productivity)
 
         val state = viewModel.uiState.value
         assertEquals(1, model.prompts.size)
-        assertTrue(model.prompts.single(), "Monzo (co.uk.getmondo)" in model.prompts.single())
+        assertTrue(model.prompts.single(), "Fintastic (com.example.fintastic)" in model.prompts.single())
         assertTrue("manifest-filed apps are asked about too", "Chess" in model.prompts.single())
         assertFalse("user-filed apps aren't asked about", "Notes" in model.prompts.single())
-        assertEquals(AppCategory.Finance.storageKey, state.appFolderAiAssignments[id(viewModel, "Monzo")])
+        assertEquals(AppCategory.Finance.storageKey, state.appFolderAiAssignments[id(viewModel, "Fintastic")])
         // Type Launcher lists itself too, so it's sorted alongside.
         assertEquals(AiSortPhase.Done, state.aiSort.phase)
         assertEquals(state.aiSort.total, state.aiSort.sorted)
         assertEquals(state.appFolderAiAssignments.size, state.aiSort.total)
         // Kept for the next launch.
-        assertEquals(AppCategory.Finance.storageKey, AppFolderStore(context).aiAssignments[id(viewModel, "Monzo")])
+        assertEquals(AppCategory.Finance.storageKey, AppFolderStore(context).aiAssignments[id(viewModel, "Fintastic")])
     }
 
     @Test
@@ -101,7 +101,7 @@ class LauncherViewModelAiSortTest {
 
     @Test
     fun aDeletedFolder_isntOfferedToTheAi_andEveryAppIsSortedAgain() {
-        seedApp("Chess", "com.chess")
+        seedApp("Chess", "com.example.chess")
         model.answer = { prompt -> answerFrom(prompt, mapOf("Chess" to "games")) }
         val viewModel = startedViewModel()
         val firstPrompts = model.prompts.size
@@ -183,14 +183,14 @@ class LauncherViewModelAiSortTest {
 
     @Test
     fun anAppTheAnswerLeavesOut_isAskedAgain_thenFiledInOther() {
-        seedApp("Monzo", "co.uk.getmondo")
+        seedApp("Fintastic", "com.example.fintastic")
         model.answer = { "Sure, here you go!" }
 
         val viewModel = startedViewModel()
 
-        val monzo = id(viewModel, "Monzo")
-        assertEquals(AI_SORT_MAX_MISSES, model.prompts.count { "Monzo" in it })
-        assertEquals(AppCategory.Other.storageKey, viewModel.uiState.value.appFolderAiAssignments[monzo])
+        val fintastic = id(viewModel, "Fintastic")
+        assertEquals(AI_SORT_MAX_MISSES, model.prompts.count { "Fintastic" in it })
+        assertEquals(AppCategory.Other.storageKey, viewModel.uiState.value.appFolderAiAssignments[fintastic])
         assertEquals(AiSortPhase.Done, viewModel.uiState.value.aiSort.phase)
     }
 
@@ -198,20 +198,20 @@ class LauncherViewModelAiSortTest {
     fun resort_givesAnAppItsRetriesBack() {
         // Codex on PR #857: an app that used up its misses went straight to
         // Other on "Re-sort all apps" without being asked again.
-        seedApp("Monzo", "co.uk.getmondo")
+        seedApp("Fintastic", "com.example.fintastic")
         // Answers every app but Monzo.
         model.answer = { prompt ->
             prompt.lines()
-                .filter { Regex("""^\d+\. """).containsMatchIn(it) && "Monzo" !in it }
+                .filter { Regex("""^\d+\. """).containsMatchIn(it) && "Fintastic" !in it }
                 .joinToString("\n") { "${it.substringBefore('.')}: other" }
         }
         val viewModel = startedViewModel()
-        assertEquals(AI_SORT_MAX_MISSES, model.prompts.count { "Monzo" in it })
+        assertEquals(AI_SORT_MAX_MISSES, model.prompts.count { "Fintastic" in it })
 
         viewModel.resortAppsWithAi()
         idle()
 
-        assertEquals(2 * AI_SORT_MAX_MISSES, model.prompts.count { "Monzo" in it })
+        assertEquals(2 * AI_SORT_MAX_MISSES, model.prompts.count { "Fintastic" in it })
     }
 
     @Test
@@ -228,7 +228,7 @@ class LauncherViewModelAiSortTest {
 
     @Test
     fun waitsForTheForeground_folders_andTheSwitch() {
-        seedApp("Monzo", "co.uk.getmondo")
+        seedApp("Fintastic", "com.example.fintastic")
         val viewModel = newViewModel()
         idle()
         viewModel.setAppFoldersEnabled(true)
@@ -243,7 +243,7 @@ class LauncherViewModelAiSortTest {
 
     @Test
     fun noModelOnThisPhone_saysSo_andAsksNothing() {
-        seedApp("Monzo", "co.uk.getmondo")
+        seedApp("Fintastic", "com.example.fintastic")
         model.status = AiModelStatus.Unavailable
 
         val viewModel = startedViewModel()
@@ -254,7 +254,7 @@ class LauncherViewModelAiSortTest {
 
     @Test
     fun downloadsTheModelFirst() {
-        seedApp("Monzo", "co.uk.getmondo")
+        seedApp("Fintastic", "com.example.fintastic")
         model.status = AiModelStatus.Downloadable
 
         startedViewModel()
@@ -265,12 +265,12 @@ class LauncherViewModelAiSortTest {
 
     @Test
     fun busy_waitsAndRetriesTheSameBatch() {
-        seedApp("Monzo", "co.uk.getmondo")
+        seedApp("Fintastic", "com.example.fintastic")
         var calls = 0
         model.answer = { prompt ->
             calls++
             if (calls == 1) throw AiModelException.Busy(retryAfterMillis = null)
-            answerFrom(prompt, mapOf("Monzo" to "finance"))
+            answerFrom(prompt, mapOf("Fintastic" to "finance"))
         }
 
         val viewModel = startedViewModel()
@@ -281,12 +281,12 @@ class LauncherViewModelAiSortTest {
 
     @Test
     fun blockedInTheBackground_pauses_andCarriesOnAtTheNextReturn() {
-        seedApp("Monzo", "co.uk.getmondo")
+        seedApp("Fintastic", "com.example.fintastic")
         model.answer = { throw AiModelException.Background() }
         val viewModel = startedViewModel()
         assertEquals(AiSortPhase.Paused, viewModel.uiState.value.aiSort.phase)
 
-        model.answer = { prompt -> answerFrom(prompt, mapOf("Monzo" to "finance")) }
+        model.answer = { prompt -> answerFrom(prompt, mapOf("Fintastic" to "finance")) }
         viewModel.setLauncherForeground(false)
         viewModel.setLauncherForeground(true)
         idle()
@@ -298,7 +298,7 @@ class LauncherViewModelAiSortTest {
     fun paused_staysPausedThroughListRefreshes_untilTheNextReturn() {
         // An app-list refresh (here, a sort-order change) mustn't restart
         // sorting against a service that just refused it (Codex on PR #852).
-        seedApp("Monzo", "co.uk.getmondo")
+        seedApp("Fintastic", "com.example.fintastic")
         model.answer = { throw AiModelException.QuotaExceeded() }
         val viewModel = startedViewModel()
         assertEquals(AiSortPhase.Paused, viewModel.uiState.value.aiSort.phase)
@@ -308,7 +308,7 @@ class LauncherViewModelAiSortTest {
         idle()
         assertEquals(asked, model.prompts.size)
 
-        model.answer = { prompt -> answerFrom(prompt, mapOf("Monzo" to "finance")) }
+        model.answer = { prompt -> answerFrom(prompt, mapOf("Fintastic" to "finance")) }
         viewModel.setLauncherForeground(false)
         viewModel.setLauncherForeground(true)
         idle()
@@ -317,17 +317,17 @@ class LauncherViewModelAiSortTest {
 
     @Test
     fun resort_forgetsTheAisChoices_andAsksAgain() {
-        seedApp("Monzo", "co.uk.getmondo")
-        model.answer = { prompt -> answerFrom(prompt, mapOf("Monzo" to "social")) }
+        seedApp("Fintastic", "com.example.fintastic")
+        model.answer = { prompt -> answerFrom(prompt, mapOf("Fintastic" to "social")) }
         val viewModel = startedViewModel()
-        assertEquals(AppCategory.Social.storageKey, viewModel.uiState.value.appFolderAiAssignments[id(viewModel, "Monzo")])
+        assertEquals(AppCategory.Social.storageKey, viewModel.uiState.value.appFolderAiAssignments[id(viewModel, "Fintastic")])
 
-        model.answer = { prompt -> answerFrom(prompt, mapOf("Monzo" to "finance")) }
+        model.answer = { prompt -> answerFrom(prompt, mapOf("Fintastic" to "finance")) }
         viewModel.resortAppsWithAi()
         idle()
 
         assertEquals(2, model.prompts.size)
-        assertEquals(AppCategory.Finance.storageKey, viewModel.uiState.value.appFolderAiAssignments[id(viewModel, "Monzo")])
+        assertEquals(AppCategory.Finance.storageKey, viewModel.uiState.value.appFolderAiAssignments[id(viewModel, "Fintastic")])
     }
 
     @Test
@@ -342,7 +342,7 @@ class LauncherViewModelAiSortTest {
 
     @Test
     fun unsupportedPhone_neverStarts() {
-        seedApp("Monzo", "co.uk.getmondo")
+        seedApp("Fintastic", "com.example.fintastic")
         val viewModel = newViewModel(aiCorePresent = false)
         idle()
         viewModel.setAppFoldersEnabled(true)

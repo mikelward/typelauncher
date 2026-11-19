@@ -5164,7 +5164,7 @@ internal class LauncherViewModel(
         val activeKeys = appFolderStore.folders.mapTo(HashSet()) { it.key }
         val candidates = visibleInstalledApps()
             .filter { app ->
-                !filings.containsKey(app.id) && knownAppCategory(app.packageName)?.storageKey !in activeKeys
+                !filings.containsKey(app.id) && app.knownCategory()?.storageKey !in activeKeys
             }
             .distinctBy { app -> app.id }
         val pending = candidates

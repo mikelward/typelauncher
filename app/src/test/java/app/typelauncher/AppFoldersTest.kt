@@ -161,7 +161,7 @@ class AppFoldersTest {
         assertEquals("games", effective(chess))
         assertNull(effective(chess, mapOf(chess.id to null)))
         assertEquals("tools", effective(chess, mapOf(chess.id to "tools")))
-        val bank = app("Bank")
+        val bank = app("Acme")
         assertEquals("other", effective(bank))
         assertEquals("finance", effective(bank, ai = mapOf(bank.id to "finance")))
         assertEquals("social", effective(chess, ai = mapOf(chess.id to "social")))
@@ -247,6 +247,36 @@ class AppFoldersTest {
         assertTrue(folderNameMatches("Kids Stuff", "stu"))
         assertFalse(folderNameMatches("Games", "ames"))
         assertFalse(folderNameMatches("Games", " "))
+    }
+
+    @Test
+    fun aGuess_comesAfterTheAiAndTheManifest() {
+        val bank = app("Acme").copy(packageName = "com.example.mobilebanking")
+        val chess = app("Chess Pro", AppCategory.Games).copy(packageName = "com.example.banking")
+
+        assertEquals("finance", effective(bank))
+        assertEquals("tools", effective(bank, ai = mapOf(bank.id to "tools")))
+        assertEquals("games", effective(chess))
+    }
+
+    @Test
+    fun aKnownApp_beatsTheAi_andANameThatSaysWhatItIs_too() {
+        val netflix = app("Netflix").copy(packageName = "com.netflix.mediaclient")
+        val health = app("Samsung Health").copy(packageName = "com.example.health")
+
+        assertEquals("media", effective(netflix, ai = mapOf(netflix.id to "other")))
+        assertEquals("health", effective(health, ai = mapOf(health.id to "tools")))
+    }
+
+    @Test
+    fun aPinnedWebsite_isntPlacedByItsBrowsersPackage() {
+        // Codex on PR #863: a site pinned from Chrome carries Chrome's package.
+        val site = app("Acme").copy(packageName = "com.android.chrome", shortcutId = "acme")
+        val news = app("Daily News").copy(packageName = "com.android.chrome", shortcutId = "news")
+
+        assertEquals("other", effective(site))
+        assertEquals("social", effective(site, ai = mapOf(site.id to "social")))
+        assertEquals("news", effective(news))
     }
 
     @Test

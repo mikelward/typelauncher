@@ -156,17 +156,6 @@ internal fun declaredAppCategory(category: Int, flags: Int): AppCategory? = when
     else -> if (flags and FLAG_IS_GAME != 0) AppCategory.Games else null
 }
 
-/**
- * The folder a few well-known apps always go in, ahead of the AI, which got
- * them wrong on the maintainer's phone (2026-11-19): Waze went to Tools, and
- * Netflix's games, which are separate apps from Netflix itself, to Media.
- */
-internal fun knownAppCategory(packageName: String): AppCategory? = when {
-    packageName == "com.waze" -> AppCategory.Transport
-    packageName.startsWith("com.netflix.NGP.") -> AppCategory.Games
-    else -> null
-}
-
 // Deprecated in favor of CATEGORY_GAME, but games built before API 26 still set
 // only this, so it is read on purpose.
 @Suppress("DEPRECATION")
@@ -191,11 +180,12 @@ internal data class AppListGrouping(
 /**
  * The key of the folder [app] is filed in among [activeKeys], or null for "no
  * folder": where the user put it, if they did ([assignments] maps an app id to
- * a folder key, or to null for "no folder"); otherwise, for a few well-known
- * apps, where [knownAppCategory] says; otherwise where "Sort with
- * on-device AI" put it ([aiAssignments]), which the caller passes only while
+ * a folder key, or to null for "no folder"); otherwise, for a well-known app
+ * or one whose name says what it is, where [knownAppCategory] says;
+ * otherwise where "Sort with on-device AI" put it ([aiAssignments]), which the caller passes only while
  * that's on; otherwise where its manifest says
- * ([InstalledApp.declaredCategory]); otherwise Other. A choice naming a folder
+ * ([InstalledApp.declaredCategory]); otherwise where words in its package or
+ * name suggest ([guessedAppCategory]); otherwise Other. A choice naming a folder
  * that's since been deleted is passed over. The AI comes before the manifest
  * because manifests are often wrong: a broker or bank declaring
  * "productivity", say.
@@ -210,9 +200,10 @@ internal fun effectiveFolderKey(
         val chosen = assignments[app.id] ?: return null
         if (chosen in activeKeys) return chosen
     }
-    knownAppCategory(app.packageName)?.storageKey?.takeIf { it in activeKeys }?.let { return it }
+    app.knownCategory()?.storageKey?.takeIf { it in activeKeys }?.let { return it }
     aiAssignments[app.id]?.takeIf { it in activeKeys }?.let { return it }
     app.declaredCategory?.storageKey?.takeIf { it in activeKeys }?.let { return it }
+    app.guessedCategory()?.storageKey?.takeIf { it in activeKeys }?.let { return it }
     return AppCategory.Other.storageKey
 }
 
