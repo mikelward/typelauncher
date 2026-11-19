@@ -4992,7 +4992,9 @@ internal fun AppsCard(
                                     .testTag(APPS_LIST_TAG),
                             ) {
                                 if (!reverseLayout) {
-                                    appListFolderItems(folders, openFolder, reverseLayout, onOpenFolder, onCloseFolder, openFolderNote)
+                                    appListFolderItems(folders, openFolder, reverseLayout, onOpenFolder, openFolderNote)
+                                } else {
+                                    appListFolderCloseItem(openFolder, onCloseFolder)
                                 }
                                 itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
                                     AppRow(
@@ -5014,7 +5016,9 @@ internal fun AppsCard(
                                     )
                                 }
                                 if (reverseLayout) {
-                                    appListFolderItems(folders, openFolder, reverseLayout, onOpenFolder, onCloseFolder, openFolderNote)
+                                    appListFolderItems(folders, openFolder, reverseLayout, onOpenFolder, openFolderNote)
+                                } else {
+                                    appListFolderCloseItem(openFolder, onCloseFolder)
                                 }
                                 if (showStoreSearchRow) {
                                     storeSearchItem(query = query, onSearchAppStore = onSearchAppStore)
@@ -5261,7 +5265,9 @@ internal fun IconOnlyAppGrid(
         ),
     ) {
         if (!reverseLayout) {
-            appListFolderItems(folders, openFolder, iconSizeDp, showLabel, onOpenFolder, onCloseFolder, openFolderNote)
+            appListFolderItems(folders, openFolder, iconSizeDp, showLabel, onOpenFolder, openFolderNote)
+        } else {
+            appListFolderCloseItem(openFolder, iconSizeDp, showLabel, onCloseFolder)
         }
         itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
             IconOnlyAppButton(
@@ -5285,7 +5291,9 @@ internal fun IconOnlyAppGrid(
             )
         }
         if (reverseLayout) {
-            appListFolderItems(folders, openFolder, iconSizeDp, showLabel, onOpenFolder, onCloseFolder, openFolderNote)
+            appListFolderItems(folders, openFolder, iconSizeDp, showLabel, onOpenFolder, openFolderNote)
+        } else {
+            appListFolderCloseItem(openFolder, iconSizeDp, showLabel, onCloseFolder)
         }
         val showStoreSearchRow = query.isNotBlank()
         if (showStoreSearchRow) {
@@ -5321,7 +5329,6 @@ private fun LazyListScope.appListFolderItems(
     openFolder: AppListFolder?,
     reverseLayout: Boolean,
     onOpenFolder: (AppListFolder) -> Unit,
-    onCloseFolder: () -> Unit,
     openFolderNote: (@Composable () -> Unit)?,
 ) {
     if (openFolder != null) {
@@ -5329,7 +5336,7 @@ private fun LazyListScope.appListFolderItems(
         // list is reversed, since item 0 is then at the bottom.
         val note = openFolderNote
         if (reverseLayout && note != null) item(key = APP_LIST_FOLDER_NOTE_KEY) { note() }
-        item(key = APP_LIST_FOLDER_HEADER_KEY) { AppListFolderHeader(openFolder, onCloseFolder) }
+        item(key = APP_LIST_FOLDER_HEADER_KEY) { AppListFolderHeader(openFolder) }
         if (!reverseLayout && note != null) item(key = APP_LIST_FOLDER_NOTE_KEY) { note() }
     }
     items(if (reverseLayout) folders.asReversed() else folders, key = { folder -> folder.id }) { folder ->
@@ -5351,7 +5358,6 @@ private fun LazyGridScope.appListFolderItems(
     iconSizeDp: Int,
     showLabel: Boolean,
     onOpenFolder: (AppListFolder) -> Unit,
-    onCloseFolder: () -> Unit,
     openFolderNote: (@Composable () -> Unit)?,
 ) {
     if (openFolder != null) {
@@ -5359,7 +5365,7 @@ private fun LazyGridScope.appListFolderItems(
         // swap them.
         item(key = APP_LIST_FOLDER_HEADER_KEY, span = { GridItemSpan(maxLineSpan) }) {
             Column {
-                AppListFolderHeader(openFolder, onCloseFolder)
+                AppListFolderHeader(openFolder)
                 openFolderNote?.invoke()
             }
         }
@@ -5374,6 +5380,31 @@ private fun LazyGridScope.appListFolderItems(
 private const val APP_LIST_FOLDER_BLOCK_KEY = "app_list_folder_block"
 
 private const val APP_LIST_FOLDER_HEADER_KEY = "app_list_folder_header"
+private const val APP_LIST_FOLDER_CLOSE_KEY = "app_list_folder_close"
+
+/**
+ * The open folder's close (✕) item, as dock folders have. It goes at the
+ * list's visual bottom, where a thumb is: after the apps, or, in a reversed
+ * list that grows up from the bottom, where the first app would go. The caller
+ * places the call accordingly.
+ */
+private fun LazyListScope.appListFolderCloseItem(openFolder: AppListFolder?, onCloseFolder: () -> Unit) {
+    if (openFolder == null) return
+    item(key = APP_LIST_FOLDER_CLOSE_KEY) { AppListFolderCloseRow(onClose = onCloseFolder) }
+}
+
+/** [LazyListScope.appListFolderCloseItem] for the icon grid: a tile in an app tile's footprint. */
+private fun LazyGridScope.appListFolderCloseItem(
+    openFolder: AppListFolder?,
+    iconSizeDp: Int,
+    showLabel: Boolean,
+    onCloseFolder: () -> Unit,
+) {
+    if (openFolder == null) return
+    item(key = APP_LIST_FOLDER_CLOSE_KEY) {
+        AppListFolderCloseTile(iconSizeDp = iconSizeDp, showLabel = showLabel, onClose = onCloseFolder)
+    }
+}
 private const val APP_LIST_FOLDER_NOTE_KEY = "app_list_folder_note"
 
 /**
