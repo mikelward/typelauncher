@@ -76,14 +76,26 @@ private fun labelCategory(label: String): AppCategory? {
             }
         }
     }?.let { return it.second }
-    // Airlines by brand, as whole words: "Fly Delta", "Ryanair".
-    return if (words.any { it in AIRLINE_BRANDS }) AppCategory.Travel else null
+    // Brands, as whole words or runs of them: "Fly Delta", "My Bupa",
+    // "Priority Pass".
+    val padded = words.filter { it.isNotEmpty() }.joinToString(" ", prefix = " ", postfix = " ")
+    return LABEL_BRANDS.firstOrNull { (brand, _) -> " $brand " in padded }?.second
 }
 
-// Airline brands whose app names say nothing else (maintainer, 2026-11-19).
-private val AIRLINE_BRANDS = setOf(
+// Brands whose app names say nothing else about them (maintainer,
+// 2026-11-19): matched as whole words, so "unifi" isn't "Unified Remote".
+private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "delta", "ryanair", "jetblue", "jetstar", "easyjet", "qantas", "emirates", "lufthansa", "klm",
     "southwest", "aeromexico", "aircanada", "westjet", "vueling", "wizzair", "norse",
+    "wanderlog", "priority pass", "tripit",
+).map { it to AppCategory.Travel } + listOf(
+    "bupa" to AppCategory.Health,
+    "hca" to AppCategory.Health,
+    "nhs" to AppCategory.Health,
+    "unifi" to AppCategory.Internet,
+    "saily" to AppCategory.Phone,
+    "esim" to AppCategory.Phone,
+    "suzerain" to AppCategory.Games,
 )
 
 // Keywords that must start a word: "ebook" sits inside "Facebook" and
@@ -103,6 +115,7 @@ private val LABEL_WORDS = listOf(
     "fitness" to AppCategory.Health,
     "gym" to AppCategory.Health,
     "workout" to AppCategory.Health,
+    "patient" to AppCategory.Health,
     "peloton" to AppCategory.Health,
     "browser" to AppCategory.Internet,
     "internet" to AppCategory.Internet,
@@ -126,7 +139,8 @@ private val LABEL_WORDS = listOf(
     "ebook" to AppCategory.Reading,
     "comics" to AppCategory.Reading,
     "manga" to AppCategory.Reading,
-    "library" to AppCategory.Reading,
+    // "Library", "Libraries".
+    "librar" to AppCategory.Reading,
     "libby" to AppCategory.Reading,
     "podcasts" to AppCategory.Music,
     "calculator" to AppCategory.Tools,
@@ -197,12 +211,12 @@ private val GUESS_RULES = listOf(
     AppCategory.Music to listOf("music", "radio", "podcast", "karaoke"),
     AppCategory.Photos to listOf("photo", "camera", "gallery", "selfie"),
     AppCategory.Sports to listOf("sport", "football", "soccer", "basketball", "cricket", "rugby", "nfl", "nba", "espn"),
-    AppCategory.Health to listOf("health", "fitness", "gym", "workout", "yoga", "meditation", "sleep", "pharmacy", "medical", "doctor"),
+    AppCategory.Health to listOf("health", "fitness", "gym", "workout", "yoga", "meditation", "sleep", "pharmacy", "medical", "doctor", "patient"),
     AppCategory.Learning to listOf("learn", "school", "education", "edu", "dictionary", "language", "course", "study", "flashcards"),
     AppCategory.Pets to listOf("pet", "pets", "dog", "dogs", "vet", "petcare"),
     AppCategory.Transport to listOf("transit", "metro", "rail", "railway", "bus", "taxi", "parking", "maps", "navigation", "scooter"),
     AppCategory.Travel to listOf("airline", "airways", "flight", "hotel", "travel", "booking"),
-    AppCategory.Reading to listOf("ebook", "audiobook", "kindle", "comic", "manga", "novel", "library"),
+    AppCategory.Reading to listOf("ebook", "audiobook", "kindle", "comic", "manga", "novel", "librar"),
     AppCategory.Shopping to listOf("shop", "deals", "coupon", "marketplace"),
     AppCategory.Code to listOf("coding", "programming", "developer", "terminal", "ssh", "git", "python", "javascript"),
     AppCategory.Internet to listOf("browser", "internet", "vpn", "wifi", "speedtest"),
