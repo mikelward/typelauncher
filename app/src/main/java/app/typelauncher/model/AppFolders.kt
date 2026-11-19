@@ -164,6 +164,24 @@ internal fun declaredAppCategory(category: Int, flags: Int): AppCategory? = when
     else -> if (flags and FLAG_IS_GAME != 0) AppCategory.Games else null
 }
 
+/**
+ * The folder the rules put [this] app in ahead of the AI: the well-known apps
+ * table and name words ([knownCategory]), then a manifest that says the app
+ * is a game. A game says so plainly, unlike the junk-drawer categories, and
+ * the AI filed Mini Metro under Transport and The Darkside Detective under
+ * Other (maintainer, 2026-11-19).
+ */
+internal fun InstalledApp.ruledCategory(): AppCategory? =
+    knownCategory() ?: declaredCategory?.takeIf { it == AppCategory.Games }
+
+/**
+ * The folder the rules would pick for [this] app, for AI sorting to weigh
+ * (see `AiSortInput.suggested`): [ruledCategory], then its manifest, then a
+ * guess from its words.
+ */
+internal fun InstalledApp.suggestedCategory(): AppCategory? =
+    ruledCategory() ?: declaredCategory ?: guessedCategory()
+
 // Deprecated in favor of CATEGORY_GAME, but games built before API 26 still set
 // only this, so it is read on purpose.
 @Suppress("DEPRECATION")
@@ -189,7 +207,8 @@ internal data class AppListGrouping(
  * The key of the folder [app] is filed in among [activeKeys], or null for "no
  * folder": where the user put it, if they did ([assignments] maps an app id to
  * a folder key, or to null for "no folder"); otherwise, for a well-known app
- * or one whose name says what it is, where [knownAppCategory] says;
+ * or one whose name says what it is, where [knownAppCategory] says, and
+ * for one whose manifest says it's a game, Games ([ruledCategory]);
  * otherwise where "Sort with on-device AI" put it ([aiAssignments]), which the caller passes only while
  * that's on; otherwise where its manifest says
  * ([InstalledApp.declaredCategory]); otherwise where words in its package or
@@ -212,7 +231,7 @@ internal fun effectiveFolderKey(
     // The AI's pick of a folder the user made beats the table: the user
     // asked for that folder, and the table can't know about it.
     if (aiChoice != null && aiChoice.startsWith(USER_FOLDER_KEY_PREFIX)) return aiChoice
-    app.knownCategory()?.storageKey?.takeIf { it in activeKeys }?.let { return it }
+    app.ruledCategory()?.storageKey?.takeIf { it in activeKeys }?.let { return it }
     aiChoice?.let { return it }
     app.declaredCategory?.storageKey?.takeIf { it in activeKeys }?.let { return it }
     app.guessedCategory()?.storageKey?.takeIf { it in activeKeys }?.let { return it }

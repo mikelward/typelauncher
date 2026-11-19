@@ -5169,13 +5169,13 @@ internal class LauncherViewModel(
         val candidates = visibleInstalledApps()
             .filter { app ->
                 !filings.containsKey(app.id) &&
-                    (hasUsersFolders || app.knownCategory()?.storageKey !in activeKeys)
+                    (hasUsersFolders || app.ruledCategory()?.storageKey !in activeKeys)
             }
             .distinctBy { app -> app.id }
         val pending = candidates
             .filter { app -> app.id !in sorted }
             .map { app ->
-                AiSortInput(app.id, app.name, app.packageName, app.knownCategory() ?: app.guessedCategory())
+                AiSortInput(app.id, app.name, app.packageName, app.suggestedCategory())
             }
         return AiSortWork(total = candidates.size, pending = pending)
     }

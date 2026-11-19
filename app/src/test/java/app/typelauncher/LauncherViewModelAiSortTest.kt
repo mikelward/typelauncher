@@ -57,6 +57,7 @@ class LauncherViewModelAiSortTest {
         // categories have no finance; so the AI is asked about them too
         // (maintainer, 2026-11-19: Robinhood, Monzo and Wallet in Productivity).
         seedApp("Fintastic", "com.example.fintastic", ApplicationInfo.CATEGORY_PRODUCTIVITY)
+        seedApp("Clipz", "com.example.clipz", ApplicationInfo.CATEGORY_VIDEO)
         seedApp("Chess", "com.example.chess", ApplicationInfo.CATEGORY_GAME)
         seedApp("Notes", "com.example.notes")
         model.answer = { prompt -> answerFrom(prompt, mapOf("Fintastic" to "finance", "Notes" to "tools")) }
@@ -65,7 +66,9 @@ class LauncherViewModelAiSortTest {
         val state = viewModel.uiState.value
         assertEquals(1, model.prompts.size)
         assertTrue(model.prompts.single(), "Fintastic (com.example.fintastic)" in model.prompts.single())
-        assertTrue("manifest-filed apps are asked about too", "Chess" in model.prompts.single())
+        assertTrue("manifest-filed apps are asked about too", "Clipz (com.example.clipz; suggested media)" in model.prompts.single())
+        // A game that says so goes in Games whatever the AI says (maintainer, 2026-11-19).
+        assertFalse("games that say so aren't asked about", "Chess" in model.prompts.single())
         assertFalse("user-filed apps aren't asked about", "Notes" in model.prompts.single())
         assertEquals(AppCategory.Finance.storageKey, state.appFolderAiAssignments[id(viewModel, "Fintastic")])
         // Type Launcher lists itself too, so it's sorted alongside.

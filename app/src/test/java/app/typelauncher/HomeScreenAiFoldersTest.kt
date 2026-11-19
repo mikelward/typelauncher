@@ -32,16 +32,18 @@ class HomeScreenAiFoldersTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
-    private val chess = app("Chess", AppCategory.Games)
-    private val sudoku = app("Sudoku", AppCategory.Games)
-    private val notes = app("Notes", AppCategory.Games)
+    // Video apps by their manifests: a manifest saying "game" beats the AI
+    // (maintainer, 2026-11-19), so these use a category that doesn't.
+    private val chess = app("Chess", AppCategory.Media)
+    private val sudoku = app("Sudoku", AppCategory.Media)
+    private val notes = app("Notes", AppCategory.Media)
 
     @Test
     fun aiOn_aiChoiceBeatsTheManifest_andTheUsersFilingBeatsBoth() {
         compose(aiSortEnabled = true)
 
         composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:finance").assertExists()
-        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:games").assertDoesNotExist()
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:media").assertDoesNotExist()
         composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:tools").assertExists()
         assertMenuSelection(folderKey = "finance", appName = "Chess", selectedKey = "finance")
     }
@@ -50,10 +52,10 @@ class HomeScreenAiFoldersTest {
     fun aiOff_theManifestFilesAppsAgain_andTheUsersFilingStillWins() {
         compose(aiSortEnabled = false)
 
-        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:games").assertExists()
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:media").assertExists()
         composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:finance").assertDoesNotExist()
         composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:tools").assertExists()
-        assertMenuSelection(folderKey = "games", appName = "Chess", selectedKey = "games")
+        assertMenuSelection(folderKey = "media", appName = "Chess", selectedKey = "media")
     }
 
     @Test
@@ -61,7 +63,7 @@ class HomeScreenAiFoldersTest {
         // The maintainer, 2026-11-19: not just in Other.
         compose(aiSortEnabled = false, aiOfferPending = true)
 
-        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:games").performClick()
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:media").performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(AI_SORT_OFFER_TAG).assertExists()
@@ -71,7 +73,7 @@ class HomeScreenAiFoldersTest {
     fun aiOffer_goneOnceAnswered() {
         compose(aiSortEnabled = false, aiOfferPending = false)
 
-        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:games").performClick()
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:media").performClick()
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag(AI_SORT_OFFER_TAG).assertDoesNotExist()
@@ -80,7 +82,7 @@ class HomeScreenAiFoldersTest {
     @Test
     fun typedSearch_showsTheFoldersItNames_andOpeningOneClearsTheQuery() {
         var cleared = false
-        val games = AppListFolder(AppFolderDef.builtIn(AppCategory.Games), listOf(chess, sudoku))
+        val games = AppListFolder(AppFolderDef.builtIn(AppCategory.Media), listOf(chess, sudoku))
         compose(
             aiSortEnabled = false,
             query = "gam",
@@ -88,7 +90,7 @@ class HomeScreenAiFoldersTest {
             onClearQuery = { cleared = true },
         )
 
-        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:games").performClick()
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:media").performClick()
 
         assertTrue(cleared)
     }
@@ -100,7 +102,7 @@ class HomeScreenAiFoldersTest {
         composeRule.onNodeWithTag("$MOVE_TO_FOLDER_ACTION_TAG:$appName").performClick()
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("$APP_FOLDER_PICKER_OPTION_TAG:$selectedKey").assertIsSelected()
-        val other = if (selectedKey == "finance") "games" else "finance"
+        val other = if (selectedKey == "finance") "media" else "finance"
         composeRule.onNodeWithTag("$APP_FOLDER_PICKER_OPTION_TAG:$other").assertIsNotSelected()
     }
 
