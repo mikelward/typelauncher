@@ -313,15 +313,15 @@
     <string name="app_folders_dialog_done" tools:ignore="MissingTranslation">Done</string>
     <!-- App list folder names. -->
     <!-- TODO: translate -->
-    <string name="app_folder_finance" tools:ignore="MissingTranslation">Finance</string>
+    <string name="app_folder_finance" tools:ignore="MissingTranslation">Finance &amp; money</string>
     <!-- TODO: translate -->
-    <string name="app_folder_food" tools:ignore="MissingTranslation">Food</string>
+    <string name="app_folder_food" tools:ignore="MissingTranslation">Food &amp; dining</string>
     <!-- TODO: translate -->
     <string name="app_folder_government" tools:ignore="MissingTranslation">Government</string>
     <!-- TODO: translate -->
     <string name="app_folder_internet" tools:ignore="MissingTranslation">Internet</string>
     <!-- TODO: translate -->
-    <string name="app_folder_kids" tools:ignore="MissingTranslation">Kids</string>
+    <string name="app_folder_kids" tools:ignore="MissingTranslation">Kids &amp; parenting</string>
     <!-- TODO: translate -->
     <string name="app_folder_music" tools:ignore="MissingTranslation">Music</string>
     <!-- TODO: translate -->
@@ -359,7 +359,7 @@
     <!-- TODO: translate -->
     <string name="app_folder_games" tools:ignore="MissingTranslation">Games</string>
     <!-- TODO: translate -->
-    <string name="app_folder_health" tools:ignore="MissingTranslation">Health</string>
+    <string name="app_folder_health" tools:ignore="MissingTranslation">Health &amp; fitness</string>
     <!-- TODO: translate -->
     <string name="app_folder_home" tools:ignore="MissingTranslation">Home</string>
     <!-- TODO: translate -->
@@ -372,11 +372,11 @@
     <!-- TODO: translate -->
     <string name="app_folder_news" tools:ignore="MissingTranslation">News</string>
     <!-- TODO: translate -->
-    <string name="app_folder_productivity" tools:ignore="MissingTranslation">Productivity</string>
+    <string name="app_folder_office" tools:ignore="MissingTranslation">Office &amp; productivity</string>
     <!-- TODO: translate -->
     <string name="app_folder_shopping" tools:ignore="MissingTranslation">Shopping</string>
     <!-- TODO: translate -->
-    <string name="app_folder_social" tools:ignore="MissingTranslation">Social</string>
+    <string name="app_folder_social" tools:ignore="MissingTranslation">Social &amp; communications</string>
     <!-- TODO: translate -->
     <string name="app_folder_tools" tools:ignore="MissingTranslation">Tools</string>
     <!-- TODO: translate -->

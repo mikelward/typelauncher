@@ -145,14 +145,14 @@ class AppFolderStoreTest {
         val kids = store.createFolder("Kids", FolderIcon.ChildCare)
         store.assign("crayons", kids.key)
         store.assign("chess", "games")
-        store.assign("mail", "productivity")
+        store.assign("mail", "office")
         store.assignByAi(mapOf("sudoku" to "games", "bank" to "finance"))
 
         store.deleteFolder(kids.key)
         store.deleteFolder("games")
 
         val reopened = AppFolderStore(context)
-        assertEquals(mapOf("mail" to "productivity"), reopened.assignments)
+        assertEquals(mapOf("mail" to "office"), reopened.assignments)
         assertEquals(mapOf("bank" to "finance"), reopened.aiAssignments)
         assertTrue(reopened.hasDeletedBuiltIns)
         assertFalse(reopened.folders.any { it.key == "games" || it.key == kids.key })
@@ -164,7 +164,7 @@ class AppFolderStoreTest {
         // Codex on PR #861: a hidden or paused app's filing moves too.
         val store = AppFolderStore(context)
         store.assign("hidden-game", "games")
-        store.assign("mail", "productivity")
+        store.assign("mail", "office")
         store.assignByAi(mapOf("paused-game" to "games", "bank" to "finance"))
 
         // The caller lists every installed app in the folder, hidden and paused
@@ -173,7 +173,7 @@ class AppFolderStoreTest {
 
         val reopened = AppFolderStore(context)
         assertEquals(
-            mapOf("hidden-game" to "kids", "mail" to "productivity", "paused-game" to "kids", "manifest-game" to "kids"),
+            mapOf("hidden-game" to "kids", "mail" to "office", "paused-game" to "kids", "manifest-game" to "kids"),
             reopened.assignments,
         )
         assertEquals(mapOf("bank" to "finance"), reopened.aiAssignments)

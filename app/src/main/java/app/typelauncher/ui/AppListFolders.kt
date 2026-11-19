@@ -85,7 +85,7 @@ internal fun AppCategory.labelRes(): Int = when (this) {
     AppCategory.Security -> R.string.app_folder_security
     AppCategory.Post -> R.string.app_folder_post
     AppCategory.Photos -> R.string.app_folder_photos
-    AppCategory.Productivity -> R.string.app_folder_productivity
+    AppCategory.Office -> R.string.app_folder_office
     AppCategory.Reading -> R.string.app_folder_reading
     AppCategory.Shopping -> R.string.app_folder_shopping
     AppCategory.Social -> R.string.app_folder_social
