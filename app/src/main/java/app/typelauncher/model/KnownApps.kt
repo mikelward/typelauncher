@@ -114,6 +114,10 @@ private val LABEL_WORDS = listOf(
     "wallet" to AppCategory.Finance,
     "bank" to AppCategory.Finance,
     "banking" to AppCategory.Finance,
+    // Last, so a more specific word wins ("Barclays Mobile Banking" is Finance).
+    "phone" to AppCategory.Phone,
+    "mobile" to AppCategory.Phone,
+    "telecom" to AppCategory.Phone,
 )
 
 // Publishers whose apps are games, by package prefix.
@@ -163,6 +167,7 @@ private val GUESS_RULES = listOf(
     AppCategory.Travel to listOf("airline", "airways", "flight", "hotel", "travel", "booking"),
     AppCategory.Shopping to listOf("shop", "deals", "coupon", "marketplace"),
     AppCategory.Internet to listOf("browser", "internet", "vpn", "wifi", "speedtest"),
+    AppCategory.Phone to listOf("phone", "telecom", "dialer", "esim"),
     AppCategory.News to listOf("news", "newspaper", "headlines"),
     AppCategory.Social to listOf("chat", "messenger", "messaging", "messages", "social", "dating"),
     AppCategory.Productivity to listOf("mail", "email", "calendar", "notes", "docs", "todo", "tasks", "office", "pdf", "meeting"),
@@ -216,7 +221,7 @@ private val KNOWN_PACKAGES = listOf(
         com.google.android.apps.messaging com.samsung.android.messaging com.viber.voip
         jp.naver.line.android com.tencent.mm com.kakao.talk com.skype.raider com.tinder
         com.bumble.app co.hinge.app xyz.blueskyweb.app org.joinmastodon.android com.nextdoor
-        com.google.android.dialer com.google.android.contacts
+        com.google.android.contacts
     """,
     AppCategory.Productivity to """
         com.google.android.gm com.microsoft.office.outlook com.google.android.calendar
@@ -311,6 +316,12 @@ private val KNOWN_PACKAGES = listOf(
         com.ted.android org.edx.mobile com.linkedin.android.learning com.instructure.candroid
         com.ichi2.anki
     """,
+    AppCategory.Phone to """
+        com.google.android.dialer com.samsung.android.dialer com.tmobile.pr.mytmobile
+        com.vzw.hss.myverizon com.att.myWireless com.google.android.apps.tycho
+        com.mint.mobile com.visible.android uk.co.ee.myee com.vodafone.myvodafone uk.co.o2.android.myo2
+        com.three.myaccount com.giffgaff.mobile
+    """,
     AppCategory.Kids to """
         com.google.android.apps.youtube.kids com.google.android.apps.kids.familylink
         org.pbskids.video org.khankids.android com.microsoft.familysafety
@@ -320,8 +331,7 @@ private val KNOWN_PACKAGES = listOf(
         com.opera.browser com.sec.android.app.sbrowser com.duckduckgo.mobile.android
         com.vivaldi.browser org.torproject.torbrowser com.nordvpn.android com.expressvpn.vpn
         ch.protonvpn.android com.cloudflare.onedotonedotonedotone org.zwanoo.android.speedtest
-        com.tmobile.pr.mytmobile com.vzw.hss.myverizon com.att.myWireless
-        com.google.android.apps.tycho com.google.android.googlequicksearchbox com.microsoft.bing
+        com.google.android.googlequicksearchbox com.microsoft.bing
     """,
     AppCategory.Home to """
         com.google.android.apps.chromecast.app com.nest.android com.amazon.dee.app com.ringapp

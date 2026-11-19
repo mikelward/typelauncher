@@ -221,7 +221,7 @@ class AppFoldersTest {
         assertEquals(
             listOf(
                 "finance", "food", "games", "government", "health", "home", "internet", "kids", "custom-1",
-                "learning", "media", "music", "news", "pets", "photos", "productivity", "shopping", "social",
+                "learning", "media", "music", "news", "pets", "phone", "photos", "productivity", "shopping", "social",
                 "sports", "transport", "travel", "weather", "custom-2", "other",
             ),
             folders.map { it.key },

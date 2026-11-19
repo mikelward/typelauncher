@@ -41,6 +41,14 @@ class KnownAppsTest {
         assertEquals(AppCategory.Health, knownAppCategory("com.example.k", "Peloton"))
         assertEquals(AppCategory.Transport, knownAppCategory("com.example.l", "OsmAnd Maps"))
         assertEquals(AppCategory.Music, knownAppCategory("com.example.m", "Apple Music"))
+        // The maintainer, 2026-11-19: a Phone folder, for anything named phone,
+        // mobile or telecom; a more specific word still wins.
+        assertEquals(AppCategory.Phone, knownAppCategory("com.example.q", "Phone"))
+        assertEquals(AppCategory.Phone, knownAppCategory("com.example.r", "My Vodafone Mobile"))
+        assertEquals(AppCategory.Phone, knownAppCategory("com.example.s", "BT Telecom"))
+        assertEquals(AppCategory.Finance, knownAppCategory("com.example.t", "Barclays Mobile Banking"))
+        assertEquals(AppCategory.Phone, knownAppCategory("com.google.android.dialer"))
+        assertEquals(AppCategory.Phone, knownAppCategory("com.tmobile.pr.mytmobile"))
         // The maintainer, 2026-11-19: airlines are Travel, not Transport.
         assertEquals(AppCategory.Travel, knownAppCategory("com.example.n", "Virgin Atlantic Airways"))
         assertEquals(AppCategory.Travel, knownAppCategory("com.example.o", "Qantas Airlines"))

@@ -28,6 +28,7 @@ internal enum class AppCategory(val storageKey: String, val icon: FolderIcon) {
     Music("music", FolderIcon.MusicNote),
     News("news", FolderIcon.Newspaper),
     Pets("pets", FolderIcon.Pets),
+    Phone("phone", FolderIcon.Smartphone),
     Photos("photos", FolderIcon.PhotoCamera),
     Productivity("productivity", FolderIcon.Work),
     Shopping("shopping", FolderIcon.ShoppingBag),
