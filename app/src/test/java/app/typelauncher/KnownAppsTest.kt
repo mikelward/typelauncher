@@ -41,9 +41,34 @@ class KnownAppsTest {
         assertEquals(AppCategory.Health, knownAppCategory("com.example.k", "Peloton"))
         assertEquals(AppCategory.Transport, knownAppCategory("com.example.l", "OsmAnd Maps"))
         assertEquals(AppCategory.Music, knownAppCategory("com.example.m", "Apple Music"))
-        // The maintainer, 2026-11-19: a Phone folder, for anything named phone,
-        // mobile or telecom; a more specific word still wins.
+        // The maintainer, 2026-11-19: a Phone folder for the phone app and
+        // carriers. Not anything named "phone" or "mobile": in Play's top
+        // charts those were mostly banks, games and utilities.
         assertEquals(AppCategory.Phone, knownAppCategory("com.example.q", "Phone"))
+        for (label in listOf("RBC Mobile", "PUBG MOBILE", "Clap to Find My Phone", "Duo Mobile")) {
+            assertEquals(label, null, knownAppCategory("com.example.q2", label))
+        }
+        for (label in listOf("EE", "My Telstra", "My Optus", "T-Mobile", "giffgaff", "2degrees NZ")) {
+            assertEquals(label, AppCategory.Phone, knownAppCategory("com.example.q3", label))
+        }
+        // The word "AI" is a feature, not a folder.
+        for ((label, category) in listOf(
+            "AI Photo Editor: Art Studio" to null,
+            "Claude by Anthropic" to AppCategory.Ai,
+            "Grok Bot" to AppCategory.Ai,
+            "BBC Sport - News & Live Scores" to AppCategory.Sports,
+            "bet365 - Sportsbook & Casino" to AppCategory.Sports,
+            "The Courier-Mail: QLD News" to AppCategory.News,
+            "AlfredCamera Home Security app" to AppCategory.Home,
+            "RingGo: Mobile Car Parking App" to AppCategory.Transport,
+            "Flightradar24 Flight Tracker" to AppCategory.Travel,
+            "TfL Go: Plan, Pay, Travel" to AppCategory.Transport,
+            // Codex on PR #875: "sport" must start a word, not end one.
+            "Public Transport Victoria app" to AppCategory.Transport,
+            "Passport Renewal" to null,
+        )) {
+            assertEquals(label, category, knownAppCategory("com.example.q4", label))
+        }
         assertEquals(AppCategory.Phone, knownAppCategory("com.example.r", "My Vodafone Mobile"))
         assertEquals(AppCategory.Phone, knownAppCategory("com.example.s", "BT Telecom"))
         assertEquals(AppCategory.Finance, knownAppCategory("com.example.t", "Barclays Mobile Banking"))
