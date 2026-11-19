@@ -23,6 +23,23 @@ class AiAppSortingTest {
     }
 
     @Test
+    fun prompt_passesTheRulesSuggestion_andTheAnswerStillWins() {
+        // The maintainer, 2026-11-19: our suggestions as hints, so the AI
+        // keeps the apps the rules would place where they'd place them.
+        val libraries = AiSortInput("d", "Libraries", "com.example.lib", AppCategory.Reading)
+        val gone = AiSortFolders(activeAppFolders(emptyList(), setOf(AppCategory.Reading.storageKey)))
+
+        assertTrue(buildAiSortPrompt(listOf(libraries)).let { "1. Libraries (com.example.lib; suggested reading)" in it })
+        // Not a folder that was deleted.
+        assertTrue(buildAiSortPrompt(listOf(libraries), gone).let { "1. Libraries (com.example.lib)" in it })
+        // An echoed suggestion isn't read as the answer.
+        assertEquals(
+            mapOf("d" to "learning"),
+            parseAiSortAnswer("1. Libraries (com.example.lib; suggested reading): learning", listOf(libraries)),
+        )
+    }
+
+    @Test
     fun prompt_putsWalletsUnderFinance() {
         // So Google Wallet and its like land in Finance rather than Shopping
         // or Tools (maintainer, 2026-11-19).

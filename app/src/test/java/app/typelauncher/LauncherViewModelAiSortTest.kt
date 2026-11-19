@@ -166,7 +166,7 @@ class LauncherViewModelAiSortTest {
         idle()
 
         val coding = viewModel.uiState.value.appFolders.first { it.name == "Coding" }
-        assertTrue(model.prompts.any { "GitHub (com.github.android)" in it })
+        assertTrue(model.prompts.any { "GitHub (com.github.android; suggested code)" in it })
         assertEquals(coding.key, viewModel.uiState.value.appFolderAiAssignments[id(viewModel, "GitHub")])
     }
 
@@ -178,8 +178,8 @@ class LauncherViewModelAiSortTest {
 
         startedViewModel()
 
-        assertFalse(model.prompts.any { "Waze (com.waze)" in it })
-        assertTrue(model.prompts.any { "Notes (com.example.notes)" in it })
+        assertFalse(model.prompts.any { "Waze (com.waze" in it })
+        assertTrue(model.prompts.any { "Notes (com.example.notes; suggested productivity)" in it })
     }
 
     @Test

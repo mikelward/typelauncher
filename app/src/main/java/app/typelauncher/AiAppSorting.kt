@@ -131,8 +131,17 @@ internal fun isAiCorePresent(context: Context): Boolean = try {
 
 private const val AICORE_PACKAGE = "com.google.android.aicore"
 
-/** What the model is told about one app. */
-internal data class AiSortInput(val id: String, val label: String, val packageName: String)
+/**
+ * What the model is told about one app: its name, its package and, where the
+ * well-known apps table or a word in its name suggests one, [suggested], the
+ * folder the rules would pick (maintainer, 2026-11-19).
+ */
+internal data class AiSortInput(
+    val id: String,
+    val label: String,
+    val packageName: String,
+    val suggested: AppCategory? = null,
+)
 
 /**
  * The folders AI sorting files into: the ones in use, built-in and the
@@ -224,11 +233,15 @@ internal fun buildAiSortPrompt(apps: List<AiSortInput>, folders: AiSortFolders =
         } else {
             appendLine("Choose other only when nothing fits.")
         }
+        appendLine("Where an app has a suggested folder, choose it unless another folder fits it better.")
         appendLine()
         appendLine("Answer with one line per app, as \"number: folder\", and nothing else.")
         appendLine()
         apps.forEachIndexed { index, app ->
-            appendLine("${index + 1}. ${app.label.sanitizedForPrompt()} (${app.packageName})")
+            // Inside the parentheses, which the answer's reader skips, so an
+            // echoed suggestion isn't read as the answer.
+            val suggestion = app.suggested?.takeIf { it in active }?.let { "; suggested ${it.storageKey}" }.orEmpty()
+            appendLine("${index + 1}. ${app.label.sanitizedForPrompt()} (${app.packageName}$suggestion)")
         }
     }
 
