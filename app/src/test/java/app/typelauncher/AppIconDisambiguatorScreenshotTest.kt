@@ -161,10 +161,14 @@ class AppIconDisambiguatorScreenshotTest {
                         "app_metadata",
                         "hidden_apps",
                         "renamed_apps",
+                        AppFolderStore.PREFERENCES_NAME,
                     ).forEach { name ->
                         application.getSharedPreferences(name, android.content.Context.MODE_PRIVATE)
                             .edit().clear().commit()
                     }
+                    // Answer the one-time app folders offer, so the list
+                    // under test starts at the top of the card.
+                    AppFolderStore(application).isOfferAnswered = true
                     seedAmbiguousApps()
                     base.evaluate()
                 }
