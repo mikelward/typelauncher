@@ -21,6 +21,7 @@ internal enum class AppCategory(val storageKey: String) {
     Games("games"),
     Health("health"),
     Home("home"),
+    Learning("learning"),
     Media("media"),
     News("news"),
     Productivity("productivity"),

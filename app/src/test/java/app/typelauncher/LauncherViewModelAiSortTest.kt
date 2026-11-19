@@ -29,6 +29,11 @@ class LauncherViewModelAiSortTest {
     private val model = FakeModel()
     private val waits = mutableListOf<Long>()
 
+    init {
+        // By default the model answers every app, with other.
+        model.answer = { prompt -> answerFrom(prompt, emptyMap()) }
+    }
+
     @After
     fun clearPrefs() {
         listOf(
@@ -86,9 +91,42 @@ class LauncherViewModelAiSortTest {
     }
 
     @Test
+    fun anAppTheAnswerLeavesOut_isAskedAgain_thenFiledInOther() {
+        seedApp("Monzo", "co.uk.getmondo")
+        model.answer = { "Sure, here you go!" }
+
+        val viewModel = startedViewModel()
+
+        val monzo = id(viewModel, "Monzo")
+        assertEquals(AI_SORT_MAX_MISSES, model.prompts.count { "Monzo" in it })
+        assertEquals(AppCategory.Other, viewModel.uiState.value.appFolderAiAssignments[monzo])
+        assertEquals(AiSortPhase.Done, viewModel.uiState.value.aiSort.phase)
+    }
+
+    @Test
+    fun resort_givesAnAppItsRetriesBack() {
+        // Codex on PR #857: an app that used up its misses went straight to
+        // Other on "Re-sort all apps" without being asked again.
+        seedApp("Monzo", "co.uk.getmondo")
+        // Answers every app but Monzo.
+        model.answer = { prompt ->
+            prompt.lines()
+                .filter { Regex("""^\d+\. """).containsMatchIn(it) && "Monzo" !in it }
+                .joinToString("\n") { "${it.substringBefore('.')}: other" }
+        }
+        val viewModel = startedViewModel()
+        assertEquals(AI_SORT_MAX_MISSES, model.prompts.count { "Monzo" in it })
+
+        viewModel.resortAppsWithAi()
+        idle()
+
+        assertEquals(2 * AI_SORT_MAX_MISSES, model.prompts.count { "Monzo" in it })
+    }
+
+    @Test
     fun sortsInBatches() {
         repeat(AI_SORT_BATCH_SIZE + 3) { index -> seedApp("App $index", "com.example.app$index") }
-        model.answer = { "" } // Every app ends up in Other.
+        model.answer = { prompt -> answerFrom(prompt, (0 until AI_SORT_BATCH_SIZE + 3).associate { "App $it" to "tools" }) }
 
         val viewModel = startedViewModel()
 
@@ -244,11 +282,12 @@ class LauncherViewModelAiSortTest {
     private fun id(viewModel: LauncherViewModel, name: String): String =
         viewModel.uiState.value.filteredApps.first { it.name == name }.id
 
-    // Answers "n: folder" for each numbered app line whose label is in [folders].
+    // Answers "n: folder" for every numbered app line: the folder [folders]
+    // names for its label, else other (Type Launcher itself, mostly).
     private fun answerFrom(prompt: String, folders: Map<String, String>): String =
         prompt.lines().mapNotNull { line ->
             val match = Regex("""^(\d+)\. (.+) \(""").find(line) ?: return@mapNotNull null
-            folders[match.groupValues[2]]?.let { "${match.groupValues[1]}: $it" }
+            "${match.groupValues[1]}: ${folders[match.groupValues[2]] ?: "other"}"
         }.joinToString("\n")
 
     private fun newViewModel(aiCorePresent: Boolean = true): LauncherViewModel = LauncherViewModel(

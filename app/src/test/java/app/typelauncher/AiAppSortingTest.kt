@@ -32,6 +32,15 @@ class AiAppSortingTest {
     }
 
     @Test
+    fun prompt_hasALearningFolder_andProductivityNoLongerTakesEducation() {
+        val lines = buildAiSortPrompt(listOf(bank)).lines()
+
+        assertTrue(lines.first { it.startsWith("learning: ") }.let { "language learning" in it && "e-learning" in it })
+        assertTrue(lines.any { "Drops is learning" in it && "Coursera is learning" in it })
+        assertTrue(lines.first { it.startsWith("productivity: ") }.let { "education" !in it && "learning" !in it })
+    }
+
+    @Test
     fun prompt_hasAHomeFolderForSmartHomeAndProperty() {
         val home = buildAiSortPrompt(listOf(bank)).lines().first { it.startsWith("home: ") }
 
@@ -81,13 +90,101 @@ class AiAppSortingTest {
     }
 
     @Test
-    fun answer_madeUpFolderOrMissingApp_goesToOther() {
-        // Other rather than unsorted, so the app isn't asked about forever.
+    fun answer_madeUpFolderOrMissingApp_isLeftOut_forTheCallerToRetry() {
         val answer = "1: banking\n2: games"
 
         assertEquals(
-            mapOf("a" to AppCategory.Other, "b" to AppCategory.Games, "c" to AppCategory.Other),
+            mapOf("b" to AppCategory.Games),
             parseAiSortAnswer(answer, listOf(bank, chess, maps)),
+        )
+    }
+
+    @Test
+    fun answer_echoingTheApp_stillReadsTheFolder() {
+        // What filed obvious games in Other on a real phone (maintainer,
+        // 2026-11-19): the old reader took "The" as the folder.
+        val walkingDead = AiSortInput("w", "The Walking Dead", "com.skybound.twd")
+        val tv = AiSortInput("t", "Apple TV", "com.apple.atve.androidtv.appletv")
+        val answer = """
+            1. The Walking Dead (com.skybound.twd): games
+            2. Apple TV (com.apple.atve.androidtv.appletv) - Media
+        """.trimIndent()
+
+        assertEquals(
+            mapOf("w" to AppCategory.Games, "t" to AppCategory.Media),
+            parseAiSortAnswer(answer, listOf(walkingDead, tv)),
+        )
+    }
+
+    @Test
+    fun answer_appNamesThatAreFolderNames_arentReadAsTheAnswer() {
+        // Codex on PR #857: the folder before an echoed name, and an echo
+        // with no answer at all.
+        val bbc = AiSortInput("b", "BBC News", "bbc.mobile.news.uk")
+        val home = AiSortInput("h", "Google Home", "com.google.android.apps.chromecast.app")
+        val shop = AiSortInput("s", "Home Depot", "com.thehomedepot")
+        val answer = """
+            1: media (BBC News)
+            2: tools (Google Home)
+            3. Home Depot
+        """.trimIndent()
+
+        assertEquals(
+            mapOf("b" to AppCategory.Media, "h" to AppCategory.Tools),
+            parseAiSortAnswer(answer, listOf(bbc, home, shop)),
+        )
+    }
+
+    @Test
+    fun answer_forAnAppNamedLikeAFolder_isStillRead() {
+        // Codex on PR #857: an app called News answered "news".
+        val news = AiSortInput("n", "News", "com.example.news")
+        val home = AiSortInput("h", "Home", "com.example.home")
+        val games = AiSortInput("g", "Games", "com.example.games")
+        val answer = "1: news\n2. Home: tools\n3. Games (com.example.games): games"
+
+        assertEquals(
+            mapOf("n" to AppCategory.News, "h" to AppCategory.Tools, "g" to AppCategory.Games),
+            parseAiSortAnswer(answer, listOf(news, home, games)),
+        )
+    }
+
+    @Test
+    fun answer_anAppNamedLikePartOfAFolder_isntCutOutOfTheAnswer() {
+        // Codex on PR #857: an app called Learn answered "learning" left "ing".
+        val learn = AiSortInput("l", "Learn", "com.example.learn")
+        val game = AiSortInput("g", "Gam", "com.example.gam")
+        val answer = "1: learning\nGam: games"
+
+        assertEquals(
+            mapOf("l" to AppCategory.Learning, "g" to AppCategory.Games),
+            parseAiSortAnswer(answer, listOf(learn, game)),
+        )
+    }
+
+    @Test
+    fun answer_withoutNumbers_matchesByName_andReadsSingularFolders() {
+        val home = AiSortInput("h", "Google Home", "com.google.android.apps.chromecast.app")
+        val homeless = AiSortInput("x", "Home", "com.example.home")
+        val answer = "Chess: game\nGoogle Home: home\nHome - tool"
+
+        assertEquals(
+            mapOf("b" to AppCategory.Games, "h" to AppCategory.Home, "x" to AppCategory.Tools),
+            parseAiSortAnswer(answer, listOf(bank, chess, home, homeless)),
+        )
+    }
+
+    @Test
+    fun answer_withoutNumbers_aFolderWordNamingAnotherApp_doesntStealTheLine() {
+        // Codex on PR #857: "CNN: news" was matched to the app called News,
+        // the longer name, and News's own answer was lost.
+        val cnn = AiSortInput("c", "CNN", "com.cnn.mobile.android.phone")
+        val news = AiSortInput("n", "News", "com.example.news")
+        val answer = "CNN: news\nNews: media"
+
+        assertEquals(
+            mapOf("c" to AppCategory.News, "n" to AppCategory.Media),
+            parseAiSortAnswer(answer, listOf(cnn, news)),
         )
     }
 
