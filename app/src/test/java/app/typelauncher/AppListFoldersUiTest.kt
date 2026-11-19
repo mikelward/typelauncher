@@ -18,6 +18,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.performScrollTo
@@ -496,6 +497,103 @@ class AppListFoldersUiTest {
         composeRule.onNodeWithTag(APP_FOLDER_DELETE_CONFIRM_TAG).performClick()
 
         assertEquals("games", deleted?.key)
+    }
+
+    @Test
+    fun editApp_showsTheAppsFolder_andMovesIt() {
+        // The maintainer, 2026-11-19: the folder on the Edit app dialog too.
+        var moved: Pair<InstalledApp, String?>? = null
+        val menu = AppFolderMenu(
+            folders = activeAppFolders(emptyList(), emptySet()),
+            folderOf = { "games" },
+            onMove = { app, key -> moved = app to key },
+            onCreate = { _, _, _ -> },
+            onEdit = { _, _, _ -> },
+            onDelete = {},
+            onMerge = { _, _ -> },
+        )
+        composeRule.setContent {
+            TypeLauncherTheme {
+                androidx.compose.runtime.CompositionLocalProvider(LocalAppFolderMenu provides menu) {
+                    EditAppDialogContent(
+                        app = chess,
+                        onSave = {},
+                        onRestoreDefaults = {},
+                        onPickIcon = {},
+                        onClearIcon = {},
+                        onSetBadge = {},
+                        onDismiss = {},
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithTag(EDIT_APP_DIALOG_FOLDER_TAG).assertTextEquals("Games").performClick()
+        composeRule.onNodeWithTag("$APP_FOLDER_PICKER_OPTION_TAG:kids").performScrollTo().performClick()
+
+        // Codex on PR #868: filed only on Save, since filing it moves the app
+        // out of an open folder, and the dialog, unsaved, with it.
+        composeRule.onNodeWithTag(EDIT_APP_DIALOG_FOLDER_TAG).assertTextEquals("Kids")
+        assertEquals(null, moved)
+        composeRule.onNodeWithTag(EDIT_APP_DIALOG_SAVE_TAG).performClick()
+
+        assertEquals(chess to "kids", moved)
+    }
+
+    @Test
+    fun editApp_cancel_leavesTheFolderAlone() {
+        var moved: Pair<InstalledApp, String?>? = null
+        var dismissed = false
+        val menu = AppFolderMenu(
+            folders = activeAppFolders(emptyList(), emptySet()),
+            folderOf = { "games" },
+            onMove = { app, key -> moved = app to key },
+            onCreate = { _, _, _ -> },
+            onEdit = { _, _, _ -> },
+            onDelete = {},
+            onMerge = { _, _ -> },
+        )
+        composeRule.setContent {
+            TypeLauncherTheme {
+                androidx.compose.runtime.CompositionLocalProvider(LocalAppFolderMenu provides menu) {
+                    EditAppDialogContent(
+                        app = chess,
+                        onSave = {},
+                        onRestoreDefaults = {},
+                        onPickIcon = {},
+                        onClearIcon = {},
+                        onSetBadge = {},
+                        onDismiss = { dismissed = true },
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithTag(EDIT_APP_DIALOG_FOLDER_TAG).performClick()
+        composeRule.onNodeWithTag("$APP_FOLDER_PICKER_OPTION_TAG:kids").performScrollTo().performClick()
+        composeRule.onNodeWithTag(EDIT_APP_DIALOG_CANCEL_TAG).performClick()
+
+        assertTrue(dismissed)
+        assertEquals(null, moved)
+    }
+
+    @Test
+    fun editApp_hasNoFolderRow_whileFoldersAreOff() {
+        composeRule.setContent {
+            TypeLauncherTheme {
+                EditAppDialogContent(
+                    app = chess,
+                    onSave = {},
+                    onRestoreDefaults = {},
+                    onPickIcon = {},
+                    onClearIcon = {},
+                    onSetBadge = {},
+                    onDismiss = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(EDIT_APP_DIALOG_FOLDER_ROW_TAG).assertDoesNotExist()
     }
 
     @Test
