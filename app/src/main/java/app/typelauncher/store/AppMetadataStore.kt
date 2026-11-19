@@ -56,6 +56,7 @@ internal class AppMetadataStore(context: Context) {
                             isUninstallable = obj.optBoolean(KEY_IS_UNINSTALLABLE, true),
                             disambiguator = obj.optString(KEY_DISAMBIGUATOR).takeIf { it.isNotEmpty() },
                             shortcutId = shortcutId,
+                            declaredCategory = AppCategory.fromStorageKey(obj.optString(KEY_CATEGORY)),
                         ),
                     )
                 }
@@ -82,6 +83,7 @@ internal class AppMetadataStore(context: Context) {
                 put(KEY_IS_UNINSTALLABLE, app.isUninstallable)
                 app.iconCacheToken?.let { put(KEY_ICON_CACHE_TOKEN, it) }
                 app.disambiguator?.takeIf { it.isNotEmpty() }?.let { put(KEY_DISAMBIGUATOR, it) }
+                app.declaredCategory?.let { put(KEY_CATEGORY, it.storageKey) }
             }
             array.put(obj)
         }
@@ -102,5 +104,6 @@ internal class AppMetadataStore(context: Context) {
         const val KEY_ICON_CACHE_TOKEN = "iconCacheToken"
         const val KEY_DISAMBIGUATOR = "disambiguator"
         const val KEY_SHORTCUT_ID = "shortcutId"
+        const val KEY_CATEGORY = "category"
     }
 }

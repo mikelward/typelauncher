@@ -62,11 +62,13 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -288,8 +290,16 @@ internal fun HomeScreen(
     // Raises the soft keyboard again (routed to the search field's focus +
     // show request) when a search-time reveal ends without docking anything.
     onRequestShowKeyboard: () -> Unit = {},
+    // App-list folders: the Home offer's answer, and filing an app.
+    onAppFoldersEnabledChanged: (Boolean) -> Unit = {},
+    onDismissAppFoldersOffer: () -> Unit = {},
+    onMoveAppToFolder: (InstalledApp, AppCategory?) -> Unit = { _, _ -> },
 ) {
     val configuration = LocalConfiguration.current
+    // The app-list folder open in place, by its category's storage key. Closes
+    // whenever Home is re-entered, like an open dock folder.
+    var openAppFolderKey by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(state.homeReturnToken) { openAppFolderKey = null }
     // Size the dock from the short screen edge (the portrait width), so rotating
     // to landscape keeps the icons at their size instead of ballooning to fill
     // the wider row; the dock row is centered at that size (see `DockCard`),
@@ -1265,9 +1275,39 @@ internal fun HomeScreen(
                 landscapeTier,
                 state.isLetterStripEnabled,
             )
+            // Folders group the blank-query browse list only; typed results
+            // stay flat so type-to-launch is unchanged. One pass over the list,
+            // redone only when the list or a filing changes.
+            val showsAppFolders = state.isAppFoldersEnabled && state.query.isBlank()
+            val appListGrouping = remember(state.filteredApps, state.appFolderAssignments, showsAppFolders) {
+                if (showsAppFolders) groupAppList(state.filteredApps, state.appFolderAssignments) else null
+            }
+            val openAppFolder = appListGrouping?.folders?.firstOrNull { folder ->
+                folder.category.storageKey == openAppFolderKey
+            }
+            // Back closes an open folder, but only once nothing sits over the
+            // list: this handler is composed after TypeLauncherApp's, so it
+            // would otherwise take a Back meant to dismiss recents or Settings.
+            BackHandler(
+                enabled = openAppFolder != null &&
+                    isVisibleHomePage &&
+                    !state.isRecentsOpen &&
+                    !state.isSettingsOpen &&
+                    state.contactActionsMode == null,
+            ) { openAppFolderKey = null }
+            val appFolderMenu = remember(state.isAppFoldersEnabled, state.appFolderAssignments, onMoveAppToFolder) {
+                if (state.isAppFoldersEnabled) {
+                    AppFolderMenu(
+                        folderOf = { app -> effectiveAppFolder(app, state.appFolderAssignments) },
+                        onMove = onMoveAppToFolder,
+                    )
+                } else {
+                    null
+                }
+            }
             val appsCard: @Composable () -> Unit = {
                 AppsCard(
-                    apps = state.filteredApps,
+                    apps = openAppFolder?.apps ?: appListGrouping?.looseApps ?: state.filteredApps,
                     isLoading = state.isLoadingApps,
                     overflowChevronsReady = state.isFreshAppLoadComplete,
                     dockLimit = Int.MAX_VALUE,
@@ -1307,7 +1347,8 @@ internal fun HomeScreen(
                     onToggleStarred = onToggleStarred,
                     onContactLongPress = onContactLongPress,
                     onOpenEvent = onOpenEvent,
-                    scrollResetKey = state.query,
+                    // Opening or closing a folder starts its list at the top too.
+                    scrollResetKey = state.query to openAppFolder?.id,
                     onLaunchApp = onLaunchApp,
                     onOpenAppInfo = onOpenAppInfo,
                     onToggleDock = onToggleDock,
@@ -1324,6 +1365,14 @@ internal fun HomeScreen(
                     onCardBoundsChanged = { bounds -> appListBoundsInRoot = bounds },
                     appDrag = appListDragHandlers,
                     draggedAppId = draggingListAppId,
+                    folders = if (openAppFolder == null) appListGrouping?.folders.orEmpty() else emptyList(),
+                    openFolder = openAppFolder,
+                    onOpenFolder = { folder -> openAppFolderKey = folder.category.storageKey },
+                    onCloseFolder = { openAppFolderKey = null },
+                    folderMenu = appFolderMenu,
+                    showFoldersOffer = state.isAppFoldersOfferPending && state.query.isBlank(),
+                    onAcceptFoldersOffer = { onAppFoldersEnabledChanged(true) },
+                    onDismissFoldersOffer = onDismissAppFoldersOffer,
                 )
             }
             val contactActionsMode = state.contactActionsMode
@@ -4609,13 +4658,28 @@ internal fun AppsCard(
     // True while a finger is on a letter strip, so the launcher's carousel
     // and pull gestures stand down for that drag.
     onLetterStripDragChanged: (Boolean) -> Unit = {},
+    // App-list folders, blank query only. [folders] are the closed folders,
+    // listed at the visual top of the list. [openFolder], when set, is the
+    // folder open in place: [apps] are then its members, under a header that
+    // closes it, and [folders] is empty.
+    folders: List<AppListFolder> = emptyList(),
+    openFolder: AppListFolder? = null,
+    onOpenFolder: (AppListFolder) -> Unit = {},
+    onCloseFolder: () -> Unit = {},
+    // Non-null while folders are on, so the app menus offer "Move to folder".
+    folderMenu: AppFolderMenu? = null,
+    // The one-time offer to turn folders on, above the list.
+    showFoldersOffer: Boolean = false,
+    onAcceptFoldersOffer: () -> Unit = {},
+    onDismissFoldersOffer: () -> Unit = {},
 ) {
     // "No results" means no apps AND no content sections: a content-only
     // result set still renders the scrollable list, whose bounds must stay
     // published so the carousel keeps reserving in-list vertical gestures for
     // list scrolling (clearing them here would let a pull over the results
     // open recents / the notification shade instead).
-    val hasAnyResults = apps.isNotEmpty() || contactResults.isNotEmpty() || eventResults.isNotEmpty()
+    val hasFolderItems = folders.isNotEmpty() || openFolder != null
+    val hasAnyResults = apps.isNotEmpty() || hasFolderItems || contactResults.isNotEmpty() || eventResults.isNotEmpty()
     LaunchedEffect(isLoading, hasAnyResults) {
         if (isLoading || !hasAnyResults) {
             onAppListBoundsChanged(null)
@@ -4628,12 +4692,23 @@ internal fun AppsCard(
     // query is typed — ranked under every installed match, so the store is what
     // you reach after the real results rather than instead of them.
     val showStoreSearchRow = query.isNotBlank()
-    val chevronLayoutKey = remember(apps, contactResults, eventResults, layout, reverseLayout, showStoreSearchRow) {
+    val chevronLayoutKey = remember(
+        apps,
+        folders,
+        openFolder,
+        contactResults,
+        eventResults,
+        layout,
+        reverseLayout,
+        showStoreSearchRow,
+    ) {
         AppListChevronLayoutKey(
             // Content sections change the scrollable extent just like apps do,
             // so their keys join the measured-layout fingerprint the chevrons
             // wait on.
-            appIds = apps.map { it.id } +
+            appIds = (if (openFolder != null) listOf(openFolder.id) else emptyList()) +
+                folders.map { it.id } +
+                apps.map { it.id } +
                 // The store row changes the scrollable extent exactly like an
                 // app does, so it joins the measured-layout fingerprint too.
                 (if (showStoreSearchRow) listOf(STORE_SEARCH_ROW_KEY) else emptyList()) +
@@ -4648,247 +4723,272 @@ internal fun AppsCard(
     // Recomputed only when the list, its direction or the strip's visibility
     // changes; one pass over the display names. The strips read top to bottom
     // as the list does, so a reversed list (item 0 at the bottom) reverses them.
-    val letterSections = remember(apps, showLetterStrip, reverseLayout) {
-        if (showLetterStrip) {
-            appListLetterSections(apps.map { it.displayName }).let { if (reverseLayout) it.asReversed() else it }
+    // Inside an open folder there's too little to jump through, so no strip.
+    // Closed folders sit before the apps in data order unless the list is
+    // reversed (see appListFolderItems), so the apps' indices shift past them.
+    val letterSections = remember(apps, folders, openFolder, showLetterStrip, reverseLayout) {
+        if (showLetterStrip && openFolder == null) {
+            val offset = when {
+                reverseLayout || folders.isEmpty() -> 0
+                isGrid -> 1 // one block item; see LazyGridScope.appListFolderItems
+                else -> folders.size
+            }
+            appListLetterSections(apps.map { it.displayName })
+                .map { (letter, index) -> letter to index + offset }
+                .let { if (reverseLayout) it.asReversed() else it }
         } else {
             emptyList()
         }
     }
-    SectionCard(
-        modifier
-            .testTag(APPS_CARD_TAG)
-            .onGloballyPositioned { coords ->
-                onCardBoundsChanged(Rect(coords.positionInRoot(), coords.size.toSize()))
-            },
-    ) {
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 24.dp)
-                    .testTag(APPS_LOADING_TAG),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator()
+    CompositionLocalProvider(LocalAppFolderMenu provides folderMenu) {
+        SectionCard(
+            modifier
+                .testTag(APPS_CARD_TAG)
+                .onGloballyPositioned { coords ->
+                    onCardBoundsChanged(Rect(coords.positionInRoot(), coords.size.toSize()))
+                },
+        ) {
+            if (showFoldersOffer && !isLoading) {
+                AppFoldersOffer(onAccept = onAcceptFoldersOffer, onDismiss = onDismissFoldersOffer)
             }
-        } else if (apps.isEmpty() && contactResults.isEmpty() && eventResults.isEmpty()) {
-            // The apps card is measured to a fixed height (the Home layout's
-            // `appHeight`), which in short landscape with the keyboard up can be
-            // only a row or two — shorter than the empty state. Scroll rather
-            // than clip, so the store action below the message stays reachable.
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                EmptyState(
-                    icon = LauncherIcons.Search,
-                    title = stringResource(R.string.home_empty_title),
-                    body = stringResource(R.string.home_empty_body),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                // Nothing installed matched what was typed — offer to search the
-                // app store for it. Only while a query is present (a blank-query
-                // empty state means the device has no apps to list, not a failed
-                // search) and only once every enabled search source has settled,
-                // so a still-loading index can't offer to search for an app that
-                // is actually installed or about to match.
-                if (query.isNotBlank() && storeSearchReady) {
-                    TextButton(
-                        onClick = { onSearchAppStore(query) },
-                        modifier = Modifier.testTag(HOME_SEARCH_APP_STORE_TAG),
-                    ) {
-                        Text(stringResource(R.string.home_search_play_store))
-                    }
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp)
+                        .testTag(APPS_LOADING_TAG),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
                 }
-            }
-        } else {
-            val chevronDescription = stringResource(R.string.apps_list_scroll_more_hint)
-            if (isGrid) {
-                val gridState = rememberLazyGridState()
-                LaunchedEffect(scrollResetKey) { gridState.scrollToItem(0) }
-                // In reverseLayout, the visual top is at the END of the data,
-                // so the chevron predicate that asks "can we scroll visually
-                // up / down" swaps to canScrollForward / canScrollBackward
-                // respectively.
-                val canScrollUp = { if (reverseLayout) gridState.canScrollForward else gridState.canScrollBackward }
-                val canScrollDown = { if (reverseLayout) gridState.canScrollBackward else gridState.canScrollForward }
-                // layoutInfo is state rewritten after every measure pass, so
-                // reading it directly in composition subscribes this whole
-                // card scope to every frame of a fling. derivedStateOf
-                // confines the invalidation to the measured/not-measured flip.
-                val viewportMeasured by remember(gridState) {
-                    derivedStateOf { gridState.layoutInfo.viewportSize.height > 0 }
-                }
-                val chevronsReady = overflowChevronsReady &&
-                    isCurrentAppSetMeasured &&
-                    viewportMeasured
-                val scope = rememberCoroutineScope()
-                val jumpToLetter: (Int) -> Unit = { index -> scope.launch { gridState.scrollToItem(index) } }
-                Row(modifier = Modifier.weight(1f)) {
-                    if (letterSections.isNotEmpty()) {
-                        AppListLetterStrip(
-                            sections = letterSections,
-                            onJump = jumpToLetter,
-                            onDragChanged = onLetterStripDragChanged,
-                            tag = APP_LIST_LETTER_STRIP_START_TAG,
-                        )
-                    }
-                    AppListOverflowChevronBox(
-                        canScrollUp = canScrollUp,
-                        canScrollDown = canScrollDown,
-                        chevronsReady = chevronsReady,
-                        topChevronContentDescription = chevronDescription,
-                        bottomChevronContentDescription = chevronDescription,
-                        onScrollPageUp = {
-                            scope.launch { gridState.scrollOneVisualPage(up = true, reverseLayout = reverseLayout) }
-                        },
-                        onScrollPageDown = {
-                            scope.launch { gridState.scrollOneVisualPage(up = false, reverseLayout = reverseLayout) }
-                        },
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                    ) {
-                        IconOnlyAppGrid(
-                            apps = apps,
-                            dockLimit = dockLimit,
-                            iconSizeDp = iconSizeDp,
-                            showLabel = showLabels,
-                            highlightFirst = highlightFirst,
-                            reverseLayout = reverseLayout,
-                            query = query,
-                            onSearchAppStore = onSearchAppStore,
-                            contactResults = contactResults,
-                            eventResults = eventResults,
-                            onOpenContact = onOpenContact,
-                            onToggleStarred = onToggleStarred,
-                            onContactLongPress = onContactLongPress,
-                            onOpenEvent = onOpenEvent,
-                            state = gridState,
-                            onBoundsChanged = { bounds ->
-                                onAppListBoundsChanged(bounds)
-                                measuredChevronLayoutKey = chevronLayoutKey
-                            },
-                            onLaunchApp = onLaunchApp,
-                            onOpenAppInfo = onOpenAppInfo,
-                            onToggleDock = onToggleDock,
-                            onResetRank = onResetRank,
-                            onRenameApp = onRenameApp,
-                            onSetAppIconOverride = onSetAppIconOverride,
-                            onClearAppIconOverride = onClearAppIconOverride,
-                            onSetAppBadge = onSetAppBadge,
-                            onHideApp = onHideApp,
-                            onUninstallApp = onUninstallApp,
-                            appDrag = appDrag,
-                            draggedAppId = draggedAppId,
-                        )
-                    }
-                    if (letterSections.isNotEmpty()) {
-                        AppListLetterStrip(
-                            sections = letterSections,
-                            onJump = jumpToLetter,
-                            onDragChanged = onLetterStripDragChanged,
-                            tag = APP_LIST_LETTER_STRIP_END_TAG,
-                            isAccessibilityDuplicate = true,
-                        )
+            } else if (!hasAnyResults) {
+                // The apps card is measured to a fixed height (the Home layout's
+                // `appHeight`), which in short landscape with the keyboard up can be
+                // only a row or two — shorter than the empty state. Scroll rather
+                // than clip, so the store action below the message stays reachable.
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    EmptyState(
+                        icon = LauncherIcons.Search,
+                        title = stringResource(R.string.home_empty_title),
+                        body = stringResource(R.string.home_empty_body),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    // Nothing installed matched what was typed — offer to search the
+                    // app store for it. Only while a query is present (a blank-query
+                    // empty state means the device has no apps to list, not a failed
+                    // search) and only once every enabled search source has settled,
+                    // so a still-loading index can't offer to search for an app that
+                    // is actually installed or about to match.
+                    if (query.isNotBlank() && storeSearchReady) {
+                        TextButton(
+                            onClick = { onSearchAppStore(query) },
+                            modifier = Modifier.testTag(HOME_SEARCH_APP_STORE_TAG),
+                        ) {
+                            Text(stringResource(R.string.home_search_play_store))
+                        }
                     }
                 }
             } else {
-                val listState = rememberLazyListState()
-                LaunchedEffect(scrollResetKey) { listState.scrollToItem(0) }
-                val canScrollUp = { if (reverseLayout) listState.canScrollForward else listState.canScrollBackward }
-                val canScrollDown = { if (reverseLayout) listState.canScrollBackward else listState.canScrollForward }
-                // Same derivedStateOf rationale as the icon-only branch above:
-                // don't subscribe this scope to every-frame layoutInfo writes.
-                val viewportMeasured by remember(listState) {
-                    derivedStateOf { listState.layoutInfo.viewportSize.height > 0 }
-                }
-                val chevronsReady = overflowChevronsReady &&
-                    isCurrentAppSetMeasured &&
-                    viewportMeasured
-                val scope = rememberCoroutineScope()
-                val jumpToLetter: (Int) -> Unit = { index -> scope.launch { listState.scrollToItem(index) } }
-                Row(modifier = Modifier.weight(1f)) {
-                    if (letterSections.isNotEmpty()) {
-                        AppListLetterStrip(
-                            sections = letterSections,
-                            onJump = jumpToLetter,
-                            onDragChanged = onLetterStripDragChanged,
-                            tag = APP_LIST_LETTER_STRIP_START_TAG,
-                        )
+                val chevronDescription = stringResource(R.string.apps_list_scroll_more_hint)
+                if (isGrid) {
+                    val gridState = rememberLazyGridState()
+                    LaunchedEffect(scrollResetKey) { gridState.scrollToItem(0) }
+                    // In reverseLayout, the visual top is at the END of the data,
+                    // so the chevron predicate that asks "can we scroll visually
+                    // up / down" swaps to canScrollForward / canScrollBackward
+                    // respectively.
+                    val canScrollUp = { if (reverseLayout) gridState.canScrollForward else gridState.canScrollBackward }
+                    val canScrollDown = { if (reverseLayout) gridState.canScrollBackward else gridState.canScrollForward }
+                    // layoutInfo is state rewritten after every measure pass, so
+                    // reading it directly in composition subscribes this whole
+                    // card scope to every frame of a fling. derivedStateOf
+                    // confines the invalidation to the measured/not-measured flip.
+                    val viewportMeasured by remember(gridState) {
+                        derivedStateOf { gridState.layoutInfo.viewportSize.height > 0 }
                     }
-                    AppListOverflowChevronBox(
-                        canScrollUp = canScrollUp,
-                        canScrollDown = canScrollDown,
-                        chevronsReady = chevronsReady,
-                        topChevronContentDescription = chevronDescription,
-                        bottomChevronContentDescription = chevronDescription,
-                        onScrollPageUp = {
-                            scope.launch { listState.scrollOneVisualPage(up = true, reverseLayout = reverseLayout) }
-                        },
-                        onScrollPageDown = {
-                            scope.launch { listState.scrollOneVisualPage(up = false, reverseLayout = reverseLayout) }
-                        },
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                    ) {
-                        LazyColumn(
-                            state = listState,
-                            reverseLayout = reverseLayout,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .onGloballyPositioned { coords ->
-                                    onAppListBoundsChanged(
-                                        Rect(coords.positionInRoot(), coords.size.toSize()),
-                                    )
-                                    measuredChevronLayoutKey = chevronLayoutKey
-                                }
-                                .testTag(APPS_LIST_TAG),
+                    val chevronsReady = overflowChevronsReady &&
+                        isCurrentAppSetMeasured &&
+                        viewportMeasured
+                    val scope = rememberCoroutineScope()
+                    val jumpToLetter: (Int) -> Unit = { index -> scope.launch { gridState.scrollToItem(index) } }
+                    Row(modifier = Modifier.weight(1f)) {
+                        if (letterSections.isNotEmpty()) {
+                            AppListLetterStrip(
+                                sections = letterSections,
+                                onJump = jumpToLetter,
+                                onDragChanged = onLetterStripDragChanged,
+                                tag = APP_LIST_LETTER_STRIP_START_TAG,
+                            )
+                        }
+                        AppListOverflowChevronBox(
+                            canScrollUp = canScrollUp,
+                            canScrollDown = canScrollDown,
+                            chevronsReady = chevronsReady,
+                            topChevronContentDescription = chevronDescription,
+                            bottomChevronContentDescription = chevronDescription,
+                            onScrollPageUp = {
+                                scope.launch { gridState.scrollOneVisualPage(up = true, reverseLayout = reverseLayout) }
+                            },
+                            onScrollPageDown = {
+                                scope.launch { gridState.scrollOneVisualPage(up = false, reverseLayout = reverseLayout) }
+                            },
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                         ) {
-                            itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
-                                AppRow(
-                                    app = app,
-                                    isActive = highlightFirst && index == 0,
-                                    dockLimit = dockLimit,
-                                    onLaunchApp = onLaunchApp,
-                                    onOpenAppInfo = onOpenAppInfo,
-                                    onToggleDock = onToggleDock,
-                                    onResetRank = onResetRank,
-                                    onRenameApp = onRenameApp,
-                                    onSetAppIconOverride = onSetAppIconOverride,
-                                    onClearAppIconOverride = onClearAppIconOverride,
-                                    onSetAppBadge = onSetAppBadge,
-                                    onHideApp = onHideApp,
-                                    onUninstallApp = onUninstallApp,
-                                    appDrag = appDrag,
-                                    isDragged = appDrag != null && app.id == draggedAppId,
-                                )
-                            }
-                            if (showStoreSearchRow) {
-                                storeSearchItem(query = query, onSearchAppStore = onSearchAppStore)
-                            }
-                            contentSearchSectionItems(
+                            IconOnlyAppGrid(
+                                apps = apps,
+                                dockLimit = dockLimit,
+                                iconSizeDp = iconSizeDp,
+                                showLabel = showLabels,
+                                highlightFirst = highlightFirst,
+                                reverseLayout = reverseLayout,
+                                query = query,
+                                onSearchAppStore = onSearchAppStore,
                                 contactResults = contactResults,
                                 eventResults = eventResults,
-                                hasItemsAbove = apps.isNotEmpty() || showStoreSearchRow,
-                                appsEmpty = apps.isEmpty(),
-                                highlightFirst = highlightFirst,
                                 onOpenContact = onOpenContact,
                                 onToggleStarred = onToggleStarred,
                                 onContactLongPress = onContactLongPress,
                                 onOpenEvent = onOpenEvent,
+                                state = gridState,
+                                onBoundsChanged = { bounds ->
+                                    onAppListBoundsChanged(bounds)
+                                    measuredChevronLayoutKey = chevronLayoutKey
+                                },
+                                onLaunchApp = onLaunchApp,
+                                onOpenAppInfo = onOpenAppInfo,
+                                onToggleDock = onToggleDock,
+                                onResetRank = onResetRank,
+                                onRenameApp = onRenameApp,
+                                onSetAppIconOverride = onSetAppIconOverride,
+                                onClearAppIconOverride = onClearAppIconOverride,
+                                onSetAppBadge = onSetAppBadge,
+                                onHideApp = onHideApp,
+                                onUninstallApp = onUninstallApp,
+                                appDrag = appDrag,
+                                draggedAppId = draggedAppId,
+                                folders = folders,
+                                openFolder = openFolder,
+                                onOpenFolder = onOpenFolder,
+                                onCloseFolder = onCloseFolder,
+                            )
+                        }
+                        if (letterSections.isNotEmpty()) {
+                            AppListLetterStrip(
+                                sections = letterSections,
+                                onJump = jumpToLetter,
+                                onDragChanged = onLetterStripDragChanged,
+                                tag = APP_LIST_LETTER_STRIP_END_TAG,
+                                isAccessibilityDuplicate = true,
                             )
                         }
                     }
-                    if (letterSections.isNotEmpty()) {
-                        AppListLetterStrip(
-                            sections = letterSections,
-                            onJump = jumpToLetter,
-                            onDragChanged = onLetterStripDragChanged,
-                            tag = APP_LIST_LETTER_STRIP_END_TAG,
-                            isAccessibilityDuplicate = true,
-                        )
+                } else {
+                    val listState = rememberLazyListState()
+                    LaunchedEffect(scrollResetKey) { listState.scrollToItem(0) }
+                    val canScrollUp = { if (reverseLayout) listState.canScrollForward else listState.canScrollBackward }
+                    val canScrollDown = { if (reverseLayout) listState.canScrollBackward else listState.canScrollForward }
+                    // Same derivedStateOf rationale as the icon-only branch above:
+                    // don't subscribe this scope to every-frame layoutInfo writes.
+                    val viewportMeasured by remember(listState) {
+                        derivedStateOf { listState.layoutInfo.viewportSize.height > 0 }
+                    }
+                    val chevronsReady = overflowChevronsReady &&
+                        isCurrentAppSetMeasured &&
+                        viewportMeasured
+                    val scope = rememberCoroutineScope()
+                    val jumpToLetter: (Int) -> Unit = { index -> scope.launch { listState.scrollToItem(index) } }
+                    Row(modifier = Modifier.weight(1f)) {
+                        if (letterSections.isNotEmpty()) {
+                            AppListLetterStrip(
+                                sections = letterSections,
+                                onJump = jumpToLetter,
+                                onDragChanged = onLetterStripDragChanged,
+                                tag = APP_LIST_LETTER_STRIP_START_TAG,
+                            )
+                        }
+                        AppListOverflowChevronBox(
+                            canScrollUp = canScrollUp,
+                            canScrollDown = canScrollDown,
+                            chevronsReady = chevronsReady,
+                            topChevronContentDescription = chevronDescription,
+                            bottomChevronContentDescription = chevronDescription,
+                            onScrollPageUp = {
+                                scope.launch { listState.scrollOneVisualPage(up = true, reverseLayout = reverseLayout) }
+                            },
+                            onScrollPageDown = {
+                                scope.launch { listState.scrollOneVisualPage(up = false, reverseLayout = reverseLayout) }
+                            },
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                        ) {
+                            LazyColumn(
+                                state = listState,
+                                reverseLayout = reverseLayout,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .onGloballyPositioned { coords ->
+                                        onAppListBoundsChanged(
+                                            Rect(coords.positionInRoot(), coords.size.toSize()),
+                                        )
+                                        measuredChevronLayoutKey = chevronLayoutKey
+                                    }
+                                    .testTag(APPS_LIST_TAG),
+                            ) {
+                                if (!reverseLayout) {
+                                    appListFolderItems(folders, openFolder, reverseLayout, onOpenFolder, onCloseFolder)
+                                }
+                                itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
+                                    AppRow(
+                                        app = app,
+                                        isActive = highlightFirst && index == 0,
+                                        dockLimit = dockLimit,
+                                        onLaunchApp = onLaunchApp,
+                                        onOpenAppInfo = onOpenAppInfo,
+                                        onToggleDock = onToggleDock,
+                                        onResetRank = onResetRank,
+                                        onRenameApp = onRenameApp,
+                                        onSetAppIconOverride = onSetAppIconOverride,
+                                        onClearAppIconOverride = onClearAppIconOverride,
+                                        onSetAppBadge = onSetAppBadge,
+                                        onHideApp = onHideApp,
+                                        onUninstallApp = onUninstallApp,
+                                        appDrag = appDrag,
+                                        isDragged = appDrag != null && app.id == draggedAppId,
+                                    )
+                                }
+                                if (reverseLayout) {
+                                    appListFolderItems(folders, openFolder, reverseLayout, onOpenFolder, onCloseFolder)
+                                }
+                                if (showStoreSearchRow) {
+                                    storeSearchItem(query = query, onSearchAppStore = onSearchAppStore)
+                                }
+                                contentSearchSectionItems(
+                                    contactResults = contactResults,
+                                    eventResults = eventResults,
+                                    hasItemsAbove = apps.isNotEmpty() || showStoreSearchRow,
+                                    appsEmpty = apps.isEmpty(),
+                                    highlightFirst = highlightFirst,
+                                    onOpenContact = onOpenContact,
+                                    onToggleStarred = onToggleStarred,
+                                    onContactLongPress = onContactLongPress,
+                                    onOpenEvent = onOpenEvent,
+                                )
+                            }
+                        }
+                        if (letterSections.isNotEmpty()) {
+                            AppListLetterStrip(
+                                sections = letterSections,
+                                onJump = jumpToLetter,
+                                onDragChanged = onLetterStripDragChanged,
+                                tag = APP_LIST_LETTER_STRIP_END_TAG,
+                                isAccessibilityDuplicate = true,
+                            )
+                        }
                     }
                 }
             }
@@ -5082,6 +5182,11 @@ internal fun IconOnlyAppGrid(
     // The app currently being dragged out of the list, if any; its tile renders
     // empty so the icon reads as picked up into the floating drag overlay.
     draggedAppId: String? = null,
+    // App-list folders; see AppsCard.
+    folders: List<AppListFolder> = emptyList(),
+    openFolder: AppListFolder? = null,
+    onOpenFolder: (AppListFolder) -> Unit = {},
+    onCloseFolder: () -> Unit = {},
 ) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive((iconSizeDp + 8).dp),
@@ -5102,6 +5207,9 @@ internal fun IconOnlyAppGrid(
             if (reverseLayout) Alignment.Bottom else Alignment.Top,
         ),
     ) {
+        if (!reverseLayout) {
+            appListFolderItems(folders, openFolder, iconSizeDp, showLabel, onOpenFolder, onCloseFolder)
+        }
         itemsIndexed(apps, key = { _, app -> app.id }) { index, app ->
             IconOnlyAppButton(
                 app = app,
@@ -5122,6 +5230,9 @@ internal fun IconOnlyAppGrid(
                 appDrag = appDrag,
                 isDragged = appDrag != null && app.id == draggedAppId,
             )
+        }
+        if (reverseLayout) {
+            appListFolderItems(folders, openFolder, iconSizeDp, showLabel, onOpenFolder, onCloseFolder)
         }
         val showStoreSearchRow = query.isNotBlank()
         if (showStoreSearchRow) {
@@ -5144,6 +5255,60 @@ internal fun IconOnlyAppGrid(
         )
     }
 }
+
+/**
+ * The app-list folder items: the open folder's header, or the closed folders.
+ * They go at the visual top of the list, which is the data start, or the data
+ * end when [reverseLayout] puts item 0 at the bottom; the caller places the
+ * call accordingly, and this reverses the folders so they still read top to
+ * bottom in [AppCategory] order.
+ */
+private fun LazyListScope.appListFolderItems(
+    folders: List<AppListFolder>,
+    openFolder: AppListFolder?,
+    reverseLayout: Boolean,
+    onOpenFolder: (AppListFolder) -> Unit,
+    onCloseFolder: () -> Unit,
+) {
+    if (openFolder != null) {
+        item(key = APP_LIST_FOLDER_HEADER_KEY) { AppListFolderHeader(openFolder, onCloseFolder) }
+    }
+    items(if (reverseLayout) folders.asReversed() else folders, key = { folder -> folder.id }) { folder ->
+        AppListFolderRow(folder, iconSizeDp = APP_ROW_ICON_SIZE_DP, onOpen = onOpenFolder)
+    }
+}
+
+/**
+ * [LazyListScope.appListFolderItems] for the icon grid. The closed folders are
+ * one full-width block of tiles rather than grid items: `reverseLayout` flips
+ * a grid's rows but not the order within a row, so no item order reads
+ * left to right, top to bottom in both directions (Codex on PR #850). Inside
+ * one item, the order is the block's own. It also keeps folders on rows of
+ * their own, apart from the apps.
+ */
+private fun LazyGridScope.appListFolderItems(
+    folders: List<AppListFolder>,
+    openFolder: AppListFolder?,
+    iconSizeDp: Int,
+    showLabel: Boolean,
+    onOpenFolder: (AppListFolder) -> Unit,
+    onCloseFolder: () -> Unit,
+) {
+    if (openFolder != null) {
+        item(key = APP_LIST_FOLDER_HEADER_KEY, span = { GridItemSpan(maxLineSpan) }) {
+            AppListFolderHeader(openFolder, onCloseFolder)
+        }
+    }
+    if (folders.isNotEmpty()) {
+        item(key = APP_LIST_FOLDER_BLOCK_KEY, span = { GridItemSpan(maxLineSpan) }) {
+            AppListFolderTileBlock(folders, iconSizeDp = iconSizeDp, showLabel = showLabel, onOpen = onOpenFolder)
+        }
+    }
+}
+
+private const val APP_LIST_FOLDER_BLOCK_KEY = "app_list_folder_block"
+
+private const val APP_LIST_FOLDER_HEADER_KEY = "app_list_folder_header"
 
 /**
  * The typed-search content sections (contacts, then calendar events), appended
@@ -5916,6 +6081,9 @@ private fun AppActionsMenu(
     // no android:configChanges, so a plain remember resets to false on
     // recreation and the saveable text below could never be shown again.
     var editDialogVisible by rememberSaveable(app.id) { mutableStateOf(false) }
+    // Present only on the app list while folders are on (see LocalAppFolderMenu).
+    val folderMenu = LocalAppFolderMenu.current
+    var folderDialogVisible by rememberSaveable(app.id) { mutableStateOf(false) }
     LauncherDropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
@@ -5967,6 +6135,16 @@ private fun AppActionsMenu(
                 editDialogVisible = true
             },
         )
+        if (folderMenu != null) {
+            DropdownMenuItem(
+                text = { LauncherMenuItemText(stringResource(R.string.app_menu_move_to_folder)) },
+                modifier = Modifier.testTag("$MOVE_TO_FOLDER_ACTION_TAG:${app.displayName}"),
+                onClick = {
+                    onDismiss()
+                    folderDialogVisible = true
+                },
+            )
+        }
         DropdownMenuItem(
             text = { LauncherMenuItemText(stringResource(R.string.app_menu_hide)) },
             modifier = Modifier.testTag("$HIDE_APP_ACTION_TAG:${app.displayName}"),
@@ -5988,6 +6166,16 @@ private fun AppActionsMenu(
                 },
             )
         }
+    }
+    if (folderDialogVisible && folderMenu != null) {
+        AppFolderPickerDialog(
+            current = folderMenu.folderOf(app),
+            onPick = { category ->
+                folderMenu.onMove(app, category)
+                folderDialogVisible = false
+            },
+            onDismiss = { folderDialogVisible = false },
+        )
     }
     if (editDialogVisible) {
         EditAppDialog(
@@ -7193,6 +7381,7 @@ internal fun SettingsScreen(
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
     onAppListSortOrderChanged: (AppListSortOrder) -> Unit,
     onLetterStripEnabledChanged: (Boolean) -> Unit = {},
+    onAppFoldersEnabledChanged: (Boolean) -> Unit = {},
     onKeyboardAutoShownChanged: (Boolean) -> Unit = {},
     onWallpaperShownChanged: (Boolean) -> Unit = {},
     onChangeWallpaper: () -> Unit = {},
@@ -7516,6 +7705,22 @@ internal fun SettingsScreen(
                         checked = state.isLetterStripEnabled,
                         onCheckedChange = onLetterStripEnabledChanged,
                         modifier = Modifier.testTag(LETTER_STRIP_SWITCH_TAG),
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.settings_app_folders_title),
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Switch(
+                        checked = state.isAppFoldersEnabled,
+                        onCheckedChange = onAppFoldersEnabledChanged,
+                        modifier = Modifier.testTag(APP_FOLDERS_SWITCH_TAG),
                     )
                 }
                 Text(

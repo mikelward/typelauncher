@@ -846,6 +846,14 @@ internal data class LauncherUiState(
     // strip down each side of the blank-query list jumps it to a letter. See
     // [showsLetterStrip].
     val isLetterStripEnabled: Boolean = false,
+    // "Group apps into folders" (off by default): the blank-query app list
+    // shows folders (see `groupAppList`) above the apps left loose.
+    val isAppFoldersEnabled: Boolean = false,
+    // The folder the user filed each app into, by app id; null means "no
+    // folder". Apps with no entry follow their manifest's category.
+    val appFolderAssignments: Map<String, AppCategory?> = emptyMap(),
+    // Whether Home still offers, once, to turn folders on.
+    val isAppFoldersOfferPending: Boolean = false,
     // When true (default), the search field auto-focuses on launch and
     // `SearchCard` calls `keyboard.show()` so the user can start typing
     // immediately. When false, the search field renders unfocused and

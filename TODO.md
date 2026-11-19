@@ -108,6 +108,10 @@
   3. **Searchable app shortcuts** (deferred by the maintainer, 2026-10-06; proposal: up to three matches below app results, above contacts, Enter opens one only when no app matches). Typing "incog" offers Chrome's "New Incognito tab". Indexes every app's shortcuts, so it leans on step 2's cache; ranks below app matches.
 - **Launcher-owned web links.** A browser-agnostic complement to pinned shortcuts that needs no default-home status and survives a launcher switch: a name + URL entry opened with `ACTION_VIEW` (or a Custom Tab), added through a "Share → Type Launcher" target. Icon is a letter tile or the existing icon override; fetching a favicon would be the app's first network call (privacy + failure mode), so opt-in at most.
 
+- **App-list folders** (maintainer, 2026-11-19). Each step its own PR:
+  1. **Folders from manifest categories, with manual filing** (shipped). The Settings switch, the one-time Home offer, "Move to folder", and folders that open in place.
+  2. **Sort the rest with on-device AI.** Use Gemini Nano (ML Kit GenAI Prompt API on AICore) to file apps whose manifest names no category, from the label and package name only. Nothing leaves the device. Runs in the background in batches, never on the main thread, caching each result by app id; the user's own filing always wins. Settings gets a "Sort with on-device AI" switch, shown only where Nano is available, with its state ("Downloading model…", "Sorting 40 of 120…", "Sorted 120 apps") and a "Re-sort all apps" action that clears the AI's guesses but keeps the user's. While sorting, the Other folder's header shows the same progress, and apps move out of it as they're sorted. A promo card at the top of the open Other folder offers the AI sorting (maintainer, 2026-11-19), shown only where Nano is available and until answered, like the Home offer. Before shipping, a debug-only screen measures accuracy against about 200 popular apps with known Play categories, on a device. Phones without Nano keep step 1.
+
 - **Kiosk mode follow-ups.** The widget-only, screen-on-while-plugged-in display shipped; still to come, each its own PR:
   1. **Show over the lock screen** — shipped. Still open: a device check that the display comes back over the lock screen after the power button, that the hold brings up the unlock prompt and shows Home only on success, and that a widget tapped while locked asks to unlock before opening its app. Kiosk mode's switch needs no lock-screen subtitle (maintainer, 2026-10-10).
   2. **Dim until someone is nearby** — shipped as "Wake up using camera". Still open:
@@ -139,6 +143,19 @@
 
 ### Decisions needing review
 
+- [ ] **App-list folder details** (2026-11-19), guessed while building step 1
+      of *App-list folders*:
+      - A folder needs two apps, unless the user filed an app there; a lone
+        app in a category goes in Other instead.
+      - When Other would be the only folder, it is dropped and its apps stay
+        loose.
+      - Folders sit at the list's visual top, in a fixed alphabetical (English)
+        order with Other last, rather than mixed in by name or usage.
+      - Audio, video and image apps share Media; maps go in Travel; the
+        manifest's accessibility category maps to no folder.
+      - "Not now" on the Home offer retires it for good, like "Turn on".
+      - The open-folder header uses the dock folder's close (✕) icon and
+        "Close folder" label rather than a back arrow.
 - [ ] **A name sort keeps its order in cramped landscape while the letter strip
       is on** (2026-10-29). The cramped Compact layout (no search box, no dock)
       sorts by usage, most-used at the bottom, whatever "Sort apps by" says;

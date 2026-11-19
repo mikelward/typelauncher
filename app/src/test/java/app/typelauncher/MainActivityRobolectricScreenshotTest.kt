@@ -161,6 +161,61 @@ class MainActivityRobolectricScreenshotTest {
     }
 
     @Test
+    fun screenshot_home_appFoldersOffer() {
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(APP_FOLDERS_OFFER_TAG).assertIsDisplayed()
+        saveScreenshot("compose_home_app_folders_offer_robolectric.png")
+
+        composeRule.onNodeWithTag(APP_FOLDERS_OFFER_ACCEPT_TAG).performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(APP_FOLDERS_OFFER_TAG).assertDoesNotExist()
+        assertTrue(composeRule.activity.viewModel.uiState.value.isAppFoldersEnabled)
+    }
+
+    @Test
+    fun screenshot_home_appFolders_openInPlace() {
+        val viewModel = composeRule.activity.viewModel
+        viewModel.setAppFoldersEnabled(true)
+        val tools = viewModel.uiState.value.filteredApps.filter { it.name in setOf("Calculator", "Clock", "Files") }
+        assertTrue("fixture needs at least two listed tools, got $tools", tools.size >= 2)
+        tools.forEach { app -> viewModel.moveAppToFolder(app, AppCategory.Tools) }
+        composeRule.waitForIdle()
+
+        // Closed: the folder replaces its apps in the list.
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:tools").assertIsDisplayed()
+        tools.forEach { app -> composeRule.onNodeWithTag("$APP_ROW_TAG:${app.displayName}").assertDoesNotExist() }
+        saveScreenshot("compose_home_app_folders_robolectric.png")
+
+        // Open: its apps, in place, under its name.
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:tools").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(APP_LIST_FOLDER_HEADER_TAG).assertIsDisplayed()
+        tools.forEach { app -> composeRule.onNodeWithTag("$APP_ROW_TAG:${app.displayName}").assertIsDisplayed() }
+        saveScreenshot("compose_home_app_folder_open_robolectric.png")
+
+        // With recents open over it, Back dismisses recents first (Codex on PR #850).
+        viewModel.setRecentsOpen(true)
+        composeRule.waitForIdle()
+        composeRule.activity.onBackPressedDispatcher.onBackPressed()
+        composeRule.waitForIdle()
+        assertFalse(viewModel.uiState.value.isRecentsOpen)
+        composeRule.onNodeWithTag(APP_LIST_FOLDER_HEADER_TAG).assertIsDisplayed()
+
+        // Then Back closes the folder.
+        composeRule.activity.onBackPressedDispatcher.onBackPressed()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(APP_LIST_FOLDER_HEADER_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:tools").assertIsDisplayed()
+
+        // Typing searches every app, foldered or not, in one flat list.
+        composeRule.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("calc")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$APP_ROW_TAG:Calculator").assertIsDisplayed()
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:tools").assertDoesNotExist()
+    }
+
+    @Test
     fun screenshot_home_showsBadgedBuildLabel() {
         // Type Launcher's own activity matches ACTION_MAIN/CATEGORY_LAUNCHER, so
         // the launcher lists itself and its android:label is part of its own UI.
@@ -4147,7 +4202,8 @@ class MainActivityRobolectricScreenshotTest {
         // `isWorkProfileConfigured` true → row visible; `isWorkProfileActive`
         // false → Switch reports disabled. Tapping the row surfaces the
         // "Work profile is off" toast.
-        composeRule.onNodeWithTag(WORK_DOCK_ENABLED_SWITCH_TAG).assertIsDisplayed()
+        // Settings grows; scroll rather than depend on the row's position.
+        composeRule.onNodeWithTag(WORK_DOCK_ENABLED_SWITCH_TAG).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag(WORK_DOCK_ENABLED_SWITCH_TAG).assertIsNotEnabled()
     }
 
@@ -4160,7 +4216,8 @@ class MainActivityRobolectricScreenshotTest {
         viewModel.openSettings()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithTag(WORK_DOCK_ENABLED_SWITCH_TAG).assertIsDisplayed()
+        // Settings grows; scroll rather than depend on the row's position.
+        composeRule.onNodeWithTag(WORK_DOCK_ENABLED_SWITCH_TAG).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag(WORK_DOCK_ENABLED_SWITCH_TAG).assertIsEnabled()
         composeRule.onNodeWithTag(WORK_DOCK_ENABLED_SWITCH_TAG).assertIsOn()
     }
@@ -4333,12 +4390,19 @@ class MainActivityRobolectricScreenshotTest {
                         "app_metadata",
                         "hidden_apps",
                         "renamed_apps",
+                        AppFolderStore.PREFERENCES_NAME,
                     ).forEach { preferenceName ->
                         application
                             .getSharedPreferences(preferenceName, android.content.Context.MODE_PRIVATE)
                             .edit()
                             .clear()
                             .commit()
+                    }
+                    // A fresh install offers app folders on Home. Answer it for
+                    // every test but the one about the offer, so the other
+                    // Home snapshots show the steady state.
+                    if (description.methodName != "screenshot_home_appFoldersOffer") {
+                        AppFolderStore(application).isOfferAnswered = true
                     }
                     // Every other test pins the shipping name, so the recorded
                     // snapshots show what Play users see. This one pins the
