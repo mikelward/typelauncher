@@ -247,6 +247,12 @@
     <!-- TODO: translate -->
     <string name="folder_icon_call" tools:ignore="MissingTranslation">Phone</string>
     <!-- TODO: translate -->
+    <string name="folder_icon_casino" tools:ignore="MissingTranslation">Dice</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_confirmation_number" tools:ignore="MissingTranslation">Tickets</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_loyalty" tools:ignore="MissingTranslation">Rewards</string>
+    <!-- TODO: translate -->
     <string name="folder_icon_markunread_mailbox" tools:ignore="MissingTranslation">Mailbox</string>
     <!-- TODO: translate -->
     <string name="folder_icon_account_balance" tools:ignore="MissingTranslation">Government</string>
@@ -320,6 +326,16 @@
     <string name="app_folder_pets" tools:ignore="MissingTranslation">Pets &amp; animals</string>
     <!-- TODO: translate -->
     <string name="app_folder_photos" tools:ignore="MissingTranslation">Photos</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_betting" tools:ignore="MissingTranslation">Betting</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_design" tools:ignore="MissingTranslation">Design &amp; editing</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_events" tools:ignore="MissingTranslation">Events &amp; tickets</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_jobs" tools:ignore="MissingTranslation">Jobs &amp; work</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_rewards" tools:ignore="MissingTranslation">Rewards &amp; loyalty</string>
     <!-- TODO: translate -->
     <string name="app_folder_security" tools:ignore="MissingTranslation">Security</string>
     <!-- TODO: translate -->
