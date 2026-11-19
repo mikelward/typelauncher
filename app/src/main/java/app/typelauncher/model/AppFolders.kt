@@ -15,6 +15,7 @@ import androidx.compose.runtime.Immutable
  * shipped, whatever the constant is renamed to.
  */
 internal enum class AppCategory(val storageKey: String, val icon: FolderIcon) {
+    Code("code", FolderIcon.Code),
     Finance("finance", FolderIcon.Paid),
     Food("food", FolderIcon.Restaurant),
     Games("games", FolderIcon.SportsEsports),

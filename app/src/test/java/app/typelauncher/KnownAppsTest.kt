@@ -66,6 +66,14 @@ class KnownAppsTest {
         // ...and library apps like Libby.
         assertEquals(AppCategory.Reading, knownAppCategory("com.overdrive.mobile.android.libby"))
         assertEquals(AppCategory.Reading, knownAppCategory("com.example.x", "Anytown Public Library"))
+        // The maintainer, 2026-11-19: a Code folder by default, with GitHub.
+        assertEquals(AppCategory.Code, knownAppCategory("com.github.android"))
+        assertEquals(AppCategory.Code, knownAppCategory("com.example.c1", "Learn Coding"))
+        assertEquals(AppCategory.Code, knownAppCategory("com.example.c2", "VS Code"))
+        assertEquals(AppCategory.Code, knownAppCategory("com.example.c3", "Git Client"))
+        assertEquals(AppCategory.Tools, knownAppCategory("com.example.c4", "QR Code Reader"))
+        assertNull(knownAppCategory("com.example.c5", "Barcode Scanner"))
+        assertNull(knownAppCategory("com.example.c6", "Legit Deals"))
         // The maintainer, 2026-11-19: airlines are Travel, not Transport.
         assertEquals(AppCategory.Travel, knownAppCategory("com.example.n", "Virgin Atlantic Airways"))
         assertEquals(AppCategory.Travel, knownAppCategory("com.example.o", "Qantas Airlines"))

@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 
 internal fun AppCategory.labelRes(): Int = when (this) {
+    AppCategory.Code -> R.string.app_folder_code
     AppCategory.Finance -> R.string.app_folder_finance
     AppCategory.Food -> R.string.app_folder_food
     AppCategory.Games -> R.string.app_folder_games

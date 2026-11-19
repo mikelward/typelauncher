@@ -220,7 +220,7 @@ class AppFoldersTest {
 
         assertEquals(
             listOf(
-                "finance", "food", "games", "government", "health", "home", "internet", "kids", "custom-1",
+                "code", "finance", "food", "games", "government", "health", "home", "internet", "kids", "custom-1",
                 "learning", "media", "music", "news", "pets", "phone", "photos", "productivity", "reading", "shopping", "social",
                 "sports", "transport", "travel", "weather", "custom-2", "other",
             ),

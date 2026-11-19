@@ -69,6 +69,7 @@ private fun labelCategory(label: String): AppCategory? {
     LABEL_WORDS.firstOrNull { (keyword, _) ->
         words.any { word ->
             when {
+                keyword in WHOLE_WORD_ONLY -> word == keyword
                 keyword in WORD_START_ONLY -> word.startsWith(keyword)
                 keyword.length >= 5 -> keyword in word
                 else -> word.endsWith(keyword)
@@ -88,6 +89,10 @@ private val AIRLINE_BRANDS = setOf(
 // Keywords that must start a word: "ebook" sits inside "Facebook" and
 // "Notebook" (Codex on PR #866).
 private val WORD_START_ONLY = setOf("ebook")
+
+// Keywords that must be a whole word: "git" ends "legit", and "code" a
+// "barcode" scanner.
+private val WHOLE_WORD_ONLY = setOf("code", "git", "ssh", "qr")
 
 private val LABEL_WORD_BREAK = Regex("""[^\p{L}\p{N}]+""")
 private val PACKAGE_WORD_BREAK = Regex("""[._\-]+""")
@@ -132,6 +137,15 @@ private val LABEL_WORDS = listOf(
     "wallet" to AppCategory.Finance,
     "bank" to AppCategory.Finance,
     "banking" to AppCategory.Finance,
+    // A QR code app is a tool, not Code.
+    "qr" to AppCategory.Tools,
+    "coding" to AppCategory.Code,
+    "programming" to AppCategory.Code,
+    "developer" to AppCategory.Code,
+    "terminal" to AppCategory.Code,
+    "code" to AppCategory.Code,
+    "git" to AppCategory.Code,
+    "ssh" to AppCategory.Code,
     // Last, so a more specific word wins ("Barclays Mobile Banking" is Finance).
     "phone" to AppCategory.Phone,
     "mobile" to AppCategory.Phone,
@@ -185,6 +199,7 @@ private val GUESS_RULES = listOf(
     AppCategory.Travel to listOf("airline", "airways", "flight", "hotel", "travel", "booking"),
     AppCategory.Reading to listOf("ebook", "audiobook", "kindle", "comic", "manga", "novel", "library"),
     AppCategory.Shopping to listOf("shop", "deals", "coupon", "marketplace"),
+    AppCategory.Code to listOf("coding", "programming", "developer", "terminal", "ssh", "git", "python", "javascript"),
     AppCategory.Internet to listOf("browser", "internet", "vpn", "wifi", "speedtest"),
     AppCategory.Phone to listOf("phone", "telecom", "dialer", "esim"),
     AppCategory.News to listOf("news", "newspaper", "headlines"),
@@ -250,7 +265,7 @@ private val KNOWN_PACKAGES = listOf(
         com.dropbox.android com.microsoft.skydrive com.adobe.reader com.trello com.asana.app
         com.google.android.apps.tasks com.samsung.android.app.notes md.obsidian
         com.yahoo.mobile.client.android.mail ch.protonmail.android com.google.android.apps.dynamite
-        com.microsoft.office.onenote com.atlassian.android.jira.core com.github.android
+        com.microsoft.office.onenote com.atlassian.android.jira.core
     """,
     AppCategory.Finance to """
         com.paypal.android.p2pmobile com.venmo com.squareup.cash com.robinhood.android
@@ -339,6 +354,11 @@ private val KNOWN_PACKAGES = listOf(
         com.scribd.app.reader0 com.goodreads com.storytel com.wattpad
         com.blinkslabs.blinkist.android com.ideashower.readitlater.pro org.readera
         com.marvel.comics com.comixology.comics com.hoopladigital.android
+    """,
+    AppCategory.Code to """
+        com.github.android com.termux com.replit.app com.foxdebug.acode ru.iiec.pydroid3
+        com.sonelli.juicessh com.server.auditor.ssh.client com.stackexchange.marvin
+        com.gitlab.mobile org.connectbot com.aide.ui
     """,
     AppCategory.Phone to """
         com.google.android.dialer com.samsung.android.dialer com.tmobile.pr.mytmobile
