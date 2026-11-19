@@ -177,7 +177,7 @@ private fun String.sanitizedForPrompt(): String =
     replace(Regex("""\s+"""), " ").trim().take(AI_SORT_MAX_LABEL_CHARS)
 
 private val AI_SORT_FOLDER_DESCRIPTIONS = listOf(
-    AppCategory.Finance to "banking, payments, money transfer, investing, budgeting, crypto",
+    AppCategory.Finance to "banking, payments, wallets and payment cards, money transfer, investing, budgeting, crypto",
     AppCategory.Games to "games of any kind",
     AppCategory.Health to "fitness, workouts, health, medical, meditation, sleep, period tracking",
     AppCategory.Media to "music, podcasts, video, streaming, TV, photos, camera, gallery, books, audiobooks",
