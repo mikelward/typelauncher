@@ -108,6 +108,63 @@ class AppListFoldersUiTest {
     }
 
     @Test
+    fun openFolder_closeItemIsAtTheVisualBottom_inEveryLayoutAndDirection() {
+        // Like a dock folder's close tile, and where a thumb is: below the
+        // apps whichever way the list runs (maintainer, 2026-11-19).
+        for (layout in listOf(AppListLayout.NameBeside, AppListLayout.NameBelow)) {
+            for (reversed in listOf(false, true)) {
+                assertCloseBelowApps(layout, reversed)
+            }
+        }
+    }
+
+    private fun assertCloseBelowApps(layout: AppListLayout, reversed: Boolean) {
+        if (!composed) {
+            composeRule.setContent {
+                TypeLauncherTheme {
+                    Box(modifier = Modifier.width(320.dp).height(480.dp)) {
+                        AppsCard(
+                            apps = games.apps,
+                            dockLimit = Int.MAX_VALUE,
+                            layout = currentConfig.first,
+                            iconSizeDp = 43,
+                            highlightFirst = false,
+                            reverseLayout = currentConfig.second,
+                            onLaunchApp = {},
+                            onOpenAppInfo = {},
+                            onToggleDock = { _, _ -> },
+                            onResetRank = {},
+                            onRenameApp = { _, _ -> },
+                            onHideApp = {},
+                            onUninstallApp = {},
+                            openFolder = games,
+                            onCloseFolder = { closeCount++ },
+                        )
+                    }
+                }
+            }
+            composed = true
+        }
+        currentConfig = layout to reversed
+        composeRule.waitForIdle()
+
+        val appTag = if (layout == AppListLayout.NameBeside) APP_ROW_TAG else APP_ICON_ONLY_BUTTON_TAG
+        val close = composeRule.onNodeWithTag(APP_LIST_FOLDER_CLOSE_TAG).fetchSemanticsNode().boundsInRoot
+        for (app in games.apps) {
+            val bounds = composeRule.onNodeWithTag("$appTag:${app.name}").fetchSemanticsNode().boundsInRoot
+            assertTrue("$layout reversed=$reversed: close $close not below ${app.name} $bounds", close.top >= bounds.top)
+        }
+        val before = closeCount
+        composeRule.onNodeWithTag(APP_LIST_FOLDER_CLOSE_TAG).performClick()
+        assertEquals(before + 1, closeCount)
+    }
+
+    // One composition, reconfigured per case: a compose rule takes setContent once.
+    private var composed = false
+    private var currentConfig by mutableStateOf(AppListLayout.NameBeside to false)
+    private var closeCount = 0
+
+    @Test
     fun offer_bothAnswersReachTheirCallbacks() {
         var accepted = false
         var dismissed = false

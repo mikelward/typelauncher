@@ -1,5 +1,7 @@
 package app.typelauncher
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,7 +20,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Switch
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -226,9 +227,13 @@ internal fun AppListFolderTileBlock(
 // its icon in total (see IconOnlyAppGrid / IconOnlyAppButton).
 private const val APP_GRID_SPACING_DP = 8
 
-/** The open folder's title, with the button that closes it. Full width, above its apps. */
+/**
+ * The open folder's title, full width above its apps. The close (✕) item is
+ * at the other end of the list, as in dock folders; see
+ * [AppListFolderCloseRow].
+ */
 @Composable
-internal fun AppListFolderHeader(folder: AppListFolder, onClose: () -> Unit) {
+internal fun AppListFolderHeader(folder: AppListFolder) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -238,18 +243,86 @@ internal fun AppListFolderHeader(folder: AppListFolder, onClose: () -> Unit) {
     ) {
         Text(
             stringResource(folder.category.labelRes()),
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .padding(vertical = 12.dp),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onBackground,
         )
-        IconButton(onClick = onClose, modifier = Modifier.testTag(APP_LIST_FOLDER_CLOSE_TAG)) {
-            Icon(
-                imageVector = LauncherIcons.Clear,
-                contentDescription = stringResource(R.string.dock_folder_close_description),
+    }
+}
+
+/** The ✕ on its circle, as a dock folder's close tile draws it, at [sizeDp]. */
+@Composable
+private fun FolderCloseGlyph(sizeDp: Int) {
+    Box(
+        modifier = Modifier
+            .size(sizeDp.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = LauncherIcons.Clear,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size((sizeDp * CLOSE_GLYPH_FRACTION).dp),
+        )
+    }
+}
+
+// The dock folder close tile's proportion.
+private const val CLOSE_GLYPH_FRACTION = 0.6f
+
+/** The open folder's close item in a name-beside list: an app row's shape, ✕ in the icon's place. */
+@Composable
+internal fun AppListFolderCloseRow(onClose: () -> Unit) {
+    val description = stringResource(R.string.dock_folder_close_description)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClose)
+            .semantics { contentDescription = description }
+            .padding(horizontal = 4.dp, vertical = 8.dp)
+            .testTag(APP_LIST_FOLDER_CLOSE_TAG),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        FolderCloseGlyph(sizeDp = APP_LIST_ROW_ICON_SIZE_DP)
+        Text(
+            stringResource(R.string.app_folder_close),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+    }
+}
+
+/** The open folder's close item in a grid: an app tile's footprint, ✕ in the icon's place. */
+@Composable
+internal fun AppListFolderCloseTile(iconSizeDp: Int, showLabel: Boolean, onClose: () -> Unit) {
+    val description = stringResource(R.string.dock_folder_close_description)
+    Column(
+        modifier = Modifier
+            .clickable(role = Role.Button, onClick = onClose)
+            .semantics { contentDescription = description }
+            .padding(4.dp)
+            .testTag(APP_LIST_FOLDER_CLOSE_TAG),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        FolderCloseGlyph(sizeDp = iconSizeDp)
+        if (showLabel) {
+            Text(
+                stringResource(R.string.app_folder_close),
+                modifier = Modifier.padding(top = 4.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
             )
         }
     }
 }
+
+// An app row's icon size (APP_ROW_ICON_SIZE_DP in HomeScreen.kt).
+private const val APP_LIST_ROW_ICON_SIZE_DP = 40
 
 /**
  * The one-time offer to group the app list into folders, at the top of the
