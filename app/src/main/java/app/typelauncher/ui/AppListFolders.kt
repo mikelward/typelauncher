@@ -1,6 +1,5 @@
 package app.typelauncher
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,9 +28,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -71,55 +67,30 @@ internal fun AppCategory.icon(): ImageVector = when (this) {
     AppCategory.Other -> CategoryIcons.Other
 }
 
-/** A folder's tile and glyph colors, in a light and a dark theme. */
-private class CategoryTint(val tile: Color, val glyph: Color, val darkTile: Color, val darkGlyph: Color)
-
-// One hue per folder, as tonal pairs (a light tile with a deep glyph, and the
-// reverse in dark), so folders tell apart at a glance and every glyph clears
-// 5:1 on its tile. The neutral Tools and Other tiles are a shade darker than
-// the app list's light card, so they don't vanish into it.
-private fun AppCategory.tint(): CategoryTint = when (this) {
-    AppCategory.Finance -> CategoryTint(Color(0xFFD7F0DF), Color(0xFF1E6B3A), Color(0xFF1F4A2E), Color(0xFFA8E6BC))
-    AppCategory.Games -> CategoryTint(Color(0xFFEADDFF), Color(0xFF4F378B), Color(0xFF3E2C6E), Color(0xFFD7C4FF))
-    AppCategory.Health -> CategoryTint(Color(0xFFFFDAD6), Color(0xFF8C1D18), Color(0xFF6A1B16), Color(0xFFFFB4AB))
-    AppCategory.Media -> CategoryTint(Color(0xFFFFDCC2), Color(0xFF7A3E00), Color(0xFF5C3000), Color(0xFFFFB77C))
-    AppCategory.News -> CategoryTint(Color(0xFFDDE3EA), Color(0xFF2E3A46), Color(0xFF323C47), Color(0xFFC6D0DB))
-    AppCategory.Productivity -> CategoryTint(Color(0xFFDCE1FF), Color(0xFF283593), Color(0xFF2A336E), Color(0xFFBAC3FF))
-    AppCategory.Shopping -> CategoryTint(Color(0xFFFFE7A8), Color(0xFF6B4E00), Color(0xFF4F3B00), Color(0xFFF7D46B))
-    AppCategory.Social -> CategoryTint(Color(0xFFCDEFEF), Color(0xFF00575A), Color(0xFF004245), Color(0xFF8FDCDC))
-    AppCategory.Tools -> CategoryTint(Color(0xFFD3D6DC), Color(0xFF3C3C3C), Color(0xFF3A3A3D), Color(0xFFD0D0D3))
-    AppCategory.Travel -> CategoryTint(Color(0xFFCFEBFF), Color(0xFF004C6E), Color(0xFF003A55), Color(0xFF8FD0FF))
-    AppCategory.Other -> CategoryTint(Color(0xFFDCD0EA), Color(0xFF49454F), Color(0xFF3B383F), Color(0xFFCAC4D0))
-}
-
 /**
- * A folder's icon: its category's glyph on a tile of the folder's color, the
- * size of an app icon and clipped to the same "Icon shape", so a folder sits
- * in the list like an app does.
+ * A folder's icon: its category's glyph, large and monochrome, with no tile
+ * behind it (maintainer's choice of style, 2026-11-19), in the box an app icon
+ * takes, so the folder's name lines up with the apps' names.
  */
 @Composable
 internal fun CategoryIconTile(category: AppCategory, sizeDp: Int) {
-    val tint = category.tint()
-    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     Box(
         modifier = Modifier
             .size(sizeDp.dp)
-            .clip(LocalAppIconShape.current.toComposeShape())
-            .background(if (dark) tint.darkTile else tint.tile)
             .testTag(APP_LIST_FOLDER_ICON_TAG),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = category.icon(),
             contentDescription = null,
-            tint = if (dark) tint.darkGlyph else tint.glyph,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size((sizeDp * CATEGORY_GLYPH_FRACTION).dp),
         )
     }
 }
 
-// The glyph's share of the tile: Material's 24 dp icon in a 40 dp tile.
-private const val CATEGORY_GLYPH_FRACTION = 0.6f
+// Nearly the whole box: a Material Symbol already keeps its own margin.
+private const val CATEGORY_GLYPH_FRACTION = 0.95f
 
 /**
  * Lets the app list's long-press menus offer "Move to folder". Provided only
