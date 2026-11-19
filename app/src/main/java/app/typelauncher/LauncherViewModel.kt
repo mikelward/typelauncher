@@ -97,6 +97,11 @@ internal class LauncherViewModel(
     // Apps' own shortcuts for the long-press menus (null package: every app in
     // the profile). Injectable for the same reason as [queryShortcuts].
     private val queryAppShortcuts: (LauncherApps, UserHandle, String?) -> List<ShortcutInfo> = ::readAppShortcuts,
+    // "Sort with on-device AI". Injectable so tests stand in for AICore, which
+    // Robolectric doesn't have, and for the waits between retries.
+    private val aiModelFactory: () -> AppCategoryModel = ::GeminiNanoCategoryModel,
+    private val aiCorePresent: (Context) -> Boolean = ::isAiCorePresent,
+    private val aiRetryDelay: suspend (Long) -> Unit = { millis -> delay(millis) },
 ) : ViewModel() {
     private val dockedAppStore = DockedAppStore(app)
     private val workDockedAppStore = DockedAppStore(app, DockedAppStore.WORK_PREFERENCES_NAME)
@@ -456,6 +461,9 @@ internal class LauncherViewModel(
             isAppFoldersEnabled = appFolderStore.isEnabled,
             appFolderAssignments = appFolderStore.assignments,
             isAppFoldersOfferPending = !appFolderStore.isOfferAnswered && !appFolderStore.isEnabled,
+            appFolderAiAssignments = appFolderStore.aiAssignments,
+            isAiSortEnabled = appFolderStore.isAiSortEnabled,
+            isAiSortOfferPending = !appFolderStore.isAiOfferAnswered && !appFolderStore.isAiSortEnabled,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
             isKeyboardFloating = dockSettingsStore.isKeyboardFloating,
             isWallpaperShown = dockSettingsStore.isWallpaperShown,
@@ -603,6 +611,13 @@ internal class LauncherViewModel(
     }
 
     init {
+        // Whether to offer AI sorting at all: a package lookup, off the main
+        // thread, that never touches ML Kit (see isAiCorePresent).
+        viewModelScope.launch {
+            val supported = withContext(ioDispatcher) { aiCorePresent(app) }
+            _uiState.update { it.copy(isAiSortSupported = supported) }
+            maybeStartAiSort()
+        }
         viewModelScope.launch {
             PinnedShortcutReveals.requests.collect { entryId ->
                 revealPinnedShortcut(entryId)
@@ -828,6 +843,8 @@ internal class LauncherViewModel(
                 persistAppMetadata(loadedApps)
             }
             runDeferredBackgroundTrim()
+            // The first full inventory: sort whatever AI sorting hasn't yet.
+            maybeStartAiSort()
             // Replay any icon-pick that arrived during the cold-start window
             // (e.g. picker callback fired after a process-death recreation
             // before this load finished). Has to happen *after*
@@ -5003,7 +5020,185 @@ internal class LauncherViewModel(
         appFolderStore.isEnabled = isEnabled
         appFolderStore.isOfferAnswered = true
         _uiState.update { it.copy(isAppFoldersEnabled = isEnabled, isAppFoldersOfferPending = false) }
+        if (isEnabled) maybeStartAiSort() else stopAiSort()
         logState("setAppFoldersEnabled=%s", isEnabled)
+    }
+
+    /**
+     * "Sort with on-device AI". Using the switch, or the offer at the top of
+     * Other, answers that offer for good.
+     */
+    fun setAiSortEnabled(isEnabled: Boolean) {
+        appFolderStore.isAiSortEnabled = isEnabled
+        appFolderStore.isAiOfferAnswered = true
+        _uiState.update {
+            it.copy(
+                isAiSortEnabled = isEnabled,
+                isAiSortOfferPending = false,
+                aiSort = if (isEnabled) it.aiSort else AiSortProgress(),
+            )
+        }
+        if (isEnabled) {
+            aiSortPausedUntilReturn = false
+            maybeStartAiSort()
+        } else {
+            stopAiSort()
+        }
+        logState("setAiSortEnabled=%s", isEnabled)
+    }
+
+    /** Declines the offer at the top of Other to sort with AI, for good. */
+    fun dismissAiSortOffer() {
+        appFolderStore.isAiOfferAnswered = true
+        _uiState.update { it.copy(isAiSortOfferPending = false) }
+        logState("dismissAiSortOffer")
+    }
+
+    /** "Re-sort all apps": forgets the AI's choices, keeps the user's, and sorts again. */
+    fun resortAppsWithAi() {
+        stopAiSort()
+        appFolderStore.clearAiAssignments()
+        _uiState.update { it.copy(appFolderAiAssignments = emptyMap(), aiSort = AiSortProgress()) }
+        aiSortPausedUntilReturn = false
+        maybeStartAiSort()
+        logState("resortAppsWithAi")
+    }
+
+    /**
+     * Whether the launcher is the top app. AICore runs a model only for the
+     * foreground app, so sorting runs while Home is showing and stops when
+     * it isn't, picking up where it left off on the next return.
+     */
+    fun setLauncherForeground(isForeground: Boolean) {
+        if (launcherForeground == isForeground) return
+        launcherForeground = isForeground
+        if (isForeground) {
+            aiSortPausedUntilReturn = false
+            maybeStartAiSort()
+        } else {
+            stopAiSort()
+        }
+    }
+
+    private var launcherForeground = false
+
+    // Set when sorting pauses (out of quota, busy too long, no model, a
+    // failure), so the next app-list refresh doesn't start it straight back
+    // up against a service that just said no. Cleared by the next return to
+    // Home, or by the user turning sorting on or asking to re-sort.
+    private var aiSortPausedUntilReturn = false
+    private var aiSortJob: Job? = null
+    private var aiModel: AppCategoryModel? = null
+
+    /** Starts sorting if it's wanted, possible now, and not already running. */
+    private fun maybeStartAiSort() {
+        val state = _uiState.value
+        if (!state.isAppFoldersEnabled || !state.isAiSortEnabled || !state.isAiSortSupported) return
+        if (!launcherForeground || aiSortPausedUntilReturn || aiSortJob?.isActive == true) return
+        // Nothing new to sort: don't touch the model at all.
+        if (state.aiSort.phase == AiSortPhase.Done && aiSortWork().pending.isEmpty()) return
+        aiSortJob = viewModelScope.launch { runAiSort() }
+    }
+
+    private fun stopAiSort() {
+        aiSortJob?.cancel()
+        aiSortJob = null
+    }
+
+    /** The apps AI sorting is for, and those it hasn't sorted yet. */
+    private class AiSortWork(val total: Int, val pending: List<AiSortInput>)
+
+    // Apps the manifest doesn't file and the user hasn't either. Visible apps
+    // only, so a hidden or paused app isn't asked about.
+    private fun aiSortWork(): AiSortWork {
+        val filings = appFolderStore.assignments
+        val sorted = appFolderStore.aiAssignments
+        val candidates = visibleInstalledApps()
+            .filter { app -> app.declaredCategory == null && !filings.containsKey(app.id) }
+            .distinctBy { app -> app.id }
+        val pending = candidates
+            .filter { app -> app.id !in sorted }
+            .map { app -> AiSortInput(app.id, app.name, app.packageName) }
+        return AiSortWork(total = candidates.size, pending = pending)
+    }
+
+    private fun publishAiSort(phase: AiSortPhase, work: AiSortWork? = null) {
+        _uiState.update { state ->
+            state.copy(
+                aiSort = AiSortProgress(
+                    phase = phase,
+                    sorted = work?.let { it.total - it.pending.size } ?: state.aiSort.sorted,
+                    total = work?.total ?: state.aiSort.total,
+                ),
+            )
+        }
+    }
+
+    /**
+     * Sorts the pending apps a batch at a time, after downloading the model if
+     * AICore hasn't yet. Logs counts only: app names never reach the log.
+     */
+    private suspend fun runAiSort() {
+        LauncherDebugLog.event("aiSort started")
+        val model = aiModel ?: aiModelFactory().also { aiModel = it }
+        try {
+            when (model.status()) {
+                AiModelStatus.Unavailable -> {
+                    LauncherDebugLog.event("aiSort model unavailable")
+                    publishAiSort(AiSortPhase.Unavailable)
+                    aiSortPausedUntilReturn = true
+                    return
+                }
+                AiModelStatus.Downloadable, AiModelStatus.Downloading -> {
+                    publishAiSort(AiSortPhase.Downloading)
+                    model.download().collect { }
+                    LauncherDebugLog.event("aiSort model downloaded")
+                }
+                AiModelStatus.Available -> Unit
+            }
+            var busyRetries = 0
+            while (true) {
+                val work = aiSortWork()
+                if (work.pending.isEmpty()) {
+                    publishAiSort(AiSortPhase.Done, work)
+                    LauncherDebugLog.event("aiSort done total=%s", work.total)
+                    return
+                }
+                publishAiSort(AiSortPhase.Sorting, work)
+                val batch = work.pending.take(AI_SORT_BATCH_SIZE)
+                try {
+                    val choices = parseAiSortAnswer(model.generate(buildAiSortPrompt(batch)), batch)
+                    appFolderStore.assignByAi(choices)
+                    _uiState.update { it.copy(appFolderAiAssignments = appFolderStore.aiAssignments) }
+                    busyRetries = 0
+                } catch (exception: AiModelException.Busy) {
+                    // A burst limit: back off, then try the same batch again.
+                    busyRetries++
+                    if (busyRetries > AI_SORT_MAX_BUSY_RETRIES) throw exception
+                    val wait = exception.retryAfterMillis
+                        ?: (AI_SORT_FIRST_RETRY_MILLIS shl (busyRetries - 1)).coerceAtMost(AI_SORT_MAX_RETRY_MILLIS)
+                    LauncherDebugLog.event("aiSort busy retry=%s waitMs=%s", busyRetries, wait)
+                    aiRetryDelay(wait)
+                }
+            }
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: AiModelException) {
+            // Busy for too long, out of quota, or no longer the top app: pause,
+            // and pick up on the next return to Home. Anything else is logged
+            // as a failure and handled the same way.
+            if (exception is AiModelException.Failed) {
+                LauncherDebugLog.failure(exception, "aiSort failed")
+            } else {
+                LauncherDebugLog.event("aiSort paused reason=%s", exception::class.simpleName)
+            }
+            publishAiSort(AiSortPhase.Paused)
+            aiSortPausedUntilReturn = true
+        } catch (exception: RuntimeException) {
+            LauncherDebugLog.failure(exception, "aiSort failed")
+            publishAiSort(AiSortPhase.Paused)
+            aiSortPausedUntilReturn = true
+        }
     }
 
     /** Declines the Home offer to group apps into folders, for good. */
@@ -5354,6 +5549,8 @@ internal class LauncherViewModel(
                 eventResults = eventResultsFor(state, query),
             )
         }
+        // New or newly visible apps may need sorting.
+        maybeStartAiSort()
     }
 
     /**

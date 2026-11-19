@@ -15,6 +15,8 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Switch
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -26,6 +28,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -62,9 +65,19 @@ internal class AppFolderMenu(
 
 internal val LocalAppFolderMenu = staticCompositionLocalOf<AppFolderMenu?> { null }
 
-/** The folder an app is filed in: the user's choice if they made one, else its manifest's. */
-internal fun effectiveAppFolder(app: InstalledApp, assignments: Map<String, AppCategory?>): AppCategory? =
-    if (assignments.containsKey(app.id)) assignments[app.id] else app.declaredCategory
+/**
+ * The folder an app is filed in: the user's choice if they made one, else its
+ * manifest's, else the AI's, else Other.
+ */
+internal fun effectiveAppFolder(
+    app: InstalledApp,
+    assignments: Map<String, AppCategory?>,
+    aiAssignments: Map<String, AppCategory> = emptyMap(),
+): AppCategory? = if (assignments.containsKey(app.id)) {
+    assignments[app.id]
+} else {
+    app.declaredCategory ?: aiAssignments[app.id] ?: AppCategory.Other
+}
 
 /** A closed folder as a name-beside row: the 2×2 mini icon, then the folder's name. */
 @Composable
@@ -273,4 +286,127 @@ internal fun AppFolderPickerDialog(
             }
         },
     )
+}
+
+/**
+ * What AI sorting is doing, in a few words, or null when there's nothing worth
+ * saying (it's off, or there was nothing to sort).
+ */
+@Composable
+internal fun aiSortStatusText(progress: AiSortProgress): String? = when (progress.phase) {
+    AiSortPhase.Idle -> null
+    AiSortPhase.Unavailable -> stringResource(R.string.ai_sort_status_unavailable)
+    AiSortPhase.Downloading -> stringResource(R.string.ai_sort_status_downloading)
+    AiSortPhase.Sorting -> stringResource(R.string.ai_sort_status_sorting, progress.sorted, progress.total)
+    AiSortPhase.Done -> if (progress.total == 0) {
+        null
+    } else {
+        pluralStringResource(R.plurals.ai_sort_status_done, progress.total, progress.total)
+    }
+    AiSortPhase.Paused -> stringResource(R.string.ai_sort_status_paused)
+}
+
+/**
+ * Settings' "Sort with on-device AI" switch, with what it's doing below it,
+ * and "Re-sort all apps" while it's on.
+ */
+@Composable
+internal fun AiSortSettingsRows(
+    isEnabled: Boolean,
+    progress: AiSortProgress,
+    onEnabledChanged: (Boolean) -> Unit,
+    onResort: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.settings_ai_sort_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            val status = if (isEnabled) aiSortStatusText(progress) else null
+            if (status != null) {
+                Text(
+                    status,
+                    modifier = Modifier.testTag(AI_SORT_STATUS_TAG),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Switch(
+            checked = isEnabled,
+            onCheckedChange = onEnabledChanged,
+            modifier = Modifier.testTag(AI_SORT_SWITCH_TAG),
+        )
+    }
+    if (isEnabled && progress.phase != AiSortPhase.Unavailable) {
+        TextButton(onClick = onResort, modifier = Modifier.testTag(AI_SORT_RESORT_TAG)) {
+            Text(stringResource(R.string.settings_ai_sort_resort))
+        }
+    }
+}
+
+/**
+ * Below the open Other folder's header: sorting progress while the AI is
+ * moving apps out of it, or else the one-time offer to turn AI sorting on.
+ * Nothing at all when neither applies.
+ */
+@Composable
+internal fun OtherFolderAiNote(
+    progress: AiSortProgress,
+    showOffer: Boolean,
+    onAccept: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    when {
+        progress.phase == AiSortPhase.Sorting || progress.phase == AiSortPhase.Downloading -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp)
+                    .testTag(AI_SORT_PROGRESS_TAG),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                if (progress.phase == AiSortPhase.Sorting && progress.total > 0) {
+                    LinearProgressIndicator(
+                        progress = { progress.sorted.toFloat() / progress.total },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+                aiSortStatusText(progress)?.let { status ->
+                    Text(
+                        status,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+        showOffer -> Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 4.dp)
+                .testTag(AI_SORT_OFFER_TAG),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(R.string.ai_sort_offer_title),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            TextButton(onClick = onDismiss, modifier = Modifier.testTag(AI_SORT_OFFER_DISMISS_TAG)) {
+                Text(stringResource(R.string.app_folders_offer_dismiss))
+            }
+            TextButton(onClick = onAccept, modifier = Modifier.testTag(AI_SORT_OFFER_ACCEPT_TAG)) {
+                Text(stringResource(R.string.app_folders_offer_accept))
+            }
+        }
+    }
 }

@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 2026-10-17_
+_Last updated: 2026-11-19_
 
 Type Launcher is an Android home screen launcher. This policy describes what
 the app does and does not do with your data.
@@ -17,6 +17,9 @@ the app does and does not do with your data.
   analytics, and sends nothing until you say yes.
   These are described below and never include PII, your typed queries, your
   app list, your notifications, your contacts, or your calendar contents.
+- If you turn on **Sort with on-device AI** (off by default), your app names
+  are sorted by an AI model that runs on your phone, and Google's ML Kit,
+  which runs it, sends Google basic diagnostics. See below.
 
 ## Data stored on your device
 
@@ -240,6 +243,24 @@ off is not uploaded later if you turn it back on.
 Turning it off does not affect the on-device debug log or the **Report bug**
 action — that report is assembled on your device, and nothing is sent until
 you choose an app to send it to and can review what it contains first.
+
+## Sort with on-device AI
+
+**Sort with on-device AI** is off unless you turn it on, and it is offered only
+on phones with Android's on-device AI service (AICore). When it is on, Type
+Launcher asks the Gemini Nano model on your phone which folder each app
+belongs in, giving it each app's name and package name. The model runs on your
+phone; according to Google, AICore keeps no record of what it is asked or what
+it answers.
+
+The model is reached through Google's ML Kit, a library built into Type
+Launcher. Once you turn the feature on, ML Kit sends Google diagnostics and
+usage statistics about its own use: your device model, Android version,
+hardware, and configured languages. Google describes this in its
+[ML Kit data disclosure](https://developers.google.com/ml-kit/android-data-disclosure).
+Type Launcher does not ask ML Kit for anything until you turn the feature on,
+and does not send your app names anywhere. Turning the feature off stops it; **Re-sort all
+apps** clears the folders it chose.
 
 ## Children
 

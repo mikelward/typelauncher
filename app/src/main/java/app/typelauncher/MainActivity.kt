@@ -766,6 +766,7 @@ class MainActivity : ComponentActivity() {
         // flashing in before the re-shown keyboard is handled inside
         // `TypeLauncherApp` via the activity lifecycle (synchronous, pre-frame).
         viewModel.closeSecondaryTrayOnResume()
+        viewModel.setLauncherForeground(true)
         viewModel.refreshPermissionDrivenUi()
         // The lock's grant can be removed in Android's settings, and added
         // there too; the switch stays the one source of truth, turning off
@@ -907,6 +908,8 @@ class MainActivity : ComponentActivity() {
         LauncherDebugLog.activityCallback(this, "MainActivity.onPause")
         if (::appWidgetHost.isInitialized) appWidgetHost.onLauncherPaused()
         LauncherTelemetry.setCustomKey(TelemetryKey.FOREGROUND, false.toString())
+        // AICore runs a model only for the top app, so AI sorting stops here.
+        if (::viewModel.isInitialized) viewModel.setLauncherForeground(false)
         super.onPause()
     }
 
