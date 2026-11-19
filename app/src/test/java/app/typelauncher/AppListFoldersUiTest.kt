@@ -469,6 +469,31 @@ class AppListFoldersUiTest {
     }
 
     @Test
+    fun editFolders_listsEveryFolder_eachWithItsMenu_butOther() {
+        // The maintainer, 2026-11-19: an "Edit folders" button in Settings.
+        var deleted: AppFolderDef? = null
+        val folders = activeAppFolders(listOf(AppFolderDef("custom-1", null, "Kids Stuff", FolderIcon.ChildCare)), emptySet())
+        composeRule.setContent {
+            TypeLauncherTheme {
+                androidx.compose.runtime.CompositionLocalProvider(
+                    LocalAppFolderMenu provides folderMenu(folders = folders, onDelete = { deleted = it }),
+                ) {
+                    EditAppFoldersDialog(folders = folders, onCreate = { _, _ -> }, onDismiss = {})
+                }
+            }
+        }
+
+        composeRule.onNodeWithText("Kids Stuff").assertExists()
+        composeRule.onNodeWithTag("$APP_FOLDERS_EDIT_ROW_TAG:other").performScrollTo().performClick()
+        composeRule.onNodeWithTag("$APP_FOLDER_DELETE_ACTION_TAG:other").assertDoesNotExist()
+        composeRule.onNodeWithTag("$APP_FOLDERS_EDIT_ROW_TAG:games").performScrollTo().performClick()
+        composeRule.onNodeWithTag("$APP_FOLDER_DELETE_ACTION_TAG:games").performClick()
+        composeRule.onNodeWithTag(APP_FOLDER_DELETE_CONFIRM_TAG).performClick()
+
+        assertEquals("games", deleted?.key)
+    }
+
+    @Test
     fun other_hasNoMenu() {
         val other = AppListFolder(AppFolderDef.builtIn(AppCategory.Other), listOf(app("Notes")))
         compose(apps = listOf(mail), folders = listOf(games, other), folderMenu = folderMenu())

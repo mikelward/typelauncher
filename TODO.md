@@ -119,7 +119,7 @@
   6b. **Merge folders** (shipped, maintainer, 2026-11-19: "create a few too many and let users choose which ones to keep"): "Merge into…" on a folder's long press files its apps into the chosen folder and deletes it.
   7. **Search matches folder names** (shipped, maintainer, 2026-11-19): typing a folder's name shows the folder above the results and its apps after the name matches; tapping it opens it.
   8. **Sorting without on-device AI** (maintainer, 2026-11-19, for lower-end phones): a built-in table of well-known apps, publisher prefixes and name words placed ahead of the AI, and package-word guesses as the last resort (shipped). Next, if needed: a small text-embedding model to match apps to folders, the user's own included, on phones without AICore.
-  9. **Edit folders in Settings** (maintainer, 2026-11-19): an "Edit folders" button under "Group apps into folders".
+  9. **Edit folders in Settings** (shipped, maintainer, 2026-11-19): an "Edit folders" button under "Group apps into folders".
   10. **Search by folder name with folders off** (shipped, maintainer, 2026-11-19): each app's folder name as text that search matches, whether or not the list shows folders.
 
 - **Kiosk mode follow-ups.** The widget-only, screen-on-while-plugged-in display shipped; still to come, each its own PR:

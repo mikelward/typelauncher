@@ -5302,6 +5302,18 @@ internal class LauncherViewModel(
         logState("createAppFolder")
     }
 
+    /**
+     * Settings' "Edit folders" → "New folder": an empty folder, for apps to
+     * be moved into, or the AI to sort into.
+     */
+    fun createAppFolder(name: String, icon: FolderIcon) {
+        if (name.isBlank()) return
+        val folder = appFolderStore.createFolder(name, icon)
+        LauncherDebugLog.event("createAppFolder folder=%s icon=%s", folder.key, icon.storageKey)
+        publishAppFolders()
+        logState("createAppFolder")
+    }
+
     /** Renames a folder the user made, or changes its icon. */
     fun editAppFolder(folder: AppFolderDef, name: String, icon: FolderIcon) {
         if (name.isBlank()) return

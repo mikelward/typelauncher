@@ -132,6 +132,18 @@ class LauncherViewModelAppFoldersTest {
     }
 
     @Test
+    fun aNewFolderFromSettings_startsEmpty_andPersists() {
+        val viewModel = newViewModel()
+        idle()
+
+        viewModel.createAppFolder("Kids Stuff", FolderIcon.ChildCare)
+
+        val folder = newViewModel().uiState.value.appFolders.single { it.name == "Kids Stuff" }
+        assertEquals(FolderIcon.ChildCare, folder.icon)
+        assertFalse(viewModel.uiState.value.appFolderAssignments.containsValue(folder.key))
+    }
+
+    @Test
     fun deletedBuiltIns_comeBackOnRestore() {
         val viewModel = newViewModel()
         idle()
