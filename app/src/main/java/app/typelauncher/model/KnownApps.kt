@@ -98,6 +98,43 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "saily" to AppCategory.Phone,
     "esim" to AppCategory.Phone,
     "suzerain" to AppCategory.Games,
+    // New folders (maintainer, 2026-11-19).
+    "photo editor" to AppCategory.Design,
+    "video editor" to AppCategory.Design,
+    "image editor" to AppCategory.Design,
+    "photo editing" to AppCategory.Design,
+    "video editing" to AppCategory.Design,
+    "video maker" to AppCategory.Design,
+    "video generator" to AppCategory.Design,
+    "image generator" to AppCategory.Design,
+    "photo generator" to AppCategory.Design,
+    "canva" to AppCategory.Design,
+    "capcut" to AppCategory.Design,
+    "bet365" to AppCategory.Betting,
+    "draftkings" to AppCategory.Betting,
+    "fanduel" to AppCategory.Betting,
+    "sportsbet" to AppCategory.Betting,
+    "betfair" to AppCategory.Betting,
+    "paddy power" to AppCategory.Betting,
+    "ladbrokes" to AppCategory.Betting,
+    "william hill" to AppCategory.Betting,
+    "betfred" to AppCategory.Betting,
+    "stubhub" to AppCategory.Events,
+    "seatgeek" to AppCategory.Events,
+    "tickpick" to AppCategory.Events,
+    "viagogo" to AppCategory.Events,
+    "eventbrite" to AppCategory.Events,
+    "indeed" to AppCategory.Jobs,
+    "seek" to AppCategory.Jobs,
+    "glassdoor" to AppCategory.Jobs,
+    "totaljobs" to AppCategory.Jobs,
+    "dasher" to AppCategory.Jobs,
+    "spark driver" to AppCategory.Jobs,
+    "uber driver" to AppCategory.Jobs,
+    "flybuys" to AppCategory.Rewards,
+    "nectar" to AppCategory.Rewards,
+    "freecash" to AppCategory.Rewards,
+    "weward" to AppCategory.Rewards,
     // A newspaper, before "courier" makes it Post.
     "courier mail" to AppCategory.News,
     "security camera" to AppCategory.Home,
@@ -182,9 +219,13 @@ private val LABEL_WORDS = listOf(
     "camera" to AppCategory.Photos,
     // Sports and betting before "news" and "casino": "BBC Sport - News &
     // Live Scores", "bet365 - Sportsbook & Casino".
+    // Betting before "sport": "Sportsbet - Sports Betting App".
+    "betting" to AppCategory.Betting,
+    "sportsbook" to AppCategory.Betting,
+    "lottery" to AppCategory.Betting,
+    "lotto" to AppCategory.Betting,
     "sport" to AppCategory.Sports,
     "scores" to AppCategory.Sports,
-    "betting" to AppCategory.Sports,
     "news" to AppCategory.News,
     "messages" to AppCategory.Social,
     "messenger" to AppCategory.Social,
@@ -235,6 +276,14 @@ private val LABEL_WORDS = listOf(
     // Not "phone" or "mobile": far more banks, games and utilities say so
     // ("RBC Mobile", "Find My Phone") than carriers, which go by brand.
     "telecom" to AppCategory.Phone,
+    // After transport words, which also sell tickets.
+    "ticket" to AppCategory.Events,
+    "recruit" to AppCategory.Jobs,
+    "careers" to AppCategory.Jobs,
+    "jobs" to AppCategory.Jobs,
+    "rewards" to AppCategory.Rewards,
+    "cashback" to AppCategory.Rewards,
+    "loyalty" to AppCategory.Rewards,
 )
 
 // Publishers whose apps are games, by package prefix.
@@ -271,6 +320,7 @@ private val KNOWN_PACKAGE_PREFIXES = listOf(
 // (see stemMatches) files the app.
 private val GUESS_RULES = listOf(
     AppCategory.Kids to listOf("kids", "toddler", "children", "baby", "pregnancy", "parent", "parenting"),
+    AppCategory.Betting to listOf("betting", "sportsbook", "lottery", "lotto", "wager"),
     AppCategory.Games to listOf("game", "games", "solitaire", "sudoku", "mahjong", "chess", "puzzle", "casino", "slots", "poker", "crossword"),
     AppCategory.Weather to listOf("weather", "forecast", "radar"),
     AppCategory.Government to listOf("gov", "government", "council"),
@@ -332,8 +382,13 @@ private val KNOWN_PACKAGES = listOf(
     """,
     AppCategory.Photos to """
         com.google.android.apps.photos com.google.android.GoogleCamera com.sec.android.app.camera
-        com.sec.android.gallery3d com.adobe.lrmobile com.niksoftware.snapseed com.vsco.cam
-        com.picsart.studio com.amazon.clouddrive.photos com.google.android.apps.photos.scanner
+        com.sec.android.gallery3d com.vsco.cam
+        com.amazon.clouddrive.photos com.google.android.apps.photos.scanner
+    """,
+    AppCategory.Design to """
+        com.adobe.lrmobile com.niksoftware.snapseed com.picsart.studio com.canva.editor
+        com.lemon.lvoverseas com.adobe.spark.post com.adobe.psmobile jp.ne.ibis.ibispaintx.app
+        com.adobe.premierrush.videoeditor com.instagram.edits
     """,
     AppCategory.Social to """
         com.whatsapp com.whatsapp.w4b com.facebook.katana com.facebook.orca com.instagram.android

@@ -53,11 +53,11 @@ class KnownAppsTest {
         }
         // The word "AI" is a feature, not a folder.
         for ((label, category) in listOf(
-            "AI Photo Editor: Art Studio" to null,
+            "AI Photo Editor: Art Studio" to AppCategory.Design,
             "Claude by Anthropic" to AppCategory.Ai,
             "Grok Bot" to AppCategory.Ai,
             "BBC Sport - News & Live Scores" to AppCategory.Sports,
-            "bet365 - Sportsbook & Casino" to AppCategory.Sports,
+            "bet365 - Sportsbook & Casino" to AppCategory.Betting,
             "The Courier-Mail: QLD News" to AppCategory.News,
             "AlfredCamera Home Security app" to AppCategory.Home,
             "RingGo: Mobile Car Parking App" to AppCategory.Transport,
@@ -153,6 +153,29 @@ class KnownAppsTest {
             assertEquals(label, category, knownAppCategory("com.example.t", label))
         }
         assertNull(knownAppCategory("com.example.u", "Interpreter"))
+        // The maintainer, 2026-11-19: Betting, Design & editing, Events &
+        // tickets, Jobs & work, and Rewards & loyalty folders.
+        for ((label, category) in listOf(
+            "Sportsbet - Sports Betting App" to AppCategory.Betting,
+            "DraftKings: Sports & Casino" to AppCategory.Betting,
+            "MyLotto" to AppCategory.Betting,
+            "CapCut - Video Editor" to AppCategory.Design,
+            "Canva: AI Photo & Video Editor" to AppCategory.Design,
+            "PixVerse: AI Video Generator" to AppCategory.Design,
+            "Ticketmaster－Buy, Sell Tickets" to AppCategory.Events,
+            "StubHub - Live Event Tickets" to AppCategory.Events,
+            "SEEK: Jobs, Job Search & Work" to AppCategory.Jobs,
+            "Indeed Job Search" to AppCategory.Jobs,
+            "DoorDash - Dasher" to AppCategory.Jobs,
+            "Flybuys" to AppCategory.Rewards,
+            "Avion Rewards" to AppCategory.Rewards,
+            "Upside: Gas & Food Cash Back" to null,
+            "BBC Sport - News & Live Scores" to AppCategory.Sports,
+        )) {
+            assertEquals(label, category, knownAppCategory("com.example.nf", label))
+        }
+        assertEquals(AppCategory.Design, knownAppCategory("com.lemon.lvoverseas"))
+        assertEquals(AppCategory.Photos, knownAppCategory("com.google.android.apps.photos"))
         // Brands are whole words.
         assertNull(knownAppCategory("com.example.r", "Unified Remote"))
         assertNull(knownAppCategory("com.example.s", "Priority Tasks"))
