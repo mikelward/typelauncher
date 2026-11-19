@@ -241,7 +241,9 @@
     <!-- TODO: translate -->
     <string name="folder_icon_lock" tools:ignore="MissingTranslation">Security</string>
     <!-- TODO: translate -->
-    <string name="folder_icon_smartphone" tools:ignore="MissingTranslation">Phone</string>
+    <string name="folder_icon_smartphone" tools:ignore="MissingTranslation">Mobile phone</string>
+    <!-- TODO: translate -->
+    <string name="folder_icon_call" tools:ignore="MissingTranslation">Phone</string>
     <!-- TODO: translate -->
     <string name="folder_icon_account_balance" tools:ignore="MissingTranslation">Government</string>
     <!-- TODO: translate -->

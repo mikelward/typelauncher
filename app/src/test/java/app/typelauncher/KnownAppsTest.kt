@@ -49,6 +49,8 @@ class KnownAppsTest {
         assertEquals(AppCategory.Finance, knownAppCategory("com.example.t", "Barclays Mobile Banking"))
         assertEquals(AppCategory.Phone, knownAppCategory("com.google.android.dialer"))
         assertEquals(AppCategory.Phone, knownAppCategory("com.tmobile.pr.mytmobile"))
+        // The maintainer, 2026-11-19: the classic handset, as dialer icons draw it.
+        assertEquals(FolderIcon.Call, AppCategory.Phone.icon)
         // The maintainer, 2026-11-19: a Reading folder for books, audiobooks,
         // Kindle and Audible.
         assertEquals(AppCategory.Reading, knownAppCategory("com.amazon.kindle"))
