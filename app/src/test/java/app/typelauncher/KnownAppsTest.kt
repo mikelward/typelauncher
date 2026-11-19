@@ -86,6 +86,23 @@ class KnownAppsTest {
         for (airline in listOf("Fly Delta", "British Airways", "Ryanair", "JetBlue", "Jetstar", "United Airlines")) {
             assertEquals(airline, AppCategory.Travel, knownAppCategory("com.example.p", airline))
         }
+        // The maintainer, 2026-11-19: apps that landed in Other.
+        for ((label, category) in listOf(
+            "UniFi" to AppCategory.Internet,
+            "Wanderlog" to AppCategory.Travel,
+            "Libraries" to AppCategory.Reading,
+            "My HCA" to AppCategory.Health,
+            "My Bupa" to AppCategory.Health,
+            "Priority Pass" to AppCategory.Travel,
+            "Patient Access" to AppCategory.Health,
+            "Saily" to AppCategory.Phone,
+            "Suzerain" to AppCategory.Games,
+        )) {
+            assertEquals(label, category, knownAppCategory("com.example.q", label))
+        }
+        // Brands are whole words.
+        assertNull(knownAppCategory("com.example.r", "Unified Remote"))
+        assertNull(knownAppCategory("com.example.s", "Priority Tasks"))
         assertEquals(AppCategory.News, knownAppCategory("com.example.j", "SkyNews"))
         // A short word must end a word, not start one.
         assertNull(knownAppCategory("com.example.h", "Newsom for Governor"))
