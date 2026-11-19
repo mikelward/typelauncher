@@ -156,6 +156,21 @@ class LauncherViewModelAiSortTest {
     }
 
     @Test
+    fun wellKnownApps_areAskedAbout_whenTheUserHasFoldersOfTheirOwn() {
+        // So GitHub can go in a folder the user calls Coding.
+        seedApp("GitHub", "com.github.android")
+        model.answer = { prompt -> answerFrom(prompt, mapOf("GitHub" to "coding")) }
+        val viewModel = startedViewModel()
+
+        viewModel.createAppFolder("Coding", FolderIcon.Code)
+        idle()
+
+        val coding = viewModel.uiState.value.appFolders.first { it.name == "Coding" }
+        assertTrue(model.prompts.any { "GitHub (com.github.android)" in it })
+        assertEquals(coding.key, viewModel.uiState.value.appFolderAiAssignments[id(viewModel, "GitHub")])
+    }
+
+    @Test
     fun wellKnownApps_arentAskedAbout() {
         seedApp("Waze", "com.waze")
         seedApp("Notes", "com.example.notes")

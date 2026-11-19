@@ -5160,11 +5160,16 @@ internal class LauncherViewModel(
         val filings = appFolderStore.assignments
         val sorted = appFolderStore.aiAssignments
         // A well-known app goes where its rule says, unless that folder was
-        // deleted; then the AI finds it a home like any other.
-        val activeKeys = appFolderStore.folders.mapTo(HashSet()) { it.key }
+        // deleted; then the AI finds it a home like any other. With folders
+        // of the user's own, every app is asked about, since the AI's pick of
+        // one of those beats the rule.
+        val folders = appFolderStore.folders
+        val activeKeys = folders.mapTo(HashSet()) { it.key }
+        val hasUsersFolders = folders.any { it.category == null }
         val candidates = visibleInstalledApps()
             .filter { app ->
-                !filings.containsKey(app.id) && app.knownCategory()?.storageKey !in activeKeys
+                !filings.containsKey(app.id) &&
+                    (hasUsersFolders || app.knownCategory()?.storageKey !in activeKeys)
             }
             .distinctBy { app -> app.id }
         val pending = candidates
@@ -5348,7 +5353,7 @@ internal class LauncherViewModel(
         val members = installedApps.asSequence()
             .filter { app -> effectiveFolderKey(app, activeKeys, state.appFolderAssignments, aiFilings) == source.key }
             .mapTo(LinkedHashSet()) { it.id }
-        appFolderStore.mergeFolder(source.key, target.key, members, withAiChoices = state.isAiSortEnabled)
+        appFolderStore.mergeFolder(source.key, target.key, members)
         LauncherDebugLog.event("mergeAppFolder from=%s into=%s apps=%s", source.key, target.key, members.size)
         publishAppFolders()
         logState("mergeAppFolder")

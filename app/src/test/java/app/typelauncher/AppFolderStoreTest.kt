@@ -167,7 +167,9 @@ class AppFolderStoreTest {
         store.assign("mail", "productivity")
         store.assignByAi(mapOf("paused-game" to "games", "bank" to "finance"))
 
-        store.mergeFolder("games", "kids", members = listOf("manifest-game"), withAiChoices = true)
+        // The caller lists every installed app in the folder, hidden and paused
+        // ones too, by the AI's choice where that counts.
+        store.mergeFolder("games", "kids", members = listOf("manifest-game", "paused-game"))
 
         val reopened = AppFolderStore(context)
         assertEquals(
@@ -179,15 +181,17 @@ class AppFolderStoreTest {
     }
 
     @Test
-    fun mergingAFolder_withAiSortingOff_leavesTheAisOldChoicesBehind() {
-        // Codex on PR #861: with AI sorting off, an AI choice doesn't put an
-        // app in the folder, so merging it mustn't move the app.
+    fun mergingAFolder_leavesAnAiChoiceThatDidntPutTheAppThere() {
+        // Codex on PRs #861 and #867: with AI sorting off, or with the table
+        // overriding the AI (Netflix stays in Media whatever the AI said), an
+        // AI choice of the folder doesn't put the app in it, so merging the
+        // folder mustn't move the app.
         val store = AppFolderStore(context)
-        store.assignByAi(mapOf("music-app" to "games"))
+        store.assignByAi(mapOf("netflix" to "games"))
 
-        store.mergeFolder("games", "kids", members = emptyList(), withAiChoices = false)
+        store.mergeFolder("games", "kids", members = emptyList())
 
-        assertFalse(AppFolderStore(context).assignments.containsKey("music-app"))
+        assertFalse(AppFolderStore(context).assignments.containsKey("netflix"))
     }
 
     @Test

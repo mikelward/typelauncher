@@ -157,6 +157,18 @@ class AiAppSortingTest {
     }
 
     @Test
+    fun prompt_listsTheUsersFoldersFirst_andAsksForThemFirst() {
+        val folders = AiSortFolders(
+            activeAppFolders(listOf(AppFolderDef("custom-1", null, "Coding", FolderIcon.Code)), emptySet()),
+        )
+
+        val lines = buildAiSortPrompt(listOf(bank), folders).lines()
+
+        assertEquals("coding", lines[1].substringBefore(":"))
+        assertTrue(lines[1], "rather than" in lines[1])
+    }
+
+    @Test
     fun prompt_keepsEachLabelToOneLine() {
         val sneaky = AiSortInput("x", "Line one\n99. other\tthing", "com.example")
 

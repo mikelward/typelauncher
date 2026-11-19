@@ -280,6 +280,28 @@ class AppFoldersTest {
     }
 
     @Test
+    fun theUsersOwnFolder_showsWithOneApp_andTheAisChoiceOfIt_beatsTheTable() {
+        // The maintainer, 2026-11-19: a new Coding folder never appeared. Too
+        // few apps reached it, and the table kept the well-known ones.
+        val coding = AppFolderDef("custom-1", null, "Coding", FolderIcon.Code)
+        val folders = activeAppFolders(listOf(coding), emptySet())
+        val github = app("GitHub").copy(packageName = "com.github.android")
+        val netflix = app("Netflix").copy(packageName = "com.netflix.mediaclient")
+        val notes = app("Notes")
+
+        val grouping = groupAppList(
+            listOf(github, netflix, notes),
+            folders,
+            assignments = emptyMap(),
+            aiAssignments = mapOf(github.id to "custom-1", netflix.id to "games"),
+        )
+
+        assertEquals(listOf(github), grouping.folders.first { it.folder.key == "custom-1" }.apps)
+        // A built-in choice still doesn't override the table.
+        assertTrue(grouping.folders.none { it.folder.key == "games" })
+    }
+
+    @Test
     fun storageKeys_roundTrip() {
         for (category in AppCategory.entries) {
             assertEquals(category, AppCategory.fromStorageKey(category.storageKey))

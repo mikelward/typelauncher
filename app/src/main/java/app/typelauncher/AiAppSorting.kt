@@ -204,7 +204,8 @@ internal fun buildAiSortPrompt(apps: List<AiSortInput>, folders: AiSortFolders =
     buildString {
         appendLine("Put each Android app into exactly one folder. The folders:")
         val active = HashSet<AppCategory>()
-        for (folder in folders.folders) {
+        // The user's own folders first, since they asked for them.
+        for (folder in folders.folders.sortedBy { it.category != null }) {
             val description = folder.category?.let { AI_SORT_FOLDER_DESCRIPTIONS[it] } ?: AI_SORT_USER_FOLDER
             folder.category?.let(active::add)
             appendLine("${AiSortFolders.answerWord(folder)}: $description")
@@ -374,7 +375,8 @@ private val AI_SORT_EXAMPLES = listOf(
     "Red Dead Redemption" to AppCategory.Games,
 )
 
-private const val AI_SORT_USER_FOLDER = "a folder the user made; use it for apps that fit its name"
+private const val AI_SORT_USER_FOLDER =
+    "a folder the user made; put every app that fits its name here rather than in the folders below"
 
 private val AI_SORT_FOLDER_DESCRIPTIONS = mapOf(
     AppCategory.Finance to "banking, payments, wallets and payment cards, money transfer, investing, budgeting, crypto, insurance",
