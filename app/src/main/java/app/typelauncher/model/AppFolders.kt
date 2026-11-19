@@ -219,16 +219,12 @@ internal fun effectiveFolderKey(
 
 /**
  * Groups [apps] into [folders] (from [activeAppFolders]), each app where
- * [effectiveFolderKey] puts it.
+ * [effectiveFolderKey] puts it. A folder shows as soon as it has an app,
+ * even just one (maintainer, 2026-11-19: no minimum); one with none doesn't.
  *
- * A folder needs at least [minMembers] apps, so a lone game doesn't get a
- * folder of its own. A folder the user filed an app into always shows, even
- * with one app, since they asked for it.
- *
- * Every app left over, with no folder or one too small to show, goes in Other.
- * Only "no folder" keeps an app loose. When Other would be the only folder, it
- * is dropped and its apps stay loose: a list that is one folder is just the
- * list behind an extra tap.
+ * Every app with no folder goes in Other. Only "no folder" keeps an app
+ * loose. When Other would be the only folder, it is dropped and its apps stay
+ * loose: a list that is one folder is just the list behind an extra tap.
  *
  * Members and loose apps keep the order [apps] arrived in, so the list's sort
  * order still applies inside each folder. Folders are in [folders] order.
@@ -238,34 +234,18 @@ internal fun groupAppList(
     folders: List<AppFolderDef>,
     assignments: Map<String, String?>,
     aiAssignments: Map<String, String> = emptyMap(),
-    minMembers: Int = MIN_APP_FOLDER_MEMBERS,
 ): AppListGrouping {
     val other = AppCategory.Other.storageKey
     val activeKeys = folders.mapTo(HashSet()) { it.key }
-    // Each app's folder before the size rule; "no folder" apps are absent.
-    val keyOf = HashMap<String, String>(apps.size)
-    val counts = HashMap<String, Int>()
-    val chosen = HashSet<String>()
+    // "No folder" apps are absent.
+    val members = HashMap<String, MutableList<InstalledApp>>()
+    var otherChosen = false
     for (app in apps) {
         val key = effectiveFolderKey(app, activeKeys, assignments, aiAssignments) ?: continue
-        if (assignments[app.id] == key) chosen += key
-        keyOf[app.id] = key
-        counts[key] = (counts[key] ?: 0) + 1
+        if (key == other && assignments[app.id] == other) otherChosen = true
+        members.getOrPut(key) { mutableListOf() } += app
     }
-    val shown = folders.mapNotNullTo(HashSet()) { folder ->
-        val count = counts[folder.key] ?: 0
-        // A folder the user made shows with one app; a built-in needs two.
-        val isUsers = folder.category == null
-        folder.key.takeIf { it != other && (count >= minMembers || (count > 0 && (it in chosen || isUsers))) }
-    }
-    // One pass in list order: each app joins its folder if that folder shows,
-    // else Other (unless it was kept out of folders).
-    val members = HashMap<String, MutableList<InstalledApp>>()
-    for (app in apps) {
-        val key = keyOf[app.id] ?: continue
-        members.getOrPut(if (key in shown) key else other) { mutableListOf() } += app
-    }
-    val otherShows = shown.isNotEmpty() || other in chosen
+    val otherShows = otherChosen || members.keys.any { it != other }
     val grouped = folders.mapNotNull { folder ->
         val folderApps = members[folder.key] ?: return@mapNotNull null
         if (folder.key == other && !otherShows) return@mapNotNull null
@@ -277,8 +257,6 @@ internal fun groupAppList(
         looseApps = if (foldered.isEmpty()) apps else apps.filter { it.id !in foldered },
     )
 }
-
-internal const val MIN_APP_FOLDER_MEMBERS = 2
 
 /** The key prefix of a folder the user made (see `AppFolderStore.createFolder`). */
 internal const val USER_FOLDER_KEY_PREFIX = "custom-"
