@@ -49,7 +49,7 @@ class AppFoldersTest {
     @Test
     fun groups_appsWithTheSameCategory_andTheRestInOther() {
         val chess = app("Chess", AppCategory.Games)
-        val mail = app("Mail")
+        val mail = app("Acme")
         val sudoku = app("Sudoku", AppCategory.Games)
 
         val grouping = group(listOf(chess, mail, sudoku), emptyMap())
@@ -65,28 +65,33 @@ class AppFoldersTest {
     }
 
     @Test
-    fun loneAppInACategory_joinsOther_inListOrder() {
+    fun aLoneAppInACategory_getsItsFolder_withNoMinimum() {
+        // The maintainer, 2026-11-19: remove the two-app minimum.
         val chess = app("Chess", AppCategory.Games)
-        val mail = app("Mail")
+        val acme = app("Acme")
         val chat = app("Chat", AppCategory.Social)
         val zoom = app("Zoom", AppCategory.Social)
 
-        val grouping = group(listOf(chess, mail, chat, zoom), emptyMap())
+        val grouping = group(listOf(chess, acme, chat, zoom), emptyMap())
 
-        assertEquals(listOf(AppCategory.Social, AppCategory.Other), grouping.folders.map { it.category })
-        assertEquals(listOf(chess, mail), grouping.folders[1].apps)
+        assertEquals(
+            listOf(AppCategory.Games, AppCategory.Social, AppCategory.Other),
+            grouping.folders.map { it.category },
+        )
+        assertEquals(listOf(chess), grouping.folders[0].apps)
+        assertEquals(listOf(acme), grouping.folders[2].apps)
     }
 
     @Test
     fun otherAlone_isDropped_andItsAppsStayLoose() {
         // A list that is one folder is just the list behind an extra tap.
-        val chess = app("Chess", AppCategory.Games)
-        val mail = app("Mail")
+        val acme = app("Acme")
+        val zeta = app("Zeta")
 
-        val grouping = group(listOf(chess, mail), emptyMap())
+        val grouping = group(listOf(acme, zeta), emptyMap())
 
         assertEquals(emptyList<AppListFolder>(), grouping.folders)
-        assertEquals(listOf(chess, mail), grouping.looseApps)
+        assertEquals(listOf(acme, zeta), grouping.looseApps)
     }
 
     @Test
@@ -100,12 +105,12 @@ class AppFoldersTest {
             mapOf(bank.id to AppCategory.Finance, chess.id to null),
         )
 
-        // Bank: filed by the user, so its folder shows with one app. Chess:
-        // "No folder", so loose. That leaves Sudoku alone, so it goes in Other.
+        // Bank: filed by the user. Chess: "No folder", so loose. Sudoku
+        // keeps its Games folder, alone.
         assertEquals(
             listOf(
                 folder(AppCategory.Finance, listOf(bank)),
-                folder(AppCategory.Other, listOf(sudoku)),
+                folder(AppCategory.Games, listOf(sudoku)),
             ),
             grouping.folders,
         )
@@ -196,7 +201,7 @@ class AppFoldersTest {
         val chess = app("Chess", AppCategory.Games)
         val sudoku = app("Sudoku", AppCategory.Games)
         val crayons = app("Crayons")
-        val mail = app("Mail")
+        val mail = app("Acme")
 
         val grouping = groupAppList(
             listOf(chess, sudoku, crayons, mail),
