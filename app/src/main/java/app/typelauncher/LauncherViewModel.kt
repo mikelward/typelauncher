@@ -101,6 +101,7 @@ internal class LauncherViewModel(
     private val dockedAppStore = DockedAppStore(app)
     private val workDockedAppStore = DockedAppStore(app, DockedAppStore.WORK_PREFERENCES_NAME)
     private val hiddenAppStore = HiddenAppStore(app)
+    private val appFolderStore = AppFolderStore(app)
     private val renamedAppStore = RenamedAppStore(app)
     private val customBadgeStore = CustomBadgeStore(app)
     private val iconOverrideStore = IconOverrideStore(app)
@@ -452,6 +453,9 @@ internal class LauncherViewModel(
             isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
             appListSortOrder = dockSettingsStore.appListSortOrder,
             isLetterStripEnabled = dockSettingsStore.isLetterStripEnabled,
+            isAppFoldersEnabled = appFolderStore.isEnabled,
+            appFolderAssignments = appFolderStore.assignments,
+            isAppFoldersOfferPending = !appFolderStore.isOfferAnswered && !appFolderStore.isEnabled,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
             isKeyboardFloating = dockSettingsStore.isKeyboardFloating,
             isWallpaperShown = dockSettingsStore.isWallpaperShown,
@@ -4991,6 +4995,32 @@ internal class LauncherViewModel(
         logState("setLetterStripEnabled=%s", isEnabled)
     }
 
+    /**
+     * "Group apps into folders". Using the switch also answers the Home offer,
+     * so it never asks about something the user has already chosen.
+     */
+    fun setAppFoldersEnabled(isEnabled: Boolean) {
+        appFolderStore.isEnabled = isEnabled
+        appFolderStore.isOfferAnswered = true
+        _uiState.update { it.copy(isAppFoldersEnabled = isEnabled, isAppFoldersOfferPending = false) }
+        logState("setAppFoldersEnabled=%s", isEnabled)
+    }
+
+    /** Declines the Home offer to group apps into folders, for good. */
+    fun dismissAppFoldersOffer() {
+        appFolderStore.isOfferAnswered = true
+        _uiState.update { it.copy(isAppFoldersOfferPending = false) }
+        logState("dismissAppFoldersOffer")
+    }
+
+    /** Files [app] into [category]'s folder, or keeps it out of every folder when null. */
+    fun moveAppToFolder(app: InstalledApp, category: AppCategory?) {
+        LauncherDebugLog.event("moveAppToFolder package=%s folder=%s", app.packageName, category)
+        appFolderStore.assign(app.id, category)
+        _uiState.update { it.copy(appFolderAssignments = appFolderStore.assignments) }
+        logState("moveAppToFolder")
+    }
+
     fun setLandscapeDockPosition(position: LandscapeDockPosition) {
         dockSettingsStore.landscapeDockPosition = position
         _uiState.update { it.copy(landscapeDockPosition = position) }
@@ -6151,6 +6181,10 @@ internal class LauncherViewModel(
                             iconCacheToken = activity.applicationInfo.iconCacheToken(app.packageManager),
                             isQuietMode = quiet,
                             isUninstallable = activity.applicationInfo.isUninstallable,
+                            declaredCategory = declaredAppCategory(
+                                activity.applicationInfo.category,
+                                activity.applicationInfo.flags,
+                            ),
                             displayBase = workLabel(rawLabel, workApp),
                             unprefixedName = workSearchName(rawLabel, workApp),
                         )
@@ -6242,6 +6276,10 @@ internal class LauncherViewModel(
                         launchWithLauncherApps = false,
                         iconCacheToken = activityInfo.applicationInfo.iconCacheToken(app.packageManager),
                         isUninstallable = activityInfo.applicationInfo.isUninstallable,
+                        declaredCategory = declaredAppCategory(
+                            activityInfo.applicationInfo.category,
+                            activityInfo.applicationInfo.flags,
+                        ),
                         displayBase = workLabel(rawLabel, workApp),
                         unprefixedName = workSearchName(rawLabel, workApp),
                     )

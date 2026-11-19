@@ -48,6 +48,19 @@ class AppMetadataStoreTest {
     }
 
     @Test
+    fun preservesDeclaredCategory() {
+        // So the app-list folders are right on the first frame of a cold start,
+        // not regrouped once the fresh load lands.
+        val game = personalApp(name = "Chess", packageName = "app.chess").copy(declaredCategory = AppCategory.Games)
+        val plain = personalApp(name = "Mail", packageName = "app.mail")
+        AppMetadataStore(context).save(listOf(game, plain))
+
+        val restored = AppMetadataStore(context).load().associateBy { it.name }
+        assertEquals(AppCategory.Games, restored.getValue("Chess").declaredCategory)
+        assertEquals(null, restored.getValue("Mail").declaredCategory)
+    }
+
+    @Test
     fun preservesIsWorkAppFlagForPersonalProfileApps() {
         // Personal-profile apps tagged via TEST_WORK_PACKAGES_EXTRA still need
         // to round-trip their work identity across cold starts.

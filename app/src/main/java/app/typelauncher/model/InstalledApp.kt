@@ -69,6 +69,10 @@ internal data class InstalledApp(
     // the app that published it — the browser — and the entry launches through
     // `LauncherApps.startShortcut` instead of [launchIntent].
     val shortcutId: String? = null,
+    // The app-list folder the app's own manifest puts it in, if any (see
+    // `declaredAppCategory`). The user's own filing, kept in `AppFolderStore`,
+    // overrides it.
+    val declaredCategory: AppCategory? = null,
 ) {
     val isShortcut: Boolean
         get() = shortcutId != null

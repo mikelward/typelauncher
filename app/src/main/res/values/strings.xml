@@ -159,6 +159,44 @@
     <string name="settings_letter_strip_title" tools:ignore="MissingTranslation">Letter strip</string>
     <!-- TODO: translate -->
     <string name="settings_letter_strip_needs_name_sort" tools:ignore="MissingTranslation">When sorted by name</string>
+    <!-- App list folders: the Settings switch, the one-time offer on Home, and the long-press action that files an app. -->
+    <!-- TODO: translate -->
+    <string name="settings_app_folders_title" tools:ignore="MissingTranslation">Group apps into folders</string>
+    <!-- TODO: translate -->
+    <string name="app_folders_offer_title" tools:ignore="MissingTranslation">Group apps into folders?</string>
+    <!-- TODO: translate -->
+    <string name="app_folders_offer_accept" tools:ignore="MissingTranslation">Turn on</string>
+    <!-- TODO: translate -->
+    <string name="app_folders_offer_dismiss" tools:ignore="MissingTranslation">Not now</string>
+    <!-- TODO: translate -->
+    <string name="app_menu_move_to_folder" tools:ignore="MissingTranslation">Move to folder</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_picker_none" tools:ignore="MissingTranslation">No folder</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_picker_cancel" tools:ignore="MissingTranslation">Cancel</string>
+    <!-- App list folder names. -->
+    <!-- TODO: translate -->
+    <string name="app_folder_finance" tools:ignore="MissingTranslation">Finance</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_games" tools:ignore="MissingTranslation">Games</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_health" tools:ignore="MissingTranslation">Health</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_media" tools:ignore="MissingTranslation">Media</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_news" tools:ignore="MissingTranslation">News</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_productivity" tools:ignore="MissingTranslation">Productivity</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_shopping" tools:ignore="MissingTranslation">Shopping</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_social" tools:ignore="MissingTranslation">Social</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_tools" tools:ignore="MissingTranslation">Tools</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_travel" tools:ignore="MissingTranslation">Travel</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_other" tools:ignore="MissingTranslation">Other</string>
     <string name="settings_dock_enabled_title">Show dock</string>
     <string name="settings_work_dock_enabled_title">Show work dock</string>
     <string name="settings_work_dock_disabled_toast">Work profile is paused</string>
