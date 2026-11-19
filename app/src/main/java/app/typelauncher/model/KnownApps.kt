@@ -92,7 +92,7 @@ private val WORD_START_ONLY = setOf("ebook")
 
 // Keywords that must be a whole word: "git" ends "legit", and "code" a
 // "barcode" scanner.
-private val WHOLE_WORD_ONLY = setOf("code", "git", "ssh", "qr")
+private val WHOLE_WORD_ONLY = setOf("code", "git", "ssh", "qr", "ai")
 
 private val LABEL_WORD_BREAK = Regex("""[^\p{L}\p{N}]+""")
 private val PACKAGE_WORD_BREAK = Regex("""[._\-]+""")
@@ -146,6 +146,11 @@ private val LABEL_WORDS = listOf(
     "code" to AppCategory.Code,
     "git" to AppCategory.Code,
     "ssh" to AppCategory.Code,
+    // Whole words only: "Thai" and "Dubai" aren't AI. Not "Gemini", which is
+    // also a crypto exchange; Google's is in the table.
+    "chatgpt" to AppCategory.Ai,
+    "copilot" to AppCategory.Ai,
+    "ai" to AppCategory.Ai,
     // Last, so a more specific word wins ("Barclays Mobile Banking" is Finance).
     "phone" to AppCategory.Phone,
     "mobile" to AppCategory.Phone,
@@ -354,6 +359,10 @@ private val KNOWN_PACKAGES = listOf(
         com.scribd.app.reader0 com.goodreads com.storytel com.wattpad
         com.blinkslabs.blinkist.android com.ideashower.readitlater.pro org.readera
         com.marvel.comics com.comixology.comics com.hoopladigital.android
+    """,
+    AppCategory.Ai to """
+        com.openai.chatgpt com.google.android.apps.bard com.anthropic.claude
+        com.microsoft.copilot ai.perplexity.app.android
     """,
     AppCategory.Code to """
         com.github.android com.termux com.replit.app com.foxdebug.acode ru.iiec.pydroid3

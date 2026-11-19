@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 
 internal fun AppCategory.labelRes(): Int = when (this) {
+    AppCategory.Ai -> R.string.app_folder_ai
     AppCategory.Code -> R.string.app_folder_code
     AppCategory.Finance -> R.string.app_folder_finance
     AppCategory.Food -> R.string.app_folder_food
@@ -115,6 +116,7 @@ internal fun FolderIcon.vector(): ImageVector = when (this) {
     FolderIcon.FitnessCenter -> CategoryIcons.FitnessCenter
     FolderIcon.Apartment -> CategoryIcons.Apartment
     FolderIcon.Code -> CategoryIcons.Code
+    FolderIcon.AutoAwesome -> CategoryIcons.AutoAwesome
     FolderIcon.Palette -> CategoryIcons.Palette
     FolderIcon.FamilyRestroom -> CategoryIcons.FamilyRestroom
     FolderIcon.ChildCare -> CategoryIcons.ChildCare
@@ -161,6 +163,7 @@ internal fun FolderIcon.descriptionRes(): Int = when (this) {
     FolderIcon.FitnessCenter -> R.string.folder_icon_fitness_center
     FolderIcon.Apartment -> R.string.folder_icon_apartment
     FolderIcon.Code -> R.string.folder_icon_code
+    FolderIcon.AutoAwesome -> R.string.folder_icon_auto_awesome
     FolderIcon.Palette -> R.string.folder_icon_palette
     FolderIcon.FamilyRestroom -> R.string.folder_icon_family_restroom
     FolderIcon.ChildCare -> R.string.folder_icon_child_care
@@ -739,7 +742,8 @@ internal fun AppFolderEditDialogContent(
                 .fillMaxWidth()
                 .weight(1f, fill = false)
                 .heightIn(max = 208.dp)
-                .selectableGroup(),
+                .selectableGroup()
+                .testTag(APP_FOLDER_ICON_GRID_TAG),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             items(FolderIcon.entries, key = { it.storageKey }) { option ->

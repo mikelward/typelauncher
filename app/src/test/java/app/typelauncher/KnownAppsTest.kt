@@ -74,6 +74,12 @@ class KnownAppsTest {
         assertEquals(AppCategory.Tools, knownAppCategory("com.example.c4", "QR Code Reader"))
         assertNull(knownAppCategory("com.example.c5", "Barcode Scanner"))
         assertNull(knownAppCategory("com.example.c6", "Legit Deals"))
+        // The maintainer, 2026-11-19: an AI folder too.
+        assertEquals(AppCategory.Ai, knownAppCategory("com.openai.chatgpt"))
+        assertEquals(AppCategory.Ai, knownAppCategory("com.google.android.apps.bard"))
+        assertEquals(AppCategory.Ai, knownAppCategory("com.example.ai1", "Meta AI"))
+        assertNull(knownAppCategory("com.example.ai2", "Thai Food Near Me"))
+        assertNull(knownAppCategory("com.example.ai3", "Visit Dubai"))
         // The maintainer, 2026-11-19: airlines are Travel, not Transport.
         assertEquals(AppCategory.Travel, knownAppCategory("com.example.n", "Virgin Atlantic Airways"))
         assertEquals(AppCategory.Travel, knownAppCategory("com.example.o", "Qantas Airlines"))
