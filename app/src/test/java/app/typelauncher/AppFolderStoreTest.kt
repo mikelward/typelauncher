@@ -160,6 +160,37 @@ class AppFolderStoreTest {
     }
 
     @Test
+    fun mergingAFolder_movesEveryFilingIntoIt_inOneGo_evenForAppsNotListed() {
+        // Codex on PR #861: a hidden or paused app's filing moves too.
+        val store = AppFolderStore(context)
+        store.assign("hidden-game", "games")
+        store.assign("mail", "productivity")
+        store.assignByAi(mapOf("paused-game" to "games", "bank" to "finance"))
+
+        store.mergeFolder("games", "kids", members = listOf("manifest-game"), withAiChoices = true)
+
+        val reopened = AppFolderStore(context)
+        assertEquals(
+            mapOf("hidden-game" to "kids", "mail" to "productivity", "paused-game" to "kids", "manifest-game" to "kids"),
+            reopened.assignments,
+        )
+        assertEquals(mapOf("bank" to "finance"), reopened.aiAssignments)
+        assertFalse(reopened.folders.any { it.key == "games" })
+    }
+
+    @Test
+    fun mergingAFolder_withAiSortingOff_leavesTheAisOldChoicesBehind() {
+        // Codex on PR #861: with AI sorting off, an AI choice doesn't put an
+        // app in the folder, so merging it mustn't move the app.
+        val store = AppFolderStore(context)
+        store.assignByAi(mapOf("music-app" to "games"))
+
+        store.mergeFolder("games", "kids", members = emptyList(), withAiChoices = false)
+
+        assertFalse(AppFolderStore(context).assignments.containsKey("music-app"))
+    }
+
+    @Test
     fun other_cantBeDeleted_andRestoringBringsBackTheBuiltIns() {
         val store = AppFolderStore(context)
         store.deleteFolder("other")

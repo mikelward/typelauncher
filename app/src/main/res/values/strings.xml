@@ -278,6 +278,10 @@
     <!-- TODO: translate -->
     <string name="app_folder_menu_delete" tools:ignore="MissingTranslation">Delete folder</string>
     <!-- TODO: translate -->
+    <string name="app_folder_menu_merge" tools:ignore="MissingTranslation">Merge into…</string>
+    <!-- TODO: translate -->
+    <string name="app_folder_merge_title" tools:ignore="MissingTranslation">Merge %1$s into</string>
+    <!-- TODO: translate -->
     <string name="app_folder_delete_title" tools:ignore="MissingTranslation">Delete %1$s?</string>
     <!-- TODO: translate -->
     <string name="app_folder_delete_text" tools:ignore="MissingTranslation">Its apps stay installed and move to other folders.</string>

@@ -109,6 +109,29 @@ class LauncherViewModelAppFoldersTest {
     }
 
     @Test
+    fun mergingAFolder_filesItsAppsIntoTheOther_andDeletesIt() {
+        // The maintainer, 2026-11-19: make a few too many folders, and let
+        // the user merge the ones they don't want.
+        seedApp("Chess", "com.example.chess", category = ApplicationInfo.CATEGORY_GAME)
+        seedApp("Sudoku", "com.example.sudoku", category = ApplicationInfo.CATEGORY_GAME)
+        seedApp("Mail", "com.example.mail")
+        val viewModel = newViewModel()
+        idle()
+        val chess = viewModel.uiState.value.filteredApps.first { it.name == "Chess" }
+        val sudoku = viewModel.uiState.value.filteredApps.first { it.name == "Sudoku" }
+        val mail = viewModel.uiState.value.filteredApps.first { it.name == "Mail" }
+        viewModel.moveAppToFolder(sudoku, "games")
+
+        viewModel.mergeAppFolder(AppFolderDef.builtIn(AppCategory.Games), AppFolderDef.builtIn(AppCategory.Kids))
+
+        val state = newViewModel().uiState.value
+        assertFalse(state.appFolders.any { it.key == "games" })
+        assertEquals("kids", state.appFolderAssignments[chess.id])
+        assertEquals("kids", state.appFolderAssignments[sudoku.id])
+        assertFalse(state.appFolderAssignments.containsKey(mail.id))
+    }
+
+    @Test
     fun deletedBuiltIns_comeBackOnRestore() {
         val viewModel = newViewModel()
         idle()

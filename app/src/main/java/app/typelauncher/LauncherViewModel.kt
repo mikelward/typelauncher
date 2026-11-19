@@ -5307,6 +5307,26 @@ internal class LauncherViewModel(
         logState("deleteAppFolder")
     }
 
+    /**
+     * "Merge into…": files every app in [source] into [target], as if the
+     * user had moved each one, then deletes [source].
+     */
+    fun mergeAppFolder(source: AppFolderDef, target: AppFolderDef) {
+        if (source.key == target.key || source.isOther) return
+        val state = _uiState.value
+        val activeKeys = state.appFolders.mapTo(HashSet()) { it.key }
+        val aiFilings = if (state.isAiSortEnabled) state.appFolderAiAssignments else emptyMap()
+        // Every installed app, hidden and paused ones too, so they're in the
+        // folder when they come back; the store moves their filings anyway.
+        val members = installedApps.asSequence()
+            .filter { app -> effectiveFolderKey(app, activeKeys, state.appFolderAssignments, aiFilings) == source.key }
+            .mapTo(LinkedHashSet()) { it.id }
+        appFolderStore.mergeFolder(source.key, target.key, members, withAiChoices = state.isAiSortEnabled)
+        LauncherDebugLog.event("mergeAppFolder from=%s into=%s apps=%s", source.key, target.key, members.size)
+        publishAppFolders()
+        logState("mergeAppFolder")
+    }
+
     /** Settings' "Restore deleted folders": brings back the built-in folders. */
     fun restoreAppFolders() {
         appFolderStore.restoreBuiltInFolders()
