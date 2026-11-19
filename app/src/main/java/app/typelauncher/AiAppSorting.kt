@@ -367,6 +367,8 @@ private val AI_SORT_EXAMPLES = listOf(
     "IRS2Go" to AppCategory.Government,
     "Rover" to AppCategory.Pets,
     "Gmail" to AppCategory.Productivity,
+    "GitHub" to AppCategory.Code,
+    "Termux" to AppCategory.Code,
     "Chrome" to AppCategory.Internet,
     "T-Mobile" to AppCategory.Phone,
     "Calculator" to AppCategory.Tools,
@@ -379,6 +381,7 @@ private const val AI_SORT_USER_FOLDER =
     "a folder the user made; put every app that fits its name here rather than in the folders below"
 
 private val AI_SORT_FOLDER_DESCRIPTIONS = mapOf(
+    AppCategory.Code to "programming and coding, code editors and IDEs, terminals and SSH, Git and developer tools",
     AppCategory.Finance to "banking, payments, wallets and payment cards, money transfer, investing, budgeting, crypto, insurance",
     AppCategory.Food to "food and grocery delivery, restaurants, takeaway, recipes and cooking, coffee",
     AppCategory.Games to "games of any kind, including games from Netflix",
