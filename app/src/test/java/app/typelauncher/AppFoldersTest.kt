@@ -325,6 +325,13 @@ class AppFoldersTest {
     }
 
     @Test
+    fun productivity_isAnOfficeBuilding_andJobsTakesTheBriefcase() {
+        // The maintainer, 2026-11-19.
+        assertEquals(FolderIcon.Business, AppCategory.Productivity.icon)
+        assertEquals(FolderIcon.Work, AppCategory.Jobs.icon)
+    }
+
+    @Test
     fun storageKeys_roundTrip() {
         for (category in AppCategory.entries) {
             assertEquals(category, AppCategory.fromStorageKey(category.storageKey))

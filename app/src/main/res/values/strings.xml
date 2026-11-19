@@ -201,6 +201,8 @@
     <!-- TODO: translate -->
     <string name="folder_icon_work" tools:ignore="MissingTranslation">Work</string>
     <!-- TODO: translate -->
+    <string name="folder_icon_business" tools:ignore="MissingTranslation">Office</string>
+    <!-- TODO: translate -->
     <string name="folder_icon_shopping_bag" tools:ignore="MissingTranslation">Shopping</string>
     <!-- TODO: translate -->
     <string name="folder_icon_chat" tools:ignore="MissingTranslation">Chat</string>

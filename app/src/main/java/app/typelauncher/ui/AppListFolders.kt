@@ -108,6 +108,7 @@ internal fun FolderIcon.vector(): ImageVector = when (this) {
     FolderIcon.PlayCircle -> CategoryIcons.Media
     FolderIcon.Newspaper -> CategoryIcons.News
     FolderIcon.Work -> CategoryIcons.Productivity
+    FolderIcon.Business -> CategoryIcons.Business
     FolderIcon.ShoppingBag -> CategoryIcons.Shopping
     FolderIcon.Chat -> CategoryIcons.Social
     FolderIcon.Build -> CategoryIcons.Tools
@@ -159,6 +160,7 @@ internal fun FolderIcon.descriptionRes(): Int = when (this) {
     FolderIcon.PlayCircle -> R.string.folder_icon_play_circle
     FolderIcon.Newspaper -> R.string.folder_icon_newspaper
     FolderIcon.Work -> R.string.folder_icon_work
+    FolderIcon.Business -> R.string.folder_icon_business
     FolderIcon.ShoppingBag -> R.string.folder_icon_shopping_bag
     FolderIcon.Chat -> R.string.folder_icon_chat
     FolderIcon.Build -> R.string.folder_icon_build
