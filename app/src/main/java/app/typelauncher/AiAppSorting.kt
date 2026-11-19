@@ -368,6 +368,8 @@ private val AI_SORT_EXAMPLES = listOf(
     "Rover" to AppCategory.Pets,
     "Gmail" to AppCategory.Productivity,
     "GitHub" to AppCategory.Code,
+    "ChatGPT" to AppCategory.Ai,
+    "Gemini" to AppCategory.Ai,
     "Termux" to AppCategory.Code,
     "Chrome" to AppCategory.Internet,
     "T-Mobile" to AppCategory.Phone,
@@ -381,6 +383,7 @@ private const val AI_SORT_USER_FOLDER =
     "a folder the user made; put every app that fits its name here rather than in the folders below"
 
 private val AI_SORT_FOLDER_DESCRIPTIONS = mapOf(
+    AppCategory.Ai to "AI chatbots and assistants, AI image and writing tools",
     AppCategory.Code to "programming and coding, code editors and IDEs, terminals and SSH, Git and developer tools",
     AppCategory.Finance to "banking, payments, wallets and payment cards, money transfer, investing, budgeting, crypto, insurance",
     AppCategory.Food to "food and grocery delivery, restaurants, takeaway, recipes and cooking, coffee",

@@ -19,7 +19,9 @@ import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.longClick
@@ -379,7 +381,9 @@ class AppListFoldersUiTest {
 
         composeRule.onNodeWithTag(APP_FOLDER_SAVE_TAG).assertIsNotEnabled()
         composeRule.onNodeWithTag(APP_FOLDER_NAME_FIELD_TAG).performTextInput("Kids")
-        composeRule.onNodeWithTag("$APP_FOLDER_ICON_OPTION_TAG:child_care").performScrollTo().performClick()
+        composeRule.onNodeWithTag(APP_FOLDER_ICON_GRID_TAG)
+            .performScrollToNode(hasTestTag("$APP_FOLDER_ICON_OPTION_TAG:child_care"))
+        composeRule.onNodeWithTag("$APP_FOLDER_ICON_OPTION_TAG:child_care").performClick()
         composeRule.onNodeWithTag(APP_FOLDER_SAVE_TAG).performClick()
 
         assertEquals("Kids" to FolderIcon.ChildCare, saved)
@@ -408,8 +412,9 @@ class AppListFoldersUiTest {
         }
 
         composeRule.onNodeWithTag("$APP_FOLDER_ICON_OPTION_TAG:folder").assertContentDescriptionEquals("Folder")
-        composeRule.onNodeWithTag("$APP_FOLDER_ICON_OPTION_TAG:child_care").performScrollTo()
-            .assertContentDescriptionEquals("Kids")
+        composeRule.onNodeWithTag(APP_FOLDER_ICON_GRID_TAG)
+            .performScrollToNode(hasTestTag("$APP_FOLDER_ICON_OPTION_TAG:child_care"))
+        composeRule.onNodeWithTag("$APP_FOLDER_ICON_OPTION_TAG:child_care").assertContentDescriptionEquals("Kids")
     }
 
     @Test
