@@ -90,7 +90,7 @@ class AiAppSortingTest {
     fun prompt_hasTheNewBuiltIns_andMediaNoLongerTakesMusicOrPhotos() {
         val lines = buildAiSortPrompt(listOf(bank)).lines()
 
-        for (word in listOf("food", "government", "internet", "kids", "music", "pets", "phone", "photos", "sports", "transport", "weather")) {
+        for (word in listOf("food", "government", "internet", "kids", "music", "pets", "phone", "photos", "reading", "sports", "transport", "weather")) {
             assertTrue(word, lines.any { it.startsWith("$word: ") })
         }
         val media = lines.first { it.startsWith("media: ") }

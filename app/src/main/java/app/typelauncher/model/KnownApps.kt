@@ -54,6 +54,7 @@ internal fun guessedAppCategory(packageName: String, label: String): AppCategory
 // one of four must start it ("games"), since "eats" sits inside "beats"; a
 // shorter one must be the whole word ("gov", not "govee").
 private fun stemMatches(word: String, stem: String): Boolean = when {
+    stem in WORD_START_ONLY -> word.startsWith(stem)
     stem.length >= 5 -> stem in word
     stem.length == 4 -> word.startsWith(stem)
     else -> word == stem
@@ -66,7 +67,13 @@ private fun labelCategory(label: String): AppCategory? {
     if (label.isBlank()) return null
     val words = label.lowercase().split(LABEL_WORD_BREAK)
     LABEL_WORDS.firstOrNull { (keyword, _) ->
-        words.any { word -> if (keyword.length >= 5) keyword in word else word.endsWith(keyword) }
+        words.any { word ->
+            when {
+                keyword in WORD_START_ONLY -> word.startsWith(keyword)
+                keyword.length >= 5 -> keyword in word
+                else -> word.endsWith(keyword)
+            }
+        }
     }?.let { return it.second }
     // Airlines by brand, as whole words: "Fly Delta", "Ryanair".
     return if (words.any { it in AIRLINE_BRANDS }) AppCategory.Travel else null
@@ -77,6 +84,10 @@ private val AIRLINE_BRANDS = setOf(
     "delta", "ryanair", "jetblue", "jetstar", "easyjet", "qantas", "emirates", "lufthansa", "klm",
     "southwest", "aeromexico", "aircanada", "westjet", "vueling", "wizzair", "norse",
 )
+
+// Keywords that must start a word: "ebook" sits inside "Facebook" and
+// "Notebook" (Codex on PR #866).
+private val WORD_START_ONLY = setOf("ebook")
 
 private val LABEL_WORD_BREAK = Regex("""[^\p{L}\p{N}]+""")
 private val PACKAGE_WORD_BREAK = Regex("""[._\-]+""")
@@ -105,6 +116,13 @@ private val LABEL_WORDS = listOf(
     "airline" to AppCategory.Travel,
     "flights" to AppCategory.Travel,
     "music" to AppCategory.Music,
+    "audiobook" to AppCategory.Reading,
+    "kindle" to AppCategory.Reading,
+    "ebook" to AppCategory.Reading,
+    "comics" to AppCategory.Reading,
+    "manga" to AppCategory.Reading,
+    "library" to AppCategory.Reading,
+    "libby" to AppCategory.Reading,
     "podcasts" to AppCategory.Music,
     "calculator" to AppCategory.Tools,
     "clock" to AppCategory.Tools,
@@ -165,6 +183,7 @@ private val GUESS_RULES = listOf(
     AppCategory.Pets to listOf("pet", "pets", "dog", "dogs", "vet", "petcare"),
     AppCategory.Transport to listOf("transit", "metro", "rail", "railway", "bus", "taxi", "parking", "maps", "navigation", "scooter"),
     AppCategory.Travel to listOf("airline", "airways", "flight", "hotel", "travel", "booking"),
+    AppCategory.Reading to listOf("ebook", "audiobook", "kindle", "comic", "manga", "novel", "library"),
     AppCategory.Shopping to listOf("shop", "deals", "coupon", "marketplace"),
     AppCategory.Internet to listOf("browser", "internet", "vpn", "wifi", "speedtest"),
     AppCategory.Phone to listOf("phone", "telecom", "dialer", "esim"),
@@ -196,9 +215,7 @@ private val KNOWN_PACKAGES = listOf(
         com.disney.disneyplus com.wbd.stream com.hbo.hbonow com.hulu.plus com.cbs.app
         com.peacocktv.peacockandroid com.crunchyroll.crunchyroid com.tubitv tv.pluto.android
         com.plexapp.android tv.twitch.android.app org.videolan.vlc com.mxtech.videoplayer.ad
-        com.amazon.kindle com.google.android.apps.books com.audible.application
-        com.overdrive.mobile.android.libby com.google.android.videos com.naver.linewebtoon
-        com.vimeo.android.videoapp com.dailymotion.dailymotion bbc.iplayer.android
+        com.google.android.videos com.vimeo.android.videoapp com.dailymotion.dailymotion bbc.iplayer.android
         com.channel4.ondemand air.ITVMobilePlayer com.channel5.my5 com.apple.atve.androidtv.appletv
     """,
     AppCategory.Music to """
@@ -315,6 +332,13 @@ private val KNOWN_PACKAGES = listOf(
         com.brainly org.wikipedia com.google.android.apps.translate com.merriamwebster
         com.ted.android org.edx.mobile com.linkedin.android.learning com.instructure.candroid
         com.ichi2.anki
+    """,
+    AppCategory.Reading to """
+        com.amazon.kindle com.google.android.apps.books com.audible.application
+        com.overdrive.mobile.android.libby com.naver.linewebtoon com.kobobooks.android
+        com.scribd.app.reader0 com.goodreads com.storytel com.wattpad
+        com.blinkslabs.blinkist.android com.ideashower.readitlater.pro org.readera
+        com.marvel.comics com.comixology.comics com.hoopladigital.android
     """,
     AppCategory.Phone to """
         com.google.android.dialer com.samsung.android.dialer com.tmobile.pr.mytmobile
