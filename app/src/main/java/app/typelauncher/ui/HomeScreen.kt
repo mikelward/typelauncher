@@ -1417,9 +1417,10 @@ internal fun HomeScreen(
                     onDismissGridOffer = onDismissGridOffer,
                     onAcceptFoldersOffer = { onAppFoldersEnabledChanged(true) },
                     onDismissFoldersOffer = onDismissAppFoldersOffer,
-                    // The Other folder holds what's left to sort, so AI sorting
-                    // shows its progress, or offers itself, at the top of it.
-                    openFolderNote = if (openAppFolder?.folder?.isOther == true && state.isAiSortSupported) {
+                    // AI sorting offers itself at the top of every open folder
+                    // until answered (maintainer, 2026-11-19), and shows its
+                    // progress there while it sorts.
+                    openFolderNote = if (openAppFolder != null && state.isAiSortSupported) {
                         {
                             OtherFolderAiNote(
                                 progress = if (state.isAiSortEnabled) state.aiSort else AiSortProgress(),

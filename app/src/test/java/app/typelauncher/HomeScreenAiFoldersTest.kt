@@ -55,6 +55,27 @@ class HomeScreenAiFoldersTest {
         assertMenuSelection(folderKey = "games", appName = "Chess", selectedKey = "games")
     }
 
+    @Test
+    fun aiOffer_showsAtTheTopOfEveryFolder_untilAnswered() {
+        // The maintainer, 2026-11-19: not just in Other.
+        compose(aiSortEnabled = false, aiOfferPending = true)
+
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:games").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(AI_SORT_OFFER_TAG).assertExists()
+    }
+
+    @Test
+    fun aiOffer_goneOnceAnswered() {
+        compose(aiSortEnabled = false, aiOfferPending = false)
+
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:games").performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag(AI_SORT_OFFER_TAG).assertDoesNotExist()
+    }
+
     private fun assertMenuSelection(folderKey: String, appName: String, selectedKey: String) {
         composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:$folderKey").performClick()
         composeRule.waitForIdle()
@@ -66,7 +87,7 @@ class HomeScreenAiFoldersTest {
         composeRule.onNodeWithTag("$APP_FOLDER_PICKER_OPTION_TAG:$other").assertIsNotSelected()
     }
 
-    private fun compose(aiSortEnabled: Boolean) {
+    private fun compose(aiSortEnabled: Boolean, aiOfferPending: Boolean = false) {
         val state = LauncherUiState(
             filteredApps = listOf(chess, notes, sudoku),
             isLoadingApps = false,
@@ -80,6 +101,7 @@ class HomeScreenAiFoldersTest {
             ),
             isAiSortSupported = true,
             isAiSortEnabled = aiSortEnabled,
+            isAiSortOfferPending = aiOfferPending,
         )
         composeRule.setContent {
             TypeLauncherTheme {

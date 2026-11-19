@@ -900,8 +900,8 @@ internal fun AiSortSettingsRows(
 }
 
 /**
- * Below the open Other folder's header: sorting progress while the AI is
- * moving apps out of it, or else the one-time offer to turn AI sorting on.
+ * Below an open folder's header: sorting progress while the AI is sorting,
+ * or else the offer to turn AI sorting on, in every folder until answered.
  * Nothing at all when neither applies.
  */
 @Composable
