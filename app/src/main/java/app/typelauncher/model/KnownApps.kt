@@ -95,6 +95,7 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "hca" to AppCategory.Health,
     "nhs" to AppCategory.Health,
     "unifi" to AppCategory.Internet,
+    "starlink" to AppCategory.Internet,
     "saily" to AppCategory.Phone,
     "esim" to AppCategory.Phone,
     "suzerain" to AppCategory.Games,

@@ -116,6 +116,7 @@ class KnownAppsTest {
         // The maintainer, 2026-11-19: apps that landed in Other.
         for ((label, category) in listOf(
             "UniFi" to AppCategory.Internet,
+            "Starlink" to AppCategory.Internet,
             "Wanderlog" to AppCategory.Travel,
             "Libraries" to AppCategory.Reading,
             "My HCA" to AppCategory.Health,
