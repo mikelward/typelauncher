@@ -12,6 +12,7 @@ import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -76,6 +77,22 @@ class HomeScreenAiFoldersTest {
         composeRule.onNodeWithTag(AI_SORT_OFFER_TAG).assertDoesNotExist()
     }
 
+    @Test
+    fun typedSearch_showsTheFoldersItNames_andOpeningOneClearsTheQuery() {
+        var cleared = false
+        val games = AppListFolder(AppFolderDef.builtIn(AppCategory.Games), listOf(chess, sudoku))
+        compose(
+            aiSortEnabled = false,
+            query = "gam",
+            searchFolders = listOf(games),
+            onClearQuery = { cleared = true },
+        )
+
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:games").performClick()
+
+        assertTrue(cleared)
+    }
+
     private fun assertMenuSelection(folderKey: String, appName: String, selectedKey: String) {
         composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:$folderKey").performClick()
         composeRule.waitForIdle()
@@ -87,7 +104,13 @@ class HomeScreenAiFoldersTest {
         composeRule.onNodeWithTag("$APP_FOLDER_PICKER_OPTION_TAG:$other").assertIsNotSelected()
     }
 
-    private fun compose(aiSortEnabled: Boolean, aiOfferPending: Boolean = false) {
+    private fun compose(
+        aiSortEnabled: Boolean,
+        aiOfferPending: Boolean = false,
+        query: String = "",
+        searchFolders: List<AppListFolder> = emptyList(),
+        onClearQuery: () -> Unit = {},
+    ) {
         val state = LauncherUiState(
             filteredApps = listOf(chess, notes, sudoku),
             isLoadingApps = false,
@@ -102,6 +125,8 @@ class HomeScreenAiFoldersTest {
             isAiSortSupported = true,
             isAiSortEnabled = aiSortEnabled,
             isAiSortOfferPending = aiOfferPending,
+            query = query,
+            searchFolders = searchFolders,
         )
         composeRule.setContent {
             TypeLauncherTheme {
@@ -110,7 +135,7 @@ class HomeScreenAiFoldersTest {
                     innerPadding = PaddingValues(),
                     bodyReady = true,
                     onQueryChanged = {},
-                    onClearQuery = {},
+                    onClearQuery = onClearQuery,
                     onLaunchActiveApp = {},
                     onLaunchApp = {},
                     onOpenAppInfo = {},

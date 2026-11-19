@@ -701,14 +701,23 @@ internal class LauncherViewModel(
                     val workDockedIds = workDockedAppIdsForState(state)
                     val visibleApps = visibleInstalledApps()
                     val newRecentApps = visibleApps.filterRecent(appLaunchStatsStore.recentAppIds).markVisibility()
-                    state.copy(
-                        filteredApps = visibleApps.filterByName(
+                    val search = folderSearchFor(
+                        state,
+                        state.query,
+                        visibleApps,
+                        visibleApps.filterByName(
                             query = state.query,
                             appLaunchStatsStore = appLaunchStatsStore,
                             excludedAppIds = excludedFromAppList(state, dockedIds),
                             dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
                             sortOrder = state.renderedAppListSortOrder(),
                         ).markVisibility(),
+                        dockedIds,
+                        workDockedIds,
+                    )
+                    state.copy(
+                        filteredApps = search.apps,
+                        searchFolders = search.folders,
                         dockedApps = visibleApps
                             .filterDocked(dockedIds)
                             .markVisibility(),
@@ -815,12 +824,14 @@ internal class LauncherViewModel(
                     dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
                     sortOrder = state.renderedAppListSortOrder(),
                 ).markVisibility()
+                val search = folderSearchFor(state, freshQuery, visibleApps, filtered, dockedIds, workDockedIds)
                 state.copy(
-                    filteredApps = filtered,
+                    filteredApps = search.apps,
+                    searchFolders = search.folders,
                     // This publish flips isFreshAppLoadComplete true, so the
                     // store-search gate starts trusting the match — recompute it
                     // against the freshly-loaded full inventory here too.
-                    queryMatchesInstalledApp = filtered.isNotEmpty() || queryMatchesAnyInstalledApp(freshQuery),
+                    queryMatchesInstalledApp = search.apps.isNotEmpty() || queryMatchesAnyInstalledApp(freshQuery),
                     dockedApps = visibleApps
                         .filterDocked(dockedIds)
                         .markVisibility(),
@@ -5046,6 +5057,7 @@ internal class LauncherViewModel(
         appFolderStore.isEnabled = isEnabled
         appFolderStore.isOfferAnswered = true
         _uiState.update { it.copy(isAppFoldersEnabled = isEnabled, isAppFoldersOfferPending = false) }
+        refreshFolderSearch()
         if (isEnabled) maybeStartAiSort() else stopAiSort()
         logState("setAppFoldersEnabled=%s", isEnabled)
     }
@@ -5070,6 +5082,7 @@ internal class LauncherViewModel(
         } else {
             stopAiSort()
         }
+        refreshFolderSearch()
         logState("setAiSortEnabled=%s", isEnabled)
     }
 
@@ -5227,6 +5240,7 @@ internal class LauncherViewModel(
                     currentCoroutineContext().ensureActive()
                     appFolderStore.assignByAi(choices)
                     _uiState.update { it.copy(appFolderAiAssignments = appFolderStore.aiAssignments) }
+                    refreshFolderSearch()
                     busyRetries = 0
                 } catch (exception: AiModelException.Busy) {
                     // A burst limit: back off, then try the same batch again.
@@ -5270,6 +5284,7 @@ internal class LauncherViewModel(
         LauncherDebugLog.event("moveAppToFolder package=%s folder=%s", app.packageName, key)
         appFolderStore.assign(app.id, key)
         _uiState.update { it.copy(appFolderAssignments = appFolderStore.assignments) }
+        refreshFolderSearch()
         logState("moveAppToFolder")
     }
 
@@ -5353,7 +5368,15 @@ internal class LauncherViewModel(
                 appFolderAiAssignments = appFolderStore.aiAssignments,
             )
         }
+        refreshFolderSearch()
         maybeStartAiSort()
+    }
+
+    // A search that found folders by name is redone when the folders or
+    // their filings change under it, so it never shows a deleted folder or an
+    // app that has moved out of one.
+    private fun refreshFolderSearch() {
+        if (_uiState.value.query.isNotBlank()) refreshFilteredApps()
     }
 
     fun setLandscapeDockPosition(position: LandscapeDockPosition) {
@@ -5670,9 +5693,11 @@ internal class LauncherViewModel(
                 dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
                 sortOrder = state.renderedAppListSortOrder(),
             ).markVisibility()
+            val search = folderSearchFor(state, query, visibleApps, filtered, dockedIds, workDockedIds)
             state.copy(
-                filteredApps = filtered,
-                queryMatchesInstalledApp = filtered.isNotEmpty() || queryMatchesAnyInstalledApp(query),
+                filteredApps = search.apps,
+                searchFolders = search.folders,
+                queryMatchesInstalledApp = search.apps.isNotEmpty() || queryMatchesAnyInstalledApp(query),
                 dockedApps = visibleApps.filterDocked(dockedIds).markVisibility(),
                 dockPositions = dockedAppStore.dockedAppPositions,
                 dockFolders = resolvedDockFolders(visibleApps, dockedAppStore),
@@ -5738,6 +5763,52 @@ internal class LauncherViewModel(
      * profile a degraded enumeration failed to read — that edge stays accepted
      * (see TODO.md).
      */
+    /** What a query finds by folder name: the folders, and the results with their apps added. */
+    private class FolderSearch(val apps: List<InstalledApp>, val folders: List<AppListFolder>)
+
+    /**
+     * Search by folder name (maintainer, 2026-11-19): typing a folder's name
+     * shows the folder, above the results, and its apps, after the apps that
+     * match by their own names, so Enter still launches the best name match.
+     * Only folders the browse list shows (see [groupAppList]) are found, so
+     * opening one lands where the user expects. Folder names are checked
+     * first; the browse list is grouped only when one matches, keeping a
+     * keystroke that matches no folder as cheap as before.
+     */
+    private fun folderSearchFor(
+        state: LauncherUiState,
+        query: String,
+        visibleApps: List<InstalledApp>,
+        filtered: List<InstalledApp>,
+        dockedIds: List<String>,
+        workDockedIds: List<String>,
+    ): FolderSearch {
+        if (query.isBlank() || !state.isAppFoldersEnabled) return FolderSearch(filtered, emptyList())
+        val named = state.appFolders.filter { folder -> folderNameMatches(folderLabel(folder), query) }
+        if (named.isEmpty()) return FolderSearch(filtered, emptyList())
+        // The list as it'll be once the query is cleared, docked apps left out
+        // while the dock shows, so a folder found here opens there.
+        val browseState = state.copy(query = "")
+        val browse = visibleApps.filterByName(
+            query = "",
+            appLaunchStatsStore = appLaunchStatsStore,
+            excludedAppIds = excludedFromAppList(browseState, dockedIds),
+            dockedAppIds = floatingDockedIdsForState(browseState, dockedIds, workDockedIds),
+            sortOrder = browseState.renderedAppListSortOrder(),
+        ).markVisibility()
+        val aiFilings = if (state.isAiSortEnabled) state.appFolderAiAssignments else emptyMap()
+        val namedKeys = named.mapTo(HashSet()) { it.key }
+        val folders = groupAppList(browse, state.appFolders, state.appFolderAssignments, aiFilings)
+            .folders.filter { it.folder.key in namedKeys }
+        if (folders.isEmpty()) return FolderSearch(filtered, emptyList())
+        val shown = filtered.mapTo(HashSet()) { it.id }
+        val added = folders.flatMap { it.apps }.filter { shown.add(it.id) }
+        return FolderSearch(filtered + added, folders)
+    }
+
+    private fun folderLabel(folder: AppFolderDef): String =
+        folder.category?.let { app.getString(it.labelRes()) } ?: folder.name
+
     private fun queryMatchesAnyInstalledApp(query: String): Boolean =
         query.isNotBlank() && installedApps.anyMatchesName(query)
 
@@ -5747,18 +5818,21 @@ internal class LauncherViewModel(
         _uiState.update { state ->
             val dockedIds = dockedAppIdsForState(state)
             val workDockedIds = workDockedAppIdsForState(state)
-            val filtered = visibleInstalledApps().filterByName(
+            val visibleApps = visibleInstalledApps()
+            val filtered = visibleApps.filterByName(
                 query = query,
                 appLaunchStatsStore = appLaunchStatsStore,
                 excludedAppIds = excludedFromAppList(state, dockedIds),
                 dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
                 sortOrder = state.renderedAppListSortOrder(),
             ).markVisibility()
+            val search = folderSearchFor(state, query, visibleApps, filtered, dockedIds, workDockedIds)
             state.copy(
-                filteredApps = filtered,
+                filteredApps = search.apps,
+                searchFolders = search.folders,
                 // Only run the full-inventory match when nothing is visibly
                 // matching — that's the sole moment the store action is offered.
-                queryMatchesInstalledApp = filtered.isNotEmpty() || queryMatchesAnyInstalledApp(query),
+                queryMatchesInstalledApp = search.apps.isNotEmpty() || queryMatchesAnyInstalledApp(query),
                 contactResults = contactResultsFor(state, query),
                 eventResults = eventResultsFor(state, query),
             )
