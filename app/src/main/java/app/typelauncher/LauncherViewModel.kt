@@ -5770,6 +5770,7 @@ internal class LauncherViewModel(
      * Search by folder name (maintainer, 2026-11-19): typing a folder's name
      * shows the folder, above the results, and its apps, after the apps that
      * match by their own names, so Enter still launches the best name match.
+     * With folders off, the apps still show, without the folder.
      * Only folders the browse list shows (see [groupAppList]) are found, so
      * opening one lands where the user expects. Folder names are checked
      * first; the browse list is grouped only when one matches, keeping a
@@ -5783,9 +5784,35 @@ internal class LauncherViewModel(
         dockedIds: List<String>,
         workDockedIds: List<String>,
     ): FolderSearch {
-        if (query.isBlank() || !state.isAppFoldersEnabled) return FolderSearch(filtered, emptyList())
-        val named = state.appFolders.filter { folder -> folderNameMatches(folderLabel(folder), query) }
+        if (query.isBlank()) return FolderSearch(filtered, emptyList())
+        // With folders off, Other isn't a name anyone types to find an app.
+        val named = state.appFolders.filter { folder ->
+            (state.isAppFoldersEnabled || !folder.isOther) && folderNameMatches(folderLabel(folder), query)
+        }
         if (named.isEmpty()) return FolderSearch(filtered, emptyList())
+        val aiFilings = if (state.isAiSortEnabled) state.appFolderAiAssignments else emptyMap()
+        val namedKeys = named.mapTo(HashSet()) { it.key }
+        val shown = filtered.mapTo(HashSet()) { it.id }
+        if (!state.isAppFoldersEnabled) {
+            // Folders off (maintainer, 2026-11-19): each app's folder name is
+            // still text search matches, so "games" finds the games, with no
+            // folder to show for them. From the list as typing shows it, dock
+            // and all, since the dock hides while typing and there's no folder
+            // to open to reach a docked app.
+            val searchable = visibleApps.filterByName(
+                query = "",
+                appLaunchStatsStore = appLaunchStatsStore,
+                excludedAppIds = excludedFromAppList(state, dockedIds),
+                dockedAppIds = floatingDockedIdsForState(state, dockedIds, workDockedIds),
+                sortOrder = state.renderedAppListSortOrder(),
+            ).markVisibility()
+            val activeKeys = state.appFolders.mapTo(HashSet()) { it.key }
+            val added = searchable.filter { app ->
+                effectiveFolderKey(app, activeKeys, state.appFolderAssignments, aiFilings) in namedKeys &&
+                    shown.add(app.id)
+            }
+            return FolderSearch(filtered + added, emptyList())
+        }
         // The list as it'll be once the query is cleared, docked apps left out
         // while the dock shows, so a folder found here opens there.
         val browseState = state.copy(query = "")
@@ -5796,12 +5823,9 @@ internal class LauncherViewModel(
             dockedAppIds = floatingDockedIdsForState(browseState, dockedIds, workDockedIds),
             sortOrder = browseState.renderedAppListSortOrder(),
         ).markVisibility()
-        val aiFilings = if (state.isAiSortEnabled) state.appFolderAiAssignments else emptyMap()
-        val namedKeys = named.mapTo(HashSet()) { it.key }
         val folders = groupAppList(browse, state.appFolders, state.appFolderAssignments, aiFilings)
             .folders.filter { it.folder.key in namedKeys }
         if (folders.isEmpty()) return FolderSearch(filtered, emptyList())
-        val shown = filtered.mapTo(HashSet()) { it.id }
         val added = folders.flatMap { it.apps }.filter { shown.add(it.id) }
         return FolderSearch(filtered + added, folders)
     }

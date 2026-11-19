@@ -120,7 +120,7 @@
   7. **Search matches folder names** (shipped, maintainer, 2026-11-19): typing a folder's name shows the folder above the results and its apps after the name matches; tapping it opens it.
   8. **Sorting without on-device AI** (maintainer, 2026-11-19, for lower-end phones): a built-in table of well-known apps, publisher prefixes and name words placed ahead of the AI, and package-word guesses as the last resort (shipped). Next, if needed: a small text-embedding model to match apps to folders, the user's own included, on phones without AICore.
   9. **Edit folders in Settings** (maintainer, 2026-11-19): an "Edit folders" button under "Group apps into folders".
-  10. **Search by folder name with folders off** (maintainer, 2026-11-19): each app's folder name as text that search matches, whether or not the list shows folders.
+  10. **Search by folder name with folders off** (shipped, maintainer, 2026-11-19): each app's folder name as text that search matches, whether or not the list shows folders.
 
 - **Kiosk mode follow-ups.** The widget-only, screen-on-while-plugged-in display shipped; still to come, each its own PR:
   1. **Show over the lock screen** — shipped. Still open: a device check that the display comes back over the lock screen after the power button, that the hold brings up the unlock prompt and shows Home only on success, and that a widget tapped while locked asks to unlock before opening its app. Kiosk mode's switch needs no lock-screen subtitle (maintainer, 2026-10-10).
