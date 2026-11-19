@@ -110,6 +110,13 @@ class KnownAppsTest {
         assertEquals(AppCategory.Games, knownAppCategory("com.example.mm", "Mini Metro"))
         assertEquals(AppCategory.Games, knownAppCategory("nz.co.codepoint.minimetro"))
         assertEquals(AppCategory.Games, knownAppCategory("com.example.dd", "The Darkside Detective"))
+        // The maintainer, 2026-11-19: a Security folder.
+        assertEquals(AppCategory.Security, knownAppCategory("com.x8bit.bitwarden"))
+        assertEquals(AppCategory.Security, knownAppCategory("com.google.android.apps.authenticator2"))
+        for (label in listOf("1Password", "Microsoft Authenticator", "Norton 360", "Incogni", "Proton Pass", "Password Safe")) {
+            assertEquals(label, AppCategory.Security, knownAppCategory("com.example.sec", label))
+        }
+        assertNull(knownAppCategory("com.example.af", "Aura Frames"))
         // Brands are whole words.
         assertNull(knownAppCategory("com.example.r", "Unified Remote"))
         assertNull(knownAppCategory("com.example.s", "Priority Tasks"))

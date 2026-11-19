@@ -321,6 +321,8 @@
     <!-- TODO: translate -->
     <string name="app_folder_photos" tools:ignore="MissingTranslation">Photos</string>
     <!-- TODO: translate -->
+    <string name="app_folder_security" tools:ignore="MissingTranslation">Security</string>
+    <!-- TODO: translate -->
     <string name="app_folder_post" tools:ignore="MissingTranslation">Post &amp; parcels</string>
     <!-- TODO: translate -->
     <string name="app_folder_sports" tools:ignore="MissingTranslation">Sports</string>
