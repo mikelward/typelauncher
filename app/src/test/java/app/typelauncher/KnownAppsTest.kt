@@ -121,6 +121,7 @@ class KnownAppsTest {
             "9Now" to AppCategory.Media,
             "Toyota Connect" to AppCategory.Transport,
             "Kia Connect" to AppCategory.Transport,
+            "Tesco Mobile" to AppCategory.Phone,
             "Wendy's" to AppCategory.Food,
             "Sainsbury's" to AppCategory.Food,
             "Klarna: Smarter everyday money" to AppCategory.Finance,
