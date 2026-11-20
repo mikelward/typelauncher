@@ -117,7 +117,6 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "lidl" to AppCategory.Food,
     "woolworths" to AppCategory.Food,
     "coles" to AppCategory.Food,
-    "tesco" to AppCategory.Food,
     "first table" to AppCategory.Food,
     "anz" to AppCategory.Finance,
     "australiansuper" to AppCategory.Finance,
