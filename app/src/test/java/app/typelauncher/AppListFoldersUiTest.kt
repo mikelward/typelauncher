@@ -533,7 +533,7 @@ class AppListFoldersUiTest {
 
         // Codex on PR #868: filed only on Save, since filing it moves the app
         // out of an open folder, and the dialog, unsaved, with it.
-        composeRule.onNodeWithTag(EDIT_APP_DIALOG_FOLDER_TAG).assertTextEquals("Kids & parenting")
+        composeRule.onNodeWithTag(EDIT_APP_DIALOG_FOLDER_TAG).assertTextEquals("Kids & family")
         assertEquals(null, moved)
         composeRule.onNodeWithTag(EDIT_APP_DIALOG_SAVE_TAG).performClick()
 
