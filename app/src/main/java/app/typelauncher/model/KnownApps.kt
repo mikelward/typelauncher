@@ -95,6 +95,8 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "hca" to AppCategory.Health,
     "nhs" to AppCategory.Health,
     "unifi" to AppCategory.Internet,
+    "volkswagen" to AppCategory.Transport,
+    "miele" to AppCategory.Home,
     "starlink" to AppCategory.Internet,
     "saily" to AppCategory.Phone,
     "esim" to AppCategory.Phone,
@@ -151,7 +153,7 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "le chat" to AppCategory.Ai,
 ) + listOf(
     // Mobile carriers, by brand (maintainer, 2026-11-19).
-    "ee", "vodafone", "telstra", "optus", "t mobile", "verizon", "at t", "o2", "giffgaff", "lebara",
+    "ee", "three", "vodafone", "telstra", "optus", "t mobile", "verizon", "at t", "o2", "giffgaff", "lebara",
     "lycamobile", "2degrees", "spark nz", "skinny mobile", "rogers", "telus", "koodo",
     "freedom mobile", "boost mobile", "cricket wireless", "mint mobile", "tesco mobile", "sky mobile",
     "voxi", "smarty mobile", "amaysim", "aldi mobile", "id mobile", "airalo", "truecaller",
