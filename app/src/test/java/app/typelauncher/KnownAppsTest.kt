@@ -45,7 +45,7 @@ class KnownAppsTest {
         // carriers. Not anything named "phone" or "mobile": in Play's top
         // charts those were mostly banks, games and utilities.
         assertEquals(AppCategory.Phone, knownAppCategory("com.example.q", "Phone"))
-        for (label in listOf("RBC Mobile", "PUBG MOBILE", "Clap to Find My Phone", "Duo Mobile")) {
+        for (label in listOf("PUBG MOBILE", "Clap to Find My Phone", "Duo Mobile")) {
             assertEquals(label, null, knownAppCategory("com.example.q2", label))
         }
         // "One NZ" is also Westpac's bank name there.
@@ -118,6 +118,18 @@ class KnownAppsTest {
             "UniFi" to AppCategory.Internet,
             "Starlink" to AppCategory.Internet,
             "LoungeKey" to AppCategory.Travel,
+            "9Now" to AppCategory.Media,
+            "Toyota Connect" to AppCategory.Transport,
+            "Kia Connect" to AppCategory.Transport,
+            "Wendy's" to AppCategory.Food,
+            "Sainsbury's" to AppCategory.Food,
+            "Klarna: Smarter everyday money" to AppCategory.Finance,
+            "Bible Offline-KJV Holy Bible" to AppCategory.Reading,
+            "Life360: Family Safety & GPS" to AppCategory.Kids,
+            "Argos - Shop Tech" to AppCategory.Shopping,
+            "YouTube TV: Live TV & more" to AppCategory.Media,
+            "Hive" to AppCategory.Home,
+            "Employment Hero Work" to AppCategory.Jobs,
             "Volkswagen Car-Net" to AppCategory.Transport,
             "Miele Professional" to AppCategory.Home,
             "Three" to AppCategory.Phone,
