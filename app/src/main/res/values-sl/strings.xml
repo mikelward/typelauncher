@@ -120,6 +120,9 @@
     <string name="settings_app_list_layout_option_name_below">Ime spodaj</string>
     <string name="settings_app_list_layout_option_icon_only">Samo ikona</string>
     <string name="settings_dock_layout_title">Slog docka</string>
+    <string name="settings_folder_open_style_title">Odpiranje map</string>
+    <string name="settings_folder_open_style_option_around_tap">Okoli dotika</string>
+    <string name="settings_folder_open_style_option_in_order">Od začetka</string>
     <string name="settings_app_list_sort_title">Razvrsti aplikacije po</string>
     <string name="settings_app_list_sort_option_usage">Uporaba ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Uporaba ↑</string>

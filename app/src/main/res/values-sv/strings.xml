@@ -118,6 +118,9 @@
     <string name="settings_app_list_layout_option_name_below">Namn under</string>
     <string name="settings_app_list_layout_option_icon_only">Endast ikon</string>
     <string name="settings_dock_layout_title">Dockans stil</string>
+    <string name="settings_folder_open_style_title">Öppna mappar</string>
+    <string name="settings_folder_open_style_option_around_tap">Runt ditt tryck</string>
+    <string name="settings_folder_open_style_option_in_order">Från början</string>
     <string name="settings_app_list_sort_title">Sortera appar efter</string>
     <string name="settings_app_list_sort_option_usage">Användning ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Användning ↑</string>

@@ -83,10 +83,36 @@ class DockFolderInPlaceScreenshotTest {
         )
     }
 
+    @Test
+    fun twoRowDock_aroundTap_putsCloseOnTheFolder() {
+        // 7 members + close on a 5-wide, 2-row dock, folder in the bottom row's
+        // middle: close takes its cell, the apps fill both rows around it.
+        captureInDockCard(
+            name = "two_row_around_tap",
+            title = "7 apps, folder tapped bottom middle — close on the folder",
+            folder = sampleFolder(7),
+            dockRows = 2,
+            tapped = DockPosition(row = 1, column = 2),
+        )
+    }
+
+    @Test
+    fun twoRowDock_aroundTap_reversedSort_putsRankOneBottomLeft() {
+        captureInDockCard(
+            name = "two_row_around_tap_reversed",
+            title = "Same, reversed sort — App1 bottom left",
+            folder = sampleFolder(7),
+            dockRows = 2,
+            tapped = DockPosition(row = 1, column = 2),
+            isSortReversed = true,
+        )
+    }
+
     @Composable
     private fun NoopInPlace(
         folder: ResolvedDockFolder,
         modifier: Modifier,
+        slots: List<FolderSlot> = dockFolderSlots(folder.members.size, columns),
     ) {
         DockFolderInPlace(
             folder = folder,
@@ -95,6 +121,7 @@ class DockFolderInPlaceScreenshotTest {
             dockLayout = DockLayout.TitleBelow,
             appIconTag = DOCK_APP_ICON_TAG,
             onClose = {},
+            slots = slots,
             onLaunchApp = {},
             onOpenAppInfo = {},
             onRemoveFromFolder = {},
@@ -115,7 +142,18 @@ class DockFolderInPlaceScreenshotTest {
         title: String,
         folder: ResolvedDockFolder,
         dockRows: Int,
+        // Set to open "Around your tap" from this dock cell; null packs.
+        tapped: DockPosition? = null,
+        isSortReversed: Boolean = false,
     ) {
+        val slots = dockFolderOpenSlots(
+            memberCount = folder.members.size,
+            columns = columns,
+            style = if (tapped != null) FolderOpenStyle.AroundTap else FolderOpenStyle.InOrder,
+            tapped = tapped,
+            visibleRows = dockRows,
+            isSortReversed = isSortReversed,
+        )
         composeRule.setContent {
             TypeLauncherTheme {
                 val rowHeight = dockSlotHeightDp(iconDp, DockLayout.TitleBelow, 1f)
@@ -135,6 +173,7 @@ class DockFolderInPlaceScreenshotTest {
                             NoopInPlace(
                                 folder = folder,
                                 modifier = Modifier.fillMaxSize(),
+                                slots = slots,
                             )
                         }
                     }

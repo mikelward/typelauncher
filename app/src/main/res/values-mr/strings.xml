@@ -118,6 +118,9 @@
     <string name="settings_app_list_layout_option_name_below">नाव खाली</string>
     <string name="settings_app_list_layout_option_icon_only">फक्त चिन्ह</string>
     <string name="settings_dock_layout_title">डॉक शैली</string>
+    <string name="settings_folder_open_style_title">फोल्डर उघडणे</string>
+    <string name="settings_folder_open_style_option_around_tap">तुम्ही टॅप केलेल्या जागेभोवती</string>
+    <string name="settings_folder_open_style_option_in_order">सुरुवातीपासून</string>
     <string name="settings_app_list_sort_title">अॅप्स यानुसार क्रमवारी लावा</string>
     <string name="settings_app_list_sort_option_usage">वापर ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">वापर ↑</string>

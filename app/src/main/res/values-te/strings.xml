@@ -118,6 +118,9 @@
     <string name="settings_app_list_layout_option_name_below">పేరు కింద</string>
     <string name="settings_app_list_layout_option_icon_only">చిహ్నం మాత్రమే</string>
     <string name="settings_dock_layout_title">డాక్ శైలి</string>
+    <string name="settings_folder_open_style_title">ఫోల్డర్‌లను తెరవడం</string>
+    <string name="settings_folder_open_style_option_around_tap">మీరు నొక్కిన చోటు చుట్టూ</string>
+    <string name="settings_folder_open_style_option_in_order">మొదటి నుండి</string>
     <string name="settings_app_list_sort_title">యాప్‌లను దీని ప్రకారం క్రమబద్ధీకరించు</string>
     <string name="settings_app_list_sort_option_usage">వాడుక ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">వాడుక ↑</string>

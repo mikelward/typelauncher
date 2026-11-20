@@ -118,6 +118,9 @@
     <string name="settings_app_list_layout_option_name_below">Name darunter</string>
     <string name="settings_app_list_layout_option_icon_only">Nur Symbol</string>
     <string name="settings_dock_layout_title">Stil des Docks</string>
+    <string name="settings_folder_open_style_title">Ordner öffnen</string>
+    <string name="settings_folder_open_style_option_around_tap">Rund um die Tippstelle</string>
+    <string name="settings_folder_open_style_option_in_order">Von Anfang an</string>
     <string name="settings_app_list_sort_title">Apps sortieren nach</string>
     <string name="settings_app_list_sort_option_usage">Nutzung ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Nutzung ↑</string>

@@ -118,6 +118,9 @@
     <string name="settings_app_list_layout_option_name_below">نام در زیر</string>
     <string name="settings_app_list_layout_option_icon_only">فقط نماد</string>
     <string name="settings_dock_layout_title">سبک داک</string>
+    <string name="settings_folder_open_style_title">باز کردن پوشه‌ها</string>
+    <string name="settings_folder_open_style_option_around_tap">اطراف محل ضربه</string>
+    <string name="settings_folder_open_style_option_in_order">از ابتدا</string>
     <string name="settings_app_list_sort_title">مرتب‌سازی برنامه‌ها بر اساس</string>
     <string name="settings_app_list_sort_option_usage">استفاده ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">استفاده ↑</string>

@@ -45,8 +45,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -58,6 +62,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.window.Dialog
 
 internal fun AppCategory.labelRes(): Int = when (this) {
@@ -296,12 +301,30 @@ private fun Modifier.folderClickable(
     onLongPress: () -> Unit,
 ): Modifier {
     val hasMenu = LocalAppFolderMenu.current != null && !folder.folder.isOther
-    return combinedClickable(
-        role = Role.Button,
-        onClick = { onOpen(folder) },
-        onLongClick = if (hasMenu) onLongPress else null,
-    )
+    val reportTap = LocalFolderTapReporter.current
+    // Kept as a plain reference, not state: only read when tapped.
+    val coordinates = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    return onGloballyPositioned { coords -> coordinates[0] = coords }
+        .combinedClickable(
+            role = Role.Button,
+            onClick = {
+                val coords = coordinates[0]
+                // Its whole rectangle, not boundsInRoot's: a folder half scrolled
+                // out of view still opens rows of its full height.
+                if (reportTap != null && coords != null && coords.isAttached) {
+                    reportTap(Rect(coords.positionInRoot(), coords.size.toSize()))
+                }
+                onOpen(folder)
+            },
+            onLongClick = if (hasMenu) onLongPress else null,
+        )
 }
+
+/**
+ * Told the tapped folder's bounds in root coordinates just before it opens,
+ * so a folder can open around the tap (see [FolderOpenStyle.AroundTap]).
+ */
+internal val LocalFolderTapReporter = staticCompositionLocalOf<((Rect) -> Unit)?> { null }
 
 /**
  * A folder's long-press menu: "Edit folder" for one the user made, then
@@ -451,7 +474,7 @@ internal fun AppListFolderTileBlock(
 
 // The app grid's gap between cells, and the padding an app tile adds around
 // its icon in total (see IconOnlyAppGrid / IconOnlyAppButton).
-private const val APP_GRID_SPACING_DP = 8
+internal const val APP_GRID_SPACING_DP = 8
 
 /**
  * The open folder's title, full width above its apps. The close (✕) item is

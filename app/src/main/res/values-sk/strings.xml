@@ -120,6 +120,9 @@
     <string name="settings_app_list_layout_option_name_below">Názov pod</string>
     <string name="settings_app_list_layout_option_icon_only">Len ikona</string>
     <string name="settings_dock_layout_title">Štýl docku</string>
+    <string name="settings_folder_open_style_title">Otváranie priečinkov</string>
+    <string name="settings_folder_open_style_option_around_tap">Okolo ťuknutia</string>
+    <string name="settings_folder_open_style_option_in_order">Od začiatku</string>
     <string name="settings_app_list_sort_title">Zoradiť aplikácie podľa</string>
     <string name="settings_app_list_sort_option_usage">Používanie ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Používanie ↑</string>
