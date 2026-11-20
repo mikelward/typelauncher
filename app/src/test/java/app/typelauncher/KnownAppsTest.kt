@@ -117,6 +117,9 @@ class KnownAppsTest {
         for ((label, category) in listOf(
             "UniFi" to AppCategory.Internet,
             "Starlink" to AppCategory.Internet,
+            "Volkswagen Car-Net" to AppCategory.Transport,
+            "Miele Professional" to AppCategory.Home,
+            "Three" to AppCategory.Phone,
             "Wanderlog" to AppCategory.Travel,
             "Libraries" to AppCategory.Reading,
             "My HCA" to AppCategory.Health,
