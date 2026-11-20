@@ -118,6 +118,9 @@
     <string name="settings_app_list_layout_option_name_below">Όνομα από κάτω</string>
     <string name="settings_app_list_layout_option_icon_only">Μόνο εικονίδιο</string>
     <string name="settings_dock_layout_title">Στιλ Dock</string>
+    <string name="settings_folder_open_style_title">Άνοιγμα φακέλων</string>
+    <string name="settings_folder_open_style_option_around_tap">Γύρω από το πάτημα</string>
+    <string name="settings_folder_open_style_option_in_order">Από την αρχή</string>
     <string name="settings_app_list_sort_title">Ταξινόμηση εφαρμογών κατά</string>
     <string name="settings_app_list_sort_option_usage">Χρήση ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Χρήση ↑</string>

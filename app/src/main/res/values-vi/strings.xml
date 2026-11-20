@@ -117,6 +117,9 @@
     <string name="settings_app_list_layout_option_name_below">Tên bên dưới</string>
     <string name="settings_app_list_layout_option_icon_only">Chỉ biểu tượng</string>
     <string name="settings_dock_layout_title">Kiểu dock</string>
+    <string name="settings_folder_open_style_title">Mở thư mục</string>
+    <string name="settings_folder_open_style_option_around_tap">Quanh vị trí nhấn</string>
+    <string name="settings_folder_open_style_option_in_order">Từ đầu</string>
     <string name="settings_app_list_sort_title">Sắp xếp ứng dụng theo</string>
     <string name="settings_app_list_sort_option_usage">Sử dụng ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Sử dụng ↑</string>

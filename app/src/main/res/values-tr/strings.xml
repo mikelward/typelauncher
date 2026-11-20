@@ -118,6 +118,9 @@
     <string name="settings_app_list_layout_option_name_below">Ad altta</string>
     <string name="settings_app_list_layout_option_icon_only">Yalnızca simge</string>
     <string name="settings_dock_layout_title">Dock stili</string>
+    <string name="settings_folder_open_style_title">Klasör açma</string>
+    <string name="settings_folder_open_style_option_around_tap">Dokunduğunuz yerin çevresinde</string>
+    <string name="settings_folder_open_style_option_in_order">Baştan</string>
     <string name="settings_app_list_sort_title">Uygulamaları şuna göre sırala</string>
     <string name="settings_app_list_sort_option_usage">Kullanım ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Kullanım ↑</string>

@@ -118,6 +118,9 @@
     <string name="settings_app_list_layout_option_name_below">Naam eronder</string>
     <string name="settings_app_list_layout_option_icon_only">Alleen pictogram</string>
     <string name="settings_dock_layout_title">Stijl van dock</string>
+    <string name="settings_folder_open_style_title">Mappen openen</string>
+    <string name="settings_folder_open_style_option_around_tap">Rond je tik</string>
+    <string name="settings_folder_open_style_option_in_order">Vanaf het begin</string>
     <string name="settings_app_list_sort_title">Apps sorteren op</string>
     <string name="settings_app_list_sort_option_usage">Gebruik ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Gebruik ↑</string>

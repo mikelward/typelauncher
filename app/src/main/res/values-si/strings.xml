@@ -118,6 +118,9 @@
     <string name="settings_app_list_layout_option_name_below">නම පහළ</string>
     <string name="settings_app_list_layout_option_icon_only">නිරූපකය පමණයි</string>
     <string name="settings_dock_layout_title">ඩොක් මෝස්තරය</string>
+    <string name="settings_folder_open_style_title">ෆෝල්ඩර විවෘත කිරීම</string>
+    <string name="settings_folder_open_style_option_around_tap">ඔබ තට්ටු කළ තැන වටා</string>
+    <string name="settings_folder_open_style_option_in_order">මුල සිට</string>
     <string name="settings_app_list_sort_title">යෙදුම් වර්ග කරන්න</string>
     <string name="settings_app_list_sort_option_usage">භාවිතය ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">භාවිතය ↑</string>

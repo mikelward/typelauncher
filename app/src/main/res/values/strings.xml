@@ -141,6 +141,9 @@
     <string name="settings_app_list_layout_option_name_below">Name below</string>
     <string name="settings_app_list_layout_option_icon_only">Icon only</string>
     <string name="settings_dock_layout_title">Dock style</string>
+    <string name="settings_folder_open_style_title">Open folders</string>
+    <string name="settings_folder_open_style_option_around_tap">Around your tap</string>
+    <string name="settings_folder_open_style_option_in_order">From the start</string>
     <!-- Where the dock sits in landscape. -->
     <!-- TODO: translate -->
     <string name="settings_landscape_dock_position_title" tools:ignore="MissingTranslation">Landscape dock</string>

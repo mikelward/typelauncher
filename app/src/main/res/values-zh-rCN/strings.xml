@@ -117,6 +117,9 @@
     <string name="settings_app_list_layout_option_name_below">名称在下</string>
     <string name="settings_app_list_layout_option_icon_only">仅图标</string>
     <string name="settings_dock_layout_title">Dock 样式</string>
+    <string name="settings_folder_open_style_title">文件夹打开方式</string>
+    <string name="settings_folder_open_style_option_around_tap">点按位置周围</string>
+    <string name="settings_folder_open_style_option_in_order">从头开始</string>
     <string name="settings_app_list_sort_title">应用排序方式</string>
     <string name="settings_app_list_sort_option_usage">使用次数 ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">使用次数 ↑</string>

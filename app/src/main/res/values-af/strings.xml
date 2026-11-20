@@ -118,6 +118,9 @@
     <string name="settings_app_list_layout_option_name_below">Naam onder</string>
     <string name="settings_app_list_layout_option_icon_only">Net ikoon</string>
     <string name="settings_dock_layout_title">Dokstyl</string>
+    <string name="settings_folder_open_style_title">Vouers oopmaak</string>
+    <string name="settings_folder_open_style_option_around_tap">Rondom jou tik</string>
+    <string name="settings_folder_open_style_option_in_order">Van die begin af</string>
     <string name="settings_app_list_sort_title">Sorteer programme volgens</string>
     <string name="settings_app_list_sort_option_usage">Gebruik ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Gebruik ↑</string>

@@ -8,10 +8,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -171,6 +173,141 @@ class AppListFoldersUiTest {
     private var composed = false
     private var currentConfig by mutableStateOf(AppListLayout.NameBeside to false)
     private var closeCount = 0
+
+    @Test
+    fun aroundTap_putsCloseWhereTheFolderWas_andItsAppsBesideIt() {
+        // Three folders on the grid's first row; open the third.
+        val folder = openAroundTap(cardHeightDp = 480)
+
+        val close = composeRule.onNodeWithTag(APP_LIST_FOLDER_CLOSE_TAG).fetchSemanticsNode().boundsInRoot
+        val chess = composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Chess").fetchSemanticsNode().boundsInRoot
+        val sudoku = composeRule.onNodeWithTag("$APP_ICON_ONLY_BUTTON_TAG:Sudoku").fetchSemanticsNode().boundsInRoot
+        // Same column as the folder, and within a row of where it was.
+        assertEquals(folder.left, close.left, 3f) // Within rounding of the cell width.
+        assertTrue("close $close far from folder $folder", kotlin.math.abs(close.top - folder.top) < folder.height + 1f)
+        // Its apps fill the same row, in rank order, skipping the close.
+        assertEquals(close.top, chess.top, 1f)
+        assertEquals(close.top, sudoku.top, 1f)
+        assertTrue(chess.left < sudoku.left && sudoku.left < close.left)
+
+        composeRule.onNodeWithTag(APP_LIST_FOLDER_CLOSE_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:games").assertExists()
+    }
+
+    @Test
+    fun aroundTap_withLetterStrips_keepsCloseUnderTheTap() {
+        // The closed grid sits between the letter strips; the open folder
+        // spans the card, so the tap must be measured in the wider grid
+        // (Codex on PR #883).
+        val folder = openAroundTap(cardHeightDp = 480, showLetterStrip = true)
+
+        val close = composeRule.onNodeWithTag(APP_LIST_FOLDER_CLOSE_TAG).fetchSemanticsNode().boundsInRoot
+        assertTrue("close $close not under folder $folder", close.left <= folder.center.x && folder.center.x <= close.right)
+    }
+
+    @Test
+    fun aroundTap_rightToLeft_keepsCloseUnderTheTap() {
+        // An RTL grid counts columns from the right (Codex on PR #883).
+        // Social, the first folder, is in the right-hand column.
+        val folder = openAroundTap(
+            cardHeightDp = 480,
+            layoutDirection = androidx.compose.ui.unit.LayoutDirection.Rtl,
+            tapKey = "social",
+        )
+
+        val close = composeRule.onNodeWithTag(APP_LIST_FOLDER_CLOSE_TAG).fetchSemanticsNode().boundsInRoot
+        assertTrue("close $close not under folder $folder", close.left <= folder.center.x && folder.center.x <= close.right)
+    }
+
+    @Test
+    fun folderTap_reportsTheWholeFolder_evenWhenPartlyHidden() {
+        // A folder half scrolled out of view must still report its full
+        // height, which sizes the open folder's rows (Codex on PR #883).
+        var reported: androidx.compose.ui.geometry.Rect? = null
+        composeRule.setContent {
+            TypeLauncherTheme {
+                androidx.compose.runtime.CompositionLocalProvider(LocalFolderTapReporter provides { reported = it }) {
+                    // Lays the tile out whole, then shows only its top 30dp.
+                    Box(modifier = Modifier.height(30.dp).clipToBounds()) {
+                        Box(
+                            modifier = Modifier.wrapContentHeight(
+                                align = androidx.compose.ui.Alignment.Top,
+                                unbounded = true,
+                            ),
+                        ) {
+                            AppListFolderTile(games, iconSizeDp = 43, showLabel = false, onOpen = {})
+                        }
+                    }
+                }
+            }
+        }
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:games").performClick()
+
+        val tileHeight = with(composeRule.density) { (43 + 8).dp.toPx() }
+        assertEquals(tileHeight, reported!!.height, 2f) // Within per-edge rounding.
+    }
+
+    @Test
+    fun aroundTap_onAShortCard_scrollsTheHeaderSoTheAppsShow() {
+        // Header and note fill a short card; the apps and close must still
+        // get room (Codex on PR #883).
+        val folder = openAroundTap(cardHeightDp = 140, note = { androidx.compose.foundation.layout.Spacer(Modifier.height(48.dp)) })
+
+        // Shown whole, not clipped to a sliver under the header.
+        val close = composeRule.onNodeWithTag(APP_LIST_FOLDER_CLOSE_TAG).fetchSemanticsNode().boundsInRoot
+        assertEquals(folder.height, close.height, 1f)
+    }
+
+    /** Shows three folders and loose apps, taps one (Games), and returns where it was. */
+    private fun openAroundTap(
+        cardHeightDp: Int,
+        showLetterStrip: Boolean = false,
+        note: (@androidx.compose.runtime.Composable () -> Unit)? = null,
+        layoutDirection: androidx.compose.ui.unit.LayoutDirection = androidx.compose.ui.unit.LayoutDirection.Ltr,
+        tapKey: String = "games",
+    ): androidx.compose.ui.geometry.Rect {
+        val social = AppListFolder(AppFolderDef.builtIn(AppCategory.Social), listOf(app("Chat")))
+        val other = AppListFolder(AppFolderDef.builtIn(AppCategory.Other), listOf(app("Notes")))
+        val loose = (1..20).map { app("App$it") }
+        var open by mutableStateOf<AppListFolder?>(null)
+        composeRule.setContent {
+            TypeLauncherTheme {
+              androidx.compose.runtime.CompositionLocalProvider(
+                  androidx.compose.ui.platform.LocalLayoutDirection provides layoutDirection,
+              ) {
+                Box(modifier = Modifier.width(320.dp).height(cardHeightDp.dp)) {
+                    AppsCard(
+                        apps = open?.apps ?: loose,
+                        dockLimit = Int.MAX_VALUE,
+                        layout = AppListLayout.IconOnly,
+                        iconSizeDp = 43,
+                        highlightFirst = false,
+                        showLetterStrip = showLetterStrip,
+                        onLaunchApp = {},
+                        onOpenAppInfo = {},
+                        onToggleDock = { _, _ -> },
+                        onResetRank = {},
+                        onRenameApp = { _, _ -> },
+                        onHideApp = {},
+                        onUninstallApp = {},
+                        folders = if (open == null) listOf(social, other, games) else emptyList(),
+                        openFolder = open,
+                        onOpenFolder = { open = it },
+                        onCloseFolder = { open = null },
+                        openFolderNote = note,
+                        folderOpenStyle = FolderOpenStyle.AroundTap,
+                    )
+                }
+              }
+            }
+        }
+        composeRule.waitForIdle()
+        val folder = composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:$tapKey").fetchSemanticsNode().boundsInRoot
+        composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:$tapKey").performClick()
+        composeRule.waitForIdle()
+        return folder
+    }
 
     @Test
     fun offer_bothAnswersReachTheirCallbacks() {

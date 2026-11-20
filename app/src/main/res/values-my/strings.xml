@@ -117,6 +117,9 @@
     <string name="settings_app_list_layout_option_name_below">အောက်တွင် အမည်</string>
     <string name="settings_app_list_layout_option_icon_only">သင်္ကေတသာ</string>
     <string name="settings_dock_layout_title">Dock စတိုင်</string>
+    <string name="settings_folder_open_style_title">ဖိုလ်ဒါများ ဖွင့်ခြင်း</string>
+    <string name="settings_folder_open_style_option_around_tap">တို့ထားသည့်နေရာ ပတ်လည်</string>
+    <string name="settings_folder_open_style_option_in_order">အစမှ</string>
     <string name="settings_app_list_sort_title">အက်ပ်များ စီရန်</string>
     <string name="settings_app_list_sort_option_usage">အသုံးပြုမှု ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">အသုံးပြုမှု ↑</string>
