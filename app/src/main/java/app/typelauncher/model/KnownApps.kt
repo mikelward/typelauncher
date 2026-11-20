@@ -89,7 +89,7 @@ private fun labelCategory(label: String): AppCategory? {
 private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "delta", "ryanair", "jetblue", "jetstar", "easyjet", "qantas", "emirates", "lufthansa", "klm",
     "southwest", "aeromexico", "aircanada", "westjet", "vueling", "wizzair", "norse",
-    "wanderlog", "priority pass", "tripit",
+    "wanderlog", "priority pass", "loungekey", "tripit",
 ).map { it to AppCategory.Travel } + listOf(
     "bupa" to AppCategory.Health,
     "hca" to AppCategory.Health,
