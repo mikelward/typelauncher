@@ -483,7 +483,14 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "njuškalo",
 ).map { it to AppCategory.Shopping } + listOf(
     "hžpp",
-).map { it to AppCategory.Transit }
+    // European rail and city transit (maintainer, 2026-11-21).
+    "sbb mobile", "sbb", "öbb", "oebb", "sj", "dsb", "nsb", "ns reisplanner", "sl journey planner",
+    "ruter", "skånetrafiken", "bvg", "mvv", "rmv", "ratp", "tmb", "emt madrid", "atm milano",
+).map { it to AppCategory.Transit } + listOf(
+    "österreichische post", "post ag", "swiss post", "die post", "bpost", "omniva", "inpost",
+).map { it to AppCategory.Post } + listOf(
+    "gmx", "web de", "t online", "seznam email",
+).map { it to AppCategory.Office }
 
 // Keywords that must start a word: "ebook" sits inside "Facebook" and
 // "Notebook" (Codex on PR #866), "sport" inside "Transport" and "Passport"
@@ -622,6 +629,14 @@ private val KNOWN_PACKAGE_PREFIXES = listOf(
     "com.HoYoverse." to AppCategory.Games,
     "com.miHoYo." to AppCategory.Games,
     "com.tocaboca." to AppCategory.Kids,
+    // Government domains as package names (maintainer, 2026-11-21): GOV.UK, myID,
+    // Service NSW. A government app that's something else, such as PTV or the
+    // Met Office, is listed by package, which comes first.
+    "uk.gov." to AppCategory.Government,
+    "au.gov." to AppCategory.Government,
+    "nz.govt." to AppCategory.Government,
+    "ca.gc." to AppCategory.Government,
+    "gov." to AppCategory.Government,
     // Tello's apps, "My Tello" among them (maintainer, 2026-11-21); DJI's Tello drone is another package.
     "com.tello." to AppCategory.Phone,
     // Dinosaur Polo Club: Mini Metro, Mini Motorways.
@@ -958,7 +973,16 @@ private val KNOWN_PACKAGES = listOf(
         com.hzppispromobile
     """,
     AppCategory.Finance to """
-        atws.app
+        atws.app com.chase.intl net.intellectsoft.experian com.mse.mseapp
+    """,
+    AppCategory.Office to """
+        de.gmx.mobile.android.mail de.web.mobile.android.mail
+    """,
+    AppCategory.Post to """
+        at.post.app
+    """,
+    AppCategory.Transit to """
+        ch.sbb.mobile.android.b2c com.sl.SLBiljetter au.gov.vic.ptv au.com.opal.travel
     """,
     AppCategory.Food to """
         de.apptiv.business.android.aldi_uk

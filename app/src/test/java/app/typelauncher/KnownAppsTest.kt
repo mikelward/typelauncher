@@ -362,6 +362,17 @@ class KnownAppsTest {
             "com.thomson.mythomson" to AppCategory.Travel,
             "atws.app" to AppCategory.Finance,
             "com.discord" to AppCategory.Social,
+            "de.gmx.mobile.android.mail" to AppCategory.Office,
+            "at.post.app" to AppCategory.Post,
+            "ch.sbb.mobile.android.b2c" to AppCategory.Transit,
+            "com.sl.SLBiljetter" to AppCategory.Transit,
+            "uk.gov.govuk" to AppCategory.Government,
+            "au.gov.ato.mygovid.droid" to AppCategory.Government,
+            "au.gov.nsw.service" to AppCategory.Government,
+            "au.gov.vic.ptv" to AppCategory.Transit,
+            "uk.gov.metoffice.weather.android" to AppCategory.Weather,
+            "au.com.opal.travel" to AppCategory.Transit,
+            "com.chase.intl" to AppCategory.Finance,
         )) {
             assertEquals(packageName, category, knownAppCategory(packageName, "Acme"))
         }
@@ -380,6 +391,9 @@ class KnownAppsTest {
             "TUI: Holidays, Travel, Flights" to AppCategory.Travel,
             "IBKR Mobile" to AppCategory.Finance,
             "DEGIRO" to AppCategory.Finance,
+            "GMX Mail" to AppCategory.Office,
+            "SBB Mobile" to AppCategory.Transit,
+            "Österreichische Post" to AppCategory.Post,
         )) {
             assertEquals(label, category, knownAppCategory("com.example.hr", label))
         }
