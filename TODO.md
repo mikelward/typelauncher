@@ -220,6 +220,10 @@
 
 ## CI
 
+- [ ] **Intermittent: `MainActivityRobolectricScreenshotTest.workDockCard_expandsToSecondRowWhenWorkAppsExceedOneRow`**
+      failed once locally (2026-11-21) with "performMeasureAndLayout called during measure layout",
+      then passed on a re-run, with and without that day's rules changes. Find the cause before it reaches CI.
+
 - [ ] **Check `AGENTS.md` < 24,000 bytes in CI** (as mikelward/stopdash#932 plans): add
       `test "$(wc -c < AGENTS.md)" -lt 24000` to `.github/workflows/ci.yml` on the
       docs/classify path so `AGENTS.md` cannot silently grow past Antigravity's 24,000-byte

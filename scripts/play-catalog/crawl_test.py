@@ -194,6 +194,64 @@ class CrawlTest(unittest.TestCase):
         resumed = crawl.Crawl(self.state, min_installs=100_000)
         self.assertEqual(["com.popular.weather"], [package for _, package in resumed.queue])
 
+    def test_seedsAndTheirDevelopersOtherApps_meetALowerBar(self):
+        PAGES["/store/apps/details?id=hr.small.bank&hl=en"] = app_page("FINANCE", 50_000, dev="hrdev")
+        PAGES["/store/apps/dev?id=hrdev&hl=en"] = '<a href="/store/apps/details?id=hr.small.wallet">w</a>'
+        PAGES["/store/apps/details?id=hr.small.wallet&hl=en"] = app_page("FINANCE", 20_000, similar=["hr.elsewhere"])
+        PAGES["/store/apps/details?id=hr.elsewhere&hl=en"] = app_page("TOOLS", 50_000)
+        try:
+            c = crawl.Crawl(self.state, min_installs=100_000, local_min_installs=10_000)
+            c.run(["hr.small.bank"], 100, spacing=0)
+        finally:
+            for key in [k for k in PAGES if "hr." in k or "hrdev" in k]:
+                del PAGES[key]
+        self.assertIn("hr.small.bank", c.apps)
+        self.assertIn("hr.small.wallet", c.apps)
+        # A similar app isn't the country's own just for being linked.
+        self.assertNotIn("hr.elsewhere", c.apps)
+
+    def test_aResumedCrawl_reconsidersSeedsTurnedDownUnderTheOldBar(self):
+        # Codex on PR #892: the workflow always resumes saved state.
+        PAGES["/store/apps/details?id=hr.small.bank&hl=en"] = app_page("FINANCE", 50_000, dev="hrdev")
+        PAGES["/store/apps/dev?id=hrdev&hl=en"] = '<a href="/store/apps/details?id=hr.small.wallet">w</a>'
+        PAGES["/store/apps/details?id=hr.small.wallet&hl=en"] = app_page("FINANCE", 20_000)
+        try:
+            old = crawl.Crawl(self.state, min_installs=100_000, local_min_installs=100_000)
+            old.run(["hr.small.bank"], 100, spacing=0)
+            self.assertNotIn("hr.small.bank", old.apps)
+            # As state saved before seeds were local.
+            old.local.clear()
+            old.devs_done_local.clear()
+            old.save()
+            c = crawl.Crawl(self.state, min_installs=100_000, local_min_installs=10_000)
+            c.run(["hr.small.bank"], 100, spacing=0)
+        finally:
+            for key in [k for k in PAGES if "hr." in k or "hrdev" in k]:
+                del PAGES[key]
+        self.assertIn("hr.small.bank", c.apps)
+        self.assertIn("hr.small.wallet", c.apps)
+
+    def test_aResumedCrawl_revisitsTheDeveloperOfASeedItAlreadyKept(self):
+        # Codex on PR #892.
+        PAGES["/store/apps/details?id=hr.big.bank&hl=en"] = app_page("FINANCE", 500_000, dev="hrbig")
+        PAGES["/store/apps/dev?id=hrbig&hl=en"] = '<a href="/store/apps/details?id=hr.big.wallet">w</a>'
+        PAGES["/store/apps/details?id=hr.big.wallet&hl=en"] = app_page("FINANCE", 20_000)
+        try:
+            old = crawl.Crawl(self.state, min_installs=100_000, local_min_installs=100_000)
+            old.run(["hr.big.bank"], 100, spacing=0)
+            self.assertIn("hr.big.bank", old.apps)
+            self.assertNotIn("hr.big.wallet", old.apps)
+            # As state saved before seeds were local.
+            old.local.clear()
+            old.devs_done_local.clear()
+            old.save()
+            c = crawl.Crawl(self.state, min_installs=100_000, local_min_installs=10_000)
+            c.run(["hr.big.bank"], 100, spacing=0)
+        finally:
+            for key in [k for k in PAGES if "hr.big" in k or "hrbig" in k]:
+                del PAGES[key]
+        self.assertIn("hr.big.wallet", c.apps)
+
     def test_writesPackageAndCategory(self):
         c = self.run_crawl()
         out = os.path.join(self.state, "catalog.tsv")
