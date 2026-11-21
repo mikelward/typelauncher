@@ -293,6 +293,7 @@
     <string name="app_folder_car">خودرو</string>
     <string name="app_folder_charity">خیریه و کمک</string>
     <string name="app_folder_family_history">تاریخچه خانوادگی و تبارشناسی</string>
+    <string name="app_folder_notes">یادداشت‌ها و کارها</string>
     <string name="app_folder_cycling">دوچرخه و دوچرخهٔ اشتراکی</string>
     <string name="app_folder_hotels">هتل و اقامتگاه</string>
     <string name="app_folder_maps">نقشه‌ها</string>
@@ -324,6 +325,7 @@
     <string name="folder_icon_map">نقشه</string>
     <string name="folder_icon_volunteer_activism">دست و قلب</string>
     <string name="folder_icon_family_history">شجره‌نامه</string>
+    <string name="folder_icon_edit_note">یادداشت و مداد</string>
     <string name="folder_icon_eco">طبیعت</string>
     <string name="folder_icon_family_restroom">خانواده</string>
     <string name="folder_icon_favorite">قلب</string>

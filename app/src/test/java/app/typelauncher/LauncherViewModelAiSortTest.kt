@@ -176,13 +176,13 @@ class LauncherViewModelAiSortTest {
     @Test
     fun wellKnownApps_arentAskedAbout() {
         seedApp("Waze", "com.waze")
-        seedApp("Notes", "com.example.notes")
+        seedApp("Planner", "com.example.notes")
         model.answer = { prompt -> answerFrom(prompt, emptyMap()) }
 
         startedViewModel()
 
         assertFalse(model.prompts.any { "Waze (com.waze" in it })
-        assertTrue(model.prompts.any { "Notes (com.example.notes; suggested office)" in it })
+        assertTrue(model.prompts.any { "Planner (com.example.notes; suggested notes)" in it })
     }
 
     @Test

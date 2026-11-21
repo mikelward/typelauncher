@@ -293,6 +293,7 @@
     <string name="app_folder_car">መኪና</string>
     <string name="app_folder_charity">በጎ አድራጎት እና ልገሳ</string>
     <string name="app_folder_family_history">የቤተሰብ ታሪክ እና የዘር ሐረግ</string>
+    <string name="app_folder_notes">ማስታወሻዎች እና ተግባራት</string>
     <string name="app_folder_cycling">ብስክሌት እና የብስክሌት ኪራይ</string>
     <string name="app_folder_hotels">ሆቴሎች እና ማረፊያዎች</string>
     <string name="app_folder_maps">ካርታዎች</string>
@@ -324,6 +325,7 @@
     <string name="folder_icon_map">ካርታ</string>
     <string name="folder_icon_volunteer_activism">እጅ ከልብ ጋር</string>
     <string name="folder_icon_family_history">የቤተሰብ ዛፍ</string>
+    <string name="folder_icon_edit_note">ማስታወሻ እና እርሳስ</string>
     <string name="folder_icon_eco">ተፈጥሮ</string>
     <string name="folder_icon_family_restroom">ቤተሰብ</string>
     <string name="folder_icon_favorite">ልብ</string>

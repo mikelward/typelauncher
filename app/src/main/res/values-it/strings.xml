@@ -294,6 +294,7 @@
     <string name="app_folder_car">Auto</string>
     <string name="app_folder_charity">Beneficenza e donazioni</string>
     <string name="app_folder_family_history">Storia di famiglia e genealogia</string>
+    <string name="app_folder_notes">Note e attività</string>
     <string name="app_folder_cycling">Bici e bike sharing</string>
     <string name="app_folder_hotels">Hotel e alloggi</string>
     <string name="app_folder_maps">Mappe</string>
@@ -325,6 +326,7 @@
     <string name="folder_icon_map">Mappa</string>
     <string name="folder_icon_volunteer_activism">Mano con cuore</string>
     <string name="folder_icon_family_history">Albero genealogico</string>
+    <string name="folder_icon_edit_note">Nota e matita</string>
     <string name="folder_icon_eco">Natura</string>
     <string name="folder_icon_family_restroom">Famiglia</string>
     <string name="folder_icon_favorite">Cuore</string>

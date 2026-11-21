@@ -292,6 +292,7 @@
     <string name="app_folder_car">汽车</string>
     <string name="app_folder_charity">慈善与捐赠</string>
     <string name="app_folder_family_history">家族史和家谱</string>
+    <string name="app_folder_notes">笔记和任务</string>
     <string name="app_folder_cycling">骑行和共享单车</string>
     <string name="app_folder_hotels">酒店和住宿</string>
     <string name="app_folder_maps">地图</string>
@@ -323,6 +324,7 @@
     <string name="folder_icon_map">地图</string>
     <string name="folder_icon_volunteer_activism">手捧爱心</string>
     <string name="folder_icon_family_history">家谱</string>
+    <string name="folder_icon_edit_note">笔记和铅笔</string>
     <string name="folder_icon_eco">自然</string>
     <string name="folder_icon_family_restroom">家庭</string>
     <string name="folder_icon_favorite">爱心</string>

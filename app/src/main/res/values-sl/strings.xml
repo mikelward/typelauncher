@@ -295,6 +295,7 @@
     <string name="app_folder_car">Avto</string>
     <string name="app_folder_charity">Dobrodelnost in donacije</string>
     <string name="app_folder_family_history">Družinska zgodovina in rodoslovje</string>
+    <string name="app_folder_notes">Zapiski in opravila</string>
     <string name="app_folder_cycling">Kolesarjenje in izposoja koles</string>
     <string name="app_folder_hotels">Hoteli in nastanitve</string>
     <string name="app_folder_maps">Zemljevidi</string>
@@ -326,6 +327,7 @@
     <string name="folder_icon_map">Zemljevid</string>
     <string name="folder_icon_volunteer_activism">Roka s srcem</string>
     <string name="folder_icon_family_history">Družinsko drevo</string>
+    <string name="folder_icon_edit_note">Zapisek in svinčnik</string>
     <string name="folder_icon_eco">Narava</string>
     <string name="folder_icon_family_restroom">Družina</string>
     <string name="folder_icon_favorite">Srce</string>

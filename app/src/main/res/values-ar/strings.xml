@@ -297,6 +297,7 @@
     <string name="app_folder_car">السيارة</string>
     <string name="app_folder_charity">الأعمال الخيرية والتبرعات</string>
     <string name="app_folder_family_history">تاريخ العائلة والأنساب</string>
+    <string name="app_folder_notes">الملاحظات والمهام</string>
     <string name="app_folder_cycling">الدراجات ومشاركتها</string>
     <string name="app_folder_hotels">الفنادق والإقامة</string>
     <string name="app_folder_maps">الخرائط</string>
@@ -328,6 +329,7 @@
     <string name="folder_icon_map">خريطة</string>
     <string name="folder_icon_volunteer_activism">يد وقلب</string>
     <string name="folder_icon_family_history">شجرة العائلة</string>
+    <string name="folder_icon_edit_note">ملاحظة وقلم</string>
     <string name="folder_icon_eco">الطبيعة</string>
     <string name="folder_icon_family_restroom">العائلة</string>
     <string name="folder_icon_favorite">قلب</string>

@@ -39,6 +39,10 @@ internal val EITHER_WAY_PACKAGES: Map<String, List<AppCategory>> = mapOf(
     "com.kalshi.mobile" to listOf(AppCategory.Finance, AppCategory.Betting),
     "com.morrisons.matchandmore.app" to listOf(AppCategory.Shopping, AppCategory.Rewards),
     "com.cashless.cashlessapp" to listOf(AppCategory.Kids, AppCategory.Finance),
+    // Team task boards: tasks, or work (maintainer, 2026-11-21).
+    "com.trello" to listOf(AppCategory.Notes, AppCategory.Office),
+    "com.asana.app" to listOf(AppCategory.Notes, AppCategory.Office),
+    "com.basecamp.bc3" to listOf(AppCategory.Notes, AppCategory.Office),
     // Substack: newsletters (maintainer, 2026-11-21: "I guess Substack is Reading?").
     "com.substack.app" to listOf(AppCategory.Reading, AppCategory.News),
     // Twitch: live streams, mostly of games.
@@ -784,6 +788,11 @@ private val LABEL_WORDS = listOf(
     "calculator" to AppCategory.Tools,
     "clock" to AppCategory.Tools,
     "calendar" to AppCategory.Office,
+    "notes" to AppCategory.Notes,
+    "notebook" to AppCategory.Notes,
+    "notepad" to AppCategory.Notes,
+    "todoist" to AppCategory.Notes,
+    "ticktick" to AppCategory.Notes,
     "email" to AppCategory.Office,
     "mail" to AppCategory.Office,
     "wallet" to AppCategory.Finance,
@@ -909,7 +918,8 @@ private val GUESS_RULES = listOf(
     AppCategory.Post to listOf("parcel", "courier", "postal", "freight"),
     AppCategory.News to listOf("news", "newspaper", "headlines"),
     AppCategory.Social to listOf("chat", "messenger", "messaging", "messages", "social", "dating"),
-    AppCategory.Office to listOf("mail", "email", "calendar", "notes", "docs", "todo", "tasks", "office", "pdf", "meeting"),
+    AppCategory.Notes to listOf("notes", "notebook", "notepad", "todo", "tasks"),
+    AppCategory.Office to listOf("mail", "email", "calendar", "docs", "office", "pdf", "meeting"),
     AppCategory.Home to listOf("smarthome", "thermostat", "doorbell", "realestate", "property", "energy"),
     AppCategory.Tools to listOf("calculator", "clock", "alarm", "flashlight", "torch", "files", "filemanager", "keyboard", "cleaner", "battery", "backup"),
     AppCategory.Security to listOf("authenticator", "password", "passwords", "antivirus", "malware"),
@@ -968,15 +978,21 @@ private val KNOWN_PACKAGES = listOf(
     """,
     AppCategory.Office to """
         com.google.android.gm com.microsoft.office.outlook com.google.android.calendar
-        com.google.android.keep com.google.android.apps.docs com.google.android.apps.docs.editors.docs
+        com.google.android.apps.docs com.google.android.apps.docs.editors.docs
         com.google.android.apps.docs.editors.sheets com.google.android.apps.docs.editors.slides
         com.microsoft.office.word com.microsoft.office.excel com.microsoft.office.powerpoint
         com.microsoft.office.officehubrow com.microsoft.teams com.Slack us.zoom.videomeetings
-        com.google.android.apps.tachyon notion.id com.todoist com.microsoft.todos com.evernote
-        com.dropbox.android com.microsoft.skydrive com.adobe.reader com.trello com.asana.app
-        com.google.android.apps.tasks com.samsung.android.app.notes md.obsidian
+        com.google.android.apps.tachyon
+        com.dropbox.android com.microsoft.skydrive com.adobe.reader
         com.yahoo.mobile.client.android.mail ch.protonmail.android com.google.android.apps.dynamite
-        com.microsoft.office.onenote com.atlassian.android.jira.core
+        com.atlassian.android.jira.core
+    """,
+    AppCategory.Notes to """
+        com.google.android.keep notion.id com.todoist com.microsoft.todos com.evernote
+        com.google.android.apps.tasks com.samsung.android.app.notes md.obsidian com.microsoft.office.onenote
+        com.google.android.apps.pixel.aurelius com.transsion.notebook com.anydo com.ticktick.task
+        com.splendapps.splendo io.unorderly.structured com.habitrpg.android.habitica
+        com.trello com.asana.app com.basecamp.bc3
     """,
     AppCategory.Finance to """
         com.paypal.android.p2pmobile com.venmo com.squareup.cash com.robinhood.android
@@ -1107,6 +1123,7 @@ private val KNOWN_PACKAGES = listOf(
         com.arlo.app com.hualai com.tplink.kasa_android com.rightmove.android
         com.etekcity.vesyncplatform com.tplink.iot com.tuya.smartlife com.philips.ph.homecare com.kakao.i.home
         com.roborock.smart com.tuya.smart com.mcu.reolink com.irobot.home.prime com.xiaomi.smarthome com.lgeha.nuts
+        com.daikineurope.online.controller mitsubishi.wifi.android.mitsubishiwifiapp com.midea.aircondition.obm
         com.zillow.android.zillowmap com.trulia.android com.redfin.android
         io.homeassistant.companion.android com.irobot.home com.tado
     """,

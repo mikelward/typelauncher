@@ -293,6 +293,7 @@
     <string name="app_folder_car">Motor</string>
     <string name="app_folder_charity">Liefdadigheid en skenkings</string>
     <string name="app_folder_family_history">Familiegeskiedenis &amp; genealogie</string>
+    <string name="app_folder_notes">Notas &amp; take</string>
     <string name="app_folder_cycling">Fietsry en fietsdeel</string>
     <string name="app_folder_hotels">Hotelle en verblyf</string>
     <string name="app_folder_maps">Kaarte</string>
@@ -324,6 +325,7 @@
     <string name="folder_icon_map">Kaart</string>
     <string name="folder_icon_volunteer_activism">Hand met hart</string>
     <string name="folder_icon_family_history">Stamboom</string>
+    <string name="folder_icon_edit_note">Nota en potlood</string>
     <string name="folder_icon_eco">Natuur</string>
     <string name="folder_icon_family_restroom">Gesin</string>
     <string name="folder_icon_favorite">Hart</string>

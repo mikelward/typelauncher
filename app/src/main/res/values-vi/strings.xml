@@ -292,6 +292,7 @@
     <string name="app_folder_car">Ô tô</string>
     <string name="app_folder_charity">Từ thiện và quyên góp</string>
     <string name="app_folder_family_history">Lịch sử gia đình và phả hệ</string>
+    <string name="app_folder_notes">Ghi chú và việc cần làm</string>
     <string name="app_folder_cycling">Xe đạp và xe đạp công cộng</string>
     <string name="app_folder_hotels">Khách sạn và chỗ ở</string>
     <string name="app_folder_maps">Bản đồ</string>
@@ -323,6 +324,7 @@
     <string name="folder_icon_map">Bản đồ</string>
     <string name="folder_icon_volunteer_activism">Bàn tay với trái tim</string>
     <string name="folder_icon_family_history">Cây gia phả</string>
+    <string name="folder_icon_edit_note">Ghi chú và bút chì</string>
     <string name="folder_icon_eco">Thiên nhiên</string>
     <string name="folder_icon_family_restroom">Gia đình</string>
     <string name="folder_icon_favorite">Trái tim</string>
