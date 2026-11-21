@@ -29,6 +29,23 @@ internal fun knownAppCategory(packageName: String, label: String = ""): AppCateg
 internal fun InstalledApp.knownCategory(): AppCategory? =
     knownAppCategory(if (isShortcut) "" else packageName, name)
 
+/**
+ * Apps that fit two folders about equally, for the user to decide
+ * (maintainer, 2026-11-21: "always let the user decide for those ones").
+ * The rules file each in the first; "Check folders" asks about them, with
+ * both folders first in its dropdown.
+ */
+internal val EITHER_WAY_PACKAGES: Map<String, List<AppCategory>> = mapOf(
+    "com.kalshi.mobile" to listOf(AppCategory.Finance, AppCategory.Betting),
+    "com.morrisons.matchandmore.app" to listOf(AppCategory.Shopping, AppCategory.Rewards),
+    "com.cashless.cashlessapp" to listOf(AppCategory.Kids, AppCategory.Finance),
+    "com.groundspeak.geocaching.intro" to listOf(AppCategory.Health, AppCategory.Games),
+)
+
+/** The folders [this] app could go in about equally, or empty. Never for a pinned website. */
+internal fun InstalledApp.eitherWayFolders(): List<AppCategory> =
+    if (isShortcut) emptyList() else EITHER_WAY_PACKAGES[packageName].orEmpty()
+
 /** [guessedAppCategory] for [this] app; a pinned website by its name alone. */
 internal fun InstalledApp.guessedCategory(): AppCategory? =
     guessedAppCategory(if (isShortcut) "" else packageName, name)
@@ -90,6 +107,8 @@ internal fun isPlacedByNameWord(packageName: String, label: String): Boolean =
 private fun labelWordCategory(label: String): AppCategory? {
     if (label.isBlank()) return null
     val words = label.lowercase().split(LABEL_WORD_BREAK)
+    val padded = words.filter { it.isNotEmpty() }.joinToString(" ", prefix = " ", postfix = " ")
+    LABEL_PHRASES.firstOrNull { (phrase, _) -> " $phrase " in padded }?.let { return it.second }
     return LABEL_WORDS.firstOrNull { (keyword, _) ->
         words.any { word ->
             when {
@@ -101,6 +120,28 @@ private fun labelWordCategory(label: String): AppCategory? {
         }
     }?.second
 }
+
+// Words and phrases that say what an app is ("Period Tracker", "Home
+// Workout"), matched as whole words like brands but, unlike brands, a guess
+// that "Check guessed folders" asks about (Codex on PR #894).
+private val LABEL_PHRASES: List<Pair<String, AppCategory>> = listOf(
+    "pedometer" to AppCategory.Health,
+    "step counter" to AppCategory.Health,
+    "step tracker" to AppCategory.Health,
+    "period tracker" to AppCategory.Health,
+    "period calendar" to AppCategory.Health,
+    "ovulation" to AppCategory.Health,
+    "fertility" to AppCategory.Health,
+    "kegel" to AppCategory.Health,
+    "pelvic floor" to AppCategory.Health,
+    "weight loss" to AppCategory.Health,
+    "home workout" to AppCategory.Health,
+    "therapy" to AppCategory.Health,
+    "therapist" to AppCategory.Health,
+    "mental health" to AppCategory.Health,
+    "counseling" to AppCategory.Health,
+    "anxiety" to AppCategory.Health,
+)
 
 // Brands whose app names say nothing else about them (maintainer,
 // 2026-11-19): matched as whole words, so "unifi" isn't "Unified Remote".
@@ -277,6 +318,24 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "egovph" to AppCategory.Government,
     "digid" to AppCategory.Government,
     "mysugr" to AppCategory.Health,
+    "betterhelp" to AppCategory.Health,
+    "yazio" to AppCategory.Health,
+    "oral b" to AppCategory.Health,
+    "mi fitness" to AppCategory.Health,
+    "geocaching" to AppCategory.Health,
+    "doctolib" to AppCategory.Health,
+    "hotdoc" to AppCategory.Health,
+    "practo" to AppCategory.Health,
+    "netmeds" to AppCategory.Health,
+    "weightwatchers" to AppCategory.Health,
+    "slimming world" to AppCategory.Health,
+    "fatsecret" to AppCategory.Health,
+    "blinkist" to AppCategory.Reading,
+    "noom" to AppCategory.Health,
+    "grok" to AppCategory.Ai,
+    "webull" to AppCategory.Finance,
+    "whatnot" to AppCategory.Shopping,
+    "elevenreader" to AppCategory.Reading,
     "dexcom" to AppCategory.Health,
     "kaiser permanente" to AppCategory.Health,
     "freestyle libre" to AppCategory.Health,
@@ -766,8 +825,16 @@ private val KNOWN_PACKAGE_PREFIXES = listOf(
     // Diabetes devices, Kaiser Permanente, and Digifit, which builds many gyms' apps
     // (maintainer, 2026-11-21).
     "com.dexcom." to AppCategory.Health,
+    "org.dayup.stocks" to AppCategory.Finance,
     "org.kp." to AppCategory.Health,
     "digifit." to AppCategory.Health,
+    // Austria's social insurance apps (Meine ÖGK, Meine BVAEB), and Niantic's games.
+    "at.itsv." to AppCategory.Health,
+    // Germany's health insurers: TK, AOK.
+    "de.tk." to AppCategory.Health,
+    "de.aok." to AppCategory.Health,
+    "de.aoksystems." to AppCategory.Health,
+    "com.nianticlabs." to AppCategory.Games,
     "gov." to AppCategory.Government,
     // Tello's apps, "My Tello" among them (maintainer, 2026-11-21); DJI's Tello drone is another package.
     "com.tello." to AppCategory.Phone,
@@ -789,7 +856,7 @@ private val GUESS_RULES = listOf(
     AppCategory.Media to listOf("movie", "movies", "stream", "drama", "dramas", "series"),
     AppCategory.Photos to listOf("photo", "camera", "gallery", "selfie"),
     AppCategory.Sports to listOf("sport", "football", "soccer", "basketball", "cricket", "rugby", "nfl", "nba", "espn"),
-    AppCategory.Health to listOf("health", "fitness", "gym", "workout", "yoga", "meditation", "sleep", "pharmacy", "medical", "doctor", "patient"),
+    AppCategory.Health to listOf("health", "fitness", "gym", "workout", "yoga", "meditation", "sleep", "pharmacy", "medical", "doctor", "patient", "pedometer", "stepcounter", "steptracker"),
     AppCategory.Learning to listOf("learn", "school", "education", "edu", "dictionary", "language", "course", "study", "flashcards"),
     AppCategory.Pets to listOf("pet", "pets", "dog", "dogs", "vet", "petcare"),
     AppCategory.Transit to listOf("transit", "metro", "rail", "railway", "bus"),
@@ -1178,9 +1245,88 @@ private val KNOWN_PACKAGES = listOf(
     """,
     AppCategory.Health to """
         com.aon.sante org.wakingup.android com.mysugr.android.companion uk.co.virginactive.android
+        at.svagw.mobile.svaapp com.betterhelp com.yazio.android com.pg.oralb.oralbapp com.xiaomi.wearable
+        org.iggymedia.periodtracker com.clue.android com.app.lively_app com.junochat.app
+        com.popularapp.periodcalendar com.lbrc.PeriodCalendar premom.eh.com.ehpremomapp com.glow.android
+        com.wsl.noom com.mindbodyonline.connect in.plackal.lovecyclesfree co.manual.voy com.phe.daysoff
+        com.vamapps.thecoach com.getmental.mental homeworkout.homeworkouts.noequipment com.jsdev.pfei
+        kegel.kegelexercises.pelvicfloor.pfm com.lescadeaux.kegel com.elevatelabs.geonosis
+        com.theinnerhour.b2b com.talkspace.talkspaceapp com.cyrano.cyrano co.mindpeers de.moodpath.android
+        bot.touchkin us.regain com.mypossibleself.app com.helpy.cbt com.ifeel.ifeeluserchat com.bstro.MindShift
+        com.lasting.lasting com.mentallabs.mentalhealth in.evolve.android com.technogym.tgapp
+        de.barmergek.serviceapp com.macadamapp de.telearzt.tkchat fr.doctolib.www com.doctoranywhere
+        net.iplato.mygp com.axa.doctorathand co.uk.aviva.digitalgp com.meddbase.roodlane
+        au.com.hotdoc.android.hotdoc com.doctorcareanywhere com.groundspeak.geocaching.intro
+        com.au.updoc com.doctorondemand.android.patient controllers.marham.marhammed com.mediconnect.oladoc
+        com.practo.fabric com.teleClinic.teleClinic com.NetmedsMarketplace.Netmeds
+        com.heytap.health.international uk.co.hsbc.hsbclife org.stanfordhealthcare.myhealth com.guavahealth.app
+        nl.appyhapps.healthsync com.simplepractice.video com.nhg.mha au.com.hotdoc.android.primary
+        com.advancemedical.avivasmarthealth ca.alberta.myhealthrecords com.packapill.app com.aetna.aetnahealth
+        com.bupa.bupatouch com.healthengine.android com.slimmingworld.uk com.heidihealth.scribe au.co.myvirginactive
+        io.vera.app health.human.app com.weightwatchers.mobile pilatesworkout.yogaworkout.loseweight.workoutapps
+        steptracker.healthandfitness.walkingtracker.pedometer com.star.customer_app com.fatsecret.android
+        com.hihonor.health com.gen.bettermeditation com.medm.app.health com.wam.android com.dailyyoga.inc
+    """,
+    AppCategory.Shopping to """ com.whatnot_mobile com.naturitas.android com.nbty.hollandbarret com.lasoo.android.target """,
+    AppCategory.Phone to """ com.isoton.lebara """,
+    AppCategory.Finance to """ com.raisin.app com.emmaprod org.dayup.stocks.uk """,
+    AppCategory.Ai to """ ai.x.grok.bot com.larus.wolf """,
+    AppCategory.Travel to """ com.usebounce se.memfrag.app """,
+    AppCategory.Learning to """ com.mobisystems.msdict.embedded.wireless.oxford.dictionaryofenglish com.conceptivapps.blossom """,
+    AppCategory.Kids to """ com.tribo.bubbleapp """,
+    AppCategory.Reading to """ io.elevenlabs.readerapp """,
+    AppCategory.Kids to """
+        com.huckleberry_labs.app
+    """,
+    AppCategory.Reading to """
+        com.blinkslabs.blinkist.android
+    """,
+    AppCategory.Cycling to """
+        de.komoot.android
     """,
     AppCategory.Charity to """
         org.sharethemeal.app
+    """,
+    // Top apps whose names mislead the word rules, filed as the answer key
+    // has them (maintainer, 2026-11-21). Kalshi, Morrisons More Card and
+    // Spriggy could go either way.
+    AppCategory.Finance to """
+        com.kalshi.mobile
+    """,
+    AppCategory.Shopping to """
+        com.crowncards.app com.wishabi.flipp nz.co.trademe.trademe com.morrisons.matchandmore.app
+        com.bluelightcard.user
+    """,
+    AppCategory.Design to """
+        com.mara.modstune com.photo.restore.scan com.aiphotoedior.photogenerator.photoretouch
+        com.xphotokit.picfusionlab
+    """,
+    AppCategory.Car to """
+        com.zenergy.zenergyapp.android.prod
+    """,
+    AppCategory.Ai to """
+        com.scatterlab.messenger
+    """,
+    AppCategory.Media to """
+        com.fox.foxone
+    """,
+    AppCategory.News to """
+        com.newsbreak.crimeradar
+    """,
+    AppCategory.Reading to """
+        com.radio.pocketfm com.square_enix.android_googleplay.mangaup_global
+    """,
+    AppCategory.Social to """
+        sg.bigo.live
+    """,
+    AppCategory.Tools to """
+        com.Endoscope.scope
+    """,
+    AppCategory.Kids to """
+        org.blubblub.app.speechblubs com.cashless.cashlessapp
+    """,
+    AppCategory.Sports to """
+        app.mygameday.results
     """,
     AppCategory.Office to """
         de.gmx.mobile.android.mail de.web.mobile.android.mail

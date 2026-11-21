@@ -342,6 +342,8 @@ class KnownAppsTest {
         assertEquals(AppCategory.Phone, knownAppCategory("com.tello.ui", "My Tello"))
         assertEquals(AppCategory.Phone, knownAppCategory("com.tello.other", "Anything"))
         assertNull(knownAppCategory("com.example.fcm", "FCM Tester"))
+        // Pedometers by package words alone.
+        assertEquals(AppCategory.Health, guessedAppCategory("pedometer.stepcounter.calorieburner.pedometerforwalking", ""))
     }
 
     @Test
@@ -498,6 +500,64 @@ class KnownAppsTest {
             "com.garmin.android.apps.connectmobile" to AppCategory.Health,
             "org.kp.m" to AppCategory.Health,
             "org.sharethemeal.app" to AppCategory.Charity,
+            "at.itsv.mobile.meineoegk" to AppCategory.Health,
+            "at.itsv.mobile.meinebvaeb" to AppCategory.Health,
+            "com.betterhelp" to AppCategory.Health,
+            "at.svagw.mobile.svaapp" to AppCategory.Health,
+            "com.yazio.android" to AppCategory.Health,
+            "com.pg.oralb.oralbapp" to AppCategory.Health,
+            "de.komoot.android" to AppCategory.Cycling,
+            "com.xiaomi.wearable" to AppCategory.Health,
+            "com.nianticlabs.pikmin" to AppCategory.Games,
+            "com.nianticlabs.pokemongo" to AppCategory.Games,
+            "com.groundspeak.geocaching.intro" to AppCategory.Health,
+            "org.iggymedia.periodtracker" to AppCategory.Health,
+            "com.clue.android" to AppCategory.Health,
+            "com.huckleberry_labs.app" to AppCategory.Kids,
+            "com.blinkslabs.blinkist.android" to AppCategory.Reading,
+            "com.wsl.noom" to AppCategory.Health,
+            "com.elevatelabs.geonosis" to AppCategory.Health,
+            "com.lescadeaux.kegel" to AppCategory.Health,
+            "com.whatnot_mobile" to AppCategory.Shopping,
+            "com.emmaprod" to AppCategory.Finance,
+            "org.dayup.stocks" to AppCategory.Finance,
+            "ai.x.grok.bot" to AppCategory.Ai,
+            "com.usebounce" to AppCategory.Travel,
+            "se.memfrag.app" to AppCategory.Travel,
+            "com.tribo.bubbleapp" to AppCategory.Kids,
+            "io.elevenlabs.readerapp" to AppCategory.Reading,
+            "in.evolve.android" to AppCategory.Health,
+            "com.technogym.tgapp" to AppCategory.Health,
+            "de.aoksystems.amg" to AppCategory.Health,
+            "de.barmergek.serviceapp" to AppCategory.Health,
+            "de.aok.digen" to AppCategory.Health,
+            "de.tk.apps.android.tkident" to AppCategory.Health,
+            "de.tk.tkcoach" to AppCategory.Health,
+            "fr.doctolib.www" to AppCategory.Health,
+            "net.iplato.mygp" to AppCategory.Health,
+            "au.com.hotdoc.android.hotdoc" to AppCategory.Health,
+            "com.doctorcareanywhere" to AppCategory.Health,
+            "com.practo.fabric" to AppCategory.Health,
+            "com.NetmedsMarketplace.Netmeds" to AppCategory.Health,
+            "com.naturitas.android" to AppCategory.Shopping,
+            "com.nbty.hollandbarret" to AppCategory.Shopping,
+            "com.conceptivapps.blossom" to AppCategory.Learning,
+            "com.bupa.bupatouch" to AppCategory.Health,
+            "com.wam.android" to AppCategory.Health,
+            "com.dailyyoga.inc" to AppCategory.Health,
+            "com.lasoo.android.target" to AppCategory.Shopping,
+            "com.isoton.lebara" to AppCategory.Phone,
+            "com.weightwatchers.mobile" to AppCategory.Health,
+            "com.slimmingworld.uk" to AppCategory.Health,
+            "com.fatsecret.android" to AppCategory.Health,
+            "au.co.myvirginactive" to AppCategory.Health,
+            "com.star.customer_app" to AppCategory.Health,
+            "com.aetna.aetnahealth" to AppCategory.Health,
+            "org.stanfordhealthcare.myhealth" to AppCategory.Health,
+            "bot.touchkin" to AppCategory.Health,
+            "com.talkspace.talkspaceapp" to AppCategory.Health,
+            "us.regain" to AppCategory.Health,
+            "com.bstro.MindShift" to AppCategory.Health,
             "com.myfitnesspal.android" to AppCategory.Health,
             "com.instagram.android" to AppCategory.Social,
             "com.canva.editor" to AppCategory.Design,
@@ -549,6 +609,17 @@ class KnownAppsTest {
             "GoFundMe" to AppCategory.Charity,
             "British Red Cross" to AppCategory.Charity,
             "Donate to Charity" to AppCategory.Charity,
+            "Pedometer - Step Counter" to AppCategory.Health,
+            "Step Tracker & Walking" to AppCategory.Health,
+            "Period Tracker & Cycle" to AppCategory.Health,
+            "Kegel Trainer" to AppCategory.Health,
+            "Lebara Australia" to AppCategory.Phone,
+            "Grok" to AppCategory.Ai,
+            "Webull" to AppCategory.Finance,
+            "Online Therapy & Counseling" to AppCategory.Health,
+            "Mental Health Support" to AppCategory.Health,
+            "Pelvic Floor Exercises" to AppCategory.Health,
+            "Home Workout - No Equipment" to AppCategory.Health,
             "Blinkit: Grocery in minutes" to AppCategory.Food,
             "Rapido: Bike-Taxi, Auto & Cabs" to AppCategory.Car,
             "Meesho: Online Shopping App" to AppCategory.Shopping,
@@ -571,5 +642,13 @@ class KnownAppsTest {
         assertEquals(AppCategory.Games, guessedAppCategory("com.example.app", "Solitaire Classic"))
         assertEquals(AppCategory.Weather, guessedAppCategory("com.example.weatherpro", "Sky"))
         assertNull(guessedAppCategory("com.example.app", "Acme"))
+    }
+
+    @Test
+    fun appsThatCouldGoEitherWay_areFiledInTheirFirstFolder_untilTheUserDecides() {
+        for ((packageName, folders) in EITHER_WAY_PACKAGES) {
+            assertEquals(packageName, 2, folders.distinct().size)
+            assertEquals(packageName, folders.first(), knownAppCategory(packageName))
+        }
     }
 }

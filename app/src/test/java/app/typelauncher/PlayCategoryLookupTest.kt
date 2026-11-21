@@ -100,4 +100,11 @@ class PlayCategoryLookupTest {
         assertEquals(mapOf("a" to "TOOLS", "b" to "FINANCE", "c" to ""), HashMap(layered))
         assertEquals(LayeredPlayCategories(mapOf("a" to "TOOLS", "c" to ""), catalog), layered)
     }
+
+    @Test
+    fun theShippedCatalog_isReadOncePerProcess() {
+        val first = readPlayCatalog(context)
+        assertTrue(first.size > 1000)
+        assertTrue(first === readPlayCatalog(context))
+    }
 }
