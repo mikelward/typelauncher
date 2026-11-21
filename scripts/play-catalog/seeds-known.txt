@@ -68,6 +68,7 @@ cn.xender
 co.hinge.app
 co.manual.voy
 co.mindpeers
+co.mona.android
 co.uk.Nationwide.Mobile
 co.uk.aviva.digitalgp
 co.uk.getmondo
@@ -169,6 +170,7 @@ com.bitdefender.security
 com.bleacherreport.android.teamstream
 com.blink.drama.player
 com.blinkslabs.blinkist.android
+com.bloomberg.android.plus
 com.bluelightcard.user
 com.boi.ua.android
 com.booking
@@ -313,6 +315,7 @@ com.freecash.app2
 com.freereels.app
 com.fsn.nds
 com.ftw_and_co.happn
+com.fusionmedia.investing
 com.ga.loyalty.android.nectar.activities
 com.gamma.scan
 com.garmin.android.apps.connectmobile
@@ -326,6 +329,7 @@ com.gitlab.mobile
 com.globe.gcash.android
 com.glovo
 com.glow.android
+com.goldavenue.goldavenue
 com.gombosdev.ampere
 com.goodreads
 com.google.android.GoogleCamera
@@ -383,6 +387,7 @@ com.groupon
 com.grppl.android.shell.CMBlloydsTSB73
 com.grppl.android.shell.halifax
 com.grubhub.android
+com.gs.pwmdigital.external.android
 com.guardian
 com.guavahealth.app
 com.handmark.expressweather
@@ -454,6 +459,7 @@ com.kobobooks.android
 com.kodakalaris.kmartaustraliaapp
 com.konylabs.capitalone
 com.kouponai
+com.kraken.invest.app
 com.kumadrama.doku
 com.kunzisoft.keepass.free
 com.kunzisoft.keepass.pro
@@ -532,6 +538,7 @@ com.mojang.minecraftpe
 com.momosa
 com.moniqtap.carplay.autocar.connect.android
 com.moonactive.coinmaster
+com.morganstanley.clientmobile.prod
 com.morrisons.atm.mobile.android
 com.morrisons.matchandmore.app
 com.motors.consumer
@@ -675,6 +682,7 @@ com.sec.android.app.popupcalculator
 com.sec.android.app.sbrowser
 com.sec.android.app.shealth
 com.sec.android.gallery3d
+com.seekingalpha.webwrapper
 com.server.auditor.ssh.client
 com.setline.app
 com.shazam.android
@@ -719,6 +727,7 @@ com.stubhub
 com.substack.app
 com.suno.android
 com.swisscom.myswisscom
+com.swissquote.android
 com.swm.live
 com.sygic.aura
 com.symantec.lifelock.memberapp
@@ -758,6 +767,7 @@ com.toomics.coimiics.spaceee
 com.tplink.iot
 com.tplink.kasa_android
 com.tracerofficial
+com.tradingview.tradingviewapp
 com.transferwise.android
 com.tranzmate
 com.trello
@@ -836,6 +846,7 @@ com.xiaomi.wearable
 com.xingin.xhs
 com.xphotokit.picfusionlab
 com.xtb.xmobile2
+com.yahoo.mobile.client.android.finance
 com.yahoo.mobile.client.android.mail
 com.yahoo.mobile.client.android.sportacular
 com.yahoo.mobile.client.android.weather
