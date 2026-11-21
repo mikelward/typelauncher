@@ -289,8 +289,12 @@
     <string name="app_folder_social">Mitandao ya kijamii na ujumbe</string>
     <string name="app_folder_sports">Michezo</string>
     <string name="app_folder_tools">Zana</string>
-    <string name="app_folder_transport">Usafiri</string>
-    <string name="app_folder_travel">Safari</string>
+    <string name="app_folder_transit">Usafiri wa umma na treni</string>
+    <string name="app_folder_car">Gari</string>
+    <string name="app_folder_cycling">Baiskeli na ukodishaji wa baiskeli</string>
+    <string name="app_folder_hotels">Hoteli na malazi</string>
+    <string name="app_folder_maps">Ramani</string>
+    <string name="app_folder_travel">Safari na ndege</string>
     <string name="app_folder_weather">Hali ya hewa</string>
     <string name="app_folders_dialog_done">Nimemaliza</string>
     <string name="app_folders_dialog_title">Folda</string>
@@ -313,6 +317,9 @@
     <string name="folder_icon_confirmation_number">Tiketi</string>
     <string name="folder_icon_directions_bus">Basi</string>
     <string name="folder_icon_directions_car">Gari</string>
+    <string name="folder_icon_pedal_bike">Baiskeli</string>
+    <string name="folder_icon_hotel">Kitanda</string>
+    <string name="folder_icon_map">Ramani</string>
     <string name="folder_icon_eco">Mazingira</string>
     <string name="folder_icon_family_restroom">Familia</string>
     <string name="folder_icon_favorite">Moyo</string>

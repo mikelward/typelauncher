@@ -289,8 +289,12 @@
     <string name="app_folder_social">සමාජ සහ පණිවිඩ</string>
     <string name="app_folder_sports">ක්‍රීඩා</string>
     <string name="app_folder_tools">මෙවලම්</string>
-    <string name="app_folder_transport">ප්‍රවාහනය</string>
-    <string name="app_folder_travel">සංචාරය</string>
+    <string name="app_folder_transit">පොදු ප්‍රවාහනය සහ දුම්රිය</string>
+    <string name="app_folder_car">මෝටර් රථය</string>
+    <string name="app_folder_cycling">බයිසිකල් සහ බයිසිකල් කුලියට</string>
+    <string name="app_folder_hotels">හෝටල් සහ නවාතැන්</string>
+    <string name="app_folder_maps">සිතියම්</string>
+    <string name="app_folder_travel">සංචාරය සහ ගුවන් ගමන්</string>
     <string name="app_folder_weather">කාලගුණය</string>
     <string name="app_folders_dialog_done">සිදු කර ඇත</string>
     <string name="app_folders_dialog_title">ෆෝල්ඩර</string>
@@ -313,6 +317,9 @@
     <string name="folder_icon_confirmation_number">ටිකට්පත්</string>
     <string name="folder_icon_directions_bus">බසය</string>
     <string name="folder_icon_directions_car">මෝටර් රථය</string>
+    <string name="folder_icon_pedal_bike">බයිසිකලය</string>
+    <string name="folder_icon_hotel">ඇඳ</string>
+    <string name="folder_icon_map">සිතියම</string>
     <string name="folder_icon_eco">ස්වභාවධර්මය</string>
     <string name="folder_icon_family_restroom">පවුල</string>
     <string name="folder_icon_favorite">හදවත</string>

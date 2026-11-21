@@ -289,8 +289,12 @@
     <string name="app_folder_social">Soziale Netzwerke &amp; Nachrichten</string>
     <string name="app_folder_sports">Sport</string>
     <string name="app_folder_tools">Tools</string>
-    <string name="app_folder_transport">Verkehr</string>
-    <string name="app_folder_travel">Reisen</string>
+    <string name="app_folder_transit">ÖPNV &amp; Bahn</string>
+    <string name="app_folder_car">Auto</string>
+    <string name="app_folder_cycling">Radfahren &amp; Bikesharing</string>
+    <string name="app_folder_hotels">Hotels &amp; Unterkünfte</string>
+    <string name="app_folder_maps">Karten</string>
+    <string name="app_folder_travel">Reisen &amp; Flüge</string>
     <string name="app_folder_weather">Wetter</string>
     <string name="app_folders_dialog_done">Fertig</string>
     <string name="app_folders_dialog_title">Ordner</string>
@@ -313,6 +317,9 @@
     <string name="folder_icon_confirmation_number">Tickets</string>
     <string name="folder_icon_directions_bus">Bus</string>
     <string name="folder_icon_directions_car">Auto</string>
+    <string name="folder_icon_pedal_bike">Fahrrad</string>
+    <string name="folder_icon_hotel">Bett</string>
+    <string name="folder_icon_map">Karte</string>
     <string name="folder_icon_eco">Natur</string>
     <string name="folder_icon_family_restroom">Familie</string>
     <string name="folder_icon_favorite">Herz</string>

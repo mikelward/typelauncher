@@ -290,8 +290,12 @@
     <string name="app_folder_social">Social și mesaje</string>
     <string name="app_folder_sports">Sport</string>
     <string name="app_folder_tools">Instrumente</string>
-    <string name="app_folder_transport">Transport</string>
-    <string name="app_folder_travel">Călătorii</string>
+    <string name="app_folder_transit">Transport public și tren</string>
+    <string name="app_folder_car">Mașină</string>
+    <string name="app_folder_cycling">Ciclism și biciclete partajate</string>
+    <string name="app_folder_hotels">Hoteluri și cazare</string>
+    <string name="app_folder_maps">Hărți</string>
+    <string name="app_folder_travel">Călătorii și zboruri</string>
     <string name="app_folder_weather">Vreme</string>
     <string name="app_folders_dialog_done">Gata</string>
     <string name="app_folders_dialog_title">Foldere</string>
@@ -314,6 +318,9 @@
     <string name="folder_icon_confirmation_number">Bilete</string>
     <string name="folder_icon_directions_bus">Autobuz</string>
     <string name="folder_icon_directions_car">Mașină</string>
+    <string name="folder_icon_pedal_bike">Bicicletă</string>
+    <string name="folder_icon_hotel">Pat</string>
+    <string name="folder_icon_map">Hartă</string>
     <string name="folder_icon_eco">Natură</string>
     <string name="folder_icon_family_restroom">Familie</string>
     <string name="folder_icon_favorite">Inimă</string>

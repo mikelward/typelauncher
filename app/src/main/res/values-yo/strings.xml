@@ -288,8 +288,12 @@
     <string name="app_folder_social">Àwùjọ àti àwọn ìfiránṣẹ́</string>
     <string name="app_folder_sports">Eré ìdárayá</string>
     <string name="app_folder_tools">Irinṣẹ́</string>
-    <string name="app_folder_transport">Ìrìnnà</string>
-    <string name="app_folder_travel">Ìrìn-àjò</string>
+    <string name="app_folder_transit">Ìrìnnà gbogbogbò àti ọkọ̀ ojú irin</string>
+    <string name="app_folder_car">Ọkọ̀ ayọ́kẹ́lẹ́</string>
+    <string name="app_folder_cycling">Kẹ̀kẹ́ àti kẹ̀kẹ́ àjọlò</string>
+    <string name="app_folder_hotels">Ilé ìtura àti ibùgbé</string>
+    <string name="app_folder_maps">Àwọn máàpù</string>
+    <string name="app_folder_travel">Ìrìn-àjò àti ọkọ̀ òfurufú</string>
     <string name="app_folder_weather">Ojú ọjọ́</string>
     <string name="app_folders_dialog_done">Ti parí</string>
     <string name="app_folders_dialog_title">Àwọn fódà</string>
@@ -312,6 +316,9 @@
     <string name="folder_icon_confirmation_number">Tíkẹ́ẹ̀tì</string>
     <string name="folder_icon_directions_bus">Bọ́ọ̀sì</string>
     <string name="folder_icon_directions_car">Ọkọ̀ ayọ́kẹ́lẹ́</string>
+    <string name="folder_icon_pedal_bike">Kẹ̀kẹ́</string>
+    <string name="folder_icon_hotel">Ibùsùn</string>
+    <string name="folder_icon_map">Máàpù</string>
     <string name="folder_icon_eco">Ìṣẹ̀dá</string>
     <string name="folder_icon_family_restroom">Ẹbí</string>
     <string name="folder_icon_favorite">Ọkàn</string>

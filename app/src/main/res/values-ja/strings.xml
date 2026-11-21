@@ -288,8 +288,12 @@
     <string name="app_folder_social">ソーシャル・メッセージ</string>
     <string name="app_folder_sports">スポーツ</string>
     <string name="app_folder_tools">ツール</string>
-    <string name="app_folder_transport">交通</string>
-    <string name="app_folder_travel">旅行</string>
+    <string name="app_folder_transit">公共交通・鉄道</string>
+    <string name="app_folder_car">車</string>
+    <string name="app_folder_cycling">自転車・シェアサイクル</string>
+    <string name="app_folder_hotels">ホテル・宿泊</string>
+    <string name="app_folder_maps">地図</string>
+    <string name="app_folder_travel">旅行・フライト</string>
     <string name="app_folder_weather">天気</string>
     <string name="app_folders_dialog_done">完了</string>
     <string name="app_folders_dialog_title">フォルダ</string>
@@ -312,6 +316,9 @@
     <string name="folder_icon_confirmation_number">チケット</string>
     <string name="folder_icon_directions_bus">バス</string>
     <string name="folder_icon_directions_car">車</string>
+    <string name="folder_icon_pedal_bike">自転車</string>
+    <string name="folder_icon_hotel">ベッド</string>
+    <string name="folder_icon_map">地図</string>
     <string name="folder_icon_eco">自然</string>
     <string name="folder_icon_family_restroom">家族</string>
     <string name="folder_icon_favorite">ハート</string>

@@ -289,8 +289,12 @@
     <string name="app_folder_social">Social at mga mensahe</string>
     <string name="app_folder_sports">Sports</string>
     <string name="app_folder_tools">Mga tool</string>
-    <string name="app_folder_transport">Transportasyon</string>
-    <string name="app_folder_travel">Paglalakbay</string>
+    <string name="app_folder_transit">Pampublikong sasakyan at tren</string>
+    <string name="app_folder_car">Kotse</string>
+    <string name="app_folder_cycling">Pagbibisikleta at bike share</string>
+    <string name="app_folder_hotels">Mga hotel at matutuluyan</string>
+    <string name="app_folder_maps">Mga mapa</string>
+    <string name="app_folder_travel">Paglalakbay at mga flight</string>
     <string name="app_folder_weather">Panahon</string>
     <string name="app_folders_dialog_done">Tapos na</string>
     <string name="app_folders_dialog_title">Mga folder</string>
@@ -313,6 +317,9 @@
     <string name="folder_icon_confirmation_number">Mga tiket</string>
     <string name="folder_icon_directions_bus">Bus</string>
     <string name="folder_icon_directions_car">Kotse</string>
+    <string name="folder_icon_pedal_bike">Bisikleta</string>
+    <string name="folder_icon_hotel">Kama</string>
+    <string name="folder_icon_map">Mapa</string>
     <string name="folder_icon_eco">Kalikasan</string>
     <string name="folder_icon_family_restroom">Pamilya</string>
     <string name="folder_icon_favorite">Puso</string>

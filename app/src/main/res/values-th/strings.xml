@@ -288,8 +288,12 @@
     <string name="app_folder_social">โซเชียลและข้อความ</string>
     <string name="app_folder_sports">กีฬา</string>
     <string name="app_folder_tools">เครื่องมือ</string>
-    <string name="app_folder_transport">การขนส่ง</string>
-    <string name="app_folder_travel">ท่องเที่ยว</string>
+    <string name="app_folder_transit">ขนส่งสาธารณะและรถไฟ</string>
+    <string name="app_folder_car">รถยนต์</string>
+    <string name="app_folder_cycling">จักรยานและจักรยานเช่า</string>
+    <string name="app_folder_hotels">โรงแรมและที่พัก</string>
+    <string name="app_folder_maps">แผนที่</string>
+    <string name="app_folder_travel">ท่องเที่ยวและเที่ยวบิน</string>
     <string name="app_folder_weather">สภาพอากาศ</string>
     <string name="app_folders_dialog_done">เสร็จสิ้น</string>
     <string name="app_folders_dialog_title">โฟลเดอร์</string>
@@ -312,6 +316,9 @@
     <string name="folder_icon_confirmation_number">ตั๋ว</string>
     <string name="folder_icon_directions_bus">รถบัส</string>
     <string name="folder_icon_directions_car">รถยนต์</string>
+    <string name="folder_icon_pedal_bike">จักรยาน</string>
+    <string name="folder_icon_hotel">เตียง</string>
+    <string name="folder_icon_map">แผนที่</string>
     <string name="folder_icon_eco">ธรรมชาติ</string>
     <string name="folder_icon_family_restroom">ครอบครัว</string>
     <string name="folder_icon_favorite">หัวใจ</string>

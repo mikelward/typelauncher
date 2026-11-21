@@ -49,7 +49,7 @@ pdf.pdfreader.viewer.editor.free	PDF Reader - Easy PDF	office
 com.larus.wolf	Dola: Smart AI Assistant	ai
 nz.com.kmart	Kmart Shop Low Prices For Life	shopping
 air.ITVMobilePlayer	ITVX	media
-nz.co.aa.mobile.android	The AA (NZ)	transport
+nz.co.aa.mobile.android	The AA (NZ)	car
 com.netshort.abroad	NetShort - Popular Dramas & TV	media
 com.google.android.apps.bard	Google Gemini	ai
 com.squareup.cash	Cash App	finance
@@ -82,7 +82,7 @@ au.com.hotdoc.android.hotdoc	HotDoc	health
 com.afterpaymobile	Afterpay. Pay over time	finance
 com.identify.track.coinscope	CoinScope: AI Identifier	tools
 com.lidl.eci.lidlplus	Lidl Plus	food
-com.ubercab	Uber: Rides, eats, hotels	transport
+com.ubercab	Uber: Rides, eats, hotels	car
 com.google.android.apps.authenticator2	Google Authenticator	security
 com.discord	Discord - Talk, Play, Hang Out	social
 org.telegram.messenger	Telegram	social
@@ -98,7 +98,7 @@ us.zoom.videomeetings	Zoom Workplace	office
 au.com.seek	SEEK: Jobs, Job Search & Work	jobs
 com.tracerofficial	AHEALTH: Get Healthy Get Paid	health
 com.bendigobank.mobile	Bendigo Bank	finance
-com.waze	Waze Navigation & Live Traffic	transport
+com.waze	Waze Navigation & Live Traffic	car
 com.axs.android	AXS Tickets	events
 tv.pluto.android	Pluto TV: Watch Free Movies/TV	media
 com.ga.loyalty.android.nectar.activities	Nectar – Collect&Spend points	rewards
@@ -110,7 +110,7 @@ com.alibaba.intl.android.apps.poseidon	Alibaba.com - B2B marketplace	shopping
 com.swm.live	7plus	media
 com.sap.mdc.loblaw.nativ	PC Optimum	shopping
 com.enflick.android.TextNow	TextNow: Call + Text Unlimited	phone
-me.lyft.android	Lyft	transport
+me.lyft.android	Lyft	car
 nz.co.asb.asbmobile	ASB Mobile Banking	finance
 com.adobe.reader	Acrobat Reader: PDF Converter	office
 com.tubitv	Tubi: Free Movies & Live TV	media
@@ -129,12 +129,12 @@ com.marksandspencer.app	M&S - Fashion, Food & Homeware	shopping
 com.booking	Booking.com: Hotels and more	travel
 com.gowish.app	GoWish - Your Digital Wishlist	shopping
 energy.octopus.octopusenergy.android	Octopus Energy	home
-com.zenergy.zenergyapp.android.prod	Z App	transport
+com.zenergy.zenergyapp.android.prod	Z App	car
 com.storage.androidcleaner	Cleanup: Phone Storage Cleaner	tools
 com.og.app.android	OG.com: Rip Cards,Trade Events	shopping
 com.boots.flagship.android	Boots: Beauty & Pharmacy	shopping
 com.app.tgtg	Too Good To Go: End Food Waste	food
-nz.hwem.gaspy	Gaspy - Fuel Prices	transport
+nz.hwem.gaspy	Gaspy - Fuel Prices	car
 com.myklarnamobile	Klarna: Smarter everyday money	finance
 com.doordash.driverapp	DoorDash - Dasher	jobs
 com.woolworths.rewards	Everyday Rewards	rewards
@@ -163,7 +163,7 @@ com.storymatrix.drama	DramaBox - Stream Drama Shorts	media
 com.levelcard	Zable - Mobile Finance	finance
 com.spotify.music	Spotify: Music and Podcasts	music
 com.scatterlab.messenger	zeta: AI Chat, Story, Play	ai
-au.com.fuel7eleven	My 7-Eleven	transport
+au.com.fuel7eleven	My 7-Eleven	car
 com.depop	Depop - Buy & Sell Clothes	shopping
 com.opran.cynabible	Lumina: Scripture & Bible	reading
 com.mcdonalds.app.uk	McDonald’s UK	food
@@ -171,7 +171,7 @@ org.thoughtcrime.securesms	Signal Private Messenger	social
 epic.mychart.android	MyChart	health
 com.netflix.mediaclient	Netflix	media
 com.xingin.xhs	rednote	social
-com.didiglobal.passenger	DiDi Rider: Safe rides	transport
+com.didiglobal.passenger	DiDi Rider: Safe rides	car
 com.fox.foxone	FOX One: Live News, Sports, TV	media
 com.dpd.yourdpd	DPD	post
 au.com.optus.selfservice	My Optus	phone
@@ -200,7 +200,7 @@ com.gamma.scan	QR & Barcode Scanner	tools
 com.recime.app	ReciMe: Recipes & Meal Planner	food
 com.onedebit.chime	Chime – Fee-Free Banking	finance
 com.vizio.vue.launcher	VIZIO	media
-com.thetrainline	Trainline: Cheap UK, EU Trains	transport
+com.thetrainline	Trainline: Cheap UK, EU Trains	public_transit
 au.gov.bom.metview	BOM Weather	weather
 com.cibc.android.mobi	CIBC Mobile Banking®	finance
 com.whatsapp.w4b	WhatsApp Business	social
@@ -208,7 +208,7 @@ com.aiphotoedior.photogenerator.photoretouch	AI Photo Beauty Editor Studio	desig
 nz.co.kiwibank.mobile	Kiwibank Mobile Banking	finance
 com.mcdonalds.app	McDonald's	food
 nz.co.mylotto	MyLotto	betting
-ee.mtakso.client	Bolt: Request a Ride	transport
+ee.mtakso.client	Bolt: Request a Ride	car
 com.starlink.mobile	Starlink	internet
 com.mobile5.greggs	Greggs App - Food & Drink	food
 com.phonecleaner.junk.storage.cleaner	Clean Pro - AI Cleaner	tools
@@ -216,7 +216,7 @@ com.pdfexpert.docre.qvzmk	PDF Master Pro & Doc Reader	office
 com.triumpharcade.tcg	Rips by Triumph	shopping
 com.newsbreak.crimeradar	CrimeRadar by TownTalk	news
 org.westpac.bank	Westpac	finance
-nz.gull.app	Gull	transport
+nz.gull.app	Gull	car
 com.emf.detector.magnetic.field.meter.sensor	EMF Detector - Metal Finder	tools
 com.johnlewis.android	John Lewis & Partners	shopping
 com.walmart.sparkdriver	Spark Driver	jobs
@@ -246,9 +246,9 @@ nz.co.nzpost	NZ Post	post
 com.microsoft.office.excel	Microsoft Excel: Spreadsheets	office
 com.apple.atve.androidtv.appletv	Apple TV: Shows, Movies & More	media
 com.reels.kivo	KivoReels	media
-ca.autotrader.userapp	AutoTrader - Shop Cars Online	transport
+ca.autotrader.userapp	AutoTrader - Shop Cars Online	car
 au.com.realestate.app	realestate.com.au - Property	home
-com.thetransitapp.droid	Transit - Subway & Bus Times	transport
+com.thetransitapp.droid	Transit - Subway & Bus Times	public_transit
 nz.co.thewarehouse.wow	The Warehouse - Shop & Save	shopping
 org.mozilla.firefox	Firefox Fast & Private Browser	internet
 com.jd.loyaltyapp	JD STATUS	shopping
@@ -262,10 +262,10 @@ com.ringapp	Ring - Always Home	home
 com.crunchyroll.crunchyroid	Crunchyroll: Anime Streaming	media
 jp.ne.ibis.ibispaintx.app	ibis Paint X	design
 com.adobe.spark.post	Adobe Express: AI Photo, Video	design
-com.carfax.consumer	CARFAX - New & Used Cars	transport
-net.sharewire.parkmobilev2	ParkMobile: Park. Pay. Go.	transport
-com.keyconnect.android	KeyConnect Digital Car Key	transport
-com.moniqtap.carplay.autocar.connect.android	Car Display Connect Auto Sync	transport
+com.carfax.consumer	CARFAX - New & Used Cars	car
+net.sharewire.parkmobilev2	ParkMobile: Park. Pay. Go.	car
+com.keyconnect.android	KeyConnect Digital Car Key	car
+com.moniqtap.carplay.autocar.connect.android	Car Display Connect Auto Sync	car
 net.booksy.customer	Booksy for Customers	other
 com.ulta	Ulta Beauty: Makeup & Skincare	shopping
 com.amazon.kindle	Amazon Kindle: Reading App	reading
@@ -312,7 +312,7 @@ weather.forecast.channel.live	Weather Forecast & Live Radar	weather
 com.weatherradarhome.weather.forecast.live.radar.aqi.android	Live Weather Radar Launcher	weather
 de.wetteronline.wetterapp	Weather & Radar Forecast	weather
 aplicacion.tiempo	Meteored: Weather & Rain Radar	weather
-com.motors.consumer	Cazoo: Used Cars, Vans & Bikes	transport
+com.motors.consumer	Cazoo: Used Cars, Vans & Bikes	car
 co.uk.sephora	Sephora UK: Make-up, Beauty	shopping
 com.retouchphoto.objectremover.enhanceimage.ai	AI Photo Editor: Photo Enhance	design
 com.labs.merlinbirdid.app	Merlin Bird ID by Cornell Lab	pets
@@ -327,7 +327,7 @@ com.thefa.fanapp	The Official England App	sports
 com.safc.app	Sunderland AFC	sports
 com.spond.spond	Spond: Sports Team Management	sports
 uk.gov.metoffice.weather.android	Met Office Weather Forecast	weather
-au.com.carsales	carsales AU: New & Used Cars	transport
+au.com.carsales	carsales AU: New & Used Cars	car
 au.com.adorebeauty.shop	Adore Beauty | Shop Beauty Now	shopping
 com.webtoon.marvelcomics	Marvel Comics	reading
 com.tixel.app	Tixel－Face Value Ticket Resale	events

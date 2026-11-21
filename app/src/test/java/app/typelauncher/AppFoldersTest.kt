@@ -25,7 +25,7 @@ class AppFoldersTest {
         assertEquals(AppCategory.Photos, declaredAppCategory(ApplicationInfo.CATEGORY_IMAGE, 0))
         assertEquals(AppCategory.Social, declaredAppCategory(ApplicationInfo.CATEGORY_SOCIAL, 0))
         assertEquals(AppCategory.News, declaredAppCategory(ApplicationInfo.CATEGORY_NEWS, 0))
-        assertEquals(AppCategory.Transport, declaredAppCategory(ApplicationInfo.CATEGORY_MAPS, 0))
+        assertEquals(AppCategory.Maps, declaredAppCategory(ApplicationInfo.CATEGORY_MAPS, 0))
     }
 
     @Test
@@ -226,11 +226,13 @@ class AppFoldersTest {
 
         assertEquals(
             listOf(
-                "ai", "betting", "code", "design", "events", "finance", "food", "games", "government", "health", "home",
-                // "Office & productivity" (maintainer, 2026-11-19) sorts under O.
-                "internet", "jobs", "kids", "custom-1", "learning", "media", "music", "news", "office", "pets", "phone",
-                "photos", "post", "reading", "rewards", "security", "shopping", "social",
-                "sports", "transport", "travel", "weather", "custom-2", "other",
+                "ai", "betting", "car", "code", "cycling", "design", "events", "finance", "food", "games", "government",
+                "health", "home", "hotels",
+                // "Office & productivity" (maintainer, 2026-11-19) sorts under O,
+                // and "Public transit & rail" (2026-11-21) under P.
+                "internet", "jobs", "kids", "custom-1", "learning", "maps", "media", "music", "news", "office", "pets",
+                "phone", "photos", "post", "public_transit", "reading", "rewards", "security", "shopping", "social",
+                "sports", "travel", "weather", "custom-2", "other",
             ),
             folders.map { it.key },
         )
@@ -243,7 +245,7 @@ class AppFoldersTest {
         val waze = app("Waze").copy(packageName = "com.waze")
         val rdr = app("Red Dead Redemption").copy(packageName = "com.netflix.NGP.RedDeadRedemption")
 
-        assertEquals("transport", effective(waze, ai = mapOf(waze.id to "tools")))
+        assertEquals("car", effective(waze, ai = mapOf(waze.id to "tools")))
         assertEquals("games", effective(rdr, ai = mapOf(rdr.id to "media")))
         assertEquals("tools", effective(waze, assignments = mapOf(waze.id to "tools")))
     }
@@ -316,7 +318,7 @@ class AppFoldersTest {
         val game = app("Subway", AppCategory.Games)
         val video = app("Clips", AppCategory.Media)
 
-        assertEquals("games", effective(game, ai = mapOf(game.id to "transport")))
+        assertEquals("games", effective(game, ai = mapOf(game.id to "car")))
         assertEquals("kids", effective(game, assignments = mapOf(game.id to "kids")))
         // Other manifest categories still give way to the AI.
         assertEquals("social", effective(video, ai = mapOf(video.id to "social")))

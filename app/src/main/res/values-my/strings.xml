@@ -288,8 +288,12 @@
     <string name="app_folder_social">လူမှုကွန်ရက်နှင့် မက်ဆေ့ချ်</string>
     <string name="app_folder_sports">အားကစား</string>
     <string name="app_folder_tools">ကိရိယာများ</string>
-    <string name="app_folder_transport">သယ်ယူပို့ဆောင်ရေး</string>
-    <string name="app_folder_travel">ခရီးသွား</string>
+    <string name="app_folder_transit">အများသုံးယာဉ်နှင့် ရထား</string>
+    <string name="app_folder_car">ကား</string>
+    <string name="app_folder_cycling">စက်ဘီးနှင့် စက်ဘီးငှား</string>
+    <string name="app_folder_hotels">ဟိုတယ်နှင့် တည်းခိုရာ</string>
+    <string name="app_folder_maps">မြေပုံများ</string>
+    <string name="app_folder_travel">ခရီးသွားနှင့် လေကြောင်း</string>
     <string name="app_folder_weather">ရာသီဥတု</string>
     <string name="app_folders_dialog_done">ပြီးပါပြီ</string>
     <string name="app_folders_dialog_title">ဖိုလ်ဒါများ</string>
@@ -312,6 +316,9 @@
     <string name="folder_icon_confirmation_number">လက်မှတ်များ</string>
     <string name="folder_icon_directions_bus">ဘတ်စ်ကား</string>
     <string name="folder_icon_directions_car">ကား</string>
+    <string name="folder_icon_pedal_bike">စက်ဘီး</string>
+    <string name="folder_icon_hotel">ကုတင်</string>
+    <string name="folder_icon_map">မြေပုံ</string>
     <string name="folder_icon_eco">သဘာဝ</string>
     <string name="folder_icon_family_restroom">မိသားစု</string>
     <string name="folder_icon_favorite">နှလုံး</string>

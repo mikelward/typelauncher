@@ -289,8 +289,12 @@
     <string name="app_folder_social">Sare sozialak eta mezuak</string>
     <string name="app_folder_sports">Kirolak</string>
     <string name="app_folder_tools">Tresnak</string>
-    <string name="app_folder_transport">Garraioa</string>
-    <string name="app_folder_travel">Bidaiak</string>
+    <string name="app_folder_transit">Garraio publikoa eta trena</string>
+    <string name="app_folder_car">Autoa</string>
+    <string name="app_folder_cycling">Bizikleta eta bizikleta partekatua</string>
+    <string name="app_folder_hotels">Hotelak eta ostatuak</string>
+    <string name="app_folder_maps">Mapak</string>
+    <string name="app_folder_travel">Bidaiak eta hegaldiak</string>
     <string name="app_folder_weather">Eguraldia</string>
     <string name="app_folders_dialog_done">Eginda</string>
     <string name="app_folders_dialog_title">Karpetak</string>
@@ -313,6 +317,9 @@
     <string name="folder_icon_confirmation_number">Sarrerak</string>
     <string name="folder_icon_directions_bus">Autobusa</string>
     <string name="folder_icon_directions_car">Autoa</string>
+    <string name="folder_icon_pedal_bike">Bizikleta</string>
+    <string name="folder_icon_hotel">Ohea</string>
+    <string name="folder_icon_map">Mapa</string>
     <string name="folder_icon_eco">Natura</string>
     <string name="folder_icon_family_restroom">Familia</string>
     <string name="folder_icon_favorite">Bihotza</string>

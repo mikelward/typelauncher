@@ -289,8 +289,12 @@
     <string name="app_folder_social">Ezenhlalo nemilayezo</string>
     <string name="app_folder_sports">Ezemidlalo</string>
     <string name="app_folder_tools">Amathuluzi</string>
-    <string name="app_folder_transport">Ezokuthutha</string>
-    <string name="app_folder_travel">Ukuvakasha</string>
+    <string name="app_folder_transit">Ezokuthutha zomphakathi nezitimela</string>
+    <string name="app_folder_car">Imoto</string>
+    <string name="app_folder_cycling">Amabhayisikili nokuqasha amabhayisikili</string>
+    <string name="app_folder_hotels">Amahhotela nezindawo zokuhlala</string>
+    <string name="app_folder_maps">Amamephu</string>
+    <string name="app_folder_travel">Ukuvakasha nezindiza</string>
     <string name="app_folder_weather">Isimo sezulu</string>
     <string name="app_folders_dialog_done">Kwenziwe</string>
     <string name="app_folders_dialog_title">Amafolda</string>
@@ -313,6 +317,9 @@
     <string name="folder_icon_confirmation_number">Amathikithi</string>
     <string name="folder_icon_directions_bus">Ibhasi</string>
     <string name="folder_icon_directions_car">Imoto</string>
+    <string name="folder_icon_pedal_bike">Ibhayisikili</string>
+    <string name="folder_icon_hotel">Umbhede</string>
+    <string name="folder_icon_map">Imephu</string>
     <string name="folder_icon_eco">Imvelo</string>
     <string name="folder_icon_family_restroom">Umndeni</string>
     <string name="folder_icon_favorite">Inhliziyo</string>

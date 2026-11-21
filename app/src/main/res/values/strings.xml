@@ -191,6 +191,9 @@
     <string name="folder_icon_directions_bus">Bus</string>
     <string name="folder_icon_train">Train</string>
     <string name="folder_icon_directions_car">Car</string>
+    <string name="folder_icon_pedal_bike">Bicycle</string>
+    <string name="folder_icon_hotel">Bed</string>
+    <string name="folder_icon_map">Map</string>
     <string name="folder_icon_flight">Plane</string>
     <string name="folder_icon_restaurant">Food</string>
     <string name="folder_icon_language">Internet</string>
@@ -256,7 +259,11 @@
     <string name="app_folder_security">Security</string>
     <string name="app_folder_post">Post &amp; parcels</string>
     <string name="app_folder_sports">Sports</string>
-    <string name="app_folder_transport">Transport</string>
+    <string name="app_folder_transit">Public transit &amp; rail</string>
+    <string name="app_folder_car">Car</string>
+    <string name="app_folder_cycling">Cycling &amp; bike share</string>
+    <string name="app_folder_hotels">Hotels &amp; stays</string>
+    <string name="app_folder_maps">Maps</string>
     <string name="app_folder_weather">Weather</string>
     <string name="app_folder_phone">Phone</string>
     <string name="app_folder_reading">Reading</string>
@@ -274,7 +281,7 @@
     <string name="app_folder_shopping">Shopping</string>
     <string name="app_folder_social">Social &amp; messages</string>
     <string name="app_folder_tools">Tools</string>
-    <string name="app_folder_travel">Travel</string>
+    <string name="app_folder_travel">Travel &amp; flights</string>
     <string name="app_folder_other">Other</string>
     <!-- "Sort with on-device AI": its Settings switch and action, what it's doing, and its offer at the top of the Other folder. -->
     <string name="settings_ai_sort_title">Sort with on-device AI</string>

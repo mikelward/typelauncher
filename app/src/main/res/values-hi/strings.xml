@@ -289,8 +289,12 @@
     <string name="app_folder_social">सोशल और मैसेज</string>
     <string name="app_folder_sports">खेल</string>
     <string name="app_folder_tools">टूल</string>
-    <string name="app_folder_transport">परिवहन</string>
-    <string name="app_folder_travel">यात्रा</string>
+    <string name="app_folder_transit">सार्वजनिक परिवहन और रेल</string>
+    <string name="app_folder_car">कार</string>
+    <string name="app_folder_cycling">साइकिल और बाइक शेयर</string>
+    <string name="app_folder_hotels">होटल और ठहरने की जगहें</string>
+    <string name="app_folder_maps">मैप</string>
+    <string name="app_folder_travel">यात्रा और फ़्लाइट</string>
     <string name="app_folder_weather">मौसम</string>
     <string name="app_folders_dialog_done">हो गया</string>
     <string name="app_folders_dialog_title">फ़ोल्डर</string>
@@ -313,6 +317,9 @@
     <string name="folder_icon_confirmation_number">टिकट</string>
     <string name="folder_icon_directions_bus">बस</string>
     <string name="folder_icon_directions_car">कार</string>
+    <string name="folder_icon_pedal_bike">साइकिल</string>
+    <string name="folder_icon_hotel">बिस्तर</string>
+    <string name="folder_icon_map">मैप</string>
     <string name="folder_icon_eco">प्रकृति</string>
     <string name="folder_icon_family_restroom">परिवार</string>
     <string name="folder_icon_favorite">दिल</string>

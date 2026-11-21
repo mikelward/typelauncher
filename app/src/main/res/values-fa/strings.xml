@@ -289,8 +289,12 @@
     <string name="app_folder_social">شبکه‌های اجتماعی و پیام‌ها</string>
     <string name="app_folder_sports">ورزش</string>
     <string name="app_folder_tools">ابزارها</string>
-    <string name="app_folder_transport">حمل‌ونقل</string>
-    <string name="app_folder_travel">سفر</string>
+    <string name="app_folder_transit">حمل‌ونقل عمومی و قطار</string>
+    <string name="app_folder_car">خودرو</string>
+    <string name="app_folder_cycling">دوچرخه و دوچرخهٔ اشتراکی</string>
+    <string name="app_folder_hotels">هتل و اقامتگاه</string>
+    <string name="app_folder_maps">نقشه‌ها</string>
+    <string name="app_folder_travel">سفر و پرواز</string>
     <string name="app_folder_weather">آب‌وهوا</string>
     <string name="app_folders_dialog_done">انجام شد</string>
     <string name="app_folders_dialog_title">پوشه‌ها</string>
@@ -313,6 +317,9 @@
     <string name="folder_icon_confirmation_number">بلیت‌ها</string>
     <string name="folder_icon_directions_bus">اتوبوس</string>
     <string name="folder_icon_directions_car">خودرو</string>
+    <string name="folder_icon_pedal_bike">دوچرخه</string>
+    <string name="folder_icon_hotel">تخت</string>
+    <string name="folder_icon_map">نقشه</string>
     <string name="folder_icon_eco">طبیعت</string>
     <string name="folder_icon_family_restroom">خانواده</string>
     <string name="folder_icon_favorite">قلب</string>

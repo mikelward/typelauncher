@@ -11,7 +11,7 @@ package app.typelauncher
 
 /**
  * The folder an app always goes in, ahead of the AI: a well-known app by its
- * package (Netflix in Media, Waze in Transport), one from a games publisher
+ * package (Netflix in Media, Waze in Car), one from a games publisher
  * by its package prefix (Netflix's games, `com.netflix.NGP.*`, in Games), or
  * one whose [label] has a word that says what it is ("Samsung Internet",
  * "Messages"). Null when none of these applies.
@@ -156,53 +156,53 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "cineplex" to AppCategory.Media,
     "kivoreels" to AppCategory.Media,
     "my sky" to AppCategory.Media,
-    "gasbuddy" to AppCategory.Transport,
-    "mobil" to AppCategory.Transport,
-    "linkt" to AppCategory.Transport,
-    "paymypark" to AppCategory.Transport,
-    "parkmate" to AppCategory.Transport,
-    "nzta" to AppCategory.Transport,
-    "waka kotahi" to AppCategory.Transport,
-    "myrac" to AppCategory.Transport,
-    "rac" to AppCategory.Transport,
-    "the aa" to AppCategory.Transport,
-    "nrma" to AppCategory.Transport,
-    "toyota" to AppCategory.Transport,
-    "nissan" to AppCategory.Transport,
-    "honda" to AppCategory.Transport,
-    "hyundai" to AppCategory.Transport,
-    "kia" to AppCategory.Transport,
-    "tesla" to AppCategory.Transport,
-    "bmw" to AppCategory.Transport,
-    "mercedes" to AppCategory.Transport,
-    "audi" to AppCategory.Transport,
-    "porsche" to AppCategory.Transport,
-    "volvo" to AppCategory.Transport,
-    "renault" to AppCategory.Transport,
-    "peugeot" to AppCategory.Transport,
-    "citroen" to AppCategory.Transport,
-    "skoda" to AppCategory.Transport,
-    "fiat" to AppCategory.Transport,
-    "jaguar" to AppCategory.Transport,
-    "land rover" to AppCategory.Transport,
-    "mazda" to AppCategory.Transport,
-    "subaru" to AppCategory.Transport,
-    "mitsubishi" to AppCategory.Transport,
-    "chevrolet" to AppCategory.Transport,
-    "jeep" to AppCategory.Transport,
-    "lexus" to AppCategory.Transport,
-    "polestar" to AppCategory.Transport,
-    "byd" to AppCategory.Transport,
-    "cupra" to AppCategory.Transport,
-    "vauxhall" to AppCategory.Transport,
-    "ford" to AppCategory.Transport,
-    "dacia" to AppCategory.Transport,
-    "suzuki" to AppCategory.Transport,
-    "autotrader" to AppCategory.Transport,
-    "carsales" to AppCategory.Transport,
-    "carfax" to AppCategory.Transport,
-    "cazoo" to AppCategory.Transport,
-    "vrbo" to AppCategory.Travel,
+    "gasbuddy" to AppCategory.Car,
+    "mobil" to AppCategory.Car,
+    "linkt" to AppCategory.Car,
+    "paymypark" to AppCategory.Car,
+    "parkmate" to AppCategory.Car,
+    "nzta" to AppCategory.Car,
+    "waka kotahi" to AppCategory.Car,
+    "myrac" to AppCategory.Car,
+    "rac" to AppCategory.Car,
+    "the aa" to AppCategory.Car,
+    "nrma" to AppCategory.Car,
+    "toyota" to AppCategory.Car,
+    "nissan" to AppCategory.Car,
+    "honda" to AppCategory.Car,
+    "hyundai" to AppCategory.Car,
+    "kia" to AppCategory.Car,
+    "tesla" to AppCategory.Car,
+    "bmw" to AppCategory.Car,
+    "mercedes" to AppCategory.Car,
+    "audi" to AppCategory.Car,
+    "porsche" to AppCategory.Car,
+    "volvo" to AppCategory.Car,
+    "renault" to AppCategory.Car,
+    "peugeot" to AppCategory.Car,
+    "citroen" to AppCategory.Car,
+    "skoda" to AppCategory.Car,
+    "fiat" to AppCategory.Car,
+    "jaguar" to AppCategory.Car,
+    "land rover" to AppCategory.Car,
+    "mazda" to AppCategory.Car,
+    "subaru" to AppCategory.Car,
+    "mitsubishi" to AppCategory.Car,
+    "chevrolet" to AppCategory.Car,
+    "jeep" to AppCategory.Car,
+    "lexus" to AppCategory.Car,
+    "polestar" to AppCategory.Car,
+    "byd" to AppCategory.Car,
+    "cupra" to AppCategory.Car,
+    "vauxhall" to AppCategory.Car,
+    "ford" to AppCategory.Car,
+    "dacia" to AppCategory.Car,
+    "suzuki" to AppCategory.Car,
+    "autotrader" to AppCategory.Car,
+    "carsales" to AppCategory.Car,
+    "carfax" to AppCategory.Car,
+    "cazoo" to AppCategory.Car,
+    "vrbo" to AppCategory.Hotels,
     "air nz" to AppCategory.Travel,
     "mychart" to AppCategory.Health,
     "healthengine" to AppCategory.Health,
@@ -226,7 +226,7 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "biblescroll" to AppCategory.Reading,
     "quran" to AppCategory.Reading,
     "rednote" to AppCategory.Social,
-    "volkswagen" to AppCategory.Transport,
+    "volkswagen" to AppCategory.Car,
     "miele" to AppCategory.Home,
     "starlink" to AppCategory.Internet,
     "saily" to AppCategory.Phone,
@@ -273,8 +273,8 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "courier mail" to AppCategory.News,
     "security camera" to AppCategory.Home,
     "home security" to AppCategory.Home,
-    "tfl" to AppCategory.Transport,
-    "transperth" to AppCategory.Transport,
+    "tfl" to AppCategory.Transit,
+    "transperth" to AppCategory.Transit,
     // AI assistants by name, now that "AI" alone doesn't file an app.
     "claude" to AppCategory.Ai,
     "perplexity" to AppCategory.Ai,
@@ -296,7 +296,7 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "fire tv" to AppCategory.Media,
     "antigravity" to AppCategory.Code,
     // Parking; ahead of "phone", which would make it Phone.
-    "paybyphone" to AppCategory.Transport,
+    "paybyphone" to AppCategory.Car,
 ) + listOf(
     // Password managers, authenticators and privacy monitoring (maintainer,
     // 2026-11-19). Not "keeper" (goalkeeper games) or "aura" (Aura Frames).
@@ -336,13 +336,40 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "ringgo", "justpark", "parkmobile", "spothero", "easypark", "parkwhiz", "parkopedia",
     "flowbird", "mipermit", "cellopark", "honk mobile", "yourparkingspace", "apcoa", "ncp",
     "q park", "wilson parking", "secure parking",
-).map { it to AppCategory.Transport } + listOf(
-    // Car rental and car sharing, for Travel. Not bare "enterprise", "budget",
+).map { it to AppCategory.Car } + listOf(
+    // Car rental and car sharing, in Car (maintainer, 2026-11-21). Not bare "enterprise", "budget",
     // "national" or "dollar", which are ordinary words.
     "sixt", "hertz", "avis", "europcar", "enterprise rent", "budget car", "alamo rent",
     "national car rental", "thrifty", "dollar car", "turo", "getaround", "zipcar", "share now",
     "free2move", "goget", "rentalcars", "discover cars", "car rental", "rent a car",
-).map { it to AppCategory.Travel } + listOf(
+).map { it to AppCategory.Car } + listOf(
+    // Ahead of "uber": a pinned Uber Eats shortcut has no package to go by
+    // (Codex on PR #887).
+    "uber eats",
+).map { it to AppCategory.Food } + listOf(
+    // Rideshare and taxis, in Car (maintainer, 2026-11-21). Not "grab",
+    // "bolt" or "ola", which are ordinary words; those are matched by package.
+    "uber", "lyft", "didi", "freenow", "free now", "indrive", "cabify", "addison lee", "13cabs",
+    "careem", "gett", "blablacar", "waze",
+).map { it to AppCategory.Car } + listOf(
+    // Maps and route planners.
+    "google maps", "organic maps", "osmand", "here wego", "alltrails", "citymapper", "maps me",
+).map { it to AppCategory.Maps } + listOf(
+    // Public transit and rail.
+    "trainline", "national rail", "amtrak", "moovit", "opal travel", "ptv", "metlink", "translink",
+    "transport for nsw", "tfl go", "mta", "septa", "via rail", "eurostar", "sncf connect",
+    "db navigator", "trenitalia", "renfe", "ns international", "omio",
+).map { it to AppCategory.Transit } + listOf(
+    // Bike share, e-scooters and cycling routes. Not "lime" or "bird",
+    // which are ordinary words; those are matched by package.
+    "santander cycles", "citi bike", "divvy", "bluebikes", "capital bikeshare", "nextbike",
+    // Not "tier" (tier lists) either.
+    "beryl", "voi", "dott", "komoot", "bike share",
+).map { it to AppCategory.Cycling } + listOf(
+    // Hotels, hotel loyalty and places to stay (maintainer, 2026-11-21).
+    "marriott", "hilton", "ihg", "hyatt", "accor", "all accor", "hotels com", "best western",
+    "wyndham", "radisson", "choice hotels", "premier inn", "travelodge", "airbnb",
+).map { it to AppCategory.Hotels } + listOf(
     // Theme parks, for Events & tickets (maintainer, 2026-11-21).
     "legoland", "disneyland", "my disney experience", "tokyo disney resort", "universal orlando",
     "universal studios", "universal hollywood", "six flags", "alton towers", "thorpe park",
@@ -399,15 +426,17 @@ private val LABEL_WORDS = listOf(
     "messenger" to AppCategory.Social,
     "messaging" to AppCategory.Social,
     "weather" to AppCategory.Weather,
-    "maps" to AppCategory.Transport,
-    "parking" to AppCategory.Transport,
-    "transit" to AppCategory.Transport,
-    "transport" to AppCategory.Transport,
+    "maps" to AppCategory.Maps,
+    "parking" to AppCategory.Car,
+    "transit" to AppCategory.Transit,
+    "transport" to AppCategory.Transit,
     "airways" to AppCategory.Travel,
     "airlines" to AppCategory.Travel,
     "airline" to AppCategory.Travel,
     // "Flights", "Flightradar24".
     "flight" to AppCategory.Travel,
+    "hotel" to AppCategory.Hotels,
+    "taxi" to AppCategory.Car,
     "music" to AppCategory.Music,
     "audiobook" to AppCategory.Reading,
     "kindle" to AppCategory.Reading,
@@ -501,8 +530,12 @@ private val GUESS_RULES = listOf(
     AppCategory.Health to listOf("health", "fitness", "gym", "workout", "yoga", "meditation", "sleep", "pharmacy", "medical", "doctor", "patient"),
     AppCategory.Learning to listOf("learn", "school", "education", "edu", "dictionary", "language", "course", "study", "flashcards"),
     AppCategory.Pets to listOf("pet", "pets", "dog", "dogs", "vet", "petcare"),
-    AppCategory.Transport to listOf("transit", "metro", "rail", "railway", "bus", "taxi", "parking", "maps", "navigation", "scooter", "car", "cars", "vehicle", "charging", "fuel", "petrol"),
-    AppCategory.Travel to listOf("airline", "airways", "flight", "hotel", "travel", "booking"),
+    AppCategory.Transit to listOf("transit", "metro", "rail", "railway", "bus"),
+    AppCategory.Car to listOf("taxi", "parking", "car", "cars", "vehicle", "charging", "fuel", "petrol"),
+    AppCategory.Maps to listOf("maps", "navigation"),
+    AppCategory.Cycling to listOf("scooter", "bikeshare", "cycling"),
+    AppCategory.Hotels to listOf("hotel", "hotels"),
+    AppCategory.Travel to listOf("airline", "airways", "flight", "travel", "booking"),
     AppCategory.Reading to listOf("ebook", "audiobook", "kindle", "comic", "manga", "novel", "librar"),
     AppCategory.Shopping to listOf("shop", "deals", "coupon", "marketplace"),
     AppCategory.Code to listOf("coding", "programming", "developer", "terminal", "ssh", "git", "python", "javascript"),
@@ -610,22 +643,31 @@ private val KNOWN_PACKAGES = listOf(
         com.tesco.grocery.view com.app.tgtg com.chickfila.cfaflagship com.chipotle.ordering
     """,
     AppCategory.Travel to """
-        com.booking com.airbnb.android com.expedia.bookings com.tripadvisor.tripadvisor
+        com.booking com.expedia.bookings com.tripadvisor.tripadvisor
         com.kayak.android com.hopper.mountainview.play net.skyscanner.android.main
         com.ryanair.cheapflights com.ba.mobile com.delta.mobile.android com.aa.android
-        com.united.mobile.android com.southwestairlines.mobile com.hcom.android
-        com.marriott.mrt com.hilton.android.hhonors com.ihg.apps.android com.tripit
-        com.vacationrentals.homeaway com.ehi.enterprise.android com.jetblue.JetBlueAndroid
+        com.united.mobile.android com.southwestairlines.mobile com.tripit com.jetblue.JetBlueAndroid
         com.jetstar.mobile com.emirates.ek.android com.qantas.qantasapp com.lufthansa.android.lufthansa
         com.klm.mobile.iflyapp com.easyjet.android com.alaskaairlines.android
     """,
-    AppCategory.Transport to """
-        com.google.android.apps.maps com.waze com.ubercab me.lyft.android ee.mtakso.client
-        com.citymapper.app.release com.tranzmate com.thetrainline net.sharewire.parkmobilev2
-        com.here.app.maps com.sygic.aura com.limebike com.bird com.teslamotors.tesla
-        com.coulombtech com.thetransitapp.droid com.amtrak.rider
-        com.google.android.projection.gearhead taxi.android.client com.grabtaxi.passenger
-        com.olacabs.customer
+    AppCategory.Maps to """
+        com.google.android.apps.maps com.citymapper.app.release com.here.app.maps com.sygic.aura
+        app.organicmaps net.osmand com.alltrails.alltrails
+    """,
+    AppCategory.Car to """
+        com.waze com.ubercab me.lyft.android ee.mtakso.client net.sharewire.parkmobilev2
+        com.teslamotors.tesla com.coulombtech com.google.android.projection.gearhead
+        taxi.android.client com.grabtaxi.passenger com.olacabs.customer com.ehi.enterprise.android
+    """,
+    AppCategory.Transit to """
+        com.tranzmate com.thetrainline com.thetransitapp.droid com.amtrak.rider
+    """,
+    AppCategory.Cycling to """
+        com.limebike com.bird
+    """,
+    AppCategory.Hotels to """
+        com.airbnb.android com.hcom.android com.marriott.mrt com.hilton.android.hhonors
+        com.ihg.apps.android com.vacationrentals.homeaway
     """,
     AppCategory.Weather to """
         com.accuweather.android com.weather.Weather com.handmark.expressweather

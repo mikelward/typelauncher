@@ -289,8 +289,12 @@
     <string name="app_folder_social">ማኅበራዊ እና መልዕክቶች</string>
     <string name="app_folder_sports">ስፖርት</string>
     <string name="app_folder_tools">መሣሪያዎች</string>
-    <string name="app_folder_transport">ትራንስፖርት</string>
-    <string name="app_folder_travel">ጉዞ</string>
+    <string name="app_folder_transit">የሕዝብ ትራንስፖርት እና ባቡር</string>
+    <string name="app_folder_car">መኪና</string>
+    <string name="app_folder_cycling">ብስክሌት እና የብስክሌት ኪራይ</string>
+    <string name="app_folder_hotels">ሆቴሎች እና ማረፊያዎች</string>
+    <string name="app_folder_maps">ካርታዎች</string>
+    <string name="app_folder_travel">ጉዞ እና በረራዎች</string>
     <string name="app_folder_weather">የአየር ሁኔታ</string>
     <string name="app_folders_dialog_done">ተጠናቋል</string>
     <string name="app_folders_dialog_title">አቃፊዎች</string>
@@ -313,6 +317,9 @@
     <string name="folder_icon_confirmation_number">ትኬቶች</string>
     <string name="folder_icon_directions_bus">አውቶቡስ</string>
     <string name="folder_icon_directions_car">መኪና</string>
+    <string name="folder_icon_pedal_bike">ብስክሌት</string>
+    <string name="folder_icon_hotel">አልጋ</string>
+    <string name="folder_icon_map">ካርታ</string>
     <string name="folder_icon_eco">ተፈጥሮ</string>
     <string name="folder_icon_family_restroom">ቤተሰብ</string>
     <string name="folder_icon_favorite">ልብ</string>

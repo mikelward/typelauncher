@@ -288,8 +288,12 @@
     <string name="app_folder_social">Sosial &amp; mesej</string>
     <string name="app_folder_sports">Sukan</string>
     <string name="app_folder_tools">Alatan</string>
-    <string name="app_folder_transport">Pengangkutan</string>
-    <string name="app_folder_travel">Perjalanan</string>
+    <string name="app_folder_transit">Pengangkutan awam &amp; kereta api</string>
+    <string name="app_folder_car">Kereta</string>
+    <string name="app_folder_cycling">Basikal &amp; sewa basikal</string>
+    <string name="app_folder_hotels">Hotel &amp; penginapan</string>
+    <string name="app_folder_maps">Peta</string>
+    <string name="app_folder_travel">Perjalanan &amp; penerbangan</string>
     <string name="app_folder_weather">Cuaca</string>
     <string name="app_folders_dialog_done">Selesai</string>
     <string name="app_folders_dialog_title">Folder</string>
@@ -312,6 +316,9 @@
     <string name="folder_icon_confirmation_number">Tiket</string>
     <string name="folder_icon_directions_bus">Bas</string>
     <string name="folder_icon_directions_car">Kereta</string>
+    <string name="folder_icon_pedal_bike">Basikal</string>
+    <string name="folder_icon_hotel">Katil</string>
+    <string name="folder_icon_map">Peta</string>
     <string name="folder_icon_eco">Alam semula jadi</string>
     <string name="folder_icon_family_restroom">Keluarga</string>
     <string name="folder_icon_favorite">Hati</string>

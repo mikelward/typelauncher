@@ -289,8 +289,12 @@
     <string name="app_folder_social">സോഷ്യലും സന്ദേശങ്ങളും</string>
     <string name="app_folder_sports">കായികം</string>
     <string name="app_folder_tools">ടൂളുകൾ</string>
-    <string name="app_folder_transport">ഗതാഗതം</string>
-    <string name="app_folder_travel">യാത്ര</string>
+    <string name="app_folder_transit">പൊതുഗതാഗതവും റെയിലും</string>
+    <string name="app_folder_car">കാർ</string>
+    <string name="app_folder_cycling">സൈക്ലിംഗും ബൈക്ക് ഷെയറും</string>
+    <string name="app_folder_hotels">ഹോട്ടലുകളും താമസവും</string>
+    <string name="app_folder_maps">മാപ്പുകൾ</string>
+    <string name="app_folder_travel">യാത്രയും ഫ്ലൈറ്റുകളും</string>
     <string name="app_folder_weather">കാലാവസ്ഥ</string>
     <string name="app_folders_dialog_done">പൂർത്തിയായി</string>
     <string name="app_folders_dialog_title">ഫോൾഡറുകൾ</string>
@@ -313,6 +317,9 @@
     <string name="folder_icon_confirmation_number">ടിക്കറ്റുകൾ</string>
     <string name="folder_icon_directions_bus">ബസ്</string>
     <string name="folder_icon_directions_car">കാർ</string>
+    <string name="folder_icon_pedal_bike">സൈക്കിൾ</string>
+    <string name="folder_icon_hotel">കിടക്ക</string>
+    <string name="folder_icon_map">മാപ്പ്</string>
     <string name="folder_icon_eco">പ്രകൃതി</string>
     <string name="folder_icon_family_restroom">കുടുംബം</string>
     <string name="folder_icon_favorite">ഹൃദയം</string>

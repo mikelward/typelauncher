@@ -290,8 +290,12 @@
     <string name="app_folder_social">Društvene mreže i poruke</string>
     <string name="app_folder_sports">Sport</string>
     <string name="app_folder_tools">Alati</string>
-    <string name="app_folder_transport">Prijevoz</string>
-    <string name="app_folder_travel">Putovanja</string>
+    <string name="app_folder_transit">Javni prijevoz i vlakovi</string>
+    <string name="app_folder_car">Automobil</string>
+    <string name="app_folder_cycling">Biciklizam i javni bicikli</string>
+    <string name="app_folder_hotels">Hoteli i smještaj</string>
+    <string name="app_folder_maps">Karte</string>
+    <string name="app_folder_travel">Putovanja i letovi</string>
     <string name="app_folder_weather">Vrijeme</string>
     <string name="app_folders_dialog_done">Gotovo</string>
     <string name="app_folders_dialog_title">Mape</string>
@@ -314,6 +318,9 @@
     <string name="folder_icon_confirmation_number">Ulaznice</string>
     <string name="folder_icon_directions_bus">Autobus</string>
     <string name="folder_icon_directions_car">Automobil</string>
+    <string name="folder_icon_pedal_bike">Bicikl</string>
+    <string name="folder_icon_hotel">Krevet</string>
+    <string name="folder_icon_map">Karta</string>
     <string name="folder_icon_eco">Priroda</string>
     <string name="folder_icon_family_restroom">Obitelj</string>
     <string name="folder_icon_favorite">Srce</string>

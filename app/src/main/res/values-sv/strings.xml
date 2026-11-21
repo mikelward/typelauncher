@@ -289,8 +289,12 @@
     <string name="app_folder_social">Sociala medier och meddelanden</string>
     <string name="app_folder_sports">Sport</string>
     <string name="app_folder_tools">Verktyg</string>
-    <string name="app_folder_transport">Transport</string>
-    <string name="app_folder_travel">Resor</string>
+    <string name="app_folder_transit">Kollektivtrafik och tåg</string>
+    <string name="app_folder_car">Bil</string>
+    <string name="app_folder_cycling">Cykling och lånecyklar</string>
+    <string name="app_folder_hotels">Hotell och boende</string>
+    <string name="app_folder_maps">Kartor</string>
+    <string name="app_folder_travel">Resor och flyg</string>
     <string name="app_folder_weather">Väder</string>
     <string name="app_folders_dialog_done">Klar</string>
     <string name="app_folders_dialog_title">Mappar</string>
@@ -313,6 +317,9 @@
     <string name="folder_icon_confirmation_number">Biljetter</string>
     <string name="folder_icon_directions_bus">Buss</string>
     <string name="folder_icon_directions_car">Bil</string>
+    <string name="folder_icon_pedal_bike">Cykel</string>
+    <string name="folder_icon_hotel">Säng</string>
+    <string name="folder_icon_map">Karta</string>
     <string name="folder_icon_eco">Natur</string>
     <string name="folder_icon_family_restroom">Familj</string>
     <string name="folder_icon_favorite">Hjärta</string>

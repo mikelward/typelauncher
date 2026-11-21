@@ -288,8 +288,12 @@
     <string name="app_folder_social">Mạng xã hội và tin nhắn</string>
     <string name="app_folder_sports">Thể thao</string>
     <string name="app_folder_tools">Công cụ</string>
-    <string name="app_folder_transport">Giao thông</string>
-    <string name="app_folder_travel">Du lịch</string>
+    <string name="app_folder_transit">Giao thông công cộng và tàu hỏa</string>
+    <string name="app_folder_car">Ô tô</string>
+    <string name="app_folder_cycling">Xe đạp và xe đạp công cộng</string>
+    <string name="app_folder_hotels">Khách sạn và chỗ ở</string>
+    <string name="app_folder_maps">Bản đồ</string>
+    <string name="app_folder_travel">Du lịch và chuyến bay</string>
     <string name="app_folder_weather">Thời tiết</string>
     <string name="app_folders_dialog_done">Xong</string>
     <string name="app_folders_dialog_title">Thư mục</string>
@@ -312,6 +316,9 @@
     <string name="folder_icon_confirmation_number">Vé</string>
     <string name="folder_icon_directions_bus">Xe buýt</string>
     <string name="folder_icon_directions_car">Ô tô</string>
+    <string name="folder_icon_pedal_bike">Xe đạp</string>
+    <string name="folder_icon_hotel">Giường</string>
+    <string name="folder_icon_map">Bản đồ</string>
     <string name="folder_icon_eco">Thiên nhiên</string>
     <string name="folder_icon_family_restroom">Gia đình</string>
     <string name="folder_icon_favorite">Trái tim</string>
