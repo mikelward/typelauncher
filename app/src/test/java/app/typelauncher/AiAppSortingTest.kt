@@ -18,7 +18,8 @@ class AiAppSortingTest {
         assertTrue(prompt, "1. Monzo (co.uk.getmondo)" in prompt)
         assertTrue(prompt, "2. Chess (com.chess)" in prompt)
         for (category in AppCategory.entries) {
-            assertTrue("missing ${category.storageKey}", "\n${category.storageKey}: " in prompt)
+            val word = AiSortFolders.plainWords(category.storageKey)
+            assertTrue("missing $word", "\n$word: " in prompt)
         }
     }
 
@@ -69,7 +70,7 @@ class AiAppSortingTest {
         // Waze went to tools and Apple TV to other (maintainer, 2026-11-19).
         val prompt = buildAiSortPrompt(listOf(bank))
 
-        assertTrue(prompt, "Waze is transport" in prompt)
+        assertTrue(prompt, "Waze is car" in prompt)
         assertTrue(prompt, "Apple TV is media" in prompt)
         assertTrue(prompt, "tools only for a utility no other folder fits" in prompt)
     }
@@ -107,7 +108,7 @@ class AiAppSortingTest {
     fun prompt_hasTheNewBuiltIns_andMediaNoLongerTakesMusicOrPhotos() {
         val lines = buildAiSortPrompt(listOf(bank)).lines()
 
-        for (word in listOf("ai", "code", "food", "government", "internet", "kids", "music", "pets", "phone", "photos", "post", "reading", "sports", "transport", "weather")) {
+        for (word in listOf("ai", "code", "food", "government", "internet", "kids", "music", "pets", "phone", "photos", "post", "reading", "sports", "public transit", "car", "maps", "cycling", "hotels", "weather")) {
             assertTrue(word, lines.any { it.startsWith("$word: ") })
         }
         val media = lines.first { it.startsWith("media: ") }
@@ -127,6 +128,15 @@ class AiAppSortingTest {
             mapOf("a" to "custom-1", "c" to "photos"),
             parseAiSortAnswer(answer, listOf(bank, chess, maps), folders),
         )
+    }
+
+    @Test
+    fun answer_aTwoWordBuiltIn_isReadWithOrWithoutItsUnderscore() {
+        // Codex on PR #887: the transit folder's key has an underscore.
+        val train = AiSortInput("t", "Rail Times", "com.example.rail")
+        assertTrue(buildAiSortPrompt(listOf(train)).lines().any { it.startsWith("public transit: ") })
+        assertEquals(mapOf("t" to "public_transit"), parseAiSortAnswer("1: public transit", listOf(train)))
+        assertEquals(mapOf("t" to "public_transit"), parseAiSortAnswer("1: public_transit", listOf(train)))
     }
 
     @Test

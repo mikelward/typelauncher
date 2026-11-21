@@ -101,7 +101,11 @@ internal fun AppCategory.labelRes(): Int = when (this) {
     AppCategory.Social -> R.string.app_folder_social
     AppCategory.Sports -> R.string.app_folder_sports
     AppCategory.Tools -> R.string.app_folder_tools
-    AppCategory.Transport -> R.string.app_folder_transport
+    AppCategory.Transit -> R.string.app_folder_transit
+    AppCategory.Car -> R.string.app_folder_car
+    AppCategory.Cycling -> R.string.app_folder_cycling
+    AppCategory.Hotels -> R.string.app_folder_hotels
+    AppCategory.Maps -> R.string.app_folder_maps
     AppCategory.Travel -> R.string.app_folder_travel
     AppCategory.Weather -> R.string.app_folder_weather
     AppCategory.Other -> R.string.app_folder_other
@@ -126,6 +130,9 @@ internal fun FolderIcon.vector(): ImageVector = when (this) {
     FolderIcon.DirectionsBus -> CategoryIcons.DirectionsBus
     FolderIcon.Train -> CategoryIcons.Train
     FolderIcon.DirectionsCar -> CategoryIcons.DirectionsCar
+    FolderIcon.PedalBike -> CategoryIcons.PedalBike
+    FolderIcon.Hotel -> CategoryIcons.Hotel
+    FolderIcon.Map -> CategoryIcons.Map
     FolderIcon.Flight -> CategoryIcons.Flight
     FolderIcon.Restaurant -> CategoryIcons.Restaurant
     FolderIcon.Language -> CategoryIcons.Language
@@ -178,6 +185,9 @@ internal fun FolderIcon.descriptionRes(): Int = when (this) {
     FolderIcon.DirectionsBus -> R.string.folder_icon_directions_bus
     FolderIcon.Train -> R.string.folder_icon_train
     FolderIcon.DirectionsCar -> R.string.folder_icon_directions_car
+    FolderIcon.PedalBike -> R.string.folder_icon_pedal_bike
+    FolderIcon.Hotel -> R.string.folder_icon_hotel
+    FolderIcon.Map -> R.string.folder_icon_map
     FolderIcon.Flight -> R.string.folder_icon_flight
     FolderIcon.Restaurant -> R.string.folder_icon_restaurant
     FolderIcon.Language -> R.string.folder_icon_language

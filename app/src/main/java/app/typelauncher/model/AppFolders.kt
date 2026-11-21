@@ -17,7 +17,9 @@ import androidx.compose.runtime.Immutable
 internal enum class AppCategory(val storageKey: String, val icon: FolderIcon) {
     Ai("ai", FolderIcon.AutoAwesome),
     Betting("betting", FolderIcon.Casino),
+    Car("car", FolderIcon.DirectionsCar),
     Code("code", FolderIcon.Code),
+    Cycling("cycling", FolderIcon.PedalBike),
     Design("design", FolderIcon.Palette),
     Events("events", FolderIcon.ConfirmationNumber),
     Finance("finance", FolderIcon.Paid),
@@ -26,10 +28,12 @@ internal enum class AppCategory(val storageKey: String, val icon: FolderIcon) {
     Government("government", FolderIcon.AccountBalance),
     Health("health", FolderIcon.Favorite),
     Home("home", FolderIcon.Home),
+    Hotels("hotels", FolderIcon.Hotel),
     Internet("internet", FolderIcon.Language),
     Jobs("jobs", FolderIcon.Work),
     Kids("kids", FolderIcon.ChildCare),
     Learning("learning", FolderIcon.School),
+    Maps("maps", FolderIcon.Map),
     Media("media", FolderIcon.PlayCircle),
     Music("music", FolderIcon.MusicNote),
     News("news", FolderIcon.Newspaper),
@@ -38,6 +42,8 @@ internal enum class AppCategory(val storageKey: String, val icon: FolderIcon) {
     Phone("phone", FolderIcon.Call),
     Photos("photos", FolderIcon.PhotoCamera),
     Post("post", FolderIcon.MarkunreadMailbox),
+    // "Public transit & rail"; keyed so it sorts where its English name does.
+    Transit("public_transit", FolderIcon.Train),
     Security("security", FolderIcon.Lock),
     Reading("reading", FolderIcon.MenuBook),
     Rewards("rewards", FolderIcon.Loyalty),
@@ -45,8 +51,7 @@ internal enum class AppCategory(val storageKey: String, val icon: FolderIcon) {
     Social("social", FolderIcon.Chat),
     Sports("sports", FolderIcon.SportsSoccer),
     Tools("tools", FolderIcon.Build),
-    Transport("transport", FolderIcon.DirectionsBus),
-    Travel("travel", FolderIcon.Travel),
+    Travel("travel", FolderIcon.Flight),
     Weather("weather", FolderIcon.PartlyCloudyDay),
 
     // Every app no other folder takes (see `groupAppList`).
@@ -83,6 +88,9 @@ internal enum class FolderIcon(val storageKey: String) {
     DirectionsBus("directions_bus"),
     Train("train"),
     DirectionsCar("directions_car"),
+    PedalBike("pedal_bike"),
+    Hotel("hotel"),
+    Map("map"),
     Flight("flight"),
     Restaurant("restaurant"),
     Language("language"),
@@ -170,7 +178,7 @@ internal fun declaredAppCategory(category: Int, flags: Int): AppCategory? = when
     ApplicationInfo.CATEGORY_IMAGE -> AppCategory.Photos
     ApplicationInfo.CATEGORY_SOCIAL -> AppCategory.Social
     ApplicationInfo.CATEGORY_NEWS -> AppCategory.News
-    ApplicationInfo.CATEGORY_MAPS -> AppCategory.Transport
+    ApplicationInfo.CATEGORY_MAPS -> AppCategory.Maps
     else -> if (flags and FLAG_IS_GAME != 0) AppCategory.Games else null
 }
 

@@ -289,8 +289,12 @@
     <string name="app_folder_social">Sosyal ve mesajlar</string>
     <string name="app_folder_sports">Spor</string>
     <string name="app_folder_tools">Araçlar</string>
-    <string name="app_folder_transport">Ulaşım</string>
-    <string name="app_folder_travel">Seyahat</string>
+    <string name="app_folder_transit">Toplu taşıma ve tren</string>
+    <string name="app_folder_car">Araba</string>
+    <string name="app_folder_cycling">Bisiklet ve paylaşımlı bisiklet</string>
+    <string name="app_folder_hotels">Oteller ve konaklama</string>
+    <string name="app_folder_maps">Haritalar</string>
+    <string name="app_folder_travel">Seyahat ve uçuşlar</string>
     <string name="app_folder_weather">Hava durumu</string>
     <string name="app_folders_dialog_done">Tamam</string>
     <string name="app_folders_dialog_title">Klasörler</string>
@@ -313,6 +317,9 @@
     <string name="folder_icon_confirmation_number">Biletler</string>
     <string name="folder_icon_directions_bus">Otobüs</string>
     <string name="folder_icon_directions_car">Araba</string>
+    <string name="folder_icon_pedal_bike">Bisiklet</string>
+    <string name="folder_icon_hotel">Yatak</string>
+    <string name="folder_icon_map">Harita</string>
     <string name="folder_icon_eco">Doğa</string>
     <string name="folder_icon_family_restroom">Aile</string>
     <string name="folder_icon_favorite">Kalp</string>

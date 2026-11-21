@@ -288,8 +288,12 @@
     <string name="app_folder_social">社交和消息</string>
     <string name="app_folder_sports">体育</string>
     <string name="app_folder_tools">工具</string>
-    <string name="app_folder_transport">交通</string>
-    <string name="app_folder_travel">旅行</string>
+    <string name="app_folder_transit">公共交通和铁路</string>
+    <string name="app_folder_car">汽车</string>
+    <string name="app_folder_cycling">骑行和共享单车</string>
+    <string name="app_folder_hotels">酒店和住宿</string>
+    <string name="app_folder_maps">地图</string>
+    <string name="app_folder_travel">旅行和机票</string>
     <string name="app_folder_weather">天气</string>
     <string name="app_folders_dialog_done">完成</string>
     <string name="app_folders_dialog_title">文件夹</string>
@@ -312,6 +316,9 @@
     <string name="folder_icon_confirmation_number">票务</string>
     <string name="folder_icon_directions_bus">公交</string>
     <string name="folder_icon_directions_car">汽车</string>
+    <string name="folder_icon_pedal_bike">自行车</string>
+    <string name="folder_icon_hotel">床</string>
+    <string name="folder_icon_map">地图</string>
     <string name="folder_icon_eco">自然</string>
     <string name="folder_icon_family_restroom">家庭</string>
     <string name="folder_icon_favorite">爱心</string>

@@ -289,8 +289,12 @@
     <string name="app_folder_social">Sosialt og meldinger</string>
     <string name="app_folder_sports">Sport</string>
     <string name="app_folder_tools">Verktøy</string>
-    <string name="app_folder_transport">Transport</string>
-    <string name="app_folder_travel">Reise</string>
+    <string name="app_folder_transit">Kollektivtransport og tog</string>
+    <string name="app_folder_car">Bil</string>
+    <string name="app_folder_cycling">Sykkel og bysykkel</string>
+    <string name="app_folder_hotels">Hotell og overnatting</string>
+    <string name="app_folder_maps">Kart</string>
+    <string name="app_folder_travel">Reise og fly</string>
     <string name="app_folder_weather">Vær</string>
     <string name="app_folders_dialog_done">Ferdig</string>
     <string name="app_folders_dialog_title">Mapper</string>
@@ -313,6 +317,9 @@
     <string name="folder_icon_confirmation_number">Billetter</string>
     <string name="folder_icon_directions_bus">Buss</string>
     <string name="folder_icon_directions_car">Bil</string>
+    <string name="folder_icon_pedal_bike">Sykkel</string>
+    <string name="folder_icon_hotel">Seng</string>
+    <string name="folder_icon_map">Kart</string>
     <string name="folder_icon_eco">Natur</string>
     <string name="folder_icon_family_restroom">Familie</string>
     <string name="folder_icon_favorite">Hjerte</string>

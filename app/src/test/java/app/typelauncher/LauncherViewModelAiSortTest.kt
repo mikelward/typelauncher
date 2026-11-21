@@ -126,7 +126,7 @@ class LauncherViewModelAiSortTest {
         model.answer = { prompt -> answerFrom(prompt, emptyMap()) }
         val viewModel = startedViewModel()
 
-        viewModel.deleteAppFolder(AppFolderDef.builtIn(AppCategory.Transport))
+        viewModel.deleteAppFolder(AppFolderDef.builtIn(AppCategory.Car))
         idle()
 
         assertTrue(model.prompts.any { "Waze (com.waze)" in it })

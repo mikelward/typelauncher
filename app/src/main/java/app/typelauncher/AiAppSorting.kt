@@ -186,6 +186,9 @@ internal class AiSortFolders(val folders: List<AppFolderDef>) {
     val version: Int get() = buildAiSortPrompt(emptyList(), this).hashCode().let { if (it == 0) 1 else it }
 
     companion object {
+        // Ahead of Default, whose folders are read with it.
+        private val NOT_A_WORD = Regex("""[^\p{L}\p{N}-]+""")
+
         val Default = AiSortFolders(activeAppFolders(emptyList(), emptySet()))
 
         /**
@@ -194,12 +197,13 @@ internal class AiSortFolders(val folders: List<AppFolderDef>) {
          * ("Work (personal)" is "work personal"); its key if nothing's left.
          */
         fun answerWord(folder: AppFolderDef): String =
-            folder.category?.storageKey ?: plainWords(folder.name).ifEmpty { folder.key }
+            // Built-ins read the same way answers are read, so a key such as
+            // "public_transit" is "public transit" both ways (Codex on PR #887).
+            folder.category?.storageKey?.let(::plainWords) ?: plainWords(folder.name).ifEmpty { folder.key }
 
         fun plainWords(text: String): String =
             text.replace(NOT_A_WORD, " ").trim().lowercase().take(AI_SORT_MAX_LABEL_CHARS)
 
-        private val NOT_A_WORD = Regex("""[^\p{L}\p{N}-]+""")
     }
 }
 
@@ -354,9 +358,12 @@ private fun String.sanitizedForPrompt(): String =
 // Apple TV and Red Dead Redemption are here because it filed them under tools,
 // other and media (maintainer, 2026-11-19).
 private val AI_SORT_EXAMPLES = listOf(
-    "Waze" to AppCategory.Transport,
-    "Google Maps" to AppCategory.Transport,
-    "Uber" to AppCategory.Transport,
+    "Waze" to AppCategory.Car,
+    "Google Maps" to AppCategory.Maps,
+    "Uber" to AppCategory.Car,
+    "Trainline" to AppCategory.Transit,
+    "Lime" to AppCategory.Cycling,
+    "Marriott Bonvoy" to AppCategory.Hotels,
     "Booking.com" to AppCategory.Travel,
     "AccuWeather" to AppCategory.Weather,
     "Apple TV" to AppCategory.Media,
@@ -436,8 +443,12 @@ private val AI_SORT_FOLDER_DESCRIPTIONS = mapOf(
     AppCategory.Sports to "sports scores and news, teams and leagues, fantasy sports, sports streaming; not betting",
     AppCategory.Security to "password managers, authenticator and two-factor apps, antivirus, identity theft, data breach and privacy monitoring",
     AppCategory.Tools to "files, calculators, clocks, settings, keyboards, other utilities",
-    AppCategory.Transport to "maps, navigation and traffic, public transit, trains and buses, rideshare and taxis, parking, EV charging, bikes and scooters, cars",
-    AppCategory.Travel to "airlines and flights, airports and border control, hotels, travel booking, car rental",
+    AppCategory.Maps to "maps, navigation, hiking and trail maps, route planners",
+    AppCategory.Car to "car makers' apps, driving navigation and traffic, fuel and EV charging, parking, tolls, motoring clubs, buying and selling cars, car rental and car sharing, rideshare and taxis",
+    AppCategory.Transit to "public transit, trains, buses, metro, trams and ferries, tickets and timetables",
+    AppCategory.Cycling to "bike share, e-scooters, cycling routes",
+    AppCategory.Hotels to "hotels and hotel loyalty programs, holiday rentals and places to stay",
+    AppCategory.Travel to "airlines and flights, airports and border control, trip planning, travel booking sites",
     AppCategory.Weather to "weather forecasts, radar, air quality",
     AppCategory.Other to "anything that fits none of the above",
 )

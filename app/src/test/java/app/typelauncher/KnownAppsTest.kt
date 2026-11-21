@@ -11,7 +11,7 @@ class KnownAppsTest {
         // The maintainer, 2026-11-19: Netflix was wrong; handle the common ones.
         assertEquals(AppCategory.Media, knownAppCategory("com.netflix.mediaclient"))
         assertEquals(AppCategory.Social, knownAppCategory("com.whatsapp"))
-        assertEquals(AppCategory.Transport, knownAppCategory("com.waze"))
+        assertEquals(AppCategory.Car, knownAppCategory("com.waze"))
         assertEquals(AppCategory.Health, knownAppCategory("com.sec.android.app.shealth"))
         assertEquals(AppCategory.Internet, knownAppCategory("com.sec.android.app.sbrowser"))
         assertEquals(AppCategory.Photos, knownAppCategory("com.google.android.apps.photos"))
@@ -39,7 +39,7 @@ class KnownAppsTest {
         assertEquals(AppCategory.Social, knownAppCategory("com.example.g", "Messages"))
         assertEquals(AppCategory.Health, knownAppCategory("com.example.i", "MyFitnessPal"))
         assertEquals(AppCategory.Health, knownAppCategory("com.example.k", "Peloton"))
-        assertEquals(AppCategory.Transport, knownAppCategory("com.example.l", "OsmAnd Maps"))
+        assertEquals(AppCategory.Maps, knownAppCategory("com.example.l", "OsmAnd Maps"))
         assertEquals(AppCategory.Music, knownAppCategory("com.example.m", "Apple Music"))
         // The maintainer, 2026-11-19: a Phone folder for the phone app and
         // carriers. Not anything named "phone" or "mobile": in Play's top
@@ -62,11 +62,11 @@ class KnownAppsTest {
             "bet365 - Sportsbook & Casino" to AppCategory.Betting,
             "The Courier-Mail: QLD News" to AppCategory.News,
             "AlfredCamera Home Security app" to AppCategory.Home,
-            "RingGo: Mobile Car Parking App" to AppCategory.Transport,
+            "RingGo: Mobile Car Parking App" to AppCategory.Car,
             "Flightradar24 Flight Tracker" to AppCategory.Travel,
-            "TfL Go: Plan, Pay, Travel" to AppCategory.Transport,
+            "TfL Go: Plan, Pay, Travel" to AppCategory.Transit,
             // Codex on PR #875: "sport" must start a word, not end one.
-            "Public Transport Victoria app" to AppCategory.Transport,
+            "Public Transport Victoria app" to AppCategory.Transit,
             "Passport Renewal" to null,
         )) {
             assertEquals(label, category, knownAppCategory("com.example.q4", label))
@@ -119,13 +119,13 @@ class KnownAppsTest {
             "Starlink" to AppCategory.Internet,
             "LoungeKey" to AppCategory.Travel,
             "9Now" to AppCategory.Media,
-            "Toyota Connect" to AppCategory.Transport,
-            "Kia Connect" to AppCategory.Transport,
+            "Toyota Connect" to AppCategory.Car,
+            "Kia Connect" to AppCategory.Car,
             "Tesco Mobile" to AppCategory.Phone,
             "CommSec" to AppCategory.Finance,
-            "The AA (NZ)" to AppCategory.Transport,
-            "RAC" to AppCategory.Transport,
-            "My NRMA" to AppCategory.Transport,
+            "The AA (NZ)" to AppCategory.Car,
+            "RAC" to AppCategory.Car,
+            "My NRMA" to AppCategory.Car,
             "Costa Coffee Club" to AppCategory.Food,
             "BWS" to AppCategory.Food,
             "Liquorland" to AppCategory.Food,
@@ -139,7 +139,7 @@ class KnownAppsTest {
             "YouTube TV: Live TV & more" to AppCategory.Media,
             "Hive" to AppCategory.Home,
             "Employment Hero Work" to AppCategory.Jobs,
-            "Volkswagen Car-Net" to AppCategory.Transport,
+            "Volkswagen Car-Net" to AppCategory.Car,
             "Miele Professional" to AppCategory.Home,
             "Three" to AppCategory.Phone,
             "Wanderlog" to AppCategory.Travel,
@@ -176,7 +176,7 @@ class KnownAppsTest {
             "Pret" to AppCategory.Food,
             "Amazon Fire TV" to AppCategory.Media,
             "Antigravity" to AppCategory.Code,
-            "PayByPhone" to AppCategory.Transport,
+            "PayByPhone" to AppCategory.Car,
         )) {
             assertEquals(label, category, knownAppCategory("com.example.t", label))
         }
@@ -228,21 +228,44 @@ class KnownAppsTest {
             "Mullvad VPN" to AppCategory.Internet,
             "Firefox Focus: No Fuss Browser" to AppCategory.Internet,
             "Ecosia" to AppCategory.Internet,
-            "RingGo: Mobile Car Parking App" to AppCategory.Transport,
-            "JustPark" to AppCategory.Transport,
-            "ParkMobile" to AppCategory.Transport,
+            "RingGo: Mobile Car Parking App" to AppCategory.Car,
+            "JustPark" to AppCategory.Car,
+            "ParkMobile" to AppCategory.Car,
             "LEGOLAND Windsor Resort" to AppCategory.Events,
             "Disneyland" to AppCategory.Events,
             "Universal Orlando Resort" to AppCategory.Events,
             "Six Flags" to AppCategory.Events,
             "Knott's Berry Farm" to AppCategory.Events,
-            "SIXT rent. share. ride." to AppCategory.Travel,
-            "Enterprise Rent-A-Car" to AppCategory.Travel,
-            "Hertz Car Rental" to AppCategory.Travel,
-            "Turo - Car Rental Marketplace" to AppCategory.Travel,
+            "SIXT rent. share. ride." to AppCategory.Car,
+            "Enterprise Rent-A-Car" to AppCategory.Car,
+            "Hertz Car Rental" to AppCategory.Car,
+            "Turo - Car Rental Marketplace" to AppCategory.Car,
         )) {
             assertEquals(label, category, knownAppCategory("com.example.batch", label))
         }
+        // The Transport split (maintainer, 2026-11-21).
+        for ((label, category) in listOf(
+            "Uber" to AppCategory.Car,
+            "Uber Eats: Food Delivery" to AppCategory.Food,
+            "Lyft" to AppCategory.Car,
+            "Google Maps" to AppCategory.Maps,
+            "Citymapper" to AppCategory.Maps,
+            "Trainline: Cheap UK, EU Trains" to AppCategory.Transit,
+            "Moovit: Bus & Rail Live Times" to AppCategory.Transit,
+            "Santander Cycles" to AppCategory.Cycling,
+            "Citi Bike" to AppCategory.Cycling,
+            "Marriott Bonvoy" to AppCategory.Hotels,
+            "Airbnb" to AppCategory.Hotels,
+            "Vrbo Holiday Rentals" to AppCategory.Hotels,
+            "Hotels.com: Travel Booking" to AppCategory.Hotels,
+            "Skyscanner" to null,
+        )) {
+            assertEquals(label, category, knownAppCategory("com.example.split", label))
+        }
+        assertEquals(AppCategory.Car, knownAppCategory("com.ubercab"))
+        assertEquals(AppCategory.Cycling, knownAppCategory("com.limebike"))
+        assertEquals(AppCategory.Hotels, knownAppCategory("com.airbnb.android"))
+        assertEquals(AppCategory.Maps, knownAppCategory("com.google.android.apps.maps"))
         // Ordinary words stay out.
         assertNull(knownAppCategory("com.example.ring", "Ring Fit Tracker"))
         assertNull(knownAppCategory("com.example.brave", "Brave Frontier"))

@@ -290,8 +290,12 @@
     <string name="app_folder_social">Sociālie tīkli un ziņojumi</string>
     <string name="app_folder_sports">Sports</string>
     <string name="app_folder_tools">Rīki</string>
-    <string name="app_folder_transport">Transports</string>
-    <string name="app_folder_travel">Ceļojumi</string>
+    <string name="app_folder_transit">Sabiedriskais transports un vilcieni</string>
+    <string name="app_folder_car">Automašīna</string>
+    <string name="app_folder_cycling">Velosipēdi un to noma</string>
+    <string name="app_folder_hotels">Viesnīcas un naktsmītnes</string>
+    <string name="app_folder_maps">Kartes</string>
+    <string name="app_folder_travel">Ceļojumi un lidojumi</string>
     <string name="app_folder_weather">Laikapstākļi</string>
     <string name="app_folders_dialog_done">Gatavs</string>
     <string name="app_folders_dialog_title">Mapes</string>
@@ -314,6 +318,9 @@
     <string name="folder_icon_confirmation_number">Biļetes</string>
     <string name="folder_icon_directions_bus">Autobuss</string>
     <string name="folder_icon_directions_car">Automašīna</string>
+    <string name="folder_icon_pedal_bike">Velosipēds</string>
+    <string name="folder_icon_hotel">Gulta</string>
+    <string name="folder_icon_map">Karte</string>
     <string name="folder_icon_eco">Daba</string>
     <string name="folder_icon_family_restroom">Ģimene</string>
     <string name="folder_icon_favorite">Sirds</string>

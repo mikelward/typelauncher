@@ -289,8 +289,12 @@
     <string name="app_folder_social">Közösségi és üzenetek</string>
     <string name="app_folder_sports">Sport</string>
     <string name="app_folder_tools">Eszközök</string>
-    <string name="app_folder_transport">Közlekedés</string>
-    <string name="app_folder_travel">Utazás</string>
+    <string name="app_folder_transit">Tömegközlekedés és vasút</string>
+    <string name="app_folder_car">Autó</string>
+    <string name="app_folder_cycling">Kerékpár és bérbringa</string>
+    <string name="app_folder_hotels">Szállodák és szállások</string>
+    <string name="app_folder_maps">Térképek</string>
+    <string name="app_folder_travel">Utazás és repülés</string>
     <string name="app_folder_weather">Időjárás</string>
     <string name="app_folders_dialog_done">Kész</string>
     <string name="app_folders_dialog_title">Mappák</string>
@@ -313,6 +317,9 @@
     <string name="folder_icon_confirmation_number">Jegyek</string>
     <string name="folder_icon_directions_bus">Busz</string>
     <string name="folder_icon_directions_car">Autó</string>
+    <string name="folder_icon_pedal_bike">Kerékpár</string>
+    <string name="folder_icon_hotel">Ágy</string>
+    <string name="folder_icon_map">Térkép</string>
     <string name="folder_icon_eco">Természet</string>
     <string name="folder_icon_family_restroom">Család</string>
     <string name="folder_icon_favorite">Szív</string>

@@ -289,8 +289,12 @@
     <string name="app_folder_social">Sociaal &amp; berichten</string>
     <string name="app_folder_sports">Sport</string>
     <string name="app_folder_tools">Tools</string>
-    <string name="app_folder_transport">Vervoer</string>
-    <string name="app_folder_travel">Reizen</string>
+    <string name="app_folder_transit">Openbaar vervoer &amp; trein</string>
+    <string name="app_folder_car">Auto</string>
+    <string name="app_folder_cycling">Fietsen &amp; deelfietsen</string>
+    <string name="app_folder_hotels">Hotels &amp; verblijf</string>
+    <string name="app_folder_maps">Kaarten</string>
+    <string name="app_folder_travel">Reizen &amp; vliegen</string>
     <string name="app_folder_weather">Weer</string>
     <string name="app_folders_dialog_done">Klaar</string>
     <string name="app_folders_dialog_title">Mappen</string>
@@ -313,6 +317,9 @@
     <string name="folder_icon_confirmation_number">Tickets</string>
     <string name="folder_icon_directions_bus">Bus</string>
     <string name="folder_icon_directions_car">Auto</string>
+    <string name="folder_icon_pedal_bike">Fiets</string>
+    <string name="folder_icon_hotel">Bed</string>
+    <string name="folder_icon_map">Kaart</string>
     <string name="folder_icon_eco">Natuur</string>
     <string name="folder_icon_family_restroom">Gezin</string>
     <string name="folder_icon_favorite">Hart</string>

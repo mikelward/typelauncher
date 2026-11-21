@@ -290,8 +290,12 @@
     <string name="app_folder_social">Xarxes socials i missatges</string>
     <string name="app_folder_sports">Esports</string>
     <string name="app_folder_tools">Eines</string>
-    <string name="app_folder_transport">Transport</string>
-    <string name="app_folder_travel">Viatges</string>
+    <string name="app_folder_transit">Transport públic i tren</string>
+    <string name="app_folder_car">Cotxe</string>
+    <string name="app_folder_cycling">Bicicleta i bici compartida</string>
+    <string name="app_folder_hotels">Hotels i allotjaments</string>
+    <string name="app_folder_maps">Mapes</string>
+    <string name="app_folder_travel">Viatges i vols</string>
     <string name="app_folder_weather">Temps</string>
     <string name="app_folders_dialog_done">Fet</string>
     <string name="app_folders_dialog_title">Carpetes</string>
@@ -314,6 +318,9 @@
     <string name="folder_icon_confirmation_number">Entrades</string>
     <string name="folder_icon_directions_bus">Autobús</string>
     <string name="folder_icon_directions_car">Cotxe</string>
+    <string name="folder_icon_pedal_bike">Bicicleta</string>
+    <string name="folder_icon_hotel">Llit</string>
+    <string name="folder_icon_map">Mapa</string>
     <string name="folder_icon_eco">Natura</string>
     <string name="folder_icon_family_restroom">Família</string>
     <string name="folder_icon_favorite">Cor</string>

@@ -289,8 +289,12 @@
     <string name="app_folder_social">সামাজিক আৰু বাৰ্তা</string>
     <string name="app_folder_sports">ক্ৰীড়া</string>
     <string name="app_folder_tools">সঁজুলি</string>
-    <string name="app_folder_transport">পৰিবহণ</string>
-    <string name="app_folder_travel">ভ্ৰমণ</string>
+    <string name="app_folder_transit">ৰাজহুৱা পৰিবহণ আৰু ৰেল</string>
+    <string name="app_folder_car">গাড়ী</string>
+    <string name="app_folder_cycling">চাইকেল আৰু বাইক শ্বেয়াৰ</string>
+    <string name="app_folder_hotels">হোটেল আৰু থকাৰ ঠাই</string>
+    <string name="app_folder_maps">মানচিত্ৰ</string>
+    <string name="app_folder_travel">ভ্ৰমণ আৰু বিমান</string>
     <string name="app_folder_weather">বতৰ</string>
     <string name="app_folders_dialog_done">সম্পূৰ্ণ</string>
     <string name="app_folders_dialog_title">ফ\'ল্ডাৰসমূহ</string>
@@ -313,6 +317,9 @@
     <string name="folder_icon_confirmation_number">টিকট</string>
     <string name="folder_icon_directions_bus">বাছ</string>
     <string name="folder_icon_directions_car">গাড়ী</string>
+    <string name="folder_icon_pedal_bike">চাইকেল</string>
+    <string name="folder_icon_hotel">বিচনা</string>
+    <string name="folder_icon_map">মানচিত্ৰ</string>
     <string name="folder_icon_eco">প্ৰকৃতি</string>
     <string name="folder_icon_family_restroom">পৰিয়াল</string>
     <string name="folder_icon_favorite">হৃদয়</string>

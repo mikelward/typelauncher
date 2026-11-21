@@ -288,8 +288,12 @@
     <string name="app_folder_social">ສັງຄົມ ແລະ ຂໍ້ຄວາມ</string>
     <string name="app_folder_sports">ກິລາ</string>
     <string name="app_folder_tools">ເຄື່ອງມື</string>
-    <string name="app_folder_transport">ການຂົນສົ່ງ</string>
-    <string name="app_folder_travel">ທ່ອງທ່ຽວ</string>
+    <string name="app_folder_transit">ຂົນສົ່ງສາທາລະນະ ແລະ ລົດໄຟ</string>
+    <string name="app_folder_car">ລົດ</string>
+    <string name="app_folder_cycling">ລົດຖີບ ແລະ ລົດຖີບເຊົ່າ</string>
+    <string name="app_folder_hotels">ໂຮງແຮມ ແລະ ທີ່ພັກ</string>
+    <string name="app_folder_maps">ແຜນທີ່</string>
+    <string name="app_folder_travel">ທ່ອງທ່ຽວ ແລະ ຖ້ຽວບິນ</string>
     <string name="app_folder_weather">ສະພາບອາກາດ</string>
     <string name="app_folders_dialog_done">ສຳເລັດ</string>
     <string name="app_folders_dialog_title">ໂຟນເດີ</string>
@@ -312,6 +316,9 @@
     <string name="folder_icon_confirmation_number">ປີ້</string>
     <string name="folder_icon_directions_bus">ລົດເມ</string>
     <string name="folder_icon_directions_car">ລົດ</string>
+    <string name="folder_icon_pedal_bike">ລົດຖີບ</string>
+    <string name="folder_icon_hotel">ຕຽງ</string>
+    <string name="folder_icon_map">ແຜນທີ່</string>
     <string name="folder_icon_eco">ທຳມະຊາດ</string>
     <string name="folder_icon_family_restroom">ຄອບຄົວ</string>
     <string name="folder_icon_favorite">ຫົວໃຈ</string>

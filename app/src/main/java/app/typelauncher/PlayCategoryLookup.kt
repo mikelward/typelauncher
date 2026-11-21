@@ -102,7 +102,8 @@ internal fun folderForPlayCategory(category: String): AppCategory? {
     if (category.startsWith("GAME")) return AppCategory.Games
     return when (category) {
         "ART_AND_DESIGN" -> AppCategory.Design
-        "AUTO_AND_VEHICLES", "MAPS_AND_NAVIGATION" -> AppCategory.Transport
+        "AUTO_AND_VEHICLES" -> AppCategory.Car
+        "MAPS_AND_NAVIGATION" -> AppCategory.Maps
         "BEAUTY", "SHOPPING" -> AppCategory.Shopping
         "BOOKS_AND_REFERENCE", "COMICS" -> AppCategory.Reading
         "BUSINESS", "PRODUCTIVITY" -> AppCategory.Office

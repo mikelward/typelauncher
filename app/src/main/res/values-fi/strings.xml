@@ -289,8 +289,12 @@
     <string name="app_folder_social">Sosiaalinen media ja viestit</string>
     <string name="app_folder_sports">Urheilu</string>
     <string name="app_folder_tools">Työkalut</string>
-    <string name="app_folder_transport">Liikenne</string>
-    <string name="app_folder_travel">Matkailu</string>
+    <string name="app_folder_transit">Joukkoliikenne ja junat</string>
+    <string name="app_folder_car">Auto</string>
+    <string name="app_folder_cycling">Pyöräily ja kaupunkipyörät</string>
+    <string name="app_folder_hotels">Hotellit ja majoitus</string>
+    <string name="app_folder_maps">Kartat</string>
+    <string name="app_folder_travel">Matkailu ja lennot</string>
     <string name="app_folder_weather">Sää</string>
     <string name="app_folders_dialog_done">Valmis</string>
     <string name="app_folders_dialog_title">Kansiot</string>
@@ -313,6 +317,9 @@
     <string name="folder_icon_confirmation_number">Liput</string>
     <string name="folder_icon_directions_bus">Bussi</string>
     <string name="folder_icon_directions_car">Auto</string>
+    <string name="folder_icon_pedal_bike">Polkupyörä</string>
+    <string name="folder_icon_hotel">Sänky</string>
+    <string name="folder_icon_map">Kartta</string>
     <string name="folder_icon_eco">Luonto</string>
     <string name="folder_icon_family_restroom">Perhe</string>
     <string name="folder_icon_favorite">Sydän</string>
