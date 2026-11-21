@@ -315,7 +315,41 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "parcelforce", "canada post", "nz post", "an post", "post office", "aramex", "sendle", "startrack",
     "couriers please", "yodel", "gls", "deutsche post", "la poste", "postnl", "postnord", "correos",
     "posti", "purolator", "packlink",
-).map { it to AppCategory.Post }
+).map { it to AppCategory.Post } + listOf(
+    // Smart home brands (maintainer, 2026-11-21). Not "ring" or "abode",
+    // which are ordinary words; Ring is matched by package.
+    "tapo", "kasa", "wyze", "eufy", "arlo", "meross", "aqara", "switchbot", "lifx", "nanoleaf",
+    "netatmo", "tado", "ecobee", "smartthings", "philips hue", "google home", "yale access",
+    "august home", "simplisafe", "ezviz", "reolink", "tuya", "smart life", "ewelink", "sonoff",
+    "shelly smart", "homey", "somfy", "lutron", "wiz connected",
+).map { it to AppCategory.Home } + listOf(
+    // Antivirus and privacy services, for Security.
+    "blackcloak", "optery", "kanary", "privacy bee", "lookout", "eset", "sophos", "trend micro",
+    "avira", "totalav", "surfshark antivirus", "webroot", "f secure", "panda dome",
+).map { it to AppCategory.Security } + listOf(
+    // VPNs and browsers, for Internet beside the "vpn" and "browser" words.
+    // Not "brave" (Brave Frontier) or "opera" (opera houses); those are matched by package.
+    "surfshark", "mullvad", "windscribe", "tunnelbear", "ipvanish", "cyberghost",
+    "private internet access", "hotspot shield", "firefox", "ecosia", "duckduckgo",
+).map { it to AppCategory.Internet } + listOf(
+    // Parking, beside the "parking" word.
+    "ringgo", "justpark", "parkmobile", "spothero", "easypark", "parkwhiz", "parkopedia",
+    "flowbird", "mipermit", "cellopark", "honk mobile", "yourparkingspace", "apcoa", "ncp",
+    "q park", "wilson parking", "secure parking",
+).map { it to AppCategory.Transport } + listOf(
+    // Car rental and car sharing, for Travel. Not bare "enterprise", "budget",
+    // "national" or "dollar", which are ordinary words.
+    "sixt", "hertz", "avis", "europcar", "enterprise rent", "budget car", "alamo rent",
+    "national car rental", "thrifty", "dollar car", "turo", "getaround", "zipcar", "share now",
+    "free2move", "goget", "rentalcars", "discover cars", "car rental", "rent a car",
+).map { it to AppCategory.Travel } + listOf(
+    // Theme parks, for Events & tickets (maintainer, 2026-11-21).
+    "legoland", "disneyland", "my disney experience", "tokyo disney resort", "universal orlando",
+    "universal studios", "universal hollywood", "six flags", "alton towers", "thorpe park",
+    "chessington", "merlin annual pass", "seaworld", "sea world", "busch gardens", "cedar point",
+    "knott s", "kings island", "carowinds", "dollywood", "hersheypark", "dreamworld",
+    "movie world", "efteling", "europa park", "portaventura", "port aventura",
+).map { it to AppCategory.Events }
 
 // Keywords that must start a word: "ebook" sits inside "Facebook" and
 // "Notebook" (Codex on PR #866), "sport" inside "Transport" and "Passport"
