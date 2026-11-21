@@ -294,6 +294,8 @@
     <string name="app_folder_charity">Heategevus ja annetused</string>
     <string name="app_folder_family_history">Suguvõsa ajalugu ja genealoogia</string>
     <string name="app_folder_notes">Märkmed ja ülesanded</string>
+    <string name="app_folder_meetings">Koosolekud ja videokõned</string>
+    <string name="app_folder_print">Printimine ja faks</string>
     <string name="app_folder_cycling">Rattasõit ja rendirattad</string>
     <string name="app_folder_hotels">Hotellid ja majutus</string>
     <string name="app_folder_maps">Kaardid</string>
@@ -326,6 +328,9 @@
     <string name="folder_icon_volunteer_activism">Käsi südamega</string>
     <string name="folder_icon_family_history">Sugupuu</string>
     <string name="folder_icon_edit_note">Märge ja pliiats</string>
+    <string name="folder_icon_video_camera_front">Videokõne</string>
+    <string name="folder_icon_live_tv">Teler</string>
+    <string name="folder_icon_print">Printer</string>
     <string name="folder_icon_eco">Loodus</string>
     <string name="folder_icon_family_restroom">Pere</string>
     <string name="folder_icon_favorite">Süda</string>

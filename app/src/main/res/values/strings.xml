@@ -197,6 +197,9 @@
     <string name="folder_icon_volunteer_activism">Hand with heart</string>
     <string name="folder_icon_family_history">Family tree</string>
     <string name="folder_icon_edit_note">Note and pencil</string>
+    <string name="folder_icon_video_camera_front">Video call</string>
+    <string name="folder_icon_live_tv">TV</string>
+    <string name="folder_icon_print">Printer</string>
     <string name="folder_icon_flight">Plane</string>
     <string name="folder_icon_restaurant">Food</string>
     <string name="folder_icon_language">Internet</string>
@@ -267,6 +270,8 @@
     <string name="app_folder_charity">Charity &amp; giving</string>
     <string name="app_folder_family_history">Family history &amp; genealogy</string>
     <string name="app_folder_notes">Notes &amp; tasks</string>
+    <string name="app_folder_meetings">Meetings &amp; video calls</string>
+    <string name="app_folder_print">Print &amp; fax</string>
     <string name="app_folder_cycling">Cycling &amp; bike share</string>
     <string name="app_folder_hotels">Hotels &amp; stays</string>
     <string name="app_folder_maps">Maps</string>

@@ -189,6 +189,8 @@ com.bpi.ng.app
 com.brainfm.app
 com.brainly
 com.brave.browser
+com.brother.mfc.brprint
+com.brother.mfc.mobileconnect
 com.bskyb.skynews.android
 com.bstro.MindShift
 com.bumble.app
@@ -215,6 +217,7 @@ com.chess
 com.chewy.android
 com.chickfila.cfaflagship
 com.chipotle.ordering
+com.chrome.beta
 com.cibc.android.mobi
 com.citi.citimobile
 com.citi.mobile.ccc
@@ -294,6 +297,7 @@ com.emmaprod
 com.emoji.cutekeyboard.themes.fontkeyboard
 com.endel.endel
 com.enflick.android.TextNow
+com.epson.epsonsmart
 com.eset.ems2.gp
 com.espn.score_center
 com.etekcity.vesyncplatform
@@ -428,6 +432,8 @@ com.homeretailgroup.argos.android
 com.homestoreandmore.hsmapp
 com.hoopladigital.android
 com.hopper.mountainview.play
+com.hp.android.printservice
+com.hp.printercontrol
 com.hrvatskitelekom.m.mojT
 com.hualai
 com.huckleberry_labs.app
@@ -458,6 +464,7 @@ com.irobot.home
 com.irobot.home.prime
 com.isoton.lebara
 com.itv.imaceleb
+com.j2.efax
 com.jbassett297.NeoApp
 com.jd.loyaltyapp
 com.jetblue.JetBlueAndroid
@@ -799,6 +806,7 @@ com.todoist
 com.toomics.coimiics.spaceee
 com.tplink.iot
 com.tplink.kasa_android
+com.tplink.tpm5
 com.tracerofficial
 com.tradingview.tradingviewapp
 com.transferwise.android
@@ -937,6 +945,7 @@ ee.ria.eesti.app
 egov.app
 energy.octopus.octopusenergy.android
 epic.mychart.android
+epson.print
 es.fnmtrcm.ceres.certificadoDigitalFNMT
 flipboard.app
 fr.doctolib.www
@@ -968,6 +977,7 @@ it.italotreno
 it.pagopa.io.app
 ixg.roku.tv.stick.remote.control.cast
 jbl.stc.com
+jp.co.canon.bsd.ad.pixmaprint
 jp.co.mcdonalds.android
 jp.naver.line.android
 jp.ne.ibis.ibispaintx.app
@@ -1038,6 +1048,7 @@ org.lds.ldssa
 org.lichess.mobileapp
 org.malwarebytes.antimalware
 org.me.mobiexpensifyg
+org.mopria.printplugin
 org.mozilla.firefox
 org.pbskids.video
 org.readera

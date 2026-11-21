@@ -44,6 +44,8 @@ internal val EITHER_WAY_PACKAGES: Map<String, List<AppCategory>> = mapOf(
     "com.asana.app" to listOf(AppCategory.Notes, AppCategory.Office),
     "com.basecamp.bc3" to listOf(AppCategory.Notes, AppCategory.Office),
     "com.monday.monday" to listOf(AppCategory.Notes, AppCategory.Office),
+    // Teams: meetings, and work chat (maintainer, 2026-11-21).
+    "com.microsoft.teams" to listOf(AppCategory.Meetings, AppCategory.Office),
     // Google Chat: messages, often for work (maintainer, 2026-11-21: "Should
     // probably be Social and messages?").
     "com.google.android.apps.dynamite" to listOf(AppCategory.Social, AppCategory.Office),
@@ -354,6 +356,7 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "practo" to AppCategory.Health,
     "netmeds" to AppCategory.Health,
     "vesync" to AppCategory.Home,
+    "efax" to AppCategory.Print,
     "substack" to AppCategory.Reading,
     "quickbooks" to AppCategory.Finance,
     "xero" to AppCategory.Finance,
@@ -802,6 +805,7 @@ private val LABEL_WORDS = listOf(
     "notes" to AppCategory.Notes,
     "notebook" to AppCategory.Notes,
     "notepad" to AppCategory.Notes,
+    "printer" to AppCategory.Print,
     "todoist" to AppCategory.Notes,
     "ticktick" to AppCategory.Notes,
     "email" to AppCategory.Office,
@@ -879,6 +883,8 @@ private val KNOWN_PACKAGE_PREFIXES = listOf(
     "com.dexcom." to AppCategory.Health,
     "org.dayup.stocks" to AppCategory.Finance,
     "com.trendmicro." to AppCategory.Security,
+    // Chrome Beta, Dev and Canary.
+    "com.chrome." to AppCategory.Internet,
     // Citi's and HSBC's apps for each country.
     "com.citi.mobile." to AppCategory.Finance,
     "sg.com.hsbc." to AppCategory.Finance,
@@ -931,7 +937,9 @@ private val GUESS_RULES = listOf(
     AppCategory.News to listOf("news", "newspaper", "headlines"),
     AppCategory.Social to listOf("chat", "messenger", "messaging", "messages", "social", "dating"),
     AppCategory.Notes to listOf("notes", "notebook", "notepad", "todo", "tasks"),
-    AppCategory.Office to listOf("mail", "email", "calendar", "docs", "office", "pdf", "meeting"),
+    AppCategory.Meetings to listOf("meeting", "meetings", "videocall", "conference"),
+    AppCategory.Print to listOf("print", "printer", "printing", "fax"),
+    AppCategory.Office to listOf("mail", "email", "calendar", "docs", "office", "pdf"),
     AppCategory.Home to listOf("smarthome", "thermostat", "doorbell", "realestate", "property", "energy"),
     AppCategory.Tools to listOf("calculator", "clock", "alarm", "flashlight", "torch", "files", "filemanager", "keyboard", "cleaner", "battery", "backup"),
     AppCategory.Security to listOf("authenticator", "password", "passwords", "antivirus", "malware"),
@@ -993,11 +1001,19 @@ private val KNOWN_PACKAGES = listOf(
         com.google.android.apps.docs com.google.android.apps.docs.editors.docs
         com.google.android.apps.docs.editors.sheets com.google.android.apps.docs.editors.slides
         com.microsoft.office.word com.microsoft.office.excel com.microsoft.office.powerpoint
-        com.microsoft.office.officehubrow com.microsoft.teams com.Slack us.zoom.videomeetings
-        com.google.android.apps.tachyon
+        com.microsoft.office.officehubrow com.Slack
         com.dropbox.android com.microsoft.skydrive com.adobe.reader
         com.yahoo.mobile.client.android.mail ch.protonmail.android
         com.atlassian.android.jira.core
+    """,
+    AppCategory.Internet to """ com.tplink.tpm5 """,
+    AppCategory.Print to """
+        com.hp.printercontrol epson.print com.epson.epsonsmart jp.co.canon.bsd.ad.pixmaprint
+        com.brother.mfc.brprint com.brother.mfc.mobileconnect com.j2.efax org.mopria.printplugin
+        com.hp.android.printservice
+    """,
+    AppCategory.Meetings to """
+        us.zoom.videomeetings com.google.android.apps.tachyon com.microsoft.teams
     """,
     AppCategory.Notes to """
         com.google.android.keep notion.id com.todoist com.microsoft.todos com.evernote

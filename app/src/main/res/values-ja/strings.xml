@@ -293,6 +293,8 @@
     <string name="app_folder_charity">寄付・チャリティー</string>
     <string name="app_folder_family_history">家族史・家系</string>
     <string name="app_folder_notes">メモ・タスク</string>
+    <string name="app_folder_meetings">会議・ビデオ通話</string>
+    <string name="app_folder_print">印刷・FAX</string>
     <string name="app_folder_cycling">自転車・シェアサイクル</string>
     <string name="app_folder_hotels">ホテル・宿泊</string>
     <string name="app_folder_maps">地図</string>
@@ -325,6 +327,9 @@
     <string name="folder_icon_volunteer_activism">手とハート</string>
     <string name="folder_icon_family_history">家系図</string>
     <string name="folder_icon_edit_note">メモと鉛筆</string>
+    <string name="folder_icon_video_camera_front">ビデオ通話</string>
+    <string name="folder_icon_live_tv">テレビ</string>
+    <string name="folder_icon_print">プリンター</string>
     <string name="folder_icon_eco">自然</string>
     <string name="folder_icon_family_restroom">家族</string>
     <string name="folder_icon_favorite">ハート</string>

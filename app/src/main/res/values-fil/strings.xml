@@ -294,6 +294,8 @@
     <string name="app_folder_charity">Kawanggawa at donasyon</string>
     <string name="app_folder_family_history">Kasaysayan ng pamilya at genealogy</string>
     <string name="app_folder_notes">Mga tala at gawain</string>
+    <string name="app_folder_meetings">Mga meeting at video call</string>
+    <string name="app_folder_print">Pag-print at fax</string>
     <string name="app_folder_cycling">Pagbibisikleta at bike share</string>
     <string name="app_folder_hotels">Mga hotel at matutuluyan</string>
     <string name="app_folder_maps">Mga mapa</string>
@@ -326,6 +328,9 @@
     <string name="folder_icon_volunteer_activism">Kamay na may puso</string>
     <string name="folder_icon_family_history">Family tree</string>
     <string name="folder_icon_edit_note">Tala at lapis</string>
+    <string name="folder_icon_video_camera_front">Video call</string>
+    <string name="folder_icon_live_tv">TV</string>
+    <string name="folder_icon_print">Printer</string>
     <string name="folder_icon_eco">Kalikasan</string>
     <string name="folder_icon_family_restroom">Pamilya</string>
     <string name="folder_icon_favorite">Puso</string>

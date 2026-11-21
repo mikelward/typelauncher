@@ -38,7 +38,10 @@ internal enum class AppCategory(val storageKey: String, val icon: FolderIcon) {
     Kids("kids", FolderIcon.ChildCare),
     Learning("learning", FolderIcon.School),
     Maps("maps", FolderIcon.Map),
-    Media("media", FolderIcon.PlayCircle),
+    // Live TV's screen (maintainer, 2026-11-21).
+    Media("media", FolderIcon.LiveTv),
+    // "Meetings & video calls" (maintainer, 2026-11-21).
+    Meetings("meetings", FolderIcon.VideoCameraFront),
     Music("music", FolderIcon.MusicNote),
     News("news", FolderIcon.Newspaper),
     // "Notes & tasks" (maintainer, 2026-11-21).
@@ -48,6 +51,8 @@ internal enum class AppCategory(val storageKey: String, val icon: FolderIcon) {
     Phone("phone", FolderIcon.Call),
     Photos("photos", FolderIcon.PhotoCamera),
     Post("post", FolderIcon.MarkunreadMailbox),
+    // "Print & fax" (maintainer, 2026-11-21).
+    Print("print", FolderIcon.Print),
     // "Public transit & rail"; keyed so it sorts where its English name does.
     Transit("public_transit", FolderIcon.Train),
     Security("security", FolderIcon.Lock),
@@ -100,6 +105,9 @@ internal enum class FolderIcon(val storageKey: String) {
     VolunteerActivism("volunteer_activism"),
     FamilyHistory("family_history"),
     EditNote("edit_note"),
+    VideoCameraFront("video_camera_front"),
+    LiveTv("live_tv"),
+    Print("print"),
     Flight("flight"),
     Restaurant("restaurant"),
     Language("language"),

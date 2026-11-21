@@ -293,6 +293,8 @@
     <string name="app_folder_charity">Amal &amp; donasi</string>
     <string name="app_folder_family_history">Sejarah keluarga &amp; silsilah</string>
     <string name="app_folder_notes">Catatan &amp; tugas</string>
+    <string name="app_folder_meetings">Rapat &amp; panggilan video</string>
+    <string name="app_folder_print">Cetak &amp; faks</string>
     <string name="app_folder_cycling">Sepeda &amp; sewa sepeda</string>
     <string name="app_folder_hotels">Hotel &amp; penginapan</string>
     <string name="app_folder_maps">Peta</string>
@@ -325,6 +327,9 @@
     <string name="folder_icon_volunteer_activism">Tangan dengan hati</string>
     <string name="folder_icon_family_history">Silsilah keluarga</string>
     <string name="folder_icon_edit_note">Catatan dan pensil</string>
+    <string name="folder_icon_video_camera_front">Panggilan video</string>
+    <string name="folder_icon_live_tv">TV</string>
+    <string name="folder_icon_print">Printer</string>
     <string name="folder_icon_eco">Alam</string>
     <string name="folder_icon_family_restroom">Keluarga</string>
     <string name="folder_icon_favorite">Hati</string>

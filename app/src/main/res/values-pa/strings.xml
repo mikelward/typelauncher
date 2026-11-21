@@ -294,6 +294,8 @@
     <string name="app_folder_charity">ਦਾਨ ਅਤੇ ਚੈਰਿਟੀ</string>
     <string name="app_folder_family_history">ਪਰਿਵਾਰਕ ਇਤਿਹਾਸ ਅਤੇ ਵੰਸ਼ਾਵਲੀ</string>
     <string name="app_folder_notes">ਨੋਟਸ ਅਤੇ ਕੰਮ</string>
+    <string name="app_folder_meetings">ਮੀਟਿੰਗਾਂ ਅਤੇ ਵੀਡੀਓ ਕਾਲਾਂ</string>
+    <string name="app_folder_print">ਪ੍ਰਿੰਟ ਅਤੇ ਫੈਕਸ</string>
     <string name="app_folder_cycling">ਸਾਈਕਲਿੰਗ ਅਤੇ ਸਾਈਕਲ ਸ਼ੇਅਰ</string>
     <string name="app_folder_hotels">ਹੋਟਲ ਅਤੇ ਠਹਿਰਨ</string>
     <string name="app_folder_maps">ਨਕਸ਼ੇ</string>
@@ -326,6 +328,9 @@
     <string name="folder_icon_volunteer_activism">ਹੱਥ ਵਿੱਚ ਦਿਲ</string>
     <string name="folder_icon_family_history">ਪਰਿਵਾਰਕ ਰੁੱਖ</string>
     <string name="folder_icon_edit_note">ਨੋਟ ਅਤੇ ਪੈਨਸਿਲ</string>
+    <string name="folder_icon_video_camera_front">ਵੀਡੀਓ ਕਾਲ</string>
+    <string name="folder_icon_live_tv">ਟੀਵੀ</string>
+    <string name="folder_icon_print">ਪ੍ਰਿੰਟਰ</string>
     <string name="folder_icon_eco">ਕੁਦਰਤ</string>
     <string name="folder_icon_family_restroom">ਪਰਿਵਾਰ</string>
     <string name="folder_icon_favorite">ਦਿਲ</string>

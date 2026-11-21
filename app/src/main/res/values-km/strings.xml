@@ -293,6 +293,8 @@
     <string name="app_folder_charity">សប្បុរសធម៌ និងការបរិច្ចាគ</string>
     <string name="app_folder_family_history">ប្រវត្តិគ្រួសារ និងពង្សាវតារ</string>
     <string name="app_folder_notes">កំណត់ចំណាំ និងកិច្ចការ</string>
+    <string name="app_folder_meetings">ការប្រជុំ និងការហៅជាវីដេអូ</string>
+    <string name="app_folder_print">ការបោះពុម្ព និងទូរសារ</string>
     <string name="app_folder_cycling">កង់ និងកង់ជួល</string>
     <string name="app_folder_hotels">សណ្ឋាគារ និងកន្លែងស្នាក់នៅ</string>
     <string name="app_folder_maps">ផែនទី</string>
@@ -325,6 +327,9 @@
     <string name="folder_icon_volunteer_activism">ដៃជាមួយបេះដូង</string>
     <string name="folder_icon_family_history">ដើមឈើគ្រួសារ</string>
     <string name="folder_icon_edit_note">កំណត់ចំណាំ និងខ្មៅដៃ</string>
+    <string name="folder_icon_video_camera_front">ការហៅជាវីដេអូ</string>
+    <string name="folder_icon_live_tv">ទូរទស្សន៍</string>
+    <string name="folder_icon_print">ម៉ាស៊ីនបោះពុម្ព</string>
     <string name="folder_icon_eco">ធម្មជាតិ</string>
     <string name="folder_icon_family_restroom">គ្រួសារ</string>
     <string name="folder_icon_favorite">បេះដូង</string>

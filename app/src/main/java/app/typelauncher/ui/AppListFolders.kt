@@ -110,6 +110,8 @@ internal fun AppCategory.labelRes(): Int = when (this) {
     AppCategory.Charity -> R.string.app_folder_charity
     AppCategory.FamilyHistory -> R.string.app_folder_family_history
     AppCategory.Notes -> R.string.app_folder_notes
+    AppCategory.Meetings -> R.string.app_folder_meetings
+    AppCategory.Print -> R.string.app_folder_print
     AppCategory.Cycling -> R.string.app_folder_cycling
     AppCategory.Hotels -> R.string.app_folder_hotels
     AppCategory.Maps -> R.string.app_folder_maps
@@ -143,6 +145,9 @@ internal fun FolderIcon.vector(): ImageVector = when (this) {
     FolderIcon.VolunteerActivism -> CategoryIcons.VolunteerActivism
     FolderIcon.FamilyHistory -> CategoryIcons.FamilyHistory
     FolderIcon.EditNote -> CategoryIcons.EditNote
+    FolderIcon.VideoCameraFront -> CategoryIcons.VideoCameraFront
+    FolderIcon.LiveTv -> CategoryIcons.LiveTv
+    FolderIcon.Print -> CategoryIcons.Print
     FolderIcon.Flight -> CategoryIcons.Flight
     FolderIcon.Restaurant -> CategoryIcons.Restaurant
     FolderIcon.Language -> CategoryIcons.Language
@@ -201,6 +206,9 @@ internal fun FolderIcon.descriptionRes(): Int = when (this) {
     FolderIcon.VolunteerActivism -> R.string.folder_icon_volunteer_activism
     FolderIcon.FamilyHistory -> R.string.folder_icon_family_history
     FolderIcon.EditNote -> R.string.folder_icon_edit_note
+    FolderIcon.VideoCameraFront -> R.string.folder_icon_video_camera_front
+    FolderIcon.LiveTv -> R.string.folder_icon_live_tv
+    FolderIcon.Print -> R.string.folder_icon_print
     FolderIcon.Flight -> R.string.folder_icon_flight
     FolderIcon.Restaurant -> R.string.folder_icon_restaurant
     FolderIcon.Language -> R.string.folder_icon_language

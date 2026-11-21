@@ -293,6 +293,8 @@
     <string name="app_folder_charity">慈善與捐贈</string>
     <string name="app_folder_family_history">家族史與族譜</string>
     <string name="app_folder_notes">筆記與待辦事項</string>
+    <string name="app_folder_meetings">會議與視訊通話</string>
+    <string name="app_folder_print">列印與傳真</string>
     <string name="app_folder_cycling">單車與共享單車</string>
     <string name="app_folder_hotels">飯店與住宿</string>
     <string name="app_folder_maps">地圖</string>
@@ -325,6 +327,9 @@
     <string name="folder_icon_volunteer_activism">手捧愛心</string>
     <string name="folder_icon_family_history">族譜</string>
     <string name="folder_icon_edit_note">筆記與鉛筆</string>
+    <string name="folder_icon_video_camera_front">視訊通話</string>
+    <string name="folder_icon_live_tv">電視</string>
+    <string name="folder_icon_print">印表機</string>
     <string name="folder_icon_eco">自然</string>
     <string name="folder_icon_family_restroom">家庭</string>
     <string name="folder_icon_favorite">愛心</string>

@@ -294,6 +294,8 @@
     <string name="app_folder_charity">Ongintza eta dohaintzak</string>
     <string name="app_folder_family_history">Familia-historia eta genealogia</string>
     <string name="app_folder_notes">Oharrak eta zereginak</string>
+    <string name="app_folder_meetings">Bilerak eta bideo-deiak</string>
+    <string name="app_folder_print">Inprimatzea eta faxa</string>
     <string name="app_folder_cycling">Bizikleta eta bizikleta partekatua</string>
     <string name="app_folder_hotels">Hotelak eta ostatuak</string>
     <string name="app_folder_maps">Mapak</string>
@@ -326,6 +328,9 @@
     <string name="folder_icon_volunteer_activism">Eskua bihotzarekin</string>
     <string name="folder_icon_family_history">Zuhaitz genealogikoa</string>
     <string name="folder_icon_edit_note">Oharra eta arkatza</string>
+    <string name="folder_icon_video_camera_front">Bideo-deia</string>
+    <string name="folder_icon_live_tv">Telebista</string>
+    <string name="folder_icon_print">Inprimagailua</string>
     <string name="folder_icon_eco">Natura</string>
     <string name="folder_icon_family_restroom">Familia</string>
     <string name="folder_icon_favorite">Bihotza</string>

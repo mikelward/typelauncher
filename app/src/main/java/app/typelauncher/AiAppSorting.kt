@@ -453,6 +453,8 @@ private val AI_SORT_FOLDER_DESCRIPTIONS = mapOf(
     AppCategory.Charity to "charities, donations, fundraising and crowdfunding for causes, volunteering",
     AppCategory.FamilyHistory to "family trees, genealogy and ancestry records, DNA ancestry tests",
     AppCategory.Notes to "notes, notebooks and journals, to-do lists and task managers",
+    AppCategory.Meetings to "video meetings and video calls, conference calls, webinars",
+    AppCategory.Print to "printer makers' apps, printing and scanning to a printer, fax",
     AppCategory.Travel to "airlines and flights, airports and border control, trip planning, travel booking sites",
     AppCategory.Weather to "weather forecasts, radar, air quality",
     AppCategory.Other to "anything that fits none of the above",

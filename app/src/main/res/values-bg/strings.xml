@@ -294,6 +294,8 @@
     <string name="app_folder_charity">Благотворителност и дарения</string>
     <string name="app_folder_family_history">Семейна история и родословие</string>
     <string name="app_folder_notes">Бележки и задачи</string>
+    <string name="app_folder_meetings">Срещи и видеоразговори</string>
+    <string name="app_folder_print">Печат и факс</string>
     <string name="app_folder_cycling">Колоездене и споделени велосипеди</string>
     <string name="app_folder_hotels">Хотели и настаняване</string>
     <string name="app_folder_maps">Карти</string>
@@ -326,6 +328,9 @@
     <string name="folder_icon_volunteer_activism">Ръка със сърце</string>
     <string name="folder_icon_family_history">Родословно дърво</string>
     <string name="folder_icon_edit_note">Бележка и молив</string>
+    <string name="folder_icon_video_camera_front">Видеоразговор</string>
+    <string name="folder_icon_live_tv">Телевизор</string>
+    <string name="folder_icon_print">Принтер</string>
     <string name="folder_icon_eco">Природа</string>
     <string name="folder_icon_family_restroom">Семейство</string>
     <string name="folder_icon_favorite">Сърце</string>

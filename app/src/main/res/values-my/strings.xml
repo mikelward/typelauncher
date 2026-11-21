@@ -293,6 +293,8 @@
     <string name="app_folder_charity">ပရဟိတနှင့် လှူဒါန်းမှု</string>
     <string name="app_folder_family_history">မိသားစုသမိုင်းနှင့် မျိုးရိုးစဉ်ဆက်</string>
     <string name="app_folder_notes">မှတ်စုများနှင့် လုပ်ငန်းများ</string>
+    <string name="app_folder_meetings">အစည်းအဝေးနှင့် ဗီဒီယိုခေါ်ဆိုမှုများ</string>
+    <string name="app_folder_print">ပုံနှိပ်ခြင်းနှင့် ဖက်စ်</string>
     <string name="app_folder_cycling">စက်ဘီးနှင့် စက်ဘီးငှား</string>
     <string name="app_folder_hotels">ဟိုတယ်နှင့် တည်းခိုရာ</string>
     <string name="app_folder_maps">မြေပုံများ</string>
@@ -325,6 +327,9 @@
     <string name="folder_icon_volunteer_activism">နှလုံးပါသောလက်</string>
     <string name="folder_icon_family_history">မျိုးရိုးပင်</string>
     <string name="folder_icon_edit_note">မှတ်စုနှင့် ခဲတံ</string>
+    <string name="folder_icon_video_camera_front">ဗီဒီယိုခေါ်ဆိုမှု</string>
+    <string name="folder_icon_live_tv">တီဗီ</string>
+    <string name="folder_icon_print">ပုံနှိပ်စက်</string>
     <string name="folder_icon_eco">သဘာဝ</string>
     <string name="folder_icon_family_restroom">မိသားစု</string>
     <string name="folder_icon_favorite">နှလုံး</string>
