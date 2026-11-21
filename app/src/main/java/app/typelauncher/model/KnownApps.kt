@@ -277,6 +277,33 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "egovph" to AppCategory.Government,
     "digid" to AppCategory.Government,
     "mysugr" to AppCategory.Health,
+    "pedometer" to AppCategory.Health,
+    "step counter" to AppCategory.Health,
+    "step tracker" to AppCategory.Health,
+    "betterhelp" to AppCategory.Health,
+    "yazio" to AppCategory.Health,
+    "oral b" to AppCategory.Health,
+    "mi fitness" to AppCategory.Health,
+    "geocaching" to AppCategory.Games,
+    "period tracker" to AppCategory.Health,
+    "period calendar" to AppCategory.Health,
+    "ovulation" to AppCategory.Health,
+    "fertility" to AppCategory.Health,
+    "kegel" to AppCategory.Health,
+    "pelvic floor" to AppCategory.Health,
+    "weight loss" to AppCategory.Health,
+    "home workout" to AppCategory.Health,
+    "blinkist" to AppCategory.Reading,
+    "noom" to AppCategory.Health,
+    "grok" to AppCategory.Ai,
+    "webull" to AppCategory.Finance,
+    "whatnot" to AppCategory.Shopping,
+    "elevenreader" to AppCategory.Reading,
+    "therapy" to AppCategory.Health,
+    "therapist" to AppCategory.Health,
+    "mental health" to AppCategory.Health,
+    "counseling" to AppCategory.Health,
+    "anxiety" to AppCategory.Health,
     "dexcom" to AppCategory.Health,
     "kaiser permanente" to AppCategory.Health,
     "freestyle libre" to AppCategory.Health,
@@ -766,8 +793,12 @@ private val KNOWN_PACKAGE_PREFIXES = listOf(
     // Diabetes devices, Kaiser Permanente, and Digifit, which builds many gyms' apps
     // (maintainer, 2026-11-21).
     "com.dexcom." to AppCategory.Health,
+    "org.dayup.stocks" to AppCategory.Finance,
     "org.kp." to AppCategory.Health,
     "digifit." to AppCategory.Health,
+    // Austria's social insurance apps (Meine ÖGK, Meine BVAEB), and Niantic's games.
+    "at.itsv." to AppCategory.Health,
+    "com.nianticlabs." to AppCategory.Games,
     "gov." to AppCategory.Government,
     // Tello's apps, "My Tello" among them (maintainer, 2026-11-21); DJI's Tello drone is another package.
     "com.tello." to AppCategory.Phone,
@@ -789,7 +820,7 @@ private val GUESS_RULES = listOf(
     AppCategory.Media to listOf("movie", "movies", "stream", "drama", "dramas", "series"),
     AppCategory.Photos to listOf("photo", "camera", "gallery", "selfie"),
     AppCategory.Sports to listOf("sport", "football", "soccer", "basketball", "cricket", "rugby", "nfl", "nba", "espn"),
-    AppCategory.Health to listOf("health", "fitness", "gym", "workout", "yoga", "meditation", "sleep", "pharmacy", "medical", "doctor", "patient"),
+    AppCategory.Health to listOf("health", "fitness", "gym", "workout", "yoga", "meditation", "sleep", "pharmacy", "medical", "doctor", "patient", "pedometer", "stepcounter", "steptracker"),
     AppCategory.Learning to listOf("learn", "school", "education", "edu", "dictionary", "language", "course", "study", "flashcards"),
     AppCategory.Pets to listOf("pet", "pets", "dog", "dogs", "vet", "petcare"),
     AppCategory.Transit to listOf("transit", "metro", "rail", "railway", "bus"),
@@ -1178,9 +1209,79 @@ private val KNOWN_PACKAGES = listOf(
     """,
     AppCategory.Health to """
         com.aon.sante org.wakingup.android com.mysugr.android.companion uk.co.virginactive.android
+        at.svagw.mobile.svaapp com.betterhelp com.yazio.android com.pg.oralb.oralbapp com.xiaomi.wearable
+        org.iggymedia.periodtracker com.clue.android com.app.lively_app com.junochat.app
+        com.popularapp.periodcalendar com.lbrc.PeriodCalendar premom.eh.com.ehpremomapp com.glow.android
+        com.wsl.noom com.mindbodyonline.connect in.plackal.lovecyclesfree co.manual.voy com.phe.daysoff
+        com.vamapps.thecoach com.getmental.mental homeworkout.homeworkouts.noequipment com.jsdev.pfei
+        kegel.kegelexercises.pelvicfloor.pfm com.lescadeaux.kegel com.elevatelabs.geonosis
+        com.theinnerhour.b2b com.talkspace.talkspaceapp com.cyrano.cyrano co.mindpeers de.moodpath.android
+        bot.touchkin us.regain com.mypossibleself.app com.helpy.cbt com.ifeel.ifeeluserchat com.bstro.MindShift
+        com.lasting.lasting com.mentallabs.mentalhealth in.evolve.android com.technogym.tgapp
+    """,
+    AppCategory.Shopping to """ com.whatnot_mobile """,
+    AppCategory.Finance to """ com.raisin.app com.emmaprod org.dayup.stocks.uk """,
+    AppCategory.Ai to """ ai.x.grok.bot com.larus.wolf """,
+    AppCategory.Travel to """ com.usebounce se.memfrag.app """,
+    AppCategory.Learning to """ com.mobisystems.msdict.embedded.wireless.oxford.dictionaryofenglish """,
+    AppCategory.Kids to """ com.tribo.bubbleapp """,
+    AppCategory.Reading to """ io.elevenlabs.readerapp """,
+    AppCategory.Kids to """
+        com.huckleberry_labs.app
+    """,
+    AppCategory.Reading to """
+        com.blinkslabs.blinkist.android
+    """,
+    AppCategory.Cycling to """
+        de.komoot.android
+    """,
+    // Geocaching: an outdoor game, beside Niantic's.
+    AppCategory.Games to """
+        com.groundspeak.geocaching.intro
     """,
     AppCategory.Charity to """
         org.sharethemeal.app
+    """,
+    // Top apps whose names mislead the word rules, filed as the answer key
+    // has them (maintainer, 2026-11-21). Kalshi, Morrisons More Card and
+    // Spriggy could go either way.
+    AppCategory.Finance to """
+        com.kalshi.mobile
+    """,
+    AppCategory.Shopping to """
+        com.crowncards.app com.wishabi.flipp nz.co.trademe.trademe com.morrisons.matchandmore.app
+        com.bluelightcard.user
+    """,
+    AppCategory.Design to """
+        com.mara.modstune com.photo.restore.scan com.aiphotoedior.photogenerator.photoretouch
+        com.xphotokit.picfusionlab
+    """,
+    AppCategory.Car to """
+        com.zenergy.zenergyapp.android.prod
+    """,
+    AppCategory.Ai to """
+        com.scatterlab.messenger
+    """,
+    AppCategory.Media to """
+        com.fox.foxone
+    """,
+    AppCategory.News to """
+        com.newsbreak.crimeradar
+    """,
+    AppCategory.Reading to """
+        com.radio.pocketfm com.square_enix.android_googleplay.mangaup_global
+    """,
+    AppCategory.Social to """
+        sg.bigo.live
+    """,
+    AppCategory.Tools to """
+        com.Endoscope.scope
+    """,
+    AppCategory.Kids to """
+        org.blubblub.app.speechblubs com.cashless.cashlessapp
+    """,
+    AppCategory.Sports to """
+        app.mygameday.results
     """,
     AppCategory.Office to """
         de.gmx.mobile.android.mail de.web.mobile.android.mail
