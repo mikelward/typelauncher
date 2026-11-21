@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 2026-11-19_
+_Last updated: 2026-11-21_
 
 Type Launcher is an Android home screen launcher. This policy describes what
 the app does and does not do with your data.
@@ -20,6 +20,9 @@ the app does and does not do with your data.
 - If you turn on **Sort with on-device AI** (off by default), your app names
   are sorted by an AI model that runs on your phone, and Google's ML Kit,
   which runs it, sends Google basic diagnostics. See below.
+- If you choose **Sort using Google Play** (off by default), the package
+  names of the apps you tick are sent to Google Play, one at a time, to read
+  their categories. Only apps Google Play installed can be ticked. See below.
 
 ## Data stored on your device
 
@@ -49,6 +52,9 @@ Type Launcher requests Android permissions only for features it implements
 locally on your device. Data accessed under these permissions is not
 transmitted off your device by the app.
 
+- **Internet** (`INTERNET`): used only to send the opt-in crash reports and
+  analytics below, and, if you choose **Sort using Google Play**, to read the
+  Google Play pages of the apps you tick.
 - **Query installed apps** (`QUERY_ALL_PACKAGES` / launcher app queries): read
   the list of apps installed on your device so they can be shown and
   launched.
@@ -116,7 +122,9 @@ transmitted off your device by the app.
   session or transmitted.
 - It does not log or transmit your search queries.
 - It does not log or transmit the names or contents of your installed apps,
-  notifications, contacts, calendar events, or widgets.
+  notifications, contacts, calendar events, or widgets. The one exception is
+  **Sort using Google Play**, which sends the package names of the apps you
+  choose to Google Play, and only after you choose them (see below).
 - It does not show ads.
 - It does not sell or share data with third parties for marketing.
 
@@ -262,6 +270,30 @@ hardware, and configured languages. Google describes this in its
 Type Launcher does not ask ML Kit for anything until you turn the feature on,
 and does not send your app names anywhere. Turning the feature off stops it; **Re-sort all
 apps** clears the folders it chose.
+
+## Sort using Google Play
+
+**Sort using Google Play** is off unless you choose it. The Other folder offers
+to sort the apps Type Launcher's own rules can't place, and lists them first:
+each is ticked, and you can untick any. Apps that Google Play didn't install
+are listed but can't be ticked, and are never sent. Nothing is sent until you
+tap **Sort**.
+
+For each app you leave ticked, your phone asks Google Play for the app's
+public store page (`play.google.com/store/apps/details?id=` and the app's
+package name, in English, with your phone's two-letter country so apps sold
+only there are found) and reads the category on it. The request goes straight
+from your phone to Google; no server of the developer's is involved. It
+carries no account, device identifier, or list of your other apps, but like any
+request it shows Google your network address. Google Play installed these apps,
+so your Google account already lists them; the request tells Google what it
+would see if you opened the app's page in Google Play. Each page is about 200 KB.
+
+The categories are kept on your phone. **Sort new apps using Google Play**
+(in Settings, once you have used it) looks up apps you install later in the
+same way without asking each time; it is off unless you turn it on. **Sort
+again using Google Play** forgets the categories so you can choose again.
+Work-profile apps are never looked up.
 
 ## Children
 

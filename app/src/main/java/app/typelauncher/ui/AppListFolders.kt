@@ -1,15 +1,8 @@
 package app.typelauncher
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,22 +13,38 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Surface
-import androidx.compose.material3.TextField
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.Switch
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -1059,5 +1069,231 @@ internal fun OtherFolderAiNote(
                 Text(stringResource(R.string.app_folders_offer_accept))
             }
         }
+    }
+}
+
+/** What "Sort using Google Play" can do, from the folder note and Settings. */
+@Immutable
+internal class PlaySortActions(
+    // The ticked apps to look up, and the unticked ones, which are never looked up on their own.
+    val onStart: (chosen: List<String>, unticked: List<String>) -> Unit = { _, _ -> },
+    val onDismissOffer: () -> Unit = {},
+    val onAcknowledge: () -> Unit = {},
+    val onAutoChanged: (Boolean) -> Unit = {},
+    val onResort: () -> Unit = {},
+)
+
+/**
+ * At the top of Other: the offer to sort the apps our rules don't place using
+ * Google Play, its progress, or how it went. The offer opens
+ * [PlaySortSheet] to choose the apps; nothing is looked up before that.
+ */
+@Composable
+internal fun PlaySortNote(state: PlaySortState, actions: PlaySortActions) {
+    var choosing by rememberSaveable { mutableStateOf(false) }
+    when {
+        state.phase == PlaySortPhase.Sorting || state.phase == PlaySortPhase.Paused -> Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 4.dp)
+                .testTag(PLAY_SORT_PROGRESS_TAG),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                if (state.phase == PlaySortPhase.Paused) {
+                    stringResource(R.string.play_sort_paused)
+                } else {
+                    stringResource(R.string.play_sort_progress, state.done, state.total)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            if (state.total > 0) {
+                LinearProgressIndicator(
+                    progress = { state.done.toFloat() / state.total },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+        state.phase == PlaySortPhase.Done -> Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 4.dp)
+                .testTag(PLAY_SORT_RESULT_TAG),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    pluralStringResource(R.plurals.play_sort_done, state.sorted, state.sorted),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
+                if (state.unsorted > 0) {
+                    Text(
+                        pluralStringResource(R.plurals.play_sort_done_unsorted, state.unsorted, state.unsorted),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            TextButton(onClick = actions.onAcknowledge, modifier = Modifier.testTag(PLAY_SORT_DONE_TAG)) {
+                Text(stringResource(R.string.play_sort_done_button))
+            }
+        }
+        state.showOffer -> Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 4.dp, top = 4.dp)
+                .testTag(PLAY_SORT_OFFER_TAG),
+        ) {
+            Text(
+                pluralStringResource(R.plurals.play_sort_offer_title, state.offered.size, state.offered.size),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            Text(
+                stringResource(R.string.play_sort_offer_body),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(modifier = Modifier.align(Alignment.End)) {
+                TextButton(onClick = actions.onDismissOffer, modifier = Modifier.testTag(PLAY_SORT_OFFER_DISMISS_TAG)) {
+                    Text(stringResource(R.string.app_folders_offer_dismiss))
+                }
+                TextButton(onClick = { choosing = true }, modifier = Modifier.testTag(PLAY_SORT_OFFER_ACCEPT_TAG)) {
+                    Text(stringResource(R.string.play_sort_offer_accept))
+                }
+            }
+        }
+    }
+    if (choosing) {
+        PlaySortSheet(
+            candidates = state.candidates,
+            onSort = { chosen, unticked ->
+                choosing = false
+                actions.onStart(chosen, unticked)
+            },
+            onDismiss = { choosing = false },
+        )
+    }
+}
+
+/**
+ * The apps "Sort using Google Play" would look up, each ticked, so any can be
+ * left out. Apps Google Play didn't install are listed, greyed out and never
+ * looked up, so the list says plainly what stays on the phone.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun PlaySortSheet(
+    candidates: List<PlaySortCandidate>,
+    onSort: (chosen: List<String>, unticked: List<String>) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // Apps the user kept out before start unticked.
+    var unticked by rememberSaveable {
+        mutableStateOf(candidates.filter { it.declined }.map { it.app.packageName }.toSet())
+    }
+    val chosen = candidates.filter { it.fromPlay && it.app.packageName !in unticked }.map { it.app.packageName }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 16.dp)
+                .testTag(PLAY_SORT_SHEET_TAG),
+        ) {
+            Text(stringResource(R.string.play_sort_sheet_title), style = MaterialTheme.typography.titleLarge)
+            Text(
+                stringResource(R.string.play_sort_sheet_body),
+                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
+                items(candidates, key = { it.app.packageName }) { candidate ->
+                    val packageName = candidate.app.packageName
+                    val ticked = candidate.fromPlay && packageName !in unticked
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            // Every row reads as a checkbox; one Google Play
+                            // didn't install is a disabled, unticked one.
+                            .toggleable(value = ticked, enabled = candidate.fromPlay, role = Role.Checkbox) { now ->
+                                unticked = if (now) unticked - packageName else unticked + packageName
+                            }
+                            .padding(vertical = 4.dp)
+                            .testTag("$PLAY_SORT_ROW_TAG:$packageName"),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Checkbox(checked = ticked, onCheckedChange = null, enabled = candidate.fromPlay)
+                        Box(modifier = Modifier.alpha(if (candidate.fromPlay) 1f else DISABLED_ALPHA)) {
+                            AppIcon(candidate.app, size = 32.dp)
+                        }
+                        Text(
+                            candidate.app.displayName,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (candidate.fromPlay) {
+                                MaterialTheme.colorScheme.onSurface
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED_ALPHA)
+                            },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (!candidate.fromPlay) {
+                            Text(
+                                stringResource(R.string.play_sort_not_from_play),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+            Row(modifier = Modifier.align(Alignment.End).padding(top = 8.dp)) {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.app_folder_picker_cancel)) }
+                Button(
+                    onClick = {
+                        val left = candidates.filter { it.fromPlay && it.app.packageName in unticked }
+                        onSort(chosen, left.map { it.app.packageName })
+                    },
+                    enabled = chosen.isNotEmpty(),
+                    modifier = Modifier.testTag(PLAY_SORT_SHEET_CONFIRM_TAG),
+                ) {
+                    Text(pluralStringResource(R.plurals.play_sort_sheet_confirm, chosen.size, chosen.size))
+                }
+            }
+        }
+    }
+}
+
+private const val DISABLED_ALPHA = 0.38f
+
+/** Settings rows for "Sort using Google Play", shown once it has been used. */
+@Composable
+internal fun PlaySortSettingsRows(state: PlaySortState, actions: PlaySortActions) {
+    if (!state.hasUsed) return
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(
+            stringResource(R.string.settings_play_sort_auto_title),
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Switch(
+            checked = state.isAutoEnabled,
+            onCheckedChange = actions.onAutoChanged,
+            modifier = Modifier.testTag(PLAY_SORT_AUTO_SWITCH_TAG),
+        )
+    }
+    TextButton(onClick = actions.onResort, modifier = Modifier.testTag(PLAY_SORT_RESORT_TAG)) {
+        Text(stringResource(R.string.settings_play_sort_resort))
     }
 }
