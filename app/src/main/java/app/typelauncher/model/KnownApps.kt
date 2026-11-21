@@ -39,6 +39,8 @@ internal val EITHER_WAY_PACKAGES: Map<String, List<AppCategory>> = mapOf(
     "com.kalshi.mobile" to listOf(AppCategory.Finance, AppCategory.Betting),
     "com.morrisons.matchandmore.app" to listOf(AppCategory.Shopping, AppCategory.Rewards),
     "com.cashless.cashlessapp" to listOf(AppCategory.Kids, AppCategory.Finance),
+    // 23andMe: DNA ancestry and health reports alike.
+    "com.twentythreeandme.app" to listOf(AppCategory.FamilyHistory, AppCategory.Health),
     // A supermarket's loyalty card, like Morrisons More Card.
     "com.fantastico.fclub" to listOf(AppCategory.Shopping, AppCategory.Rewards),
     // GoHenry: a kids' debit card, filed where Google Play has it.
@@ -129,6 +131,8 @@ private fun labelWordCategory(label: String): AppCategory? {
 // Workout"), matched as whole words like brands but, unlike brands, a guess
 // that "Check guessed folders" asks about (Codex on PR #894).
 private val LABEL_PHRASES: List<Pair<String, AppCategory>> = listOf(
+    "family tree" to AppCategory.FamilyHistory,
+    "genealogy" to AppCategory.FamilyHistory,
     "pedometer" to AppCategory.Health,
     "step counter" to AppCategory.Health,
     "step tracker" to AppCategory.Health,
@@ -332,6 +336,10 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "practo" to AppCategory.Health,
     "netmeds" to AppCategory.Health,
     "vesync" to AppCategory.Home,
+    "ancestry" to AppCategory.FamilyHistory,
+    "myheritage" to AppCategory.FamilyHistory,
+    "familysearch" to AppCategory.FamilyHistory,
+    "23andme" to AppCategory.FamilyHistory,
     "roborock" to AppCategory.Home,
     "reolink" to AppCategory.Home,
     "thinq" to AppCategory.Home,
@@ -1286,6 +1294,9 @@ private val KNOWN_PACKAGES = listOf(
     AppCategory.Shopping to """ com.whatnot_mobile com.naturitas.android com.nbty.hollandbarret com.lasoo.android.target trendyol.com
         com.fantastico.fclub ee.coop.shopping.app lv.rimi.card """,
     AppCategory.Food to """ jp.co.mcdonalds.android """,
+    AppCategory.FamilyHistory to """
+        com.ancestry.android.apps.ancestry com.twentythreeandme.app air.com.myheritage.mobile org.familysearch.mobile
+    """,
     AppCategory.Jobs to """ com.fiverr.fiverr """,
     AppCategory.Car to """ com.shell.sitibv.retail com.bp.mobile.bpme.uk """,
     // Smart-ID: signing in to Baltic banks and services, like an authenticator.

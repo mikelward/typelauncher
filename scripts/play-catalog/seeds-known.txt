@@ -4,6 +4,7 @@ ae.uaepass.mainapp
 ai.perplexity.app.android
 ai.x.grok.bot
 air.ITVMobilePlayer
+air.com.myheritage.mobile
 aplicacion.tiempo
 app.clothescast
 app.igames.ps2
@@ -114,6 +115,7 @@ com.amazon.mp
 com.amazon.mp3
 com.americanexpress.android.acctsvcs.us
 com.amtrak.rider
+com.ancestry.android.apps.ancestry
 com.andi.alquran.id
 com.android.chrome
 com.android.settings
@@ -770,6 +772,7 @@ com.tubitv
 com.tumblr
 com.tuya.smart
 com.tuya.smartlife
+com.twentythreeandme.app
 com.twitter.android
 com.uaemoi.smartservices
 com.ubercab
@@ -969,6 +972,7 @@ org.coursera.android
 org.dayup.stocks
 org.dayup.stocks.uk
 org.edx.mobile
+org.familysearch.mobile
 org.hicham.salaat
 org.iggymedia.periodtracker
 org.inaturalist.android

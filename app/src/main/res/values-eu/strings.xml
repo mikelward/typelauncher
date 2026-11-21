@@ -292,6 +292,7 @@
     <string name="app_folder_transit">Garraio publikoa eta trena</string>
     <string name="app_folder_car">Autoa</string>
     <string name="app_folder_charity">Ongintza eta dohaintzak</string>
+    <string name="app_folder_family_history">Familia-historia eta genealogia</string>
     <string name="app_folder_cycling">Bizikleta eta bizikleta partekatua</string>
     <string name="app_folder_hotels">Hotelak eta ostatuak</string>
     <string name="app_folder_maps">Mapak</string>
@@ -322,6 +323,7 @@
     <string name="folder_icon_hotel">Ohea</string>
     <string name="folder_icon_map">Mapa</string>
     <string name="folder_icon_volunteer_activism">Eskua bihotzarekin</string>
+    <string name="folder_icon_family_history">Zuhaitz genealogikoa</string>
     <string name="folder_icon_eco">Natura</string>
     <string name="folder_icon_family_restroom">Familia</string>
     <string name="folder_icon_favorite">Bihotza</string>

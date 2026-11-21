@@ -294,6 +294,7 @@
     <string name="app_folder_transit">Verejná doprava a vlaky</string>
     <string name="app_folder_car">Auto</string>
     <string name="app_folder_charity">Charita a darcovstvo</string>
+    <string name="app_folder_family_history">Rodinná história a genealógia</string>
     <string name="app_folder_cycling">Cyklistika a zdieľané bicykle</string>
     <string name="app_folder_hotels">Hotely a ubytovanie</string>
     <string name="app_folder_maps">Mapy</string>
@@ -324,6 +325,7 @@
     <string name="folder_icon_hotel">Posteľ</string>
     <string name="folder_icon_map">Mapa</string>
     <string name="folder_icon_volunteer_activism">Ruka so srdcom</string>
+    <string name="folder_icon_family_history">Rodokmeň</string>
     <string name="folder_icon_eco">Príroda</string>
     <string name="folder_icon_family_restroom">Rodina</string>
     <string name="folder_icon_favorite">Srdce</string>

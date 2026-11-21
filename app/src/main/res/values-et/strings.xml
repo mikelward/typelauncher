@@ -292,6 +292,7 @@
     <string name="app_folder_transit">Ühistransport ja rongid</string>
     <string name="app_folder_car">Auto</string>
     <string name="app_folder_charity">Heategevus ja annetused</string>
+    <string name="app_folder_family_history">Suguvõsa ajalugu ja genealoogia</string>
     <string name="app_folder_cycling">Rattasõit ja rendirattad</string>
     <string name="app_folder_hotels">Hotellid ja majutus</string>
     <string name="app_folder_maps">Kaardid</string>
@@ -322,6 +323,7 @@
     <string name="folder_icon_hotel">Voodi</string>
     <string name="folder_icon_map">Kaart</string>
     <string name="folder_icon_volunteer_activism">Käsi südamega</string>
+    <string name="folder_icon_family_history">Sugupuu</string>
     <string name="folder_icon_eco">Loodus</string>
     <string name="folder_icon_family_restroom">Pere</string>
     <string name="folder_icon_favorite">Süda</string>

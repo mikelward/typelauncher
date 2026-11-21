@@ -226,7 +226,7 @@ class AppFoldersTest {
 
         assertEquals(
             listOf(
-                "ai", "betting", "car", "charity", "code", "cycling", "design", "events", "finance", "food", "games", "government",
+                "ai", "betting", "car", "charity", "code", "cycling", "design", "events", "family_history", "finance", "food", "games", "government",
                 "health", "home", "hotels",
                 // "Office & productivity" (maintainer, 2026-11-19) sorts under O,
                 // and "Public transit & rail" (2026-11-21) under P.

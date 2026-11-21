@@ -293,6 +293,7 @@
     <string name="app_folder_transit">Transport públic i tren</string>
     <string name="app_folder_car">Cotxe</string>
     <string name="app_folder_charity">Beneficència i donacions</string>
+    <string name="app_folder_family_history">Història familiar i genealogia</string>
     <string name="app_folder_cycling">Bicicleta i bici compartida</string>
     <string name="app_folder_hotels">Hotels i allotjaments</string>
     <string name="app_folder_maps">Mapes</string>
@@ -323,6 +324,7 @@
     <string name="folder_icon_hotel">Llit</string>
     <string name="folder_icon_map">Mapa</string>
     <string name="folder_icon_volunteer_activism">Mà amb cor</string>
+    <string name="folder_icon_family_history">Arbre genealògic</string>
     <string name="folder_icon_eco">Natura</string>
     <string name="folder_icon_family_restroom">Família</string>
     <string name="folder_icon_favorite">Cor</string>

@@ -292,6 +292,7 @@
     <string name="app_folder_transit">Ezokuthutha zomphakathi nezitimela</string>
     <string name="app_folder_car">Imoto</string>
     <string name="app_folder_charity">Usizo nokunikela</string>
+    <string name="app_folder_family_history">Umlando womndeni nozalo</string>
     <string name="app_folder_cycling">Amabhayisikili nokuqasha amabhayisikili</string>
     <string name="app_folder_hotels">Amahhotela nezindawo zokuhlala</string>
     <string name="app_folder_maps">Amamephu</string>
@@ -322,6 +323,7 @@
     <string name="folder_icon_hotel">Umbhede</string>
     <string name="folder_icon_map">Imephu</string>
     <string name="folder_icon_volunteer_activism">Isandla esinenhliziyo</string>
+    <string name="folder_icon_family_history">Isihlahla somndeni</string>
     <string name="folder_icon_eco">Imvelo</string>
     <string name="folder_icon_family_restroom">Umndeni</string>
     <string name="folder_icon_favorite">Inhliziyo</string>

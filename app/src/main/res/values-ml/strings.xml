@@ -292,6 +292,7 @@
     <string name="app_folder_transit">പൊതുഗതാഗതവും റെയിലും</string>
     <string name="app_folder_car">കാർ</string>
     <string name="app_folder_charity">ദാനവും സംഭാവനയും</string>
+    <string name="app_folder_family_history">കുടുംബ ചരിത്രവും വംശാവലിയും</string>
     <string name="app_folder_cycling">സൈക്ലിംഗും ബൈക്ക് ഷെയറും</string>
     <string name="app_folder_hotels">ഹോട്ടലുകളും താമസവും</string>
     <string name="app_folder_maps">മാപ്പുകൾ</string>
@@ -322,6 +323,7 @@
     <string name="folder_icon_hotel">കിടക്ക</string>
     <string name="folder_icon_map">മാപ്പ്</string>
     <string name="folder_icon_volunteer_activism">കൈയിൽ ഹൃദയം</string>
+    <string name="folder_icon_family_history">കുടുംബവൃക്ഷം</string>
     <string name="folder_icon_eco">പ്രകൃതി</string>
     <string name="folder_icon_family_restroom">കുടുംബം</string>
     <string name="folder_icon_favorite">ഹൃദയം</string>

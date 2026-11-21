@@ -292,6 +292,7 @@
     <string name="app_folder_transit">ಸಾರ್ವಜನಿಕ ಸಾರಿಗೆ ಮತ್ತು ರೈಲು</string>
     <string name="app_folder_car">ಕಾರು</string>
     <string name="app_folder_charity">ದಾನ ಮತ್ತು ದೇಣಿಗೆ</string>
+    <string name="app_folder_family_history">ಕುಟುಂಬ ಇತಿಹಾಸ ಮತ್ತು ವಂಶಾವಳಿ</string>
     <string name="app_folder_cycling">ಸೈಕ್ಲಿಂಗ್ ಮತ್ತು ಬೈಕ್ ಹಂಚಿಕೆ</string>
     <string name="app_folder_hotels">ಹೋಟೆಲ್‌ಗಳು ಮತ್ತು ವಾಸ್ತವ್ಯ</string>
     <string name="app_folder_maps">ನಕ್ಷೆಗಳು</string>
@@ -322,6 +323,7 @@
     <string name="folder_icon_hotel">ಹಾಸಿಗೆ</string>
     <string name="folder_icon_map">ನಕ್ಷೆ</string>
     <string name="folder_icon_volunteer_activism">ಕೈಯಲ್ಲಿ ಹೃದಯ</string>
+    <string name="folder_icon_family_history">ವಂಶವೃಕ್ಷ</string>
     <string name="folder_icon_eco">ಪ್ರಕೃತಿ</string>
     <string name="folder_icon_family_restroom">ಕುಟುಂಬ</string>
     <string name="folder_icon_favorite">ಹೃದಯ</string>
