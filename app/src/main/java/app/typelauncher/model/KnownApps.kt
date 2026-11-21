@@ -44,6 +44,12 @@ internal val EITHER_WAY_PACKAGES: Map<String, List<AppCategory>> = mapOf(
     "com.asana.app" to listOf(AppCategory.Notes, AppCategory.Office),
     "com.basecamp.bc3" to listOf(AppCategory.Notes, AppCategory.Office),
     "com.monday.monday" to listOf(AppCategory.Notes, AppCategory.Office),
+    // Google Chat: messages, often for work (maintainer, 2026-11-21: "Should
+    // probably be Social and messages?").
+    "com.google.android.apps.dynamite" to listOf(AppCategory.Social, AppCategory.Office),
+    // Xero Me: payslips, leave and expenses (maintainer, 2026-11-21: "leaning
+    // Money, or maybe Office and productivity if not Money").
+    "com.xero.payday" to listOf(AppCategory.Finance, AppCategory.Office),
     // Substack: newsletters (maintainer, 2026-11-21: "I guess Substack is Reading?").
     "com.substack.app" to listOf(AppCategory.Reading, AppCategory.News),
     // Twitch: live streams, mostly of games.
@@ -980,7 +986,7 @@ private val KNOWN_PACKAGES = listOf(
         com.google.android.apps.messaging com.samsung.android.messaging com.viber.voip
         jp.naver.line.android com.tencent.mm com.kakao.talk com.skype.raider com.tinder
         com.bumble.app co.hinge.app xyz.blueskyweb.app org.joinmastodon.android com.nextdoor
-        com.google.android.contacts
+        com.google.android.contacts com.google.android.apps.dynamite
     """,
     AppCategory.Office to """
         com.google.android.gm com.microsoft.office.outlook com.google.android.calendar
@@ -990,7 +996,7 @@ private val KNOWN_PACKAGES = listOf(
         com.microsoft.office.officehubrow com.microsoft.teams com.Slack us.zoom.videomeetings
         com.google.android.apps.tachyon
         com.dropbox.android com.microsoft.skydrive com.adobe.reader
-        com.yahoo.mobile.client.android.mail ch.protonmail.android com.google.android.apps.dynamite
+        com.yahoo.mobile.client.android.mail ch.protonmail.android
         com.atlassian.android.jira.core
     """,
     AppCategory.Notes to """
@@ -1247,6 +1253,7 @@ private val KNOWN_PACKAGES = listOf(
         com.bloomberg.android.plus com.mobilebrokerage.CIBC com.microsoft.amp.apps.bingfinance com.moneyboxapp
         com.bochk.app.aos nz.co.bnz.droidbanking com.creditkarma.mobile.international
         com.fullsix.android.labanquepostale.accountaccess com.intuit.quickbooks com.xero.touch org.me.mobiexpensifyg
+        com.xero.payday
         com.posteitaliane.spim com.starfinanz.mobile.android.pushtan de.deutschepost.postident
         com.bankinter.portugal.bmb com.BancoDePortugal.BPmobile com.abanca.bm.pt pt.santander.oneappparticulares
         ma.creditagricole.banke com.saphir.baridbankmobile com.egyptianbanks.instapay
@@ -1348,7 +1355,7 @@ private val KNOWN_PACKAGES = listOf(
     AppCategory.FamilyHistory to """
         com.ancestry.android.apps.ancestry com.twentythreeandme.app air.com.myheritage.mobile org.familysearch.mobile
     """,
-    AppCategory.Jobs to """ com.fiverr.fiverr com.workday.workdroidapp com.xero.payday """,
+    AppCategory.Jobs to """ com.fiverr.fiverr com.workday.workdroidapp """,
     AppCategory.Car to """ com.shell.sitibv.retail com.bp.mobile.bpme.uk """,
     // Smart-ID: signing in to Baltic banks and services, like an authenticator.
     AppCategory.Security to """
