@@ -295,6 +295,8 @@
     <string name="app_folder_charity">Caritate și donații</string>
     <string name="app_folder_family_history">Istoria familiei și genealogie</string>
     <string name="app_folder_notes">Notițe și sarcini</string>
+    <string name="app_folder_meetings">Întâlniri și apeluri video</string>
+    <string name="app_folder_print">Imprimare și fax</string>
     <string name="app_folder_cycling">Ciclism și biciclete partajate</string>
     <string name="app_folder_hotels">Hoteluri și cazare</string>
     <string name="app_folder_maps">Hărți</string>
@@ -327,6 +329,9 @@
     <string name="folder_icon_volunteer_activism">Mână cu inimă</string>
     <string name="folder_icon_family_history">Arbore genealogic</string>
     <string name="folder_icon_edit_note">Notiță și creion</string>
+    <string name="folder_icon_video_camera_front">Apel video</string>
+    <string name="folder_icon_live_tv">Televizor</string>
+    <string name="folder_icon_print">Imprimantă</string>
     <string name="folder_icon_eco">Natură</string>
     <string name="folder_icon_family_restroom">Familie</string>
     <string name="folder_icon_favorite">Inimă</string>

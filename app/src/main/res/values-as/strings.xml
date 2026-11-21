@@ -294,6 +294,8 @@
     <string name="app_folder_charity">দান আৰু সাহায্য</string>
     <string name="app_folder_family_history">পৰিয়ালৰ ইতিহাস আৰু বংশাৱলী</string>
     <string name="app_folder_notes">টোকা আৰু কাৰ্য</string>
+    <string name="app_folder_meetings">সভা আৰু ভিডিঅ’ কল</string>
+    <string name="app_folder_print">প্ৰিণ্ট আৰু ফেক্স</string>
     <string name="app_folder_cycling">চাইকেল আৰু বাইক শ্বেয়াৰ</string>
     <string name="app_folder_hotels">হোটেল আৰু থকাৰ ঠাই</string>
     <string name="app_folder_maps">মানচিত্ৰ</string>
@@ -326,6 +328,9 @@
     <string name="folder_icon_volunteer_activism">হাতত হৃদয়</string>
     <string name="folder_icon_family_history">বংশতালিকা</string>
     <string name="folder_icon_edit_note">টোকা আৰু পেঞ্চিল</string>
+    <string name="folder_icon_video_camera_front">ভিডিঅ’ কল</string>
+    <string name="folder_icon_live_tv">টিভি</string>
+    <string name="folder_icon_print">প্ৰিণ্টাৰ</string>
     <string name="folder_icon_eco">প্ৰকৃতি</string>
     <string name="folder_icon_family_restroom">পৰিয়াল</string>
     <string name="folder_icon_favorite">হৃদয়</string>

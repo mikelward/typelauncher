@@ -294,6 +294,8 @@
     <string name="app_folder_charity">Jótékonyság és adományozás</string>
     <string name="app_folder_family_history">Családtörténet és genealógia</string>
     <string name="app_folder_notes">Jegyzetek és teendők</string>
+    <string name="app_folder_meetings">Értekezletek és videohívások</string>
+    <string name="app_folder_print">Nyomtatás és fax</string>
     <string name="app_folder_cycling">Kerékpár és bérbringa</string>
     <string name="app_folder_hotels">Szállodák és szállások</string>
     <string name="app_folder_maps">Térképek</string>
@@ -326,6 +328,9 @@
     <string name="folder_icon_volunteer_activism">Kéz szívvel</string>
     <string name="folder_icon_family_history">Családfa</string>
     <string name="folder_icon_edit_note">Jegyzet és ceruza</string>
+    <string name="folder_icon_video_camera_front">Videohívás</string>
+    <string name="folder_icon_live_tv">TV</string>
+    <string name="folder_icon_print">Nyomtató</string>
     <string name="folder_icon_eco">Természet</string>
     <string name="folder_icon_family_restroom">Család</string>
     <string name="folder_icon_favorite">Szív</string>

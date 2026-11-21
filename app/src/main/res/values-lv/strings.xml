@@ -295,6 +295,8 @@
     <string name="app_folder_charity">Labdarība un ziedojumi</string>
     <string name="app_folder_family_history">Dzimtas vēsture un ģenealoģija</string>
     <string name="app_folder_notes">Piezīmes un uzdevumi</string>
+    <string name="app_folder_meetings">Sapulces un videozvani</string>
+    <string name="app_folder_print">Drukāšana un fakss</string>
     <string name="app_folder_cycling">Velosipēdi un to noma</string>
     <string name="app_folder_hotels">Viesnīcas un naktsmītnes</string>
     <string name="app_folder_maps">Kartes</string>
@@ -327,6 +329,9 @@
     <string name="folder_icon_volunteer_activism">Roka ar sirdi</string>
     <string name="folder_icon_family_history">Dzimtas koks</string>
     <string name="folder_icon_edit_note">Piezīme un zīmulis</string>
+    <string name="folder_icon_video_camera_front">Videozvans</string>
+    <string name="folder_icon_live_tv">Televizors</string>
+    <string name="folder_icon_print">Printeris</string>
     <string name="folder_icon_eco">Daba</string>
     <string name="folder_icon_family_restroom">Ģimene</string>
     <string name="folder_icon_favorite">Sirds</string>

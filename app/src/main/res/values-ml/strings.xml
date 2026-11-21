@@ -294,6 +294,8 @@
     <string name="app_folder_charity">ദാനവും സംഭാവനയും</string>
     <string name="app_folder_family_history">കുടുംബ ചരിത്രവും വംശാവലിയും</string>
     <string name="app_folder_notes">കുറിപ്പുകളും ടാസ്‌ക്കുകളും</string>
+    <string name="app_folder_meetings">മീറ്റിംഗുകളും വീഡിയോ കോളുകളും</string>
+    <string name="app_folder_print">പ്രിന്റും ഫാക്സും</string>
     <string name="app_folder_cycling">സൈക്ലിംഗും ബൈക്ക് ഷെയറും</string>
     <string name="app_folder_hotels">ഹോട്ടലുകളും താമസവും</string>
     <string name="app_folder_maps">മാപ്പുകൾ</string>
@@ -326,6 +328,9 @@
     <string name="folder_icon_volunteer_activism">കൈയിൽ ഹൃദയം</string>
     <string name="folder_icon_family_history">കുടുംബവൃക്ഷം</string>
     <string name="folder_icon_edit_note">കുറിപ്പും പെൻസിലും</string>
+    <string name="folder_icon_video_camera_front">വീഡിയോ കോൾ</string>
+    <string name="folder_icon_live_tv">ടിവി</string>
+    <string name="folder_icon_print">പ്രിന്റർ</string>
     <string name="folder_icon_eco">പ്രകൃതി</string>
     <string name="folder_icon_family_restroom">കുടുംബം</string>
     <string name="folder_icon_favorite">ഹൃദയം</string>

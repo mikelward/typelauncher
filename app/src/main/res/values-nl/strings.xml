@@ -294,6 +294,8 @@
     <string name="app_folder_charity">Goede doelen &amp; doneren</string>
     <string name="app_folder_family_history">Familiegeschiedenis &amp; genealogie</string>
     <string name="app_folder_notes">Notities &amp; taken</string>
+    <string name="app_folder_meetings">Vergaderingen &amp; videobellen</string>
+    <string name="app_folder_print">Afdrukken &amp; faxen</string>
     <string name="app_folder_cycling">Fietsen &amp; deelfietsen</string>
     <string name="app_folder_hotels">Hotels &amp; verblijf</string>
     <string name="app_folder_maps">Kaarten</string>
@@ -326,6 +328,9 @@
     <string name="folder_icon_volunteer_activism">Hand met hart</string>
     <string name="folder_icon_family_history">Stamboom</string>
     <string name="folder_icon_edit_note">Notitie en potlood</string>
+    <string name="folder_icon_video_camera_front">Videogesprek</string>
+    <string name="folder_icon_live_tv">Tv</string>
+    <string name="folder_icon_print">Printer</string>
     <string name="folder_icon_eco">Natuur</string>
     <string name="folder_icon_family_restroom">Gezin</string>
     <string name="folder_icon_favorite">Hart</string>

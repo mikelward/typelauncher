@@ -296,6 +296,8 @@
     <string name="app_folder_charity">Labdara ir aukojimas</string>
     <string name="app_folder_family_history">Šeimos istorija ir genealogija</string>
     <string name="app_folder_notes">Užrašai ir užduotys</string>
+    <string name="app_folder_meetings">Susitikimai ir vaizdo skambučiai</string>
+    <string name="app_folder_print">Spausdinimas ir faksas</string>
     <string name="app_folder_cycling">Dviračiai ir jų nuoma</string>
     <string name="app_folder_hotels">Viešbučiai ir apgyvendinimas</string>
     <string name="app_folder_maps">Žemėlapiai</string>
@@ -328,6 +330,9 @@
     <string name="folder_icon_volunteer_activism">Ranka su širdimi</string>
     <string name="folder_icon_family_history">Giminės medis</string>
     <string name="folder_icon_edit_note">Užrašas ir pieštukas</string>
+    <string name="folder_icon_video_camera_front">Vaizdo skambutis</string>
+    <string name="folder_icon_live_tv">Televizorius</string>
+    <string name="folder_icon_print">Spausdintuvas</string>
     <string name="folder_icon_eco">Gamta</string>
     <string name="folder_icon_family_restroom">Šeima</string>
     <string name="folder_icon_favorite">Širdis</string>

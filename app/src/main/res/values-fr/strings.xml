@@ -295,6 +295,8 @@
     <string name="app_folder_charity">Dons et associations</string>
     <string name="app_folder_family_history">Histoire familiale et généalogie</string>
     <string name="app_folder_notes">Notes et tâches</string>
+    <string name="app_folder_meetings">Réunions et appels vidéo</string>
+    <string name="app_folder_print">Impression et fax</string>
     <string name="app_folder_cycling">Vélo et vélos en libre-service</string>
     <string name="app_folder_hotels">Hôtels et hébergements</string>
     <string name="app_folder_maps">Cartes</string>
@@ -327,6 +329,9 @@
     <string name="folder_icon_volunteer_activism">Main et cœur</string>
     <string name="folder_icon_family_history">Arbre généalogique</string>
     <string name="folder_icon_edit_note">Note et crayon</string>
+    <string name="folder_icon_video_camera_front">Appel vidéo</string>
+    <string name="folder_icon_live_tv">TV</string>
+    <string name="folder_icon_print">Imprimante</string>
     <string name="folder_icon_eco">Nature</string>
     <string name="folder_icon_family_restroom">Famille</string>
     <string name="folder_icon_favorite">Cœur</string>

@@ -294,6 +294,8 @@
     <string name="app_folder_charity">দাতব্য ও দান</string>
     <string name="app_folder_family_history">পারিবারিক ইতিহাস ও বংশতালিকা</string>
     <string name="app_folder_notes">নোট ও কাজ</string>
+    <string name="app_folder_meetings">মিটিং ও ভিডিও কল</string>
+    <string name="app_folder_print">প্রিন্ট ও ফ্যাক্স</string>
     <string name="app_folder_cycling">সাইকেল ও বাইক শেয়ার</string>
     <string name="app_folder_hotels">হোটেল ও থাকার জায়গা</string>
     <string name="app_folder_maps">ম্যাপ</string>
@@ -326,6 +328,9 @@
     <string name="folder_icon_volunteer_activism">হাতে হৃদয়</string>
     <string name="folder_icon_family_history">বংশলতিকা</string>
     <string name="folder_icon_edit_note">নোট ও পেন্সিল</string>
+    <string name="folder_icon_video_camera_front">ভিডিও কল</string>
+    <string name="folder_icon_live_tv">টিভি</string>
+    <string name="folder_icon_print">প্রিন্টার</string>
     <string name="folder_icon_eco">প্রকৃতি</string>
     <string name="folder_icon_family_restroom">পরিবার</string>
     <string name="folder_icon_favorite">হৃদয়</string>

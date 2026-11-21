@@ -293,6 +293,8 @@
     <string name="app_folder_charity">ການກຸສົນ ແລະ ການບໍລິຈາກ</string>
     <string name="app_folder_family_history">ປະຫວັດຄອບຄົວ ແລະ ເຊື້ອສາຍ</string>
     <string name="app_folder_notes">ບັນທຶກ ແລະ ວຽກ</string>
+    <string name="app_folder_meetings">ການປະຊຸມ ແລະ ການໂທວິດີໂອ</string>
+    <string name="app_folder_print">ການພິມ ແລະ ແຟັກ</string>
     <string name="app_folder_cycling">ລົດຖີບ ແລະ ລົດຖີບເຊົ່າ</string>
     <string name="app_folder_hotels">ໂຮງແຮມ ແລະ ທີ່ພັກ</string>
     <string name="app_folder_maps">ແຜນທີ່</string>
@@ -325,6 +327,9 @@
     <string name="folder_icon_volunteer_activism">ມືກັບຫົວໃຈ</string>
     <string name="folder_icon_family_history">ແຜນຜັງຄອບຄົວ</string>
     <string name="folder_icon_edit_note">ບັນທຶກ ແລະ ສໍ</string>
+    <string name="folder_icon_video_camera_front">ການໂທວິດີໂອ</string>
+    <string name="folder_icon_live_tv">ໂທລະທັດ</string>
+    <string name="folder_icon_print">ເຄື່ອງພິມ</string>
     <string name="folder_icon_eco">ທຳມະຊາດ</string>
     <string name="folder_icon_family_restroom">ຄອບຄົວ</string>
     <string name="folder_icon_favorite">ຫົວໃຈ</string>

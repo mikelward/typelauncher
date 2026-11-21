@@ -295,6 +295,8 @@
     <string name="app_folder_charity">Dobrotvornost i donacije</string>
     <string name="app_folder_family_history">Obiteljska povijest i rodoslovlje</string>
     <string name="app_folder_notes">Bilješke i zadaci</string>
+    <string name="app_folder_meetings">Sastanci i videopozivi</string>
+    <string name="app_folder_print">Ispis i faks</string>
     <string name="app_folder_cycling">Biciklizam i javni bicikli</string>
     <string name="app_folder_hotels">Hoteli i smještaj</string>
     <string name="app_folder_maps">Karte</string>
@@ -327,6 +329,9 @@
     <string name="folder_icon_volunteer_activism">Ruka sa srcem</string>
     <string name="folder_icon_family_history">Obiteljsko stablo</string>
     <string name="folder_icon_edit_note">Bilješka i olovka</string>
+    <string name="folder_icon_video_camera_front">Videopoziv</string>
+    <string name="folder_icon_live_tv">TV</string>
+    <string name="folder_icon_print">Pisač</string>
     <string name="folder_icon_eco">Priroda</string>
     <string name="folder_icon_family_restroom">Obitelj</string>
     <string name="folder_icon_favorite">Srce</string>

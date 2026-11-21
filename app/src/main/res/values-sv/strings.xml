@@ -294,6 +294,8 @@
     <string name="app_folder_charity">Välgörenhet och gåvor</string>
     <string name="app_folder_family_history">Släkthistoria och släktforskning</string>
     <string name="app_folder_notes">Anteckningar och uppgifter</string>
+    <string name="app_folder_meetings">Möten och videosamtal</string>
+    <string name="app_folder_print">Utskrift och fax</string>
     <string name="app_folder_cycling">Cykling och lånecyklar</string>
     <string name="app_folder_hotels">Hotell och boende</string>
     <string name="app_folder_maps">Kartor</string>
@@ -326,6 +328,9 @@
     <string name="folder_icon_volunteer_activism">Hand med hjärta</string>
     <string name="folder_icon_family_history">Släktträd</string>
     <string name="folder_icon_edit_note">Anteckning och penna</string>
+    <string name="folder_icon_video_camera_front">Videosamtal</string>
+    <string name="folder_icon_live_tv">TV</string>
+    <string name="folder_icon_print">Skrivare</string>
     <string name="folder_icon_eco">Natur</string>
     <string name="folder_icon_family_restroom">Familj</string>
     <string name="folder_icon_favorite">Hjärta</string>

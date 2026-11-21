@@ -294,6 +294,8 @@
     <string name="app_folder_charity">દાન અને સખાવત</string>
     <string name="app_folder_family_history">કૌટુંબિક ઇતિહાસ અને વંશાવળી</string>
     <string name="app_folder_notes">નોંધો અને કાર્યો</string>
+    <string name="app_folder_meetings">મીટિંગ અને વીડિયો કૉલ</string>
+    <string name="app_folder_print">પ્રિન્ટ અને ફૅક્સ</string>
     <string name="app_folder_cycling">સાઇકલ અને બાઇક શેર</string>
     <string name="app_folder_hotels">હોટેલ અને રહેઠાણ</string>
     <string name="app_folder_maps">નકશા</string>
@@ -326,6 +328,9 @@
     <string name="folder_icon_volunteer_activism">હાથમાં હૃદય</string>
     <string name="folder_icon_family_history">કુટુંબ વૃક્ષ</string>
     <string name="folder_icon_edit_note">નોંધ અને પેન્સિલ</string>
+    <string name="folder_icon_video_camera_front">વીડિયો કૉલ</string>
+    <string name="folder_icon_live_tv">ટીવી</string>
+    <string name="folder_icon_print">પ્રિન્ટર</string>
     <string name="folder_icon_eco">પ્રકૃતિ</string>
     <string name="folder_icon_family_restroom">પરિવાર</string>
     <string name="folder_icon_favorite">હૃદય</string>

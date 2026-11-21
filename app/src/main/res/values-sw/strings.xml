@@ -294,6 +294,8 @@
     <string name="app_folder_charity">Hisani na michango</string>
     <string name="app_folder_family_history">Historia ya familia na nasaba</string>
     <string name="app_folder_notes">Madokezo na kazi</string>
+    <string name="app_folder_meetings">Mikutano na simu za video</string>
+    <string name="app_folder_print">Uchapishaji na faksi</string>
     <string name="app_folder_cycling">Baiskeli na ukodishaji wa baiskeli</string>
     <string name="app_folder_hotels">Hoteli na malazi</string>
     <string name="app_folder_maps">Ramani</string>
@@ -326,6 +328,9 @@
     <string name="folder_icon_volunteer_activism">Mkono wenye moyo</string>
     <string name="folder_icon_family_history">Mti wa familia</string>
     <string name="folder_icon_edit_note">Dokezo na penseli</string>
+    <string name="folder_icon_video_camera_front">Simu ya video</string>
+    <string name="folder_icon_live_tv">Televisheni</string>
+    <string name="folder_icon_print">Printa</string>
     <string name="folder_icon_eco">Mazingira</string>
     <string name="folder_icon_family_restroom">Familia</string>
     <string name="folder_icon_favorite">Moyo</string>

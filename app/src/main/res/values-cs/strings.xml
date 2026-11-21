@@ -296,6 +296,8 @@
     <string name="app_folder_charity">Charita a dárcovství</string>
     <string name="app_folder_family_history">Rodinná historie a genealogie</string>
     <string name="app_folder_notes">Poznámky a úkoly</string>
+    <string name="app_folder_meetings">Schůzky a videohovory</string>
+    <string name="app_folder_print">Tisk a fax</string>
     <string name="app_folder_cycling">Cyklistika a sdílená kola</string>
     <string name="app_folder_hotels">Hotely a ubytování</string>
     <string name="app_folder_maps">Mapy</string>
@@ -328,6 +330,9 @@
     <string name="folder_icon_volunteer_activism">Ruka se srdcem</string>
     <string name="folder_icon_family_history">Rodokmen</string>
     <string name="folder_icon_edit_note">Poznámka a tužka</string>
+    <string name="folder_icon_video_camera_front">Videohovor</string>
+    <string name="folder_icon_live_tv">Televize</string>
+    <string name="folder_icon_print">Tiskárna</string>
     <string name="folder_icon_eco">Příroda</string>
     <string name="folder_icon_family_restroom">Rodina</string>
     <string name="folder_icon_favorite">Srdce</string>

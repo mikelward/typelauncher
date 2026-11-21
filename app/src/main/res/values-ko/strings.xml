@@ -293,6 +293,8 @@
     <string name="app_folder_charity">기부 및 자선</string>
     <string name="app_folder_family_history">가족사 및 족보</string>
     <string name="app_folder_notes">메모 및 할 일</string>
+    <string name="app_folder_meetings">회의 및 영상 통화</string>
+    <string name="app_folder_print">인쇄 및 팩스</string>
     <string name="app_folder_cycling">자전거 및 공유 자전거</string>
     <string name="app_folder_hotels">호텔 및 숙박</string>
     <string name="app_folder_maps">지도</string>
@@ -325,6 +327,9 @@
     <string name="folder_icon_volunteer_activism">하트를 든 손</string>
     <string name="folder_icon_family_history">가계도</string>
     <string name="folder_icon_edit_note">메모와 연필</string>
+    <string name="folder_icon_video_camera_front">영상 통화</string>
+    <string name="folder_icon_live_tv">TV</string>
+    <string name="folder_icon_print">프린터</string>
     <string name="folder_icon_eco">자연</string>
     <string name="folder_icon_family_restroom">가족</string>
     <string name="folder_icon_favorite">하트</string>

@@ -230,8 +230,8 @@ class AppFoldersTest {
                 "health", "home", "hotels",
                 // "Office & productivity" (maintainer, 2026-11-19) sorts under O,
                 // and "Public transit & rail" (2026-11-21) under P.
-                "internet", "jobs", "kids", "custom-1", "learning", "maps", "media", "music", "news", "notes", "office", "pets",
-                "phone", "photos", "post", "public_transit", "reading", "rewards", "security", "shopping", "social",
+                "internet", "jobs", "kids", "custom-1", "learning", "maps", "media", "meetings", "music", "news", "notes", "office", "pets",
+                "phone", "photos", "post", "print", "public_transit", "reading", "rewards", "security", "shopping", "social",
                 "sports", "travel", "weather", "custom-2", "other",
             ),
             folders.map { it.key },

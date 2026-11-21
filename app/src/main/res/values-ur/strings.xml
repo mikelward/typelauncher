@@ -294,6 +294,8 @@
     <string name="app_folder_charity">خیرات اور عطیات</string>
     <string name="app_folder_family_history">خاندانی تاریخ اور شجرہ نسب</string>
     <string name="app_folder_notes">نوٹس اور کام</string>
+    <string name="app_folder_meetings">میٹنگز اور ویڈیو کالز</string>
+    <string name="app_folder_print">پرنٹ اور فیکس</string>
     <string name="app_folder_cycling">سائیکلنگ اور بائیک شیئر</string>
     <string name="app_folder_hotels">ہوٹل اور قیام</string>
     <string name="app_folder_maps">نقشے</string>
@@ -326,6 +328,9 @@
     <string name="folder_icon_volunteer_activism">دل والا ہاتھ</string>
     <string name="folder_icon_family_history">شجرہ</string>
     <string name="folder_icon_edit_note">نوٹ اور پنسل</string>
+    <string name="folder_icon_video_camera_front">ویڈیو کال</string>
+    <string name="folder_icon_live_tv">ٹی وی</string>
+    <string name="folder_icon_print">پرنٹر</string>
     <string name="folder_icon_eco">فطرت</string>
     <string name="folder_icon_family_restroom">خاندان</string>
     <string name="folder_icon_favorite">دل</string>

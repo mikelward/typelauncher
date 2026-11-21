@@ -293,6 +293,8 @@
     <string name="app_folder_charity">Ìfẹ́ àti ẹ̀bùn</string>
     <string name="app_folder_family_history">Ìtàn ìdílé àti ìran</string>
     <string name="app_folder_notes">Àkọsílẹ̀ àti iṣẹ́</string>
+    <string name="app_folder_meetings">Ìpàdé àti ìpè fídíò</string>
+    <string name="app_folder_print">Títẹ̀ àti fáàsì</string>
     <string name="app_folder_cycling">Kẹ̀kẹ́ àti kẹ̀kẹ́ àjọlò</string>
     <string name="app_folder_hotels">Ilé ìtura àti ibùgbé</string>
     <string name="app_folder_maps">Àwọn máàpù</string>
@@ -325,6 +327,9 @@
     <string name="folder_icon_volunteer_activism">Ọwọ́ pẹ̀lú ọkàn</string>
     <string name="folder_icon_family_history">Igi ìdílé</string>
     <string name="folder_icon_edit_note">Àkọsílẹ̀ àti pẹ́ńsùlù</string>
+    <string name="folder_icon_video_camera_front">Ìpè fídíò</string>
+    <string name="folder_icon_live_tv">Tẹlifíṣọ̀n</string>
+    <string name="folder_icon_print">Ẹ̀rọ ìtẹ̀wé</string>
     <string name="folder_icon_eco">Ìṣẹ̀dá</string>
     <string name="folder_icon_family_restroom">Ẹbí</string>
     <string name="folder_icon_favorite">Ọkàn</string>

@@ -294,6 +294,8 @@
     <string name="app_folder_charity">Φιλανθρωπία και δωρεές</string>
     <string name="app_folder_family_history">Οικογενειακό ιστορικό και γενεαλογία</string>
     <string name="app_folder_notes">Σημειώσεις και εργασίες</string>
+    <string name="app_folder_meetings">Συσκέψεις και βιντεοκλήσεις</string>
+    <string name="app_folder_print">Εκτύπωση και φαξ</string>
     <string name="app_folder_cycling">Ποδήλατο και κοινόχρηστα ποδήλατα</string>
     <string name="app_folder_hotels">Ξενοδοχεία και διαμονή</string>
     <string name="app_folder_maps">Χάρτες</string>
@@ -326,6 +328,9 @@
     <string name="folder_icon_volunteer_activism">Χέρι με καρδιά</string>
     <string name="folder_icon_family_history">Γενεαλογικό δέντρο</string>
     <string name="folder_icon_edit_note">Σημείωση και μολύβι</string>
+    <string name="folder_icon_video_camera_front">Βιντεοκλήση</string>
+    <string name="folder_icon_live_tv">Τηλεόραση</string>
+    <string name="folder_icon_print">Εκτυπωτής</string>
     <string name="folder_icon_eco">Φύση</string>
     <string name="folder_icon_family_restroom">Οικογένεια</string>
     <string name="folder_icon_favorite">Καρδιά</string>
