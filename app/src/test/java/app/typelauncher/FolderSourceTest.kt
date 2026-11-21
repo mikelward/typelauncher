@@ -54,10 +54,10 @@ class FolderSourceTest {
     }
 
     @Test
-    fun aNameWordInAGameManifest_isStillAGuess() {
-        // The table decides before the game manifest does.
-        val game = app("Bank Heist Bank", "com.example.heist", AppCategory.Games)
-        assertTrue(folderSource(game, activeKeys, emptyMap()).isGuess)
+    fun aGameManifest_beatsANameWord_andIsNoGuess() {
+        val game = app("Train Sim World", "com.example.trainsim", AppCategory.Games)
+        assertEquals(FolderSource.Rule, folderSource(game, activeKeys, emptyMap()))
+        assertEquals(AppCategory.Games.storageKey, effectiveFolderKey(game, activeKeys, emptyMap()))
         val plainGame = app("Zorblax", "com.example.zorblax", AppCategory.Games)
         assertFalse(folderSource(plainGame, activeKeys, emptyMap()).isGuess)
     }
