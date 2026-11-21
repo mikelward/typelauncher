@@ -272,6 +272,65 @@ class KnownAppsTest {
     }
 
     @Test
+    fun theMaintainersAppsAndTheirNeighbors_arePlaced() {
+        // The maintainer, 2026-11-21: the apps Google Play was asked about,
+        // by name (as a sideloaded copy would have) and by package.
+        for ((label, category) in listOf(
+            "ClothesCast" to AppCategory.Weather,
+            "Snoozemo" to AppCategory.Tools,
+            "Simmo" to AppCategory.Phone,
+            "readmo" to AppCategory.Reading,
+            "StopDash" to AppCategory.Transit,
+            "Google Cloud" to AppCategory.Code,
+            "AWS Console" to AppCategory.Code,
+            "Microsoft Azure" to AppCategory.Code,
+            "Cloudflare" to AppCategory.Code,
+            "Namecheap" to AppCategory.Code,
+            "Tailscale" to AppCategory.Internet,
+            "My Virgin Media" to AppCategory.Internet,
+            "MyChart" to AppCategory.Health,
+            "NHS App" to AppCategory.Health,
+            "Better UK" to AppCategory.Health,
+            "Music for Focus by Brain.fm" to AppCategory.Music,
+            "Ampere" to AppCategory.Tools,
+            "Anker Make" to AppCategory.Tools,
+            "CareSuper" to AppCategory.Finance,
+            "Chelsea FC" to AppCategory.Sports,
+            "FC Barcelona" to AppCategory.Sports,
+            "FC Bayern München" to AppCategory.Sports,
+            "AFC Bournemouth" to AppCategory.Sports,
+            "Clozemaster: language learning" to AppCategory.Learning,
+            "Lightwave LinkPlus" to AppCategory.Home,
+            "LNER | Train Tickets & Times" to AppCategory.Transit,
+            "Merlin Bird ID by Cornell Lab" to AppCategory.Pets,
+            "MyMelita" to AppCategory.Phone,
+            "Raindrop.io" to AppCategory.Reading,
+            "Virgin Australia" to AppCategory.Travel,
+        )) {
+            assertEquals(label, category, knownAppCategory("com.example.mine", label))
+        }
+        for ((packageName, category) in listOf(
+            "app.clothescast" to AppCategory.Weather,
+            "app.snoozemo" to AppCategory.Tools,
+            "app.simmo" to AppCategory.Phone,
+            "com.google.android.apps.cloudconsole" to AppCategory.Code,
+            "com.ex3ndr.happy" to AppCategory.Code,
+            "sh.paseo" to AppCategory.Code,
+            "com.tailscale.ipn" to AppCategory.Internet,
+            "com.cloudflare.cloudflareoneagent" to AppCategory.Internet,
+            "com.sony.songpal.mdr" to AppCategory.Music,
+            "au.com.stan.and" to AppCategory.Media,
+        )) {
+            assertEquals(packageName, category, knownAppCategory(packageName, "Happy"))
+        }
+        // Names the batch leaves to their packages.
+        assertNull(knownAppCategory("com.example.stan", "Stan"))
+        assertNull(knownAppCategory("com.example.paseo", "Paseo"))
+        // "fc" only as a word of its own.
+        assertNull(knownAppCategory("com.example.fcm", "FCM Tester"))
+    }
+
+    @Test
     fun aGuess_comesFromPackageAndNameWords() {
         assertEquals(AppCategory.Finance, guessedAppCategory("com.example.mobilebanking", "Acme"))
         assertEquals(AppCategory.Finance, guessedAppCategory("uk.co.acme.banking", "Acme"))

@@ -376,7 +376,66 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "chessington", "merlin annual pass", "seaworld", "sea world", "busch gardens", "cedar point",
     "knott s", "kings island", "carowinds", "dollywood", "hersheypark", "dreamworld",
     "movie world", "efteling", "europa park", "portaventura", "port aventura",
-).map { it to AppCategory.Events }
+).map { it to AppCategory.Events } + listOf(
+    // Cloud consoles, hosting and domains, in Code (maintainer, 2026-11-21).
+    "google cloud", "aws", "aws console", "microsoft azure", "azure portal", "cloudflare",
+    "namecheap", "godaddy", "digitalocean", "linode", "akamai", "vultr", "hetzner", "ovhcloud",
+    "heroku", "vercel", "netlify", "firebase", "supabase", "oracle cloud", "ibm cloud", "porkbun",
+).map { it to AppCategory.Code } + listOf(
+    // Mesh VPNs and home broadband, for Internet.
+    "tailscale", "wireguard", "openvpn", "zerotier", "netbird", "virgin media", "talktalk",
+    "plusnet", "hyperoptic", "community fibre", "sky broadband", "bt broadband",
+    "aussie broadband", "superloop", "iinet", "xfinity",
+).map { it to AppCategory.Internet } + listOf(
+    // GP and hospital apps, gyms and leisure centres, for Health.
+    "nhs app", "mygp", "patient access", "better uk", "virgin active", "david lloyd",
+    "anytime fitness", "nuffield health", "the gym group", "planet fitness", "orangetheory", "f45",
+).map { it to AppCategory.Health } + listOf(
+    // Focus sound and headphone apps, for Music beside Sonos.
+    "brain fm", "endel", "sound connect", "bose", "jabra", "sennheiser", "soundcore",
+).map { it to AppCategory.Music } + listOf(
+    // Battery monitors, 3D printers and phone helpers, for Tools.
+    "snoozemo", "ampere", "accubattery", "battery guru", "anker make", "bambu handy",
+    "creality cloud", "orcaslicer", "prusa",
+).map { it to AppCategory.Tools } + listOf(
+    // Pensions and superannuation, for Finance beside AustralianSuper.
+    "caresuper", "australian super", "hostplus", "unisuper", "aware super", "hesta", "cbus super",
+    "rest super", "qsuper", "colonial first state", "pensionbee", "nest pensions", "vanguard",
+).map { it to AppCategory.Finance } + listOf(
+    // Football clubs, leagues and scores, for Sports.
+    "chelsea fc", "arsenal", "liverpool fc", "man utd", "manchester united", "manchester city",
+    "man city", "tottenham hotspur", "newcastle united", "aston villa", "everton", "west ham",
+    "premier league", "fantasy premier league", "fpl", "onefootball", "fotmob", "uefa",
+    "la liga", "bundesliga", "afl live", "nrl",
+).map { it to AppCategory.Sports } + listOf(
+    // Language learning, for Learning beside Duolingo.
+    "clozemaster", "memrise", "mondly", "lingodeer", "rosetta stone", "pimsleur", "lingq",
+    "italki", "preply",
+).map { it to AppCategory.Learning } + listOf(
+    // Bird and wildlife spotting, for Pets & animals.
+    "merlin bird id", "ebird", "inaturalist",
+).map { it to AppCategory.Pets } + listOf(
+    // Streaming, for Media. Not "stan", which other apps are called; Stan is
+    // matched by package.
+    "foxtel", "binge", "britbox", "itvx", "mubi",
+).map { it to AppCategory.Media } + listOf(
+    // Rail operators, for Public transit & rail.
+    "stopdash", "lner", "gwr", "avanti west coast", "crosscountry", "transpennine", "scotrail",
+    "northern rail", "c2c", "thameslink", "southeastern", "greater anglia", "chiltern railways",
+    "grand central", "hull trains", "lumo", "merseyrail",
+).map { it to AppCategory.Transit } + listOf(
+    // Airlines without "airline" or "airways" in their names, for Travel & flights.
+    "virgin australia", "virgin atlantic", "air new zealand", "jet2", "rex airlines", "tui",
+).map { it to AppCategory.Travel } + listOf(
+    // Read later and bookmarks, for Reading.
+    "readmo", "raindrop", "instapaper", "readwise", "omnivore",
+).map { it to AppCategory.Reading } + listOf(
+    "simmo", "melita", "mymelita",
+).map { it to AppCategory.Phone } + listOf(
+    "clothescast", "bbc weather", "met office", "weatherzone", "accuweather",
+).map { it to AppCategory.Weather } + listOf(
+    "lightwave",
+).map { it to AppCategory.Home }
 
 // Keywords that must start a word: "ebook" sits inside "Facebook" and
 // "Notebook" (Codex on PR #866), "sport" inside "Transport" and "Passport"
@@ -385,7 +444,7 @@ private val WORD_START_ONLY = setOf("ebook", "parent", "sport")
 
 // Keywords that must be a whole word: "git" ends "legit", and "code" a
 // "barcode" scanner.
-private val WHOLE_WORD_ONLY = setOf("code", "git", "ssh", "qr", "ai")
+private val WHOLE_WORD_ONLY = setOf("code", "git", "ssh", "qr", "ai", "fc", "afc")
 
 private val LABEL_WORD_BREAK = Regex("""[^\p{L}\p{N}]+""")
 private val PACKAGE_WORD_BREAK = Regex("""[._\-]+""")
@@ -421,6 +480,9 @@ private val LABEL_WORDS = listOf(
     "lotto" to AppCategory.Betting,
     "sport" to AppCategory.Sports,
     "scores" to AppCategory.Sports,
+    // Football clubs: "Chelsea FC", "FC Barcelona" (maintainer, 2026-11-21).
+    "fc" to AppCategory.Sports,
+    "afc" to AppCategory.Sports,
     "news" to AppCategory.News,
     "messages" to AppCategory.Social,
     "messenger" to AppCategory.Social,
@@ -770,5 +832,57 @@ private val KNOWN_PACKAGES = listOf(
         com.google.android.apps.wellbeing com.google.android.documentsui com.google.android.apps.adm
         com.google.android.apps.googleassistant com.google.ar.lens com.sec.android.app.popupcalculator
         com.sec.android.app.clockpackage com.sec.android.app.myfiles
+    """,
+    AppCategory.Code to """
+        com.google.android.apps.cloudconsole com.amazon.aws.console.mobile com.microsoft.azure
+        com.namecheap.android sh.paseo com.ex3ndr.happy dev.happier.app
+    """,
+    AppCategory.Internet to """
+        com.tailscale.ipn com.cloudflare.cloudflareoneagent com.wireguard.android
+        net.openvpn.openvpn com.zerotier.one com.virginmedia.android.youraccount
+    """,
+    AppCategory.Health to """
+        epic.mychart.android net.iplato.mygp com.innovatise.bettergll
+    """,
+    AppCategory.Music to """
+        com.brainfm.app com.endel.endel com.sony.songpal.mdr com.bose.bosemusic com.bose.monet
+    """,
+    AppCategory.Tools to """
+        app.snoozemo com.gombosdev.ampere com.digibites.accubattery com.paget96.batteryguru
+        com.oceanwing.FDMPrint bbl.intl.bambulab.com com.nothing.smartcenter
+        com.samsung.android.app.watchmanager
+    """,
+    AppCategory.Finance to """
+        com.mtaa.membercentre.app
+    """,
+    AppCategory.Sports to """
+        com.chelseafc.the5thstand
+    """,
+    AppCategory.Learning to """
+        com.clozemaster.v2 com.memrise.android.memrisecompanion com.atistudios.mondly.languages
+    """,
+    AppCategory.Pets to """
+        com.labs.merlinbirdid.app edu.cornell.birds.ebird
+    """,
+    AppCategory.Media to """
+        au.com.stan.and
+    """,
+    AppCategory.Transit to """
+        uk.co.icectoc.customer uk.co.nationalrail.google
+    """,
+    AppCategory.Travel to """
+        com.virginaustralia.vaapp
+    """,
+    AppCategory.Reading to """
+        io.raindrop.raindropio
+    """,
+    AppCategory.Phone to """
+        app.simmo com.melita.mobile.selfcare
+    """,
+    AppCategory.Weather to """
+        app.clothescast bbc.mobile.weather au.gov.bom.metview
+    """,
+    AppCategory.Home to """
+        com.lightwaverf.linkplus
     """,
 )
