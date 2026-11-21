@@ -60,6 +60,7 @@ ca.bnc.android
 ca.mb.scu.mobilebanking
 ca.walmart.ecommerceapp
 capitec.acuity.mobile.prod
+ch.nzz.mobile
 ch.protonmail.android
 ch.protonvpn.android
 ch.salt.my
@@ -172,6 +173,7 @@ com.blink.drama.player
 com.blinkslabs.blinkist.android
 com.bloomberg.android.plus
 com.bluelightcard.user
+com.bochk.app.aos
 com.boi.ua.android
 com.booking
 com.boots.flagship.android
@@ -209,6 +211,8 @@ com.chickfila.cfaflagship
 com.chipotle.ordering
 com.cibc.android.mobi
 com.citi.citimobile
+com.citi.mobile.ccc
+com.citi.mobile.cdbe
 com.citymapper.app.release
 com.classdojo.android
 com.clean.smart.cleanpro
@@ -229,6 +233,7 @@ com.costco.app.android
 com.coulombtech
 com.couponbirds.dealsandcoupons
 com.creditkarma.mobile
+com.creditkarma.mobile.international
 com.crowncards.app
 com.crunchyroll.crunchyroid
 com.cvs.launchers.cvs
@@ -269,6 +274,7 @@ com.eastwest.mobile.dxp
 com.easyjet.android
 com.ebay.mobile
 com.ecobee.athenamobile
+com.economist.lamarr
 com.eet.settings.launcher
 com.egyptianbanks.instapay
 com.ehi.enterprise.android
@@ -314,7 +320,9 @@ com.france24.androidapp
 com.freecash.app2
 com.freereels.app
 com.fsn.nds
+com.ft.news
 com.ftw_and_co.happn
+com.fullsix.android.labanquepostale.accountaccess
 com.fusionmedia.investing
 com.ga.loyalty.android.nectar.activities
 com.gamma.scan
@@ -416,6 +424,7 @@ com.ichi2.anki
 com.iconchanger.widget.theme.shortcut
 com.ideashower.readitlater.pro
 com.identify.track.coinscope
+com.idmedia.android.newsportal
 com.ifeel.ifeeluserchat
 com.ihg.apps.android
 com.imangi.templerun2
@@ -471,6 +480,7 @@ com.lasting.lasting
 com.lastpass.lpandroid
 com.lbrc.PeriodCalendar
 com.lemon.lvoverseas
+com.lemonde.androidapp
 com.lescadeaux.kegel
 com.levelcard
 com.lgeha.nuts
@@ -508,6 +518,7 @@ com.merriamwebster
 com.metaztech.fawoo
 com.mgi.moneygram
 com.microblink.photomath
+com.microsoft.amp.apps.bingfinance
 com.microsoft.amp.apps.bingnews
 com.microsoft.azure
 com.microsoft.bing
@@ -529,6 +540,7 @@ com.mint.mobile
 com.mizmowireless.acctmgt
 com.mobile.legends
 com.mobile5.greggs
+com.mobilebrokerage.CIBC
 com.mobilefootie.wc2010
 com.mobilesecretcodes.allandroidtips.androidtricks.allsecretcodes
 com.mobisystems.msdict.embedded.wireless.oxford.dictionaryofenglish
@@ -536,6 +548,7 @@ com.moe.fahem
 com.moh.nusukapp
 com.mojang.minecraftpe
 com.momosa
+com.moneyboxapp
 com.moniqtap.carplay.autocar.connect.android
 com.moonactive.coinmaster
 com.morganstanley.clientmobile.prod
@@ -733,6 +746,7 @@ com.sygic.aura
 com.symantec.lifelock.memberapp
 com.symantec.mobilesecurity
 com.tado
+com.tailoredapps
 com.tailscale.ipn
 com.talkspace.talkspaceapp
 com.target.ui
@@ -885,6 +899,7 @@ de.tk.tkcoach
 de.web.mobile.android.mail
 de.wetteronline.wetterapp
 de.zalando.mobile
+de.zeit.online
 deezer.android.app
 dev.happier.app
 digifit.android.virtuagym.pro.bravofitcentral
@@ -903,6 +918,7 @@ fr.doctolib.www
 fr.vinted
 gov.irs
 health.human.app
+hk.com.hsbc.hsbchkmobilebanking
 holybookreading.alquranulkareem
 homeworkout.homeworkouts.noequipment
 host.exp.exponent
@@ -966,6 +982,7 @@ nz.co.clubplus.app
 nz.co.kiwibank.mobile
 nz.co.mylotto
 nz.co.nzpost
+nz.co.radionz.android
 nz.co.smartinvest.mobileapp
 nz.co.telecom.smartphone.android
 nz.co.thewarehouse.wow
@@ -1031,6 +1048,7 @@ se.memfrag.app
 se.nordea.mobilebank
 se.seb.estonia
 sg.bigo.live
+sg.com.hsbc.hsbcsingapore
 sh.paseo
 steptracker.healthandfitness.walkingtracker.pedometer
 superdrug.com.beautycard
@@ -1051,6 +1069,7 @@ uk.co.next.android
 uk.co.o2.android.myo2
 uk.co.patient.patientaccess
 uk.co.santander.santanderUK
+uk.co.uktv.dave
 uk.co.virginactive.android
 uk.gov.govuk
 uk.gov.hmrc.ptcalc
