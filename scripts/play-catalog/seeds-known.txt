@@ -1,4 +1,5 @@
 # Packages the rules already know, as seeds.
+ae.gov.mol
 ae.uaepass.mainapp
 ai.perplexity.app.android
 ai.x.grok.bot
@@ -11,6 +12,8 @@ app.organicmaps
 app.simmo
 app.snoozemo
 at.erstebank.george
+at.itsv.mobile.meinebvaeb
+at.itsv.mobile.meineoegk
 at.post.app
 at.svagw.mobile.svaapp
 atws.app
@@ -31,8 +34,12 @@ au.com.realestate.app
 au.com.seek
 au.com.shiftyjelly.pocketcasts
 au.com.stan.and
+au.gov.ato.ATOTax
+au.gov.ato.mygovid.droid
 au.gov.bom.metview
+au.gov.homeaffairs.eta
 au.gov.mygov.mygovapp
+au.gov.nsw.service
 au.gov.vic.ptv
 au.net.abc.iview
 authenticator.two.factor.authentication.otp
@@ -60,8 +67,10 @@ cn.xender
 co.hinge.app
 co.manual.voy
 co.mindpeers
+co.uk.Nationwide.Mobile
 co.uk.aviva.digitalgp
 co.uk.getmondo
+co.uk.postoffice.PostOfficeApp
 co.uk.sephora
 com.BancoDePortugal.BPmobile
 com.Endoscope.scope
@@ -101,6 +110,7 @@ com.amazon.clouddrive.photos
 com.amazon.dee.app
 com.amazon.kindle
 com.amazon.mShop.android.shopping
+com.amazon.mp
 com.amazon.mp3
 com.americanexpress.android.acctsvcs.us
 com.amtrak.rider
@@ -141,6 +151,7 @@ com.babycenter.pregnancytracker
 com.bamnetworks.mobile.android.gameday.atbat
 com.bandcamp.android
 com.bankinter.portugal.bmb
+com.banknorwegian
 com.barclays.android.barclaysmobilebanking
 com.bbc.sounds
 com.beemdevelopment.aegis
@@ -162,6 +173,7 @@ com.booking
 com.boots.flagship.android
 com.bose.bosemusic
 com.bose.monet
+com.bp.mobile.bpme.uk
 com.bpi.ng.app
 com.brainfm.app
 com.brainly
@@ -230,6 +242,7 @@ com.deepstash
 com.deliveroo.orderapp
 com.delta.mobile.android
 com.depop
+com.dexcom.g7
 com.didiglobal.passenger
 com.digibites.accubattery
 com.discord
@@ -248,6 +261,7 @@ com.dropbox.android
 com.dts.freefireth
 com.duckduckgo.mobile.android
 com.duolingo
+com.eastwest.mobile.dxp
 com.easyjet.android
 com.ebay.mobile
 com.ecobee.athenamobile
@@ -286,6 +300,7 @@ com.fetchrewards.fetchrewards.hop
 com.feverup.fever
 com.fidelity.android
 com.fitbit.FitbitMobile
+com.fiverr.fiverr
 com.flipkart.android
 com.fox.foxone
 com.foxdebug.acode
@@ -363,6 +378,7 @@ com.grofers.customerapp
 com.groundspeak.geocaching.intro
 com.groupon
 com.grppl.android.shell.CMBlloydsTSB73
+com.grppl.android.shell.halifax
 com.grubhub.android
 com.guardian
 com.guavahealth.app
@@ -410,6 +426,7 @@ com.instructure.candroid
 com.irobot.home
 com.isoton.lebara
 com.itv.imaceleb
+com.jbassett297.NeoApp
 com.jd.loyaltyapp
 com.jetblue.JetBlueAndroid
 com.jetstar.mobile
@@ -455,6 +472,7 @@ com.livescore
 com.location.gps.tracker
 com.lowes.android
 com.lufthansa.android.lufthansa
+com.luminorgroup.bbma
 com.macadamapp
 com.mara.modstune
 com.marksandspencer.app
@@ -475,6 +493,7 @@ com.mentallabs.mentalhealth
 com.mercariapp.mercari
 com.merriamwebster
 com.metaztech.fawoo
+com.mgi.moneygram
 com.microblink.photomath
 com.microsoft.amp.apps.bingnews
 com.microsoft.azure
@@ -537,6 +556,7 @@ com.newsbreak.crimeradar
 com.nextdoor
 com.nhg.mha
 com.nhs.online.nhsonline
+com.nianticlabs.pikmin
 com.nianticlabs.pokemongo
 com.nike.ntc
 com.nike.omega
@@ -545,6 +565,7 @@ com.niksoftware.snapseed
 com.nordvpn.android
 com.northcube.sleepcycle
 com.nothing.smartcenter
+com.nth.swisspost
 com.nytimes.android
 com.nytimes.crossword
 com.oceanwing.FDMPrint
@@ -553,6 +574,7 @@ com.offline.bible
 com.og.app.android
 com.olacabs.customer
 com.olioex.android
+com.omnivagroup.app
 com.onedebit.chime
 com.onefinance.one
 com.onepeloton.callisto
@@ -587,6 +609,7 @@ com.pktmny.mobile
 com.planetart.fpuk
 com.planetfitness
 com.plexapp.android
+com.pnc.ecommerce.mobile
 com.pocketfm.toons
 com.popularapp.periodcalendar
 com.poshmark.app
@@ -633,6 +656,7 @@ com.saphir.baridbankmobile
 com.scatterlab.messenger
 com.scee.psxandroid
 com.schwab.mobile
+com.scotiabank.banking
 com.scribd.app.reader0
 com.seatgeek.android
 com.sec.android.app.camera
@@ -645,6 +669,7 @@ com.sec.android.gallery3d
 com.server.auditor.ssh.client
 com.setline.app
 com.shazam.android
+com.shell.sitibv.retail
 com.shopback.app
 com.shopify.arrive
 com.simplepractice.video
@@ -652,6 +677,7 @@ com.sirma.mobile.bible.android
 com.skype.raider
 com.sl.SLBiljetter
 com.slimmingworld.uk
+com.smart_id
 com.sn.gps
 com.snapchat.android
 com.soarinfotech.coupert
@@ -686,6 +712,7 @@ com.suno.android
 com.swisscom.myswisscom
 com.swm.live
 com.sygic.aura
+com.symantec.lifelock.memberapp
 com.symantec.mobilesecurity
 com.tado
 com.tailscale.ipn
@@ -744,6 +771,7 @@ com.united.mobile.android
 com.usaa.mobile.android.usaa
 com.usebounce
 com.vacationrentals.homeaway
+com.vaesttrafik.vaesttrafik
 com.valvesoftware.android.steam.community
 com.vamapps.thecoach
 com.venmo
@@ -764,6 +792,7 @@ com.wake.box.ryan
 com.walmart.android
 com.walmart.sparkdriver
 com.wam.android
+com.wanderlog.android
 com.washingtonpost.android
 com.wattpad
 com.wayfair.wayfair
@@ -813,25 +842,34 @@ com.zyhwplatform.shortplay
 com.zzkko
 controllers.marham.marhammed
 ctrip.english
+de.aok.digen
+de.aoksystems.amg
 de.apptiv.business.android.aldi_uk
 de.barmergek.serviceapp
 de.deutschepost.postident
+de.flixbus.app
 de.gmx.mobile.android.mail
+de.hafas.android.db
 de.idealo.android
 de.komoot.android
 de.moodpath.android
 de.motain.iliga
 de.number26.android
 de.telearzt.tkchat
+de.tk.apps.android.tkident
+de.tk.tkcoach
 de.web.mobile.android.mail
 de.wetteronline.wetterapp
 de.zalando.mobile
 deezer.android.app
 dev.happier.app
+digifit.android.virtuagym.pro.bravofitcentral
 digital.rbi.timhortons
 dinnerdeal.android.customer
 edu.cornell.birds.ebird
+ee.coop.shopping.app
 ee.mtakso.client
+ee.ria.eesti.app
 egov.app
 energy.octopus.octopusenergy.android
 epic.mychart.android
@@ -860,12 +898,17 @@ io.homeassistant.companion.android
 io.playout
 io.raindrop.raindropio
 io.vera.app
+it.italotreno
 it.pagopa.io.app
 ixg.roku.tv.stick.remote.control.cast
 jbl.stc.com
+jp.co.mcdonalds.android
 jp.naver.line.android
 jp.ne.ibis.ibispaintx.app
 kegel.kegelexercises.pelvicfloor.pfm
+lt.swedbank.mobile
+lv.citadele.mobile
+lv.rimi.card
 ma.creditagricole.banke
 ma.marjanemall.marjanemall
 ma.safe.bn
@@ -884,8 +927,12 @@ net.sharewire.parkmobilev2
 net.skyscanner.android.main
 ng.mtn.nextgen
 nl.appyhapps.healthsync
+nl.ns.android.activity
+nl.rijksoverheid.digid.pub
 nl.rtl.videoland.v2
 nl.tpp.mobile.android
+no.apps.dnbnor
+no.posten.sporing.controller
 notion.id
 nz.co.aa.mobile.android
 nz.co.anz.android.mobilebanking
@@ -936,10 +983,13 @@ org.westpac.bank
 org.wikipedia
 org.zwanoo.android.speedtest
 pdf.pdfreader.viewer.editor.free
+pedometer.stepcounter.calorieburner.pedometerforwalking
+pedometer.steptracker.calorieburner.stepcounter
 ph.com.gotyme
 ph.seabank.seabank
 pilatesworkout.yogaworkout.loseweight.workoutapps
 pl.bzwbk.bzwbk24
+pl.pkobp.iko
 premom.eh.com.ehpremomapp
 proton.android.pass
 pt.continente.LojaContinente
@@ -951,7 +1001,10 @@ ro.raiffeisen.smartmobile
 rs.Raiffeisen.mobile
 rs.erstebank.george
 ru.iiec.pydroid3
+ru.otpbank.mobile
 se.memfrag.app
+se.nordea.mobilebank
+se.seb.estonia
 sg.bigo.live
 sh.paseo
 steptracker.healthandfitness.walkingtracker.pedometer
@@ -974,6 +1027,7 @@ uk.co.o2.android.myo2
 uk.co.patient.patientaccess
 uk.co.santander.santanderUK
 uk.co.virginactive.android
+uk.gov.govuk
 uk.gov.hmrc.ptcalc
 uk.gov.metoffice.weather.android
 uk.gov.onelogin
