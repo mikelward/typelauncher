@@ -1,11 +1,18 @@
 # Builds the catalog of Google Play categories (scripts/play-catalog/crawl.py),
-# by hand only. Each run crawls for up to --hours and saves its state to the
+# every six hours until the target is reached, or by hand. Each run crawls for up to --hours and saves its state to the
 # Actions cache, so the next run resumes where it stopped; run it again until
 # the log says the target is reached. Every run uploads the catalog so far as
 # an artifact, to be committed in a pull request.
 name: Google Play catalog
 
 on:
+  # Back to back at the crawl's usual pace until the catalog is complete
+  # (maintainer, 2026-11-21: "keep going slowly until we got a full
+  # dataset"). Each run crawls about 5 hours; once the target is reached, a
+  # run ends at once. Runs this close keep the saved state well inside the
+  # Actions cache's 7-day eviction.
+  schedule:
+    - cron: "17 */6 * * *"
   workflow_dispatch:
     inputs:
       target:
@@ -43,8 +50,9 @@ jobs:
 
       - name: Crawl
         env:
-          TARGET: ${{ inputs.target }}
-          HOURS: ${{ inputs.hours }}
+          # A scheduled run has no inputs: the dispatch defaults.
+          TARGET: ${{ inputs.target || '60000' }}
+          HOURS: ${{ inputs.hours || '5' }}
         run: >-
           python3 scripts/play-catalog/crawl.py --state play-catalog-state
           --target "$TARGET" --hours "$HOURS"
