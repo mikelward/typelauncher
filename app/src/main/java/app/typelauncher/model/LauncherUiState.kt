@@ -895,6 +895,10 @@ internal data class LauncherUiState(
     val isAiSortEnabled: Boolean = false,
     val isAiSortOfferPending: Boolean = false,
     val aiSort: AiSortProgress = AiSortProgress(),
+    // "Sort using Google Play": the Play category found for each package
+    // (empty when it had none), and the offer, progress and result.
+    val playCategories: Map<String, String> = emptyMap(),
+    val playSort: PlaySortState = PlaySortState(),
     // When true (default), the search field auto-focuses on launch and
     // `SearchCard` calls `keyboard.show()` so the user can start typing
     // immediately. When false, the search field renders unfocused and

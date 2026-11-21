@@ -104,12 +104,39 @@ internal class LauncherViewModel(
     private val aiModelFactory: () -> AppCategoryModel = ::GeminiNanoCategoryModel,
     private val aiCorePresent: (Context) -> Boolean = ::isAiCorePresent,
     private val aiRetryDelay: suspend (Long) -> Unit = { millis -> delay(millis) },
+    // "Sort using Google Play". Injectable so tests stand in for Google Play,
+    // for the installer Android records, and for the waits between lookups.
+    private val playCategoryFetcher: PlayCategoryFetcher = HttpPlayCategoryFetcher(
+        country = { phoneCountry(app) },
+        dispatcher = LauncherDispatchers.io,
+    ),
+    private val installerOf: (String) -> String? = { packageName -> installerPackage(app, packageName) },
+    private val playSortDelay: suspend (Long) -> Unit = { millis -> delay(millis) },
 ) : ViewModel() {
     private val dockedAppStore = DockedAppStore(app)
     private val workDockedAppStore = DockedAppStore(app, DockedAppStore.WORK_PREFERENCES_NAME)
     private val hiddenAppStore = HiddenAppStore(app)
     // Choices the AI made under older instructions (before a folder was added,
     // say) are dropped here, before anything reads them, so it sorts again.
+    private val playSortStore = PlaySortStore(app)
+
+    // "Sort using Google Play" state. Declared up here, ahead of the init
+    // blocks, because the first app-list refresh during init already uses it.
+    private var playSortJob: Job? = null
+    private var playCandidatesJob: Job? = null
+
+    // The installer Android records for each package, looked up once per
+    // session: a binder call per app, made on the IO dispatcher. Concurrent:
+    // a refresh can start before the last one's lookups have finished.
+    // Null values aren't allowed, so "no installer" is stored as "".
+    private val installers = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    // True while the only lookups running are new apps that "Sort new apps
+    // using Google Play" picked up, which finish silently.
+    private var playSortSilent = false
+
+    // True after "Sort again using Google Play" until the offer is answered.
+    private var playSortReoffer = false
     private val appFolderStore = AppFolderStore(app).also { store ->
         if (store.forgetAiChoicesUnlessMadeBy(AiSortFolders(store.folders).version)) {
             LauncherDebugLog.event("aiSort instructions changed; sorting again")
@@ -474,6 +501,8 @@ internal class LauncherViewModel(
             isGridOfferPending = !dockSettingsStore.isGridOfferAnswered &&
                 dockSettingsStore.appListLayout == AppListLayout.NameBeside,
             appFolderAiAssignments = appFolderStore.aiAssignments,
+            playCategories = playSortStore.categories,
+            playSort = PlaySortState(isAutoEnabled = playSortStore.isAutoEnabled, hasUsed = playSortStore.hasUsed),
             isAiSortEnabled = appFolderStore.isAiSortEnabled,
             isAiSortOfferPending = !appFolderStore.isAiOfferAnswered && !appFolderStore.isAiSortEnabled,
             isKeyboardAutoShown = dockSettingsStore.isKeyboardAutoShown,
@@ -629,6 +658,13 @@ internal class LauncherViewModel(
             val supported = withContext(ioDispatcher) { aiCorePresent(app) }
             _uiState.update { it.copy(isAiSortSupported = supported) }
             maybeStartAiSort()
+        }
+        // Finish any Google Play lookups the user agreed to before a restart.
+        if (playSortStore.pending.isNotEmpty()) {
+            _uiState.update { state ->
+                state.copy(playSort = state.playSort.copy(phase = PlaySortPhase.Sorting, total = playSortStore.pending.size))
+            }
+            resumePlaySort()
         }
         viewModelScope.launch {
             PinnedShortcutReveals.requests.collect { entryId ->
@@ -5081,6 +5117,8 @@ internal class LauncherViewModel(
             maybeStartAiSort()
         } else {
             stopAiSort()
+            // Its choices no longer count, so Other may have more to offer.
+            refreshPlaySort()
         }
         refreshFolderSearch()
         logState("setAiSortEnabled=%s", isEnabled)
@@ -5121,6 +5159,211 @@ internal class LauncherViewModel(
         }
     }
 
+    // --- "Sort using Google Play" ------------------------------------------
+
+
+    /**
+     * Works out which apps Google Play could sort: the personal apps left in
+     * Other once everything on the phone has had its say (the user's filings,
+     * our rules, the AI when on, manifests, guesses), that Google Play hasn't
+     * been asked about. Work-profile apps are left out: their installer can't
+     * be read from here. Then offers them, at the top of the list, once the AI
+     * has finished sorting (maintainer, 2026-11-21: ask proactively, after
+     * on-device sorting, for the apps it couldn't place), or, with "Sort new
+     * apps using Google Play" on, looks them up straight away.
+     */
+    private fun refreshPlaySort() {
+        playCandidatesJob?.cancel()
+        playCandidatesJob = viewModelScope.launch {
+            val folders = appFolderStore.folders
+            val activeKeys = folders.mapTo(HashSet()) { it.key }
+            val filings = appFolderStore.assignments
+            val known = playSortStore.categories
+            val pending = playSortStore.pending.toSet()
+            val state = _uiState.value
+            val aiFilings = if (state.isAiSortEnabled) appFolderStore.aiAssignments else emptyMap()
+            val other = AppCategory.Other.storageKey
+            val apps = visibleInstalledApps()
+                .filter { app ->
+                    !app.isWorkApp &&
+                        !filings.containsKey(app.id) &&
+                        effectiveFolderKey(app, activeKeys, filings, aiFilings, known) == other &&
+                        app.packageName !in known &&
+                        app.packageName !in pending &&
+                        app.packageName != this@LauncherViewModel.app.packageName
+                }
+                .distinctBy { app -> app.packageName }
+                .sortedBy { app -> app.displayName.lowercase() }
+            val candidates = withContext(ioDispatcher) {
+                apps.map { app ->
+                    val installer = installers.getOrPut(app.packageName) { installerOf(app.packageName).orEmpty() }
+                    PlaySortCandidate(
+                        app,
+                        fromPlay = installer == GOOGLE_PLAY_INSTALLER,
+                        declined = app.packageName in playSortStore.dismissed,
+                    )
+                }
+            }
+            val offered = candidates.filter { it.fromPlay }.map { it.app.packageName }
+            // Apps the user unticked, or said "Not now" to, are never looked up
+            // on their own, even with "Sort new apps using Google Play" on.
+            val dismissed = playSortStore.dismissed
+            val newApps = offered.filter { it !in dismissed }
+            // After "Sort again", the offer lists everything, unticked apps
+            // still unticked, until the user answers it.
+            val reoffer = playSortReoffer && offered.isNotEmpty()
+            val auto = playSortStore.isAutoEnabled && newApps.isNotEmpty()
+            _uiState.update { now ->
+                // While the AI is on and hasn't finished (or started), apps may
+                // yet leave Other. A pause (out of quota, say) doesn't hold the
+                // offer back, since it may not resume for a while.
+                val aiBusy = now.isAiSortEnabled && now.isAiSortSupported &&
+                    now.aiSort.phase in setOf(AiSortPhase.Idle, AiSortPhase.Downloading, AiSortPhase.Sorting)
+                now.copy(
+                    playSort = now.playSort.copy(
+                        candidates = candidates,
+                        showOffer = now.isAppFoldersEnabled && !auto && !aiBusy &&
+                            (newApps.isNotEmpty() || reoffer) &&
+                            now.playSort.phase != PlaySortPhase.Sorting,
+                    ),
+                )
+            }
+            if (auto) startPlaySort(newApps, silent = true)
+        }
+    }
+
+    /**
+     * Looks up [packageNames] on Google Play, after the user agreed to, one at
+     * a time. A [silent] run (new apps, with "Sort new apps using Google Play"
+     * on) shows no result when it finishes; one the user started does.
+     */
+    fun startPlaySort(packageNames: List<String>, silent: Boolean = false, unticked: List<String> = emptyList()) {
+        if (!silent) playSortReoffer = false
+        // The sheet's ticks are the user's latest word: unticked apps are kept
+        // out, and ticked ones the user had kept out before are let in.
+        playSortStore.dismissed = playSortStore.dismissed - packageNames.toSet() + unticked
+        if (packageNames.isEmpty()) return
+        playSortSilent = silent && (playSortJob?.isActive != true || playSortSilent)
+        playSortStore.pending = (playSortStore.pending + packageNames).distinct()
+        playSortStore.hasUsed = true
+        _uiState.update { state ->
+            state.copy(
+                playSort = state.playSort.copy(
+                    showOffer = false,
+                    hasUsed = true,
+                    phase = PlaySortPhase.Sorting,
+                    done = if (state.playSort.phase == PlaySortPhase.Sorting) state.playSort.done else 0,
+                    total = if (state.playSort.phase == PlaySortPhase.Sorting) {
+                        state.playSort.done + playSortStore.pending.size
+                    } else {
+                        playSortStore.pending.size
+                    },
+                    sorted = if (state.playSort.phase == PlaySortPhase.Sorting) state.playSort.sorted else 0,
+                    unsorted = if (state.playSort.phase == PlaySortPhase.Sorting) state.playSort.unsorted else 0,
+                ),
+            )
+        }
+        logState("startPlaySort count=%s", packageNames.size)
+        resumePlaySort()
+    }
+
+    private fun resumePlaySort() {
+        if (playSortJob?.isActive == true || playSortStore.pending.isEmpty()) return
+        playSortJob = viewModelScope.launch { runPlaySort() }
+    }
+
+    /**
+     * Works through the pending lookups. Google Play asking us to slow down, or
+     * no answer at all, pauses for [PLAY_SORT_RETRY_MILLIS] and tries the same
+     * app again; the queue is saved, so a restart picks up where it left off.
+     * Logs counts only: package names never reach the log.
+     */
+    private suspend fun runPlaySort() {
+        LauncherDebugLog.event("playSort started pending=%s", playSortStore.pending.size)
+        while (true) {
+            val packageName = playSortStore.pending.firstOrNull() ?: break
+            when (val result = playCategoryFetcher.fetch(packageName)) {
+                is PlayLookup.Found, PlayLookup.NotListed -> {
+                    val category = (result as? PlayLookup.Found)?.category.orEmpty()
+                    playSortStore.record(packageName, category)
+                    playSortStore.pending = playSortStore.pending - packageName
+                    val placed = folderForPlayCategory(category)?.storageKey in
+                        appFolderStore.folders.mapTo(HashSet()) { it.key }
+                    _uiState.update { state ->
+                        state.copy(
+                            playCategories = playSortStore.categories,
+                            playSort = state.playSort.copy(
+                                phase = PlaySortPhase.Sorting,
+                                done = state.playSort.done + 1,
+                                sorted = state.playSort.sorted + if (placed) 1 else 0,
+                                unsorted = state.playSort.unsorted + if (placed) 0 else 1,
+                            ),
+                        )
+                    }
+                    refreshFolderSearch()
+                    if (playSortStore.pending.isNotEmpty()) playSortDelay(PLAY_SORT_SPACING_MILLIS)
+                }
+                PlayLookup.SlowDown, PlayLookup.Failed -> {
+                    LauncherDebugLog.event("playSort paused reason=%s", result.javaClass.simpleName)
+                    _uiState.update { state -> state.copy(playSort = state.playSort.copy(phase = PlaySortPhase.Paused)) }
+                    playSortDelay(PLAY_SORT_RETRY_MILLIS)
+                    _uiState.update { state -> state.copy(playSort = state.playSort.copy(phase = PlaySortPhase.Sorting)) }
+                }
+            }
+        }
+        val run = _uiState.value.playSort
+        LauncherDebugLog.event("playSort done sorted=%s unsorted=%s", run.sorted, run.unsorted)
+        // New apps sorted on their own say nothing; a run the user started reports back.
+        val phase = if (playSortSilent) PlaySortPhase.Idle else PlaySortPhase.Done
+        _uiState.update { state -> state.copy(playSort = state.playSort.copy(phase = phase)) }
+        playSortSilent = false
+        refreshPlaySort()
+    }
+
+
+    /** "Not now": hides the offer until apps it didn't list land in Other. */
+    fun dismissPlaySortOffer() {
+        playSortReoffer = false
+        playSortStore.dismissed = playSortStore.dismissed + _uiState.value.playSort.offered.map { it.app.packageName }
+        _uiState.update { state -> state.copy(playSort = state.playSort.copy(showOffer = false)) }
+        logState("dismissPlaySortOffer")
+    }
+
+    /** "Done" on the result. */
+    fun acknowledgePlaySortResult() {
+        _uiState.update { state -> state.copy(playSort = state.playSort.copy(phase = PlaySortPhase.Idle)) }
+    }
+
+    /** "Sort new apps using Google Play". */
+    fun setPlaySortAutoEnabled(isEnabled: Boolean) {
+        playSortStore.isAutoEnabled = isEnabled
+        _uiState.update { state -> state.copy(playSort = state.playSort.copy(isAutoEnabled = isEnabled)) }
+        logState("setPlaySortAutoEnabled=%s", isEnabled)
+        refreshPlaySort()
+    }
+
+    /**
+     * "Sort again using Google Play": forgets every answer, so the offer
+     * returns, listing every app with the ones the user kept out still
+     * unticked. Nothing is looked up until the user answers it, even with
+     * "Sort new apps" on, beyond apps the user had already agreed to.
+     */
+    fun resortWithPlay() {
+        playSortReoffer = true
+        playSortJob?.cancel()
+        playSortStore.pending = emptyList()
+        playSortStore.clearCategories()
+        _uiState.update { state ->
+            state.copy(
+                playCategories = emptyMap(),
+                playSort = state.playSort.copy(phase = PlaySortPhase.Idle, done = 0, total = 0, sorted = 0, unsorted = 0),
+            )
+        }
+        refreshFolderSearch()
+        logState("resortWithPlay")
+        refreshPlaySort()
+    }
+
     private var launcherForeground = false
 
     // Set when sorting pauses (out of quota, busy too long, no model, a
@@ -5136,6 +5379,9 @@ internal class LauncherViewModel(
 
     /** Starts sorting if it's wanted, possible now, and not already running. */
     private fun maybeStartAiSort() {
+        // Called whenever the apps or folders change, which is also when the
+        // Google Play offer needs working out again.
+        refreshPlaySort()
         val state = _uiState.value
         if (!state.isAppFoldersEnabled || !state.isAiSortEnabled || !state.isAiSortSupported) return
         if (!launcherForeground || aiSortPausedUntilReturn || aiSortJob?.isActive == true) return
@@ -5190,6 +5436,9 @@ internal class LauncherViewModel(
                 ),
             )
         }
+        // Finished, paused or unavailable: what the AI didn't place can now be
+        // offered to Google Play (see refreshPlaySort).
+        if (phase != AiSortPhase.Sorting && phase != AiSortPhase.Downloading) refreshPlaySort()
     }
 
     /**
@@ -5353,7 +5602,7 @@ internal class LauncherViewModel(
         // Every installed app, hidden and paused ones too, so they're in the
         // folder when they come back; the store moves their filings anyway.
         val members = installedApps.asSequence()
-            .filter { app -> effectiveFolderKey(app, activeKeys, state.appFolderAssignments, aiFilings) == source.key }
+            .filter { app -> effectiveFolderKey(app, activeKeys, state.appFolderAssignments, aiFilings, state.playCategories) == source.key }
             .mapTo(LinkedHashSet()) { it.id }
         appFolderStore.mergeFolder(source.key, target.key, members)
         LauncherDebugLog.event("mergeAppFolder from=%s into=%s apps=%s", source.key, target.key, members.size)
@@ -5827,7 +6076,7 @@ internal class LauncherViewModel(
             ).markVisibility()
             val activeKeys = state.appFolders.mapTo(HashSet()) { it.key }
             val added = searchable.filter { app ->
-                effectiveFolderKey(app, activeKeys, state.appFolderAssignments, aiFilings) in namedKeys &&
+                effectiveFolderKey(app, activeKeys, state.appFolderAssignments, aiFilings, state.playCategories) in namedKeys &&
                     shown.add(app.id)
             }
             return FolderSearch(filtered + added, emptyList())
@@ -5842,7 +6091,7 @@ internal class LauncherViewModel(
             dockedAppIds = floatingDockedIdsForState(browseState, dockedIds, workDockedIds),
             sortOrder = browseState.renderedAppListSortOrder(),
         ).markVisibility()
-        val folders = groupAppList(browse, state.appFolders, state.appFolderAssignments, aiFilings)
+        val folders = groupAppList(browse, state.appFolders, state.appFolderAssignments, aiFilings, state.playCategories)
             .folders.filter { it.folder.key in namedKeys }
         if (folders.isEmpty()) return FolderSearch(filtered, emptyList())
         val added = folders.flatMap { it.apps }.filter { shown.add(it.id) }

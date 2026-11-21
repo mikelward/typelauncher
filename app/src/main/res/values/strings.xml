@@ -429,4 +429,31 @@
          and the row labels, and one thing the user agreed to once should not
          carry two names (maintainer, 2026-08-31). -->
     <string name="settings_analytics_title">Help make Type Launcher better</string>
+    <!-- "Sort using Google Play". TODO: translate once the English is approved. -->
+    <plurals name="play_sort_offer_title" tools:ignore="MissingTranslation">
+        <item quantity="one">Sort the %d app in Other using Google Play?</item>
+        <item quantity="other">Sort the %d apps in Other using Google Play?</item>
+    </plurals>
+    <string name="play_sort_offer_body" tools:ignore="MissingTranslation">Only apps you installed from Google Play are looked up.</string>
+    <string name="play_sort_offer_accept" tools:ignore="MissingTranslation">Sort</string>
+    <string name="play_sort_sheet_title" tools:ignore="MissingTranslation">Sort using Google Play</string>
+    <string name="play_sort_sheet_body" tools:ignore="MissingTranslation">Looks up each app\'s category. Untick any you\'d rather keep private.</string>
+    <string name="play_sort_not_from_play" tools:ignore="MissingTranslation">Not from Google Play</string>
+    <plurals name="play_sort_sheet_confirm" tools:ignore="MissingTranslation">
+        <item quantity="one">Sort %d app</item>
+        <item quantity="other">Sort %d apps</item>
+    </plurals>
+    <string name="play_sort_progress" tools:ignore="MissingTranslation">Sorting with Google Play… %1$d of %2$d</string>
+    <string name="play_sort_paused" tools:ignore="MissingTranslation">Paused, will finish later</string>
+    <plurals name="play_sort_done" tools:ignore="MissingTranslation">
+        <item quantity="one">Sorted %d app</item>
+        <item quantity="other">Sorted %d apps</item>
+    </plurals>
+    <plurals name="play_sort_done_unsorted" tools:ignore="MissingTranslation">
+        <item quantity="one">%d had no folder on Google Play and stays here.</item>
+        <item quantity="other">%d had no folder on Google Play and stay here.</item>
+    </plurals>
+    <string name="play_sort_done_button" tools:ignore="MissingTranslation">Done</string>
+    <string name="settings_play_sort_auto_title" tools:ignore="MissingTranslation">Sort new apps using Google Play</string>
+    <string name="settings_play_sort_resort" tools:ignore="MissingTranslation">Sort again using Google Play</string>
 </resources>

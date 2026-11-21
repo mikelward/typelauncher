@@ -303,6 +303,7 @@ internal fun HomeScreen(
     onMergeAppFolder: (AppFolderDef, AppFolderDef) -> Unit = { _, _ -> },
     onAiSortEnabledChanged: (Boolean) -> Unit = {},
     onDismissAiSortOffer: () -> Unit = {},
+    playSortActions: PlaySortActions = PlaySortActions(),
     onAcceptGridOffer: () -> Unit = {},
     onDismissGridOffer: () -> Unit = {},
 ) {
@@ -1300,10 +1301,11 @@ internal fun HomeScreen(
                 state.appFolders,
                 state.appFolderAssignments,
                 aiFolders,
+                state.playCategories,
                 showsAppFolders,
             ) {
                 if (showsAppFolders) {
-                    groupAppList(state.filteredApps, state.appFolders, state.appFolderAssignments, aiFolders)
+                    groupAppList(state.filteredApps, state.appFolders, state.appFolderAssignments, aiFolders, state.playCategories)
                 } else {
                     null
                 }
@@ -1326,6 +1328,7 @@ internal fun HomeScreen(
                 state.appFolders,
                 state.appFolderAssignments,
                 aiFolders,
+                state.playCategories,
                 onMoveAppToFolder,
                 onCreateAppFolder,
                 onEditAppFolder,
@@ -1337,7 +1340,7 @@ internal fun HomeScreen(
                     AppFolderMenu(
                         folders = state.appFolders,
                         folderOf = { app ->
-                            effectiveFolderKey(app, activeKeys, state.appFolderAssignments, aiFolders)
+                            effectiveFolderKey(app, activeKeys, state.appFolderAssignments, aiFolders, state.playCategories)
                         },
                         onMove = onMoveAppToFolder,
                         onCreate = onCreateAppFolder,
@@ -1435,14 +1438,36 @@ internal fun HomeScreen(
                     // AI sorting offers itself at the top of every open folder
                     // until answered (maintainer, 2026-11-19), and shows its
                     // progress there while it sorts.
-                    openFolderNote = if (openAppFolder != null && state.isAiSortSupported) {
+                    // Google Play sorting's progress and result stay in view with
+                    // no folder open: sorting can empty Other, which then closes.
+                    // Google Play sorting offers itself atop the list, and its
+                    // progress and result stay there: sorting can empty Other,
+                    // which then closes (maintainer, 2026-11-21: ask proactively).
+                    topNote = if (
+                        openAppFolder == null &&
+                        state.query.isBlank() &&
+                        state.isAppFoldersEnabled &&
+                        (state.playSort.showOffer || state.playSort.phase != PlaySortPhase.Idle)
+                    ) {
+                        { PlaySortNote(state.playSort, playSortActions) }
+                    } else {
+                        null
+                    },
+                    // "Sort using Google Play" offers itself in Other, where the
+                    // apps it would sort are (maintainer, 2026-11-21).
+                    openFolderNote = if (openAppFolder != null) {
                         {
-                            OtherFolderAiNote(
-                                progress = if (state.isAiSortEnabled) state.aiSort else AiSortProgress(),
-                                showOffer = state.isAiSortOfferPending,
-                                onAccept = { onAiSortEnabledChanged(true) },
-                                onDismiss = onDismissAiSortOffer,
-                            )
+                            Column {
+                                if (openAppFolder.folder.isOther) PlaySortNote(state.playSort, playSortActions)
+                                if (state.isAiSortSupported) {
+                                    OtherFolderAiNote(
+                                        progress = if (state.isAiSortEnabled) state.aiSort else AiSortProgress(),
+                                        showOffer = state.isAiSortOfferPending,
+                                        onAccept = { onAiSortEnabledChanged(true) },
+                                        onDismiss = onDismissAiSortOffer,
+                                    )
+                                }
+                            }
                         }
                     } else {
                         null
@@ -4771,6 +4796,8 @@ internal fun AppsCard(
     onDismissFoldersOffer: () -> Unit = {},
     // Shown under the open folder's header, when set.
     openFolderNote: (@Composable () -> Unit)? = null,
+    // Shown at the top of the list, when set and no other offer is.
+    topNote: (@Composable () -> Unit)? = null,
     // The one-time offer to show apps as a grid, above the list. Never with
     // the folders offer, which goes first.
     showGridOffer: Boolean = false,
@@ -4854,6 +4881,8 @@ internal fun AppsCard(
         ) {
             if (showFoldersOffer && !isLoading) {
                 AppFoldersOffer(onAccept = onAcceptFoldersOffer, onDismiss = onDismissFoldersOffer)
+            } else if (topNote != null && !isLoading) {
+                topNote()
             } else if (showGridOffer && !isLoading) {
                 GridLayoutOffer(onAccept = onAcceptGridOffer, onDismiss = onDismissGridOffer)
             }
@@ -7680,6 +7709,7 @@ internal fun SettingsScreen(
     onAppFoldersEnabledChanged: (Boolean) -> Unit = {},
     onAiSortEnabledChanged: (Boolean) -> Unit = {},
     onResortAppsWithAi: () -> Unit = {},
+    playSortActions: PlaySortActions = PlaySortActions(),
     onRestoreAppFolders: () -> Unit = {},
     onNewAppFolder: (String, FolderIcon) -> Unit = { _, _ -> },
     onEditAppFolder: (AppFolderDef, String, FolderIcon) -> Unit = { _, _, _ -> },
@@ -8071,6 +8101,7 @@ internal fun SettingsScreen(
                         onResort = onResortAppsWithAi,
                     )
                 }
+                if (state.isAppFoldersEnabled) PlaySortSettingsRows(state.playSort, playSortActions)
                 Text(
                     text = stringResource(R.string.settings_dock_icon_count_label, dockIconCount),
                     style = MaterialTheme.typography.titleMedium,

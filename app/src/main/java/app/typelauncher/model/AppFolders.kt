@@ -219,6 +219,8 @@ internal data class AppListGrouping(
  * a folder key, or to null for "no folder"); otherwise, for a well-known app
  * or one whose name says what it is, where [knownAppCategory] says, and
  * for one whose manifest says it's a game, Games ([ruledCategory]);
+ * otherwise where its Google Play category says ([playCategories], package to
+ * Play code, from "Sort using Google Play"; see [folderForPlayCategory]);
  * otherwise where "Sort with on-device AI" put it ([aiAssignments]), which the caller passes only while
  * that's on; otherwise where its manifest says
  * ([InstalledApp.declaredCategory]); otherwise where words in its package or
@@ -232,6 +234,7 @@ internal fun effectiveFolderKey(
     activeKeys: Set<String>,
     assignments: Map<String, String?>,
     aiAssignments: Map<String, String> = emptyMap(),
+    playCategories: Map<String, String> = emptyMap(),
 ): String? {
     if (assignments.containsKey(app.id)) {
         val chosen = assignments[app.id] ?: return null
@@ -242,6 +245,8 @@ internal fun effectiveFolderKey(
     // asked for that folder, and the table can't know about it.
     if (aiChoice != null && aiChoice.startsWith(USER_FOLDER_KEY_PREFIX)) return aiChoice
     app.ruledCategory()?.storageKey?.takeIf { it in activeKeys }?.let { return it }
+    playCategories[app.packageName]?.let(::folderForPlayCategory)?.storageKey?.takeIf { it in activeKeys }
+        ?.let { return it }
     aiChoice?.let { return it }
     app.declaredCategory?.storageKey?.takeIf { it in activeKeys }?.let { return it }
     app.guessedCategory()?.storageKey?.takeIf { it in activeKeys }?.let { return it }
@@ -265,6 +270,7 @@ internal fun groupAppList(
     folders: List<AppFolderDef>,
     assignments: Map<String, String?>,
     aiAssignments: Map<String, String> = emptyMap(),
+    playCategories: Map<String, String> = emptyMap(),
 ): AppListGrouping {
     val other = AppCategory.Other.storageKey
     val activeKeys = folders.mapTo(HashSet()) { it.key }
@@ -272,7 +278,7 @@ internal fun groupAppList(
     val members = HashMap<String, MutableList<InstalledApp>>()
     var otherChosen = false
     for (app in apps) {
-        val key = effectiveFolderKey(app, activeKeys, assignments, aiAssignments) ?: continue
+        val key = effectiveFolderKey(app, activeKeys, assignments, aiAssignments, playCategories) ?: continue
         if (key == other && assignments[app.id] == other) otherChosen = true
         members.getOrPut(key) { mutableListOf() } += app
     }

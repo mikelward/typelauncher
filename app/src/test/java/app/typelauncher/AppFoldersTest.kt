@@ -355,6 +355,36 @@ class AppFoldersTest {
         aiAssignments.mapValues { (_, category) -> category.storageKey },
     )
 
+    @Test
+    fun googlePlayCategory_ranksBelowTheRulesAndAboveTheAiAndManifest() {
+        val unknown = app("Thermo", AppCategory.Tools)
+        val ids = defaults.mapTo(HashSet()) { it.key }
+        val play = mapOf(unknown.packageName to "HOUSE_AND_HOME")
+        val ai = mapOf(unknown.id to AppCategory.Office.storageKey)
+        // Above the AI's pick and the manifest's category.
+        assertEquals(AppCategory.Home.storageKey, effectiveFolderKey(unknown, ids, emptyMap(), ai, play))
+        // Below a rule: a well-known app stays where the rules say.
+        val known = app("Netflix").copy(packageName = "com.netflix.mediaclient")
+        assertEquals(
+            AppCategory.Media.storageKey,
+            effectiveFolderKey(known, ids, emptyMap(), emptyMap(), mapOf(known.packageName to "FINANCE")),
+        )
+        // A category with no folder (or none found) falls through to the AI.
+        assertEquals(
+            AppCategory.Office.storageKey,
+            effectiveFolderKey(unknown, ids, emptyMap(), ai, mapOf(unknown.packageName to "LIFESTYLE")),
+        )
+        assertEquals(
+            AppCategory.Office.storageKey,
+            effectiveFolderKey(unknown, ids, emptyMap(), ai, mapOf(unknown.packageName to "")),
+        )
+        // And the user's own filing beats it all.
+        assertEquals(
+            AppCategory.Tools.storageKey,
+            effectiveFolderKey(unknown, ids, mapOf(unknown.id to AppCategory.Tools.storageKey), ai, play),
+        )
+    }
+
     private fun folder(category: AppCategory, apps: List<InstalledApp>) =
         AppListFolder(AppFolderDef.builtIn(category), apps)
 

@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Opt-in crash reports and analytics, and "Sort using Google Play",
+         which reads the Google Play pages of the apps the user ticks. Firebase
+         merges this in anyway; it is declared here because the app uses it too. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <!-- Requested only from the Settings "Search contacts" toggle; backs the
          typed-search contacts section. Never requested at first run. -->
