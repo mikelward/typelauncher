@@ -1,16 +1,19 @@
 # Widely used apps by country, as seeds: the crawl follows their similar
 # apps and developers to the rest of each country's popular apps. A wrong or
 # retired package is simply not found.
-# Croatia
-hr.asseco.android.jimba.mtoken.zaba
-hr.pbz.mobile
-hr.erste.george
+# Croatia (from the maintainer, 2026-11-21: confirmed on Google Play)
+com.hrvatskitelekom.m.mojT
+hr.asseco.android.ae.otp
+hr.mgradani
+hr.asseco.android.zaba.new
+hr.sedamit.hpmbox
+hr.erstebank.george
+com.glovo
+com.hzppispromobile
+# Croatia (guessed; any that are wrong are simply not found)
 hr.hrt.hrti
 hr.index.android
-hr.a1.mojA1
-hr.telekom.mojtelekom
 com.njuskalo.android
-hr.hzpp.planer
 # Bulgaria
 bg.dsk.dskdirect
 bg.unicredit.bulbank
