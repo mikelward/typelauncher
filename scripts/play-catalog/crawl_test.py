@@ -252,6 +252,24 @@ class CrawlTest(unittest.TestCase):
                 del PAGES[key]
         self.assertIn("hr.big.wallet", c.apps)
 
+    def test_appsAlreadyShipped_areKeptWithoutFetchingThemAgain(self):
+        # A crawl whose saved state was lost shouldn't fetch the shipped
+        # catalog all over again (maintainer, 2026-11-21).
+        c = crawl.Crawl(self.state, min_installs=100_000)
+        c.run(["com.popular.weather"], 100, spacing=0,
+              known={"com.other.radar": "WEATHER", "com.popular.weather": "WEATHER"})
+        self.assertNotIn("/store/apps/details?id=com.other.radar&hl=en", self.fetched)
+        self.assertEqual(["WEATHER", 0], c.apps["com.other.radar"])
+        # A seed is still fetched, for its neighbors and developer.
+        self.assertIn("/store/apps/details?id=com.popular.weather&hl=en", self.fetched)
+        self.assertIn("com.popular.sibling", c.apps)
+
+    def test_readsTheCatalogItWrites(self):
+        c = self.run_crawl()
+        out = os.path.join(self.state, "catalog.tsv")
+        c.write(out)
+        self.assertEqual({p: v[0] for p, v in c.apps.items()}, crawl.read_catalog(out))
+
     def test_writesPackageAndCategory(self):
         c = self.run_crawl()
         out = os.path.join(self.state, "catalog.tsv")

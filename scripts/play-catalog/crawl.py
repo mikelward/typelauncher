@@ -202,10 +202,16 @@ class Crawl:
                     if dev_page:
                         self.links(dev_page, count // 2, local=local)
 
-    def run(self, seeds, target, spacing, deadline=None):
+    def run(self, seeds, target, spacing, deadline=None, known=None):
         """Crawls until [target] apps are kept, the queue empties, or the
-        monotonic clock passes [deadline]."""
+        monotonic clock passes [deadline]. Apps in [known] (package to
+        category, the catalog already shipped) are kept without fetching
+        them again, unless they're seeds, so a crawl whose saved state was
+        lost doesn't fetch them all again."""
         self.spacing = spacing
+        known = known or {}
+        for package, category in known.items():
+            self.apps.setdefault(package, [category, 0])
         for package in seeds:
             self.make_local(package, 10**12)
         for category in CATEGORIES:
@@ -225,6 +231,10 @@ class Crawl:
                 logging.info("out of time")
                 break
             priority, package = heapq.heappop(self.queue)
+            if package in known and package not in self.local:
+                # Kept already; its own page isn't worth a fetch, though its
+                # neighbors go unvisited from it.
+                continue
             try:
                 self.crawl_app(package)
             except KeyboardInterrupt:
@@ -264,6 +274,18 @@ class Crawl:
         logging.info("wrote %d apps to %s", len(rows), out)
 
 
+def read_catalog(path):
+    """Package to category, from a catalog [write] made."""
+    known = {}
+    with open(path) as f:
+        for line in f:
+            if line.startswith("#") or "\t" not in line:
+                continue
+            package, category = line.rstrip("\n").split("\t", 1)
+            known[package] = category
+    return known
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--state", required=True, help="directory for the resumable state")
@@ -275,6 +297,7 @@ def main():
     parser.add_argument("--spacing", type=float, default=2.0, help="seconds between pages")
     parser.add_argument("--hours", type=float, help="stop after this long, state saved, to resume later")
     parser.add_argument("--write", help="write the catalog here instead of crawling")
+    parser.add_argument("--known", help="a catalog already shipped: its apps are kept without fetching them again")
     args = parser.parse_args()
 
     log_dir = os.path.expanduser("~/.local/state/typelauncher")
@@ -295,7 +318,9 @@ def main():
                 with open(name) as f:
                     seeds += [line.split("#")[0].strip() for line in f if line.split("#")[0].strip()]
             deadline = time.monotonic() + args.hours * 3600 if args.hours else None
-            crawl.run(seeds, args.target, args.spacing, deadline)
+            known = read_catalog(args.known) if args.known else {}
+            logging.info("%d apps known from the shipped catalog", len(known))
+            crawl.run(seeds, args.target, args.spacing, deadline, known)
     except KeyboardInterrupt:
         crawl.save()
         logging.info("interrupted; state saved")
