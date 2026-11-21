@@ -290,6 +290,7 @@
     <string name="app_folder_tools">ឧបករណ៍</string>
     <string name="app_folder_transit">ការដឹកជញ្ជូនសាធារណៈ និងរថភ្លើង</string>
     <string name="app_folder_car">ឡាន</string>
+    <string name="app_folder_charity">សប្បុរសធម៌ និងការបរិច្ចាគ</string>
     <string name="app_folder_cycling">កង់ និងកង់ជួល</string>
     <string name="app_folder_hotels">សណ្ឋាគារ និងកន្លែងស្នាក់នៅ</string>
     <string name="app_folder_maps">ផែនទី</string>
@@ -319,6 +320,7 @@
     <string name="folder_icon_pedal_bike">កង់</string>
     <string name="folder_icon_hotel">គ្រែ</string>
     <string name="folder_icon_map">ផែនទី</string>
+    <string name="folder_icon_volunteer_activism">ដៃជាមួយបេះដូង</string>
     <string name="folder_icon_eco">ធម្មជាតិ</string>
     <string name="folder_icon_family_restroom">គ្រួសារ</string>
     <string name="folder_icon_favorite">បេះដូង</string>

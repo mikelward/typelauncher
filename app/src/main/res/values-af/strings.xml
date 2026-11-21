@@ -291,6 +291,7 @@
     <string name="app_folder_tools">Gereedskap</string>
     <string name="app_folder_transit">Openbare vervoer en spoor</string>
     <string name="app_folder_car">Motor</string>
+    <string name="app_folder_charity">Liefdadigheid en skenkings</string>
     <string name="app_folder_cycling">Fietsry en fietsdeel</string>
     <string name="app_folder_hotels">Hotelle en verblyf</string>
     <string name="app_folder_maps">Kaarte</string>
@@ -320,6 +321,7 @@
     <string name="folder_icon_pedal_bike">Fiets</string>
     <string name="folder_icon_hotel">Bed</string>
     <string name="folder_icon_map">Kaart</string>
+    <string name="folder_icon_volunteer_activism">Hand met hart</string>
     <string name="folder_icon_eco">Natuur</string>
     <string name="folder_icon_family_restroom">Gesin</string>
     <string name="folder_icon_favorite">Hart</string>

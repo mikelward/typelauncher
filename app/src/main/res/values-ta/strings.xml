@@ -291,6 +291,7 @@
     <string name="app_folder_tools">கருவிகள்</string>
     <string name="app_folder_transit">பொதுப் போக்குவரத்து &amp; ரயில்</string>
     <string name="app_folder_car">கார்</string>
+    <string name="app_folder_charity">தொண்டு &amp; நன்கொடை</string>
     <string name="app_folder_cycling">சைக்கிள் &amp; பைக் பகிர்வு</string>
     <string name="app_folder_hotels">ஹோட்டல்கள் &amp; தங்குமிடங்கள்</string>
     <string name="app_folder_maps">வரைபடங்கள்</string>
@@ -320,6 +321,7 @@
     <string name="folder_icon_pedal_bike">சைக்கிள்</string>
     <string name="folder_icon_hotel">படுக்கை</string>
     <string name="folder_icon_map">வரைபடம்</string>
+    <string name="folder_icon_volunteer_activism">இதயத்துடன் கை</string>
     <string name="folder_icon_eco">இயற்கை</string>
     <string name="folder_icon_family_restroom">குடும்பம்</string>
     <string name="folder_icon_favorite">இதயம்</string>

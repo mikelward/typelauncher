@@ -292,6 +292,7 @@
     <string name="app_folder_tools">Strumenti</string>
     <string name="app_folder_transit">Trasporti pubblici e treni</string>
     <string name="app_folder_car">Auto</string>
+    <string name="app_folder_charity">Beneficenza e donazioni</string>
     <string name="app_folder_cycling">Bici e bike sharing</string>
     <string name="app_folder_hotels">Hotel e alloggi</string>
     <string name="app_folder_maps">Mappe</string>
@@ -321,6 +322,7 @@
     <string name="folder_icon_pedal_bike">Bicicletta</string>
     <string name="folder_icon_hotel">Letto</string>
     <string name="folder_icon_map">Mappa</string>
+    <string name="folder_icon_volunteer_activism">Mano con cuore</string>
     <string name="folder_icon_eco">Natura</string>
     <string name="folder_icon_family_restroom">Famiglia</string>
     <string name="folder_icon_favorite">Cuore</string>

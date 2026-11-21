@@ -290,6 +290,7 @@
     <string name="app_folder_tools">도구</string>
     <string name="app_folder_transit">대중교통 및 철도</string>
     <string name="app_folder_car">자동차</string>
+    <string name="app_folder_charity">기부 및 자선</string>
     <string name="app_folder_cycling">자전거 및 공유 자전거</string>
     <string name="app_folder_hotels">호텔 및 숙박</string>
     <string name="app_folder_maps">지도</string>
@@ -319,6 +320,7 @@
     <string name="folder_icon_pedal_bike">자전거</string>
     <string name="folder_icon_hotel">침대</string>
     <string name="folder_icon_map">지도</string>
+    <string name="folder_icon_volunteer_activism">하트를 든 손</string>
     <string name="folder_icon_eco">자연</string>
     <string name="folder_icon_family_restroom">가족</string>
     <string name="folder_icon_favorite">하트</string>

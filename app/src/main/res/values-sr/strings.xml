@@ -292,6 +292,7 @@
     <string name="app_folder_tools">Алатке</string>
     <string name="app_folder_transit">Јавни превоз и возови</string>
     <string name="app_folder_car">Аутомобил</string>
+    <string name="app_folder_charity">Добротворност и донације</string>
     <string name="app_folder_cycling">Бициклизам и дељени бицикли</string>
     <string name="app_folder_hotels">Хотели и смештај</string>
     <string name="app_folder_maps">Мапе</string>
@@ -321,6 +322,7 @@
     <string name="folder_icon_pedal_bike">Бицикл</string>
     <string name="folder_icon_hotel">Кревет</string>
     <string name="folder_icon_map">Мапа</string>
+    <string name="folder_icon_volunteer_activism">Рука са срцем</string>
     <string name="folder_icon_eco">Природа</string>
     <string name="folder_icon_family_restroom">Породица</string>
     <string name="folder_icon_favorite">Срце</string>

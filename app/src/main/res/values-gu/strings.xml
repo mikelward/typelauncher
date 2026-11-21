@@ -291,6 +291,7 @@
     <string name="app_folder_tools">ટૂલ</string>
     <string name="app_folder_transit">જાહેર પરિવહન અને રેલ</string>
     <string name="app_folder_car">કાર</string>
+    <string name="app_folder_charity">દાન અને સખાવત</string>
     <string name="app_folder_cycling">સાઇકલ અને બાઇક શેર</string>
     <string name="app_folder_hotels">હોટેલ અને રહેઠાણ</string>
     <string name="app_folder_maps">નકશા</string>
@@ -320,6 +321,7 @@
     <string name="folder_icon_pedal_bike">સાઇકલ</string>
     <string name="folder_icon_hotel">પલંગ</string>
     <string name="folder_icon_map">નકશો</string>
+    <string name="folder_icon_volunteer_activism">હાથમાં હૃદય</string>
     <string name="folder_icon_eco">પ્રકૃતિ</string>
     <string name="folder_icon_family_restroom">પરિવાર</string>
     <string name="folder_icon_favorite">હૃદય</string>

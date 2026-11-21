@@ -18,6 +18,8 @@ internal enum class AppCategory(val storageKey: String, val icon: FolderIcon) {
     Ai("ai", FolderIcon.AutoAwesome),
     Betting("betting", FolderIcon.Casino),
     Car("car", FolderIcon.DirectionsCar),
+    // "Charity & giving" (maintainer, 2026-11-21).
+    Charity("charity", FolderIcon.VolunteerActivism),
     Code("code", FolderIcon.Code),
     Cycling("cycling", FolderIcon.PedalBike),
     Design("design", FolderIcon.Palette),
@@ -91,6 +93,7 @@ internal enum class FolderIcon(val storageKey: String) {
     PedalBike("pedal_bike"),
     Hotel("hotel"),
     Map("map"),
+    VolunteerActivism("volunteer_activism"),
     Flight("flight"),
     Restaurant("restaurant"),
     Language("language"),
