@@ -258,13 +258,21 @@ internal fun effectiveFolderKey(
     // asked for that folder, and the table can't know about it.
     if (aiChoice != null && aiChoice.startsWith(USER_FOLDER_KEY_PREFIX)) return aiChoice
     app.ruledCategory()?.storageKey?.takeIf { it in activeKeys }?.let { return it }
-    playCategories[app.packageName]?.let(::folderForPlayCategory)?.storageKey?.takeIf { it in activeKeys }
+    app.playCategoryIn(playCategories)?.let(::folderForPlayCategory)?.storageKey?.takeIf { it in activeKeys }
         ?.let { return it }
     aiChoice?.let { return it }
     app.declaredCategory?.storageKey?.takeIf { it in activeKeys }?.let { return it }
     app.guessedCategory()?.storageKey?.takeIf { it in activeKeys }?.let { return it }
     return AppCategory.Other.storageKey
 }
+
+/**
+ * [this] app's Play category from [playCategories], or null for a pinned
+ * website: it carries its browser's package, which says nothing about the
+ * site (Codex on PR #890; see [knownCategory]).
+ */
+internal fun InstalledApp.playCategoryIn(playCategories: Map<String, String>): String? =
+    if (isShortcut) null else playCategories[packageName]
 
 /** What put an app in its folder, in [effectiveFolderKey]'s order. */
 internal enum class FolderSource {
@@ -320,7 +328,7 @@ internal fun folderSource(
             isPlacedByNameWord(if (app.isShortcut) "" else app.packageName, app.name)
         return if (byNameWord) FolderSource.NameWord else FolderSource.Rule
     }
-    if (playCategories[app.packageName]?.let(::folderForPlayCategory)?.storageKey?.takeIf { it in activeKeys } != null) {
+    if (app.playCategoryIn(playCategories)?.let(::folderForPlayCategory)?.storageKey?.takeIf { it in activeKeys } != null) {
         return FolderSource.GooglePlay
     }
     if (aiChoice != null) return FolderSource.Ai

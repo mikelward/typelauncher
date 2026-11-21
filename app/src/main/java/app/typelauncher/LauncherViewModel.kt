@@ -5218,7 +5218,10 @@ internal class LauncherViewModel(
             val other = AppCategory.Other.storageKey
             val apps = visibleInstalledApps()
                 .filter { app ->
+                    // A pinned website carries its browser's package, which
+                    // says nothing about the site (see knownCategory).
                     !app.isWorkApp &&
+                        !app.isShortcut &&
                         !filings.containsKey(app.id) &&
                         effectiveFolderKey(app, activeKeys, filings, aiFilings, known) == other &&
                         app.packageName !in known &&
