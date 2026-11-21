@@ -24,6 +24,13 @@ class AiAppSortingTest {
     }
 
     @Test
+    fun prompt_sendsNotesAndTasks_toTheirOwnFolder_notOffice() {
+        // Codex on PR #901: Office's description still offered both.
+        val office = buildAiSortPrompt(emptyList()).lines().single { it.startsWith("office: ") }
+        assertFalse(office, "notes" in office || "tasks" in office)
+    }
+
+    @Test
     fun prompt_passesTheRulesSuggestion_andTheAnswerStillWins() {
         // The maintainer, 2026-11-19: our suggestions as hints, so the AI
         // keeps the apps the rules would place where they'd place them.

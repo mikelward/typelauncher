@@ -123,6 +123,7 @@ com.android.chrome
 com.android.settings
 com.android.vending
 com.anthropic.claude
+com.anydo
 com.anz.lotus
 com.aofl.abcmouse
 com.aon.sante
@@ -157,6 +158,7 @@ com.bandcamp.android
 com.bankinter.portugal.bmb
 com.banknorwegian
 com.barclays.android.barclaysmobilebanking
+com.basecamp.bc3
 com.bbc.sounds
 com.beemdevelopment.aegis
 com.bendigobank.mobile
@@ -238,6 +240,7 @@ com.crowncards.app
 com.crunchyroll.crunchyroid
 com.cvs.launchers.cvs
 com.cyrano.cyrano
+com.daikineurope.online.controller
 com.dailymotion.dailymotion
 com.dailyyoga.inc
 com.danskebank.mobilebank3.uk
@@ -363,6 +366,7 @@ com.google.android.apps.nbu.files
 com.google.android.apps.nbu.paisa.user
 com.google.android.apps.photos
 com.google.android.apps.photos.scanner
+com.google.android.apps.pixel.aurelius
 com.google.android.apps.recorder
 com.google.android.apps.subscriptions.red
 com.google.android.apps.tachyon
@@ -398,6 +402,7 @@ com.grubhub.android
 com.gs.pwmdigital.external.android
 com.guardian
 com.guavahealth.app
+com.habitrpg.android.habitica
 com.handmark.expressweather
 com.hastingsdirect.mobile
 com.hbo.hbonow
@@ -535,6 +540,7 @@ com.microsoft.skydrive
 com.microsoft.teams
 com.microsoft.todos
 com.microsoft.xboxone.smartglass
+com.midea.aircondition.obm
 com.mindbodyonline.connect
 com.mint.mobile
 com.mizmowireless.acctmgt
@@ -718,6 +724,7 @@ com.sonos.acr2
 com.sony.songpal.mdr
 com.soundcloud.android
 com.southwestairlines.mobile
+com.splendapps.splendo
 com.spond.spond
 com.sportsbet.sportsbetweb
 com.spotify.music
@@ -770,6 +777,7 @@ com.thomsonreuters.reuters
 com.three.myaccount
 com.ticketmaster.mobile.android.na
 com.tickpickllc.ceobrien.tickpick
+com.ticktick.task
 com.tideplatform.banking
 com.tiktok.lite.go
 com.tinder
@@ -783,6 +791,7 @@ com.tplink.kasa_android
 com.tracerofficial
 com.tradingview.tradingviewapp
 com.transferwise.android
+com.transsion.notebook
 com.tranzmate
 com.trello
 com.tribo.bubbleapp
@@ -937,6 +946,7 @@ io.elevenlabs.readerapp
 io.homeassistant.companion.android
 io.playout
 io.raindrop.raindropio
+io.unorderly.structured
 io.vera.app
 it.italotreno
 it.pagopa.io.app
@@ -954,6 +964,7 @@ ma.marjanemall.marjanemall
 ma.safe.bn
 md.obsidian
 me.lyft.android
+mitsubishi.wifi.android.mitsubishiwifiapp
 mnn.Android
 mtnft.momo.consumer
 net.booksy.customer

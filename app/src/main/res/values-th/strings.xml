@@ -292,6 +292,7 @@
     <string name="app_folder_car">รถยนต์</string>
     <string name="app_folder_charity">การกุศลและการบริจาค</string>
     <string name="app_folder_family_history">ประวัติครอบครัวและลำดับวงศ์ตระกูล</string>
+    <string name="app_folder_notes">โน้ตและงาน</string>
     <string name="app_folder_cycling">จักรยานและจักรยานเช่า</string>
     <string name="app_folder_hotels">โรงแรมและที่พัก</string>
     <string name="app_folder_maps">แผนที่</string>
@@ -323,6 +324,7 @@
     <string name="folder_icon_map">แผนที่</string>
     <string name="folder_icon_volunteer_activism">มือกับหัวใจ</string>
     <string name="folder_icon_family_history">แผนผังครอบครัว</string>
+    <string name="folder_icon_edit_note">โน้ตและดินสอ</string>
     <string name="folder_icon_eco">ธรรมชาติ</string>
     <string name="folder_icon_family_restroom">ครอบครัว</string>
     <string name="folder_icon_favorite">หัวใจ</string>

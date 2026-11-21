@@ -295,6 +295,7 @@
     <string name="app_folder_car">Автомобіль</string>
     <string name="app_folder_charity">Благодійність і пожертви</string>
     <string name="app_folder_family_history">Історія родини та генеалогія</string>
+    <string name="app_folder_notes">Нотатки та завдання</string>
     <string name="app_folder_cycling">Велосипеди та велопрокат</string>
     <string name="app_folder_hotels">Готелі та житло</string>
     <string name="app_folder_maps">Карти</string>
@@ -326,6 +327,7 @@
     <string name="folder_icon_map">Карта</string>
     <string name="folder_icon_volunteer_activism">Рука із серцем</string>
     <string name="folder_icon_family_history">Родовідне дерево</string>
+    <string name="folder_icon_edit_note">Нотатка й олівець</string>
     <string name="folder_icon_eco">Природа</string>
     <string name="folder_icon_family_restroom">Сім\'я</string>
     <string name="folder_icon_favorite">Серце</string>

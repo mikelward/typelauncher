@@ -293,6 +293,7 @@
     <string name="app_folder_car">මෝටර් රථය</string>
     <string name="app_folder_charity">පුණ්‍යාධාර සහ පරිත්‍යාග</string>
     <string name="app_folder_family_history">පවුල් ඉතිහාසය සහ පෙළපත</string>
+    <string name="app_folder_notes">සටහන් සහ කාර්යයන්</string>
     <string name="app_folder_cycling">බයිසිකල් සහ බයිසිකල් කුලියට</string>
     <string name="app_folder_hotels">හෝටල් සහ නවාතැන්</string>
     <string name="app_folder_maps">සිතියම්</string>
@@ -324,6 +325,7 @@
     <string name="folder_icon_map">සිතියම</string>
     <string name="folder_icon_volunteer_activism">හදවතක් සහිත අත</string>
     <string name="folder_icon_family_history">පවුල් ගස</string>
+    <string name="folder_icon_edit_note">සටහන සහ පැන්සල</string>
     <string name="folder_icon_eco">ස්වභාවධර්මය</string>
     <string name="folder_icon_family_restroom">පවුල</string>
     <string name="folder_icon_favorite">හදවත</string>

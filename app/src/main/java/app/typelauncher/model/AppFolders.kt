@@ -41,6 +41,8 @@ internal enum class AppCategory(val storageKey: String, val icon: FolderIcon) {
     Media("media", FolderIcon.PlayCircle),
     Music("music", FolderIcon.MusicNote),
     News("news", FolderIcon.Newspaper),
+    // "Notes & tasks" (maintainer, 2026-11-21).
+    Notes("notes", FolderIcon.EditNote),
     Office("office", FolderIcon.Business),
     Pets("pets", FolderIcon.Pets),
     Phone("phone", FolderIcon.Call),
@@ -97,6 +99,7 @@ internal enum class FolderIcon(val storageKey: String) {
     Map("map"),
     VolunteerActivism("volunteer_activism"),
     FamilyHistory("family_history"),
+    EditNote("edit_note"),
     Flight("flight"),
     Restaurant("restaurant"),
     Language("language"),

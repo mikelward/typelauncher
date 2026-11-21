@@ -109,6 +109,7 @@ internal fun AppCategory.labelRes(): Int = when (this) {
     AppCategory.Car -> R.string.app_folder_car
     AppCategory.Charity -> R.string.app_folder_charity
     AppCategory.FamilyHistory -> R.string.app_folder_family_history
+    AppCategory.Notes -> R.string.app_folder_notes
     AppCategory.Cycling -> R.string.app_folder_cycling
     AppCategory.Hotels -> R.string.app_folder_hotels
     AppCategory.Maps -> R.string.app_folder_maps
@@ -141,6 +142,7 @@ internal fun FolderIcon.vector(): ImageVector = when (this) {
     FolderIcon.Map -> CategoryIcons.Map
     FolderIcon.VolunteerActivism -> CategoryIcons.VolunteerActivism
     FolderIcon.FamilyHistory -> CategoryIcons.FamilyHistory
+    FolderIcon.EditNote -> CategoryIcons.EditNote
     FolderIcon.Flight -> CategoryIcons.Flight
     FolderIcon.Restaurant -> CategoryIcons.Restaurant
     FolderIcon.Language -> CategoryIcons.Language
@@ -198,6 +200,7 @@ internal fun FolderIcon.descriptionRes(): Int = when (this) {
     FolderIcon.Map -> R.string.folder_icon_map
     FolderIcon.VolunteerActivism -> R.string.folder_icon_volunteer_activism
     FolderIcon.FamilyHistory -> R.string.folder_icon_family_history
+    FolderIcon.EditNote -> R.string.folder_icon_edit_note
     FolderIcon.Flight -> R.string.folder_icon_flight
     FolderIcon.Restaurant -> R.string.folder_icon_restaurant
     FolderIcon.Language -> R.string.folder_icon_language

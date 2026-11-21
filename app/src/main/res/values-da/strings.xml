@@ -293,6 +293,7 @@
     <string name="app_folder_car">Bil</string>
     <string name="app_folder_charity">Velgørenhed og donationer</string>
     <string name="app_folder_family_history">Slægtshistorie og slægtsforskning</string>
+    <string name="app_folder_notes">Noter og opgaver</string>
     <string name="app_folder_cycling">Cykling og delecykler</string>
     <string name="app_folder_hotels">Hoteller og ophold</string>
     <string name="app_folder_maps">Kort</string>
@@ -324,6 +325,7 @@
     <string name="folder_icon_map">Kort</string>
     <string name="folder_icon_volunteer_activism">Hånd med hjerte</string>
     <string name="folder_icon_family_history">Stamtræ</string>
+    <string name="folder_icon_edit_note">Note og blyant</string>
     <string name="folder_icon_eco">Natur</string>
     <string name="folder_icon_family_restroom">Familie</string>
     <string name="folder_icon_favorite">Hjerte</string>

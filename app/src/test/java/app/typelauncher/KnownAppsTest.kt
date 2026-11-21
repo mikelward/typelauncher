@@ -88,7 +88,8 @@ class KnownAppsTest {
         // Codex on PR #866: "ebook" must start a word, not end Facebook.
         assertEquals(AppCategory.Reading, knownAppCategory("com.example.y", "eBook Reader"))
         assertNull(knownAppCategory("com.example.z", "Facebook Lite"))
-        assertNull(knownAppCategory("com.example.z2", "Notebook"))
+        // Not Reading for its "ebook": a notebook is notes (maintainer, 2026-11-21).
+        assertEquals(AppCategory.Notes, knownAppCategory("com.example.z2", "Notebook"))
         assertEquals(null, guessedAppCategory("com.facebook.lite", "Lite"))
         // ...and library apps like Libby.
         assertEquals(AppCategory.Reading, knownAppCategory("com.overdrive.mobile.android.libby"))
@@ -571,6 +572,20 @@ class KnownAppsTest {
             "de.zeit.online" to AppCategory.News,
             "nz.co.radionz.android" to AppCategory.News,
             "uk.co.uktv.dave" to AppCategory.Media,
+            "com.google.android.apps.pixel.aurelius" to AppCategory.Notes,
+            "com.transsion.notebook" to AppCategory.Notes,
+            "com.google.android.keep" to AppCategory.Notes,
+            "com.todoist" to AppCategory.Notes,
+            "notion.id" to AppCategory.Notes,
+            "com.anydo" to AppCategory.Notes,
+            "com.ticktick.task" to AppCategory.Notes,
+            "com.trello" to AppCategory.Notes,
+            "com.basecamp.bc3" to AppCategory.Notes,
+            "io.unorderly.structured" to AppCategory.Notes,
+            "com.habitrpg.android.habitica" to AppCategory.Notes,
+            "com.daikineurope.online.controller" to AppCategory.Home,
+            "mitsubishi.wifi.android.mitsubishiwifiapp" to AppCategory.Home,
+            "com.midea.aircondition.obm" to AppCategory.Home,
             "com.lemonde.androidapp" to AppCategory.News,
             "com.economist.lamarr" to AppCategory.News,
             "com.substack.app" to AppCategory.Reading,
