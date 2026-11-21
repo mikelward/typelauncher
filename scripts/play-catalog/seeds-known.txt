@@ -41,6 +41,7 @@ bbc.mobile.news.uk
 bbc.mobile.news.ww
 bbc.mobile.weather
 bbl.intl.bambulab.com
+bg.dskbank.DSKmobile
 bg.postbank.mobile.android.release
 bhagavan.id
 bitpit.launcher
@@ -268,6 +269,7 @@ com.etoro.openbook
 com.etrade.mobilepro.activity
 com.etsy.android
 com.evernote
+com.evrotrust.app
 com.ex3ndr.happy
 com.expedia.bookings
 com.expressvpn.vpn
@@ -277,6 +279,7 @@ com.facebook.katana
 com.facebook.lite
 com.facebook.orca
 com.facebook.stella
+com.fantastico.fclub
 com.fatsecret.android
 com.fay.shortdrama
 com.fetchrewards.fetchrewards.hop
@@ -580,6 +583,7 @@ com.photo.restore.scan
 com.picsart.studio
 com.pinterest
 com.pixverseai.pixverse
+com.pktmny.mobile
 com.planetart.fpuk
 com.planetfitness
 com.plexapp.android
@@ -617,6 +621,7 @@ com.rover.android
 com.royalmail.app.droid
 com.ryanair.cheapflights
 com.safc.app
+com.sameday.client.mobile
 com.samsung.android.app.notes
 com.samsung.android.app.watchmanager
 com.samsung.android.dialer
@@ -952,6 +957,7 @@ sh.paseo
 steptracker.healthandfitness.walkingtracker.pedometer
 superdrug.com.beautycard
 taxi.android.client
+trendyol.com
 tunein.player
 tv.pluto.android
 tv.twitch.android.app
