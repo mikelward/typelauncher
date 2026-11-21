@@ -24,6 +24,8 @@ internal enum class AppCategory(val storageKey: String, val icon: FolderIcon) {
     Cycling("cycling", FolderIcon.PedalBike),
     Design("design", FolderIcon.Palette),
     Events("events", FolderIcon.ConfirmationNumber),
+    // "Family history & genealogy" (maintainer, 2026-11-21).
+    FamilyHistory("family_history", FolderIcon.FamilyHistory),
     Finance("finance", FolderIcon.Paid),
     Food("food", FolderIcon.Restaurant),
     Games("games", FolderIcon.SportsEsports),
@@ -94,6 +96,7 @@ internal enum class FolderIcon(val storageKey: String) {
     Hotel("hotel"),
     Map("map"),
     VolunteerActivism("volunteer_activism"),
+    FamilyHistory("family_history"),
     Flight("flight"),
     Restaurant("restaurant"),
     Language("language"),

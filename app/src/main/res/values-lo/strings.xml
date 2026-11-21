@@ -291,6 +291,7 @@
     <string name="app_folder_transit">ຂົນສົ່ງສາທາລະນະ ແລະ ລົດໄຟ</string>
     <string name="app_folder_car">ລົດ</string>
     <string name="app_folder_charity">ການກຸສົນ ແລະ ການບໍລິຈາກ</string>
+    <string name="app_folder_family_history">ປະຫວັດຄອບຄົວ ແລະ ເຊື້ອສາຍ</string>
     <string name="app_folder_cycling">ລົດຖີບ ແລະ ລົດຖີບເຊົ່າ</string>
     <string name="app_folder_hotels">ໂຮງແຮມ ແລະ ທີ່ພັກ</string>
     <string name="app_folder_maps">ແຜນທີ່</string>
@@ -321,6 +322,7 @@
     <string name="folder_icon_hotel">ຕຽງ</string>
     <string name="folder_icon_map">ແຜນທີ່</string>
     <string name="folder_icon_volunteer_activism">ມືກັບຫົວໃຈ</string>
+    <string name="folder_icon_family_history">ແຜນຜັງຄອບຄົວ</string>
     <string name="folder_icon_eco">ທຳມະຊາດ</string>
     <string name="folder_icon_family_restroom">ຄອບຄົວ</string>
     <string name="folder_icon_favorite">ຫົວໃຈ</string>

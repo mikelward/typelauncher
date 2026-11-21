@@ -294,6 +294,7 @@
     <string name="app_folder_transit">Viešasis transportas ir traukiniai</string>
     <string name="app_folder_car">Automobilis</string>
     <string name="app_folder_charity">Labdara ir aukojimas</string>
+    <string name="app_folder_family_history">Šeimos istorija ir genealogija</string>
     <string name="app_folder_cycling">Dviračiai ir jų nuoma</string>
     <string name="app_folder_hotels">Viešbučiai ir apgyvendinimas</string>
     <string name="app_folder_maps">Žemėlapiai</string>
@@ -324,6 +325,7 @@
     <string name="folder_icon_hotel">Lova</string>
     <string name="folder_icon_map">Žemėlapis</string>
     <string name="folder_icon_volunteer_activism">Ranka su širdimi</string>
+    <string name="folder_icon_family_history">Giminės medis</string>
     <string name="folder_icon_eco">Gamta</string>
     <string name="folder_icon_family_restroom">Šeima</string>
     <string name="folder_icon_favorite">Širdis</string>

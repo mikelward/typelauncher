@@ -293,6 +293,7 @@
     <string name="app_folder_transit">Transport public și tren</string>
     <string name="app_folder_car">Mașină</string>
     <string name="app_folder_charity">Caritate și donații</string>
+    <string name="app_folder_family_history">Istoria familiei și genealogie</string>
     <string name="app_folder_cycling">Ciclism și biciclete partajate</string>
     <string name="app_folder_hotels">Hoteluri și cazare</string>
     <string name="app_folder_maps">Hărți</string>
@@ -323,6 +324,7 @@
     <string name="folder_icon_hotel">Pat</string>
     <string name="folder_icon_map">Hartă</string>
     <string name="folder_icon_volunteer_activism">Mână cu inimă</string>
+    <string name="folder_icon_family_history">Arbore genealogic</string>
     <string name="folder_icon_eco">Natură</string>
     <string name="folder_icon_family_restroom">Familie</string>
     <string name="folder_icon_favorite">Inimă</string>

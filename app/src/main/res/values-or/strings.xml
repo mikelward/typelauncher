@@ -292,6 +292,7 @@
     <string name="app_folder_transit">ସାର୍ବଜନୀନ ପରିବହନ ଓ ରେଳ</string>
     <string name="app_folder_car">କାର୍</string>
     <string name="app_folder_charity">ଦାନ ଓ ସାହାଯ୍ୟ</string>
+    <string name="app_folder_family_history">ପାରିବାରିକ ଇତିହାସ ଓ ବଂଶାବଳୀ</string>
     <string name="app_folder_cycling">ସାଇକେଲ ଓ ସାଇକେଲ ସେୟାର</string>
     <string name="app_folder_hotels">ହୋଟେଲ ଓ ରହଣି</string>
     <string name="app_folder_maps">ମାନଚିତ୍ର</string>
@@ -322,6 +323,7 @@
     <string name="folder_icon_hotel">ଖଟ</string>
     <string name="folder_icon_map">ମାନଚିତ୍ର</string>
     <string name="folder_icon_volunteer_activism">ହାତରେ ହୃଦୟ</string>
+    <string name="folder_icon_family_history">ବଂଶବୃକ୍ଷ</string>
     <string name="folder_icon_eco">ପ୍ରକୃତି</string>
     <string name="folder_icon_family_restroom">ପରିବାର</string>
     <string name="folder_icon_favorite">ହୃଦୟ</string>

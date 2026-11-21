@@ -292,6 +292,7 @@
     <string name="app_folder_transit">Usafiri wa umma na treni</string>
     <string name="app_folder_car">Gari</string>
     <string name="app_folder_charity">Hisani na michango</string>
+    <string name="app_folder_family_history">Historia ya familia na nasaba</string>
     <string name="app_folder_cycling">Baiskeli na ukodishaji wa baiskeli</string>
     <string name="app_folder_hotels">Hoteli na malazi</string>
     <string name="app_folder_maps">Ramani</string>
@@ -322,6 +323,7 @@
     <string name="folder_icon_hotel">Kitanda</string>
     <string name="folder_icon_map">Ramani</string>
     <string name="folder_icon_volunteer_activism">Mkono wenye moyo</string>
+    <string name="folder_icon_family_history">Mti wa familia</string>
     <string name="folder_icon_eco">Mazingira</string>
     <string name="folder_icon_family_restroom">Familia</string>
     <string name="folder_icon_favorite">Moyo</string>

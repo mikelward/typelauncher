@@ -292,6 +292,7 @@
     <string name="app_folder_transit">Joukkoliikenne ja junat</string>
     <string name="app_folder_car">Auto</string>
     <string name="app_folder_charity">Hyväntekeväisyys ja lahjoitukset</string>
+    <string name="app_folder_family_history">Sukuhistoria ja sukututkimus</string>
     <string name="app_folder_cycling">Pyöräily ja kaupunkipyörät</string>
     <string name="app_folder_hotels">Hotellit ja majoitus</string>
     <string name="app_folder_maps">Kartat</string>
@@ -322,6 +323,7 @@
     <string name="folder_icon_hotel">Sänky</string>
     <string name="folder_icon_map">Kartta</string>
     <string name="folder_icon_volunteer_activism">Käsi ja sydän</string>
+    <string name="folder_icon_family_history">Sukupuu</string>
     <string name="folder_icon_eco">Luonto</string>
     <string name="folder_icon_family_restroom">Perhe</string>
     <string name="folder_icon_favorite">Sydän</string>

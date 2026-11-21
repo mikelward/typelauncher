@@ -292,6 +292,7 @@
     <string name="app_folder_transit">ప్రజా రవాణా &amp; రైలు</string>
     <string name="app_folder_car">కారు</string>
     <string name="app_folder_charity">దాతృత్వం &amp; విరాళాలు</string>
+    <string name="app_folder_family_history">కుటుంబ చరిత్ర మరియు వంశావళి</string>
     <string name="app_folder_cycling">సైక్లింగ్ &amp; బైక్ షేర్</string>
     <string name="app_folder_hotels">హోటళ్లు &amp; బసలు</string>
     <string name="app_folder_maps">మ్యాప్‌లు</string>
@@ -322,6 +323,7 @@
     <string name="folder_icon_hotel">మంచం</string>
     <string name="folder_icon_map">మ్యాప్</string>
     <string name="folder_icon_volunteer_activism">హృదయంతో చేయి</string>
+    <string name="folder_icon_family_history">వంశవృక్షం</string>
     <string name="folder_icon_eco">ప్రకృతి</string>
     <string name="folder_icon_family_restroom">కుటుంబం</string>
     <string name="folder_icon_favorite">హృదయం</string>

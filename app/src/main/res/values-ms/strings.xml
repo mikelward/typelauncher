@@ -291,6 +291,7 @@
     <string name="app_folder_transit">Pengangkutan awam &amp; kereta api</string>
     <string name="app_folder_car">Kereta</string>
     <string name="app_folder_charity">Amal &amp; derma</string>
+    <string name="app_folder_family_history">Sejarah keluarga &amp; salasilah</string>
     <string name="app_folder_cycling">Basikal &amp; sewa basikal</string>
     <string name="app_folder_hotels">Hotel &amp; penginapan</string>
     <string name="app_folder_maps">Peta</string>
@@ -321,6 +322,7 @@
     <string name="folder_icon_hotel">Katil</string>
     <string name="folder_icon_map">Peta</string>
     <string name="folder_icon_volunteer_activism">Tangan dengan hati</string>
+    <string name="folder_icon_family_history">Salasilah keluarga</string>
     <string name="folder_icon_eco">Alam semula jadi</string>
     <string name="folder_icon_family_restroom">Keluarga</string>
     <string name="folder_icon_favorite">Hati</string>

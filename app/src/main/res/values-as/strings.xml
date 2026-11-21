@@ -292,6 +292,7 @@
     <string name="app_folder_transit">ৰাজহুৱা পৰিবহণ আৰু ৰেল</string>
     <string name="app_folder_car">গাড়ী</string>
     <string name="app_folder_charity">দান আৰু সাহায্য</string>
+    <string name="app_folder_family_history">পৰিয়ালৰ ইতিহাস আৰু বংশাৱলী</string>
     <string name="app_folder_cycling">চাইকেল আৰু বাইক শ্বেয়াৰ</string>
     <string name="app_folder_hotels">হোটেল আৰু থকাৰ ঠাই</string>
     <string name="app_folder_maps">মানচিত্ৰ</string>
@@ -322,6 +323,7 @@
     <string name="folder_icon_hotel">বিচনা</string>
     <string name="folder_icon_map">মানচিত্ৰ</string>
     <string name="folder_icon_volunteer_activism">হাতত হৃদয়</string>
+    <string name="folder_icon_family_history">বংশতালিকা</string>
     <string name="folder_icon_eco">প্ৰকৃতি</string>
     <string name="folder_icon_family_restroom">পৰিয়াল</string>
     <string name="folder_icon_favorite">হৃদয়</string>

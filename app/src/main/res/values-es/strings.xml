@@ -293,6 +293,7 @@
     <string name="app_folder_transit">Transporte público y tren</string>
     <string name="app_folder_car">Coche</string>
     <string name="app_folder_charity">Beneficencia y donaciones</string>
+    <string name="app_folder_family_history">Historia familiar y genealogía</string>
     <string name="app_folder_cycling">Bici y bici compartida</string>
     <string name="app_folder_hotels">Hoteles y alojamientos</string>
     <string name="app_folder_maps">Mapas</string>
@@ -323,6 +324,7 @@
     <string name="folder_icon_hotel">Cama</string>
     <string name="folder_icon_map">Mapa</string>
     <string name="folder_icon_volunteer_activism">Mano con corazón</string>
+    <string name="folder_icon_family_history">Árbol genealógico</string>
     <string name="folder_icon_eco">Naturaleza</string>
     <string name="folder_icon_family_restroom">Familia</string>
     <string name="folder_icon_favorite">Corazón</string>

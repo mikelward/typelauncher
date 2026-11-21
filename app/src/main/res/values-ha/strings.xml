@@ -292,6 +292,7 @@
     <string name="app_folder_transit">Sufurin jama’a da jirgin ƙasa</string>
     <string name="app_folder_car">Mota</string>
     <string name="app_folder_charity">Sadaka da gudummawa</string>
+    <string name="app_folder_family_history">Tarihin iyali da asali</string>
     <string name="app_folder_cycling">Keke da raba keke</string>
     <string name="app_folder_hotels">Otal da masauki</string>
     <string name="app_folder_maps">Taswirori</string>
@@ -322,6 +323,7 @@
     <string name="folder_icon_hotel">Gado</string>
     <string name="folder_icon_map">Taswira</string>
     <string name="folder_icon_volunteer_activism">Hannu da zuciya</string>
+    <string name="folder_icon_family_history">Bishiyar zuriya</string>
     <string name="folder_icon_eco">Halitta</string>
     <string name="folder_icon_family_restroom">Iyali</string>
     <string name="folder_icon_favorite">Zuciya</string>

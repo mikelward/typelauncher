@@ -292,6 +292,7 @@
     <string name="app_folder_transit">Kollektivtransport og tog</string>
     <string name="app_folder_car">Bil</string>
     <string name="app_folder_charity">Veldedighet og gaver</string>
+    <string name="app_folder_family_history">Slektshistorie og slektsforskning</string>
     <string name="app_folder_cycling">Sykkel og bysykkel</string>
     <string name="app_folder_hotels">Hotell og overnatting</string>
     <string name="app_folder_maps">Kart</string>
@@ -322,6 +323,7 @@
     <string name="folder_icon_hotel">Seng</string>
     <string name="folder_icon_map">Kart</string>
     <string name="folder_icon_volunteer_activism">Hånd med hjerte</string>
+    <string name="folder_icon_family_history">Slektstre</string>
     <string name="folder_icon_eco">Natur</string>
     <string name="folder_icon_family_restroom">Familie</string>
     <string name="folder_icon_favorite">Hjerte</string>

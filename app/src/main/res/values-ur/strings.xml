@@ -292,6 +292,7 @@
     <string name="app_folder_transit">پبلک ٹرانسپورٹ اور ٹرین</string>
     <string name="app_folder_car">کار</string>
     <string name="app_folder_charity">خیرات اور عطیات</string>
+    <string name="app_folder_family_history">خاندانی تاریخ اور شجرہ نسب</string>
     <string name="app_folder_cycling">سائیکلنگ اور بائیک شیئر</string>
     <string name="app_folder_hotels">ہوٹل اور قیام</string>
     <string name="app_folder_maps">نقشے</string>
@@ -322,6 +323,7 @@
     <string name="folder_icon_hotel">بستر</string>
     <string name="folder_icon_map">نقشہ</string>
     <string name="folder_icon_volunteer_activism">دل والا ہاتھ</string>
+    <string name="folder_icon_family_history">شجرہ</string>
     <string name="folder_icon_eco">فطرت</string>
     <string name="folder_icon_family_restroom">خاندان</string>
     <string name="folder_icon_favorite">دل</string>
