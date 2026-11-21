@@ -335,6 +335,12 @@ class AppFoldersTest {
     }
 
     @Test
+    fun travel_isTheTakingOffPlane_notTheUprightOne() {
+        // The maintainer, 2026-11-21: the north-east facing Travel icon.
+        assertEquals(FolderIcon.Travel, AppCategory.Travel.icon)
+    }
+
+    @Test
     fun storageKeys_roundTrip() {
         for (category in AppCategory.entries) {
             assertEquals(category, AppCategory.fromStorageKey(category.storageKey))

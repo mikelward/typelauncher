@@ -51,7 +51,7 @@ internal enum class AppCategory(val storageKey: String, val icon: FolderIcon) {
     Social("social", FolderIcon.Chat),
     Sports("sports", FolderIcon.SportsSoccer),
     Tools("tools", FolderIcon.Build),
-    Travel("travel", FolderIcon.Flight),
+    Travel("travel", FolderIcon.Travel),
     Weather("weather", FolderIcon.PartlyCloudyDay),
 
     // Every app no other folder takes (see `groupAppList`).
