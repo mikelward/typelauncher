@@ -924,6 +924,41 @@ internal fun HomeScreen(
         (state.isKeyboardAutoShown && landscapeTier == HomeLandscapeTier.Full) ||
             (searchRevealed && landscapeTier != HomeLandscapeTier.Full)
         )
+    // The AI's choices count only while AI sorting is on; off, the
+    // manifests file the apps again.
+    val aiFolders = if (state.isAiSortEnabled) state.appFolderAiAssignments else emptyMap()
+    // The app list's folders and moves, shared with the dock so a docked
+    // app's menu and Edit dialog show and change its folder too.
+    val appFolderMenu = remember(
+        state.isAppFoldersEnabled,
+        state.appFolders,
+        state.appFolderAssignments,
+        aiFolders,
+        state.playCategories,
+        onMoveAppToFolder,
+        onCreateAppFolder,
+        onEditAppFolder,
+        onDeleteAppFolder,
+        onMergeAppFolder,
+    ) {
+        if (state.isAppFoldersEnabled) {
+            val activeKeys = state.appFolders.mapTo(HashSet()) { it.key }
+            AppFolderMenu(
+                folders = state.appFolders,
+                folderOf = { app ->
+                    effectiveFolderKey(app, activeKeys, state.appFolderAssignments, aiFolders, state.playCategories)
+                },
+                onMove = onMoveAppToFolder,
+                onCreate = onCreateAppFolder,
+                onEdit = onEditAppFolder,
+                onDelete = onDeleteAppFolder,
+                onMerge = onMergeAppFolder,
+            )
+        } else {
+            null
+        }
+    }
+
     // The dock cards (personal above work), shared between the in-layout
     // dock slot (blank query) and the search-time reveal (active query +
     // long-press) — only ever composed in one of the two places at a time.
@@ -998,185 +1033,187 @@ internal fun HomeScreen(
         } else {
             Modifier.fillMaxWidth()
         }
-        Box(
-            modifier = if (isDockOnSide) Modifier.fillMaxHeight() else Modifier.fillMaxWidth(),
-            contentAlignment = if (isDockOnSide) Alignment.Center else Alignment.TopCenter,
-        ) {
-            Column(
-                modifier = dockColumnModifier,
-                verticalArrangement = Arrangement.spacedBy(HOME_CARD_SPACING_DP.dp),
+        CompositionLocalProvider(LocalAppFolderMenu provides appFolderMenu) {
+            Box(
+                modifier = if (isDockOnSide) Modifier.fillMaxHeight() else Modifier.fillMaxWidth(),
+                contentAlignment = if (isDockOnSide) Alignment.Center else Alignment.TopCenter,
             ) {
-                if (showPersonalCard) {
-                    DockCard(
-                        dockedApps = if (personalWhole) {
-                            state.dockedApps
-                        } else {
-                            state.dockedApps.filter { app -> app.id in personalPositions }
-                        },
-                        dockPositions = personalPositions,
-                        dockFolders = if (personalWhole) {
-                            state.dockFolders
-                        } else {
-                            state.dockFolders.filter { folder -> folder.id in personalPositions }
-                        },
-                        dockIconSizeDp = cardIconSizeDp,
-                        dockIconCount = cardColumns,
-                        minHeight = cardMinHeight,
-                        dockLayout = state.dockLayout,
-                        isSortReversed = state.appListSortOrder.isReversed,
-                        modifier = Modifier.weight(1f, fill = false),
-                        reorderEnabled = !isWiderThanPortrait,
-                        companionDropTarget = when (strip) {
-                            DockStrip.Whole, DockStrip.Personal, DockStrip.Work -> null
-                            DockStrip.Left -> personalDockDropTarget
-                            DockStrip.Right -> personalDockDropTargetLeft
-                        },
-                        onLaunchApp = onLaunchApp,
-                        onOpenAppInfo = onOpenAppInfo,
-                        onToggleDock = onToggleDock,
-                        onReorderDock = onReorderDock,
-                        onMergeDock = onMergeDock,
-                        onRemoveFromFolder = onRemoveFromDockFolder,
-                        onUndockFromFolder = onUndockFromDockFolder,
-                        onReorderFolderMember = onReorderDockFolderMember,
-                        onMoveFolderMemberToDock = { folderId, appId, row, column ->
-                            // Landscape renders a flattened view of the
-                            // portrait grid, so a member dragged out of a
-                            // folder lands in the first open portrait cell
-                            // rather than writing the rendered cell back.
-                            val safeCell = landscapeSafePersonalDockCell
-                            if (safeCell != null) {
-                                onMoveDockFolderMemberToDock(folderId, appId, safeCell.row, safeCell.column)
+                Column(
+                    modifier = dockColumnModifier,
+                    verticalArrangement = Arrangement.spacedBy(HOME_CARD_SPACING_DP.dp),
+                ) {
+                    if (showPersonalCard) {
+                        DockCard(
+                            dockedApps = if (personalWhole) {
+                                state.dockedApps
                             } else {
-                                onMoveDockFolderMemberToDock(folderId, appId, row, column)
-                            }
-                        },
-                        onMergeFolderMemberInto = onMergeDockFolderMemberInto,
-                        onFolderMemberDragFloat = onFolderMemberDragFloat,
-                        onDockGeometryChanged = { geometry ->
-                            if (strip == DockStrip.Left) {
-                                personalDockDropTargetLeft = geometry
+                                state.dockedApps.filter { app -> app.id in personalPositions }
+                            },
+                            dockPositions = personalPositions,
+                            dockFolders = if (personalWhole) {
+                                state.dockFolders
                             } else {
-                                personalDockDropTarget = geometry
-                            }
-                        },
-                        appListBoundsInRoot = appListBoundsInRoot,
-                        onExplodeFolder = onExplodeDockFolder,
-                        onResetRank = onResetRank,
-                        onRenameApp = onRenameApp,
-                        onSetAppIconOverride = onSetAppIconOverride,
-                        onClearAppIconOverride = onClearAppIconOverride,
-                        onSetAppBadge = onSetAppBadge,
-                        onHideApp = onHideApp,
-                        onUninstallApp = onUninstallApp,
-                        onDragStateChanged = onDockDragChanged,
-                        homeReturnToken = state.homeReturnToken,
-                        showAddButtonHint = state.shouldShowDockAddHint && strip != DockStrip.Left,
-                    )
-                }
-                if (showWorkCard) {
-                    // Match `DockCard`'s own row-count calculation (which
-                    // is `maxOccupiedRow + 1` over the resolved-positions
-                    // map, not just `ceil(size / dockIconCount)`) so a
-                    // sparse persisted layout — e.g. four apps with one
-                    // pinned at row 1 — gets the two-row cap it actually
-                    // needs. Then clamp at `MAX_WORK_DOCK_ROWS`, and at
-                    // 1 on very short viewports where a two-row work
-                    // dock would crowd the personal dock out of the
-                    // slot. Every supported Android phone in normal
-                    // portrait is taller than the threshold; foldable
-                    // narrow modes and old compact phones fall back to
-                    // the previous single-row behaviour.
-                    val maxWorkRows = if (
-                        configuration.screenHeightDp >= SMALL_SCREEN_TWO_ROW_WORK_DOCK_THRESHOLD_DP
-                    ) {
-                        MAX_WORK_DOCK_ROWS
-                    } else {
-                        1
+                                state.dockFolders.filter { folder -> folder.id in personalPositions }
+                            },
+                            dockIconSizeDp = cardIconSizeDp,
+                            dockIconCount = cardColumns,
+                            minHeight = cardMinHeight,
+                            dockLayout = state.dockLayout,
+                            isSortReversed = state.appListSortOrder.isReversed,
+                            modifier = Modifier.weight(1f, fill = false),
+                            reorderEnabled = !isWiderThanPortrait,
+                            companionDropTarget = when (strip) {
+                                DockStrip.Whole, DockStrip.Personal, DockStrip.Work -> null
+                                DockStrip.Left -> personalDockDropTarget
+                                DockStrip.Right -> personalDockDropTargetLeft
+                            },
+                            onLaunchApp = onLaunchApp,
+                            onOpenAppInfo = onOpenAppInfo,
+                            onToggleDock = onToggleDock,
+                            onReorderDock = onReorderDock,
+                            onMergeDock = onMergeDock,
+                            onRemoveFromFolder = onRemoveFromDockFolder,
+                            onUndockFromFolder = onUndockFromDockFolder,
+                            onReorderFolderMember = onReorderDockFolderMember,
+                            onMoveFolderMemberToDock = { folderId, appId, row, column ->
+                                // Landscape renders a flattened view of the
+                                // portrait grid, so a member dragged out of a
+                                // folder lands in the first open portrait cell
+                                // rather than writing the rendered cell back.
+                                val safeCell = landscapeSafePersonalDockCell
+                                if (safeCell != null) {
+                                    onMoveDockFolderMemberToDock(folderId, appId, safeCell.row, safeCell.column)
+                                } else {
+                                    onMoveDockFolderMemberToDock(folderId, appId, row, column)
+                                }
+                            },
+                            onMergeFolderMemberInto = onMergeDockFolderMemberInto,
+                            onFolderMemberDragFloat = onFolderMemberDragFloat,
+                            onDockGeometryChanged = { geometry ->
+                                if (strip == DockStrip.Left) {
+                                    personalDockDropTargetLeft = geometry
+                                } else {
+                                    personalDockDropTarget = geometry
+                                }
+                            },
+                            appListBoundsInRoot = appListBoundsInRoot,
+                            onExplodeFolder = onExplodeDockFolder,
+                            onResetRank = onResetRank,
+                            onRenameApp = onRenameApp,
+                            onSetAppIconOverride = onSetAppIconOverride,
+                            onClearAppIconOverride = onClearAppIconOverride,
+                            onSetAppBadge = onSetAppBadge,
+                            onHideApp = onHideApp,
+                            onUninstallApp = onUninstallApp,
+                            onDragStateChanged = onDockDragChanged,
+                            homeReturnToken = state.homeReturnToken,
+                            showAddButtonHint = state.shouldShowDockAddHint && strip != DockStrip.Left,
+                        )
                     }
-                    val workRows = dockRowCount(
-                        workDockOccupantIds,
-                        workDockRenderPositions,
-                        dockColumnCount,
-                    ).coerceAtMost(maxWorkRows)
-                    val workRowHeightDp = dockSlotHeightDp(
-                        dockIconSizeDp,
-                        state.dockLayout,
-                        LocalDensity.current.fontScale,
-                    )
-                    val workMaxHeightDp = workRows * workRowHeightDp +
-                        (workRows - 1) * DOCK_ITEM_SPACING_DP +
-                        SECTION_CARD_PADDING_DP * 2
-                    DockCard(
-                        dockedApps = if (workWhole) {
-                            state.workDockedApps
+                    if (showWorkCard) {
+                        // Match `DockCard`'s own row-count calculation (which
+                        // is `maxOccupiedRow + 1` over the resolved-positions
+                        // map, not just `ceil(size / dockIconCount)`) so a
+                        // sparse persisted layout — e.g. four apps with one
+                        // pinned at row 1 — gets the two-row cap it actually
+                        // needs. Then clamp at `MAX_WORK_DOCK_ROWS`, and at
+                        // 1 on very short viewports where a two-row work
+                        // dock would crowd the personal dock out of the
+                        // slot. Every supported Android phone in normal
+                        // portrait is taller than the threshold; foldable
+                        // narrow modes and old compact phones fall back to
+                        // the previous single-row behaviour.
+                        val maxWorkRows = if (
+                            configuration.screenHeightDp >= SMALL_SCREEN_TWO_ROW_WORK_DOCK_THRESHOLD_DP
+                        ) {
+                            MAX_WORK_DOCK_ROWS
                         } else {
-                            state.workDockedApps.filter { app -> app.id in workPositions }
-                        },
-                        dockPositions = workPositions,
-                        dockFolders = if (workWhole) {
-                            state.workDockFolders
-                        } else {
-                            state.workDockFolders.filter { folder -> folder.id in workPositions }
-                        },
-                        dockIconSizeDp = cardIconSizeDp,
-                        dockIconCount = cardColumns,
-                        minHeight = cardMinHeight,
-                        dockLayout = state.dockLayout,
-                        isSortReversed = state.appListSortOrder.isReversed,
-                        // A side column has the window's height to share, so
-                        // the work card splits it with the personal card (each
-                        // scrolls) rather than taking the bottom row cap.
-                        modifier = if (isDockOnSide) {
-                            Modifier.weight(1f, fill = false)
-                        } else {
-                            Modifier.heightIn(max = workMaxHeightDp.dp)
-                        },
-                        reorderEnabled = !isWiderThanPortrait,
-                        companionDropTarget = when (strip) {
-                            DockStrip.Whole, DockStrip.Personal, DockStrip.Work -> null
-                            DockStrip.Left -> workDockDropTarget
-                            DockStrip.Right -> workDockDropTargetLeft
-                        },
-                        onLaunchApp = onLaunchApp,
-                        onOpenAppInfo = onOpenAppInfo,
-                        onToggleDock = onToggleWorkDock,
-                        onReorderDock = onReorderWorkDock,
-                        onMergeDock = onMergeWorkDock,
-                        onRemoveFromFolder = onRemoveFromWorkDockFolder,
-                        onUndockFromFolder = onUndockFromWorkDockFolder,
-                        onReorderFolderMember = onReorderDockFolderMember,
-                        onMoveFolderMemberToDock = { folderId, appId, row, column ->
-                            val safeCell = landscapeSafeWorkDockCell
-                            if (safeCell != null) {
-                                onMoveDockFolderMemberToDock(folderId, appId, safeCell.row, safeCell.column)
+                            1
+                        }
+                        val workRows = dockRowCount(
+                            workDockOccupantIds,
+                            workDockRenderPositions,
+                            dockColumnCount,
+                        ).coerceAtMost(maxWorkRows)
+                        val workRowHeightDp = dockSlotHeightDp(
+                            dockIconSizeDp,
+                            state.dockLayout,
+                            LocalDensity.current.fontScale,
+                        )
+                        val workMaxHeightDp = workRows * workRowHeightDp +
+                            (workRows - 1) * DOCK_ITEM_SPACING_DP +
+                            SECTION_CARD_PADDING_DP * 2
+                        DockCard(
+                            dockedApps = if (workWhole) {
+                                state.workDockedApps
                             } else {
-                                onMoveDockFolderMemberToDock(folderId, appId, row, column)
-                            }
-                        },
-                        onMergeFolderMemberInto = onMergeDockFolderMemberInto,
-                        onFolderMemberDragFloat = onFolderMemberDragFloat,
-                        onDockGeometryChanged = { geometry ->
-                            if (strip == DockStrip.Left) {
-                                workDockDropTargetLeft = geometry
+                                state.workDockedApps.filter { app -> app.id in workPositions }
+                            },
+                            dockPositions = workPositions,
+                            dockFolders = if (workWhole) {
+                                state.workDockFolders
                             } else {
-                                workDockDropTarget = geometry
-                            }
-                        },
-                        appListBoundsInRoot = appListBoundsInRoot,
-                        onExplodeFolder = onExplodeDockFolder,
-                        onResetRank = onResetRank,
-                        onRenameApp = onRenameApp,
-                        onSetAppIconOverride = onSetAppIconOverride,
-                        onClearAppIconOverride = onClearAppIconOverride,
-                        onSetAppBadge = onSetAppBadge,
-                        onHideApp = onHideApp,
-                        onUninstallApp = onUninstallApp,
-                        onDragStateChanged = onDockDragChanged,
-                        tags = DockTestTags.Work,
-                        homeReturnToken = state.homeReturnToken,
-                        showAddButtonHint = state.shouldShowWorkDockAddHint && strip != DockStrip.Left,
-                    )
+                                state.workDockFolders.filter { folder -> folder.id in workPositions }
+                            },
+                            dockIconSizeDp = cardIconSizeDp,
+                            dockIconCount = cardColumns,
+                            minHeight = cardMinHeight,
+                            dockLayout = state.dockLayout,
+                            isSortReversed = state.appListSortOrder.isReversed,
+                            // A side column has the window's height to share, so
+                            // the work card splits it with the personal card (each
+                            // scrolls) rather than taking the bottom row cap.
+                            modifier = if (isDockOnSide) {
+                                Modifier.weight(1f, fill = false)
+                            } else {
+                                Modifier.heightIn(max = workMaxHeightDp.dp)
+                            },
+                            reorderEnabled = !isWiderThanPortrait,
+                            companionDropTarget = when (strip) {
+                                DockStrip.Whole, DockStrip.Personal, DockStrip.Work -> null
+                                DockStrip.Left -> workDockDropTarget
+                                DockStrip.Right -> workDockDropTargetLeft
+                            },
+                            onLaunchApp = onLaunchApp,
+                            onOpenAppInfo = onOpenAppInfo,
+                            onToggleDock = onToggleWorkDock,
+                            onReorderDock = onReorderWorkDock,
+                            onMergeDock = onMergeWorkDock,
+                            onRemoveFromFolder = onRemoveFromWorkDockFolder,
+                            onUndockFromFolder = onUndockFromWorkDockFolder,
+                            onReorderFolderMember = onReorderDockFolderMember,
+                            onMoveFolderMemberToDock = { folderId, appId, row, column ->
+                                val safeCell = landscapeSafeWorkDockCell
+                                if (safeCell != null) {
+                                    onMoveDockFolderMemberToDock(folderId, appId, safeCell.row, safeCell.column)
+                                } else {
+                                    onMoveDockFolderMemberToDock(folderId, appId, row, column)
+                                }
+                            },
+                            onMergeFolderMemberInto = onMergeDockFolderMemberInto,
+                            onFolderMemberDragFloat = onFolderMemberDragFloat,
+                            onDockGeometryChanged = { geometry ->
+                                if (strip == DockStrip.Left) {
+                                    workDockDropTargetLeft = geometry
+                                } else {
+                                    workDockDropTarget = geometry
+                                }
+                            },
+                            appListBoundsInRoot = appListBoundsInRoot,
+                            onExplodeFolder = onExplodeDockFolder,
+                            onResetRank = onResetRank,
+                            onRenameApp = onRenameApp,
+                            onSetAppIconOverride = onSetAppIconOverride,
+                            onClearAppIconOverride = onClearAppIconOverride,
+                            onSetAppBadge = onSetAppBadge,
+                            onHideApp = onHideApp,
+                            onUninstallApp = onUninstallApp,
+                            onDragStateChanged = onDockDragChanged,
+                            tags = DockTestTags.Work,
+                            homeReturnToken = state.homeReturnToken,
+                            showAddButtonHint = state.shouldShowWorkDockAddHint && strip != DockStrip.Left,
+                        )
+                    }
                 }
             }
         }
@@ -1293,9 +1330,6 @@ internal fun HomeScreen(
             // stay flat so type-to-launch is unchanged. One pass over the list,
             // redone only when the list or a filing changes.
             val showsAppFolders = state.isAppFoldersEnabled && state.query.isBlank()
-            // The AI's choices count only while AI sorting is on; off, the
-            // manifests file the apps again.
-            val aiFolders = if (state.isAiSortEnabled) state.appFolderAiAssignments else emptyMap()
             val appListGrouping = remember(
                 state.filteredApps,
                 state.appFolders,
@@ -1323,35 +1357,6 @@ internal fun HomeScreen(
                     !state.isSettingsOpen &&
                     state.contactActionsMode == null,
             ) { openAppFolderKey = null }
-            val appFolderMenu = remember(
-                state.isAppFoldersEnabled,
-                state.appFolders,
-                state.appFolderAssignments,
-                aiFolders,
-                state.playCategories,
-                onMoveAppToFolder,
-                onCreateAppFolder,
-                onEditAppFolder,
-                onDeleteAppFolder,
-                onMergeAppFolder,
-            ) {
-                if (state.isAppFoldersEnabled) {
-                    val activeKeys = state.appFolders.mapTo(HashSet()) { it.key }
-                    AppFolderMenu(
-                        folders = state.appFolders,
-                        folderOf = { app ->
-                            effectiveFolderKey(app, activeKeys, state.appFolderAssignments, aiFolders, state.playCategories)
-                        },
-                        onMove = onMoveAppToFolder,
-                        onCreate = onCreateAppFolder,
-                        onEdit = onEditAppFolder,
-                        onDelete = onDeleteAppFolder,
-                        onMerge = onMergeAppFolder,
-                    )
-                } else {
-                    null
-                }
-            }
             // Review of a Google Play run: the same folders and moves the
             // app menus use, plus the folder each app's Play category suggests.
             // Hosted here, not in the note that opens it, so a move that
@@ -6289,7 +6294,7 @@ private fun AppActionsMenu(
     // no android:configChanges, so a plain remember resets to false on
     // recreation and the saveable text below could never be shown again.
     var editDialogVisible by rememberSaveable(app.id) { mutableStateOf(false) }
-    // Present only on the app list while folders are on (see LocalAppFolderMenu).
+    // Present only on the app list and dock while folders are on (see LocalAppFolderMenu).
     val folderMenu = LocalAppFolderMenu.current
     var folderDialogVisible by rememberSaveable(app.id) { mutableStateOf(false) }
     LauncherDropdownMenu(

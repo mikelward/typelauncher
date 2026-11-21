@@ -11,7 +11,9 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -37,6 +39,7 @@ class HomeScreenAiFoldersTest {
     private val chess = app("Chess", AppCategory.Media)
     private val sudoku = app("Sudoku", AppCategory.Media)
     private val notes = app("Notes", AppCategory.Media)
+    private val forecast = app("Forecast")
 
     @Test
     fun aiOn_aiChoiceBeatsTheManifest_andTheUsersFilingBeatsBoth() {
@@ -95,6 +98,29 @@ class HomeScreenAiFoldersTest {
         assertTrue(cleared)
     }
 
+    @Test
+    fun dockedApp_showsAndChangesItsFolder_fromItsMenu() {
+        // The maintainer, 2026-11-21: a docked app sits in no folder on the
+        // list, so its menu and Edit dialog are the only places to see the
+        // folder Google Play put it in. The Edit dialog's folder row reads the
+        // same menu (see AppListFoldersUiTest).
+        var moved: Pair<InstalledApp, String?>? = null
+        compose(
+            aiSortEnabled = false,
+            dockedApps = listOf(forecast),
+            playCategories = mapOf(forecast.packageName to "WEATHER"),
+            onMoveAppToFolder = { app, key -> moved = app to key },
+        )
+
+        composeRule.onNodeWithTag("$DOCK_APP_TAG:Forecast").performTouchInput { longClick() }
+        composeRule.onNodeWithTag("$MOVE_TO_FOLDER_ACTION_TAG:Forecast").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("$APP_FOLDER_PICKER_OPTION_TAG:weather").assertIsSelected()
+        composeRule.onNodeWithTag("$APP_FOLDER_PICKER_OPTION_TAG:tools").performScrollTo().performClick()
+        composeRule.waitForIdle()
+        assertEquals(forecast to "tools", moved)
+    }
+
     private fun assertMenuSelection(folderKey: String, appName: String, selectedKey: String) {
         composeRule.onNodeWithTag("$APP_LIST_FOLDER_TAG:$folderKey").performClick()
         composeRule.waitForIdle()
@@ -112,6 +138,9 @@ class HomeScreenAiFoldersTest {
         query: String = "",
         searchFolders: List<AppListFolder> = emptyList(),
         onClearQuery: () -> Unit = {},
+        dockedApps: List<InstalledApp> = emptyList(),
+        playCategories: Map<String, String> = emptyMap(),
+        onMoveAppToFolder: (InstalledApp, String?) -> Unit = { _, _ -> },
     ) {
         val state = LauncherUiState(
             filteredApps = listOf(chess, notes, sudoku),
@@ -129,6 +158,8 @@ class HomeScreenAiFoldersTest {
             isAiSortOfferPending = aiOfferPending,
             query = query,
             searchFolders = searchFolders,
+            dockedApps = dockedApps,
+            playCategories = playCategories,
         )
         composeRule.setContent {
             TypeLauncherTheme {
@@ -148,6 +179,7 @@ class HomeScreenAiFoldersTest {
                     onUninstallApp = {},
                     onDismissRecent = {},
                     onOpenSettings = {},
+                    onMoveAppToFolder = onMoveAppToFolder,
                 )
             }
         }
