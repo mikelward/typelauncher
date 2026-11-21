@@ -240,9 +240,51 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "hive" to AppCategory.Home,
     "artmate" to AppCategory.Design,
     "sketchbook" to AppCategory.Design,
-    "bible" to AppCategory.Reading,
     "biblescroll" to AppCategory.Reading,
-    "quran" to AppCategory.Reading,
+    "salaat first" to AppCategory.Reading,
+    "muslim pro" to AppCategory.Reading,
+    "athan" to AppCategory.Reading,
+    "prayer times" to AppCategory.Reading,
+    "nusuk" to AppCategory.Travel,
+    "barid bank" to AppCategory.Finance,
+    "instapay" to AppCategory.Finance,
+    "getyourguide" to AppCategory.Travel,
+    "viator" to AppCategory.Travel,
+    "klook" to AppCategory.Travel,
+    "tiqets" to AppCategory.Travel,
+    "playout" to AppCategory.Rewards,
+    "coupert" to AppCategory.Shopping,
+    "dealseek" to AppCategory.Shopping,
+    "adidas" to AppCategory.Shopping,
+    "puma" to AppCategory.Shopping,
+    "tide business" to AppCategory.Finance,
+    "xtb" to AppCategory.Finance,
+    "inshot" to AppCategory.Design,
+    "uae pass" to AppCategory.Government,
+    "botim" to AppCategory.Social,
+    "rakbank" to AppCategory.Finance,
+    "fab mobile" to AppCategory.Finance,
+    "emirates nbd" to AppCategory.Finance,
+    "etisalat money" to AppCategory.Finance,
+    // India (maintainer, 2026-11-21).
+    "phonepe" to AppCategory.Finance,
+    "paytm" to AppCategory.Finance,
+    "bhim" to AppCategory.Finance,
+    "yono sbi" to AppCategory.Finance,
+    "meesho" to AppCategory.Shopping,
+    "flipkart" to AppCategory.Shopping,
+    "myntra" to AppCategory.Shopping,
+    "ajio" to AppCategory.Shopping,
+    "nykaa" to AppCategory.Shopping,
+    "blinkit" to AppCategory.Food,
+    "zepto" to AppCategory.Food,
+    "swiggy" to AppCategory.Food,
+    "zomato" to AppCategory.Food,
+    "bigbasket" to AppCategory.Food,
+    "rapido" to AppCategory.Car,
+    "attijariwafa" to AppCategory.Finance,
+    "cih bank" to AppCategory.Finance,
+    "marjane" to AppCategory.Shopping,
     "rednote" to AppCategory.Social,
     "volkswagen" to AppCategory.Car,
     "miele" to AppCategory.Home,
@@ -439,7 +481,8 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
 ).map { it to AppCategory.Pets } + listOf(
     // Streaming, for Media. Not "stan", which other apps are called; Stan is
     // matched by package.
-    "foxtel", "binge", "britbox", "itvx", "mubi",
+    "foxtel", "binge", "britbox", "itvx", "mubi", "abc iview", "sbs on demand", "bbc iplayer",
+    "reelshort", "dramabox", "shortmax", "goodshort",
 ).map { it to AppCategory.Media } + listOf(
     // Rail operators, for Public transit & rail.
     "stopdash", "lner", "gwr", "avanti west coast", "crosscountry", "transpennine", "scotrail",
@@ -458,6 +501,8 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
 ).map { it to AppCategory.Weather } + listOf(
     "lightwave",
 ).map { it to AppCategory.Home } + listOf(
+    "real rewards",
+).map { it to AppCategory.Rewards } + listOf(
     // Croatia (maintainer, 2026-11-21), each with its neighbors. Google Play files
     // Moj Telekom under Productivity, mGrađani under Business and Glovo under
     // Lifestyle, so these rules matter more than its categories.
@@ -468,17 +513,31 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "webull", "moomoo", "tastytrade", "trading 212", "etoro", "robinhood", "vanguard investor",
 ).map { it to AppCategory.Finance } + listOf(
     "moj telekom", "hrvatski telekom", "a1 hrvatska", "moj a1", "telemach",
+    // Switzerland and France (maintainer, 2026-11-21). Not bare "salt" or "orange".
+    "swisscom", "my swisscom", "mysalt", "sunrise moa", "orange et moi", "sfr", "bouygues telecom", "free mobile",
+    "saracroche",
+    // Egypt and the Gulf (maintainer, 2026-11-21).
+    "my etisalat", "etisalat", "orange max it", "we egypt", "my du", "zain", "stc", "mobily",
+    // Not bare "du", a common French and German word.
 ).map { it to AppCategory.Phone } + listOf(
     "mgrađani", "e građani", "egrađani", "hzzo", "e porezna",
 ).map { it to AppCategory.Government } + listOf(
     "epošta", "hrvatska pošta", "box now", "boxnow", "overseas express",
 ).map { it to AppCategory.Post } + listOf(
     "glovo", "wolt", "bolt food", "konzum", "kaufland", "plodine",
+    "lieferando", "thuisbezorgd", "pyszne", "takeaway com", "foodora", "foodpanda",
+    "continente", "pingo doce", "mercadona", "carrefour", "auchan", "intermarché", "albert heijn", "jumbo supermarkten",
+    // Ireland (maintainer, 2026-11-21).
+    "my centra", "centra", "supervalu", "dunnes stores", "londis", "spar ireland",
     // ALDI, beside Lidl; "ALDI Mobile" is matched as Phone first (maintainer, 2026-11-21).
     "aldi", "aldi süd", "aldi nord",
 ).map { it to AppCategory.Food } + listOf(
     // Health and beauty chains (maintainer, 2026-11-21).
     "superdrug", "boots", "the perfume shop", "space nk", "lookfantastic", "dm drogerie", "rossmann", "müller",
+    "zalando", "primark", "about you", "bershka", "pull bear", "stradivarius", "uniqlo", "c a fashion",
+    "home store more", "harvey norman", "penneys", "brown thomas",
+    // M&S sells clothes first, though its name mentions food (answer key).
+    "marks spencer", "m s",
 ).map { it to AppCategory.Shopping } + listOf(
     "njuškalo",
 ).map { it to AppCategory.Shopping } + listOf(
@@ -506,6 +565,17 @@ private val PACKAGE_WORD_BREAK = Regex("""[._\-]+""")
 
 // In order: the first word found decides ("Health News" is Health).
 private val LABEL_WORDS = listOf(
+    // Scripture and faith apps, in Reading (maintainer, 2026-11-21: "any app with bible or
+    // quran in the title"), inside a word too: "Alquran", "Bíblia Sagrada".
+    "bible" to AppCategory.Reading,
+    "biblia" to AppCategory.Reading,
+    "bíblia" to AppCategory.Reading,
+    "quran" to AppCategory.Reading,
+    "koran" to AppCategory.Reading,
+    "coran" to AppCategory.Reading,
+    "hadith" to AppCategory.Reading,
+    "torah" to AppCategory.Reading,
+    "bhagavad" to AppCategory.Reading,
     "health" to AppCategory.Health,
     "fitness" to AppCategory.Health,
     "gym" to AppCategory.Health,
@@ -636,6 +706,9 @@ private val KNOWN_PACKAGE_PREFIXES = listOf(
     "au.gov." to AppCategory.Government,
     "nz.govt." to AppCategory.Government,
     "ca.gc." to AppCategory.Government,
+    "ae.gov." to AppCategory.Government,
+    "sa.gov." to AppCategory.Government,
+    "in.gov." to AppCategory.Government,
     "gov." to AppCategory.Government,
     // Tello's apps, "My Tello" among them (maintainer, 2026-11-21); DJI's Tello drone is another package.
     "com.tello." to AppCategory.Phone,
@@ -974,6 +1047,72 @@ private val KNOWN_PACKAGES = listOf(
     """,
     AppCategory.Finance to """
         atws.app com.chase.intl net.intellectsoft.experian com.mse.mseapp
+        hu.otpbank.mobile com.db.pwcc.dbmobile ro.raiffeisen.smartmobile at.erstebank.george
+        hr.asseco.android.jimba.mUCI.bg bg.postbank.mobile.android.release com.danskebank.mobilebank3.uk
+        pl.bzwbk.bzwbk24 rs.erstebank.george rs.Raiffeisen.mobile
+        com.posteitaliane.spim com.starfinanz.mobile.android.pushtan de.deutschepost.postident
+        com.bankinter.portugal.bmb com.BancoDePortugal.BPmobile com.abanca.bm.pt pt.santander.oneappparticulares
+        ma.creditagricole.banke com.saphir.baridbankmobile com.egyptianbanks.instapay
+        com.phonepe.app net.one97.paytm com.boi.ua.android com.naviapp
+        com.fab.personalbanking com.rak com.etisalat.ewallet
+        com.tideplatform.banking com.xtb.xmobile2
+    """,
+    AppCategory.Phone to """
+        com.swisscom.myswisscom ch.salt.my com.orange.orangeetmoi com.orange.mobinilandme com.etisalat com.truecaller com.Etisalat.ETIDA
+    """,
+    AppCategory.Media to """
+        au.net.abc.iview com.newleaf.app.android.victor
+    """,
+    // Egypt's Faheem AI tutor: Learning, though "AI" in its name says AI.
+    AppCategory.Learning to """
+        com.moe.fahem
+    """,
+    AppCategory.Government to """
+        it.pagopa.io.app es.fnmtrcm.ceres.certificadoDigitalFNMT pt.segsocial.mobile.segurancasocial
+        ae.uaepass.mainapp com.uaemoi.smartservices
+    """,
+    AppCategory.Shopping to """
+        fr.vinted de.idealo.android de.zalando.mobile com.primark.app.prod com.homestoreandmore.hsmapp uk.co.next.android
+        com.marksandspencer.app com.boots.flagship.android ma.marjanemall.marjanemall com.meesho.supply com.flipkart.android
+        com.dealseekorg.dealseek com.soarinfotech.coupert com.adidas.app com.fsn.nds
+    """,
+    AppCategory.News to """
+        com.france24.androidapp
+    """,
+    // Portugal's Continente and Ireland's Centra: grocers, so Food, beside Lidl and Tesco.
+    AppCategory.Food to """
+        pt.continente.LojaContinente ie.centra.loyalty com.lidl.eci.lidlplus com.yopeso.lieferando com.grofers.customerapp
+    """,
+    AppCategory.Rewards to """
+        com.aimia.android.musgrave io.playout
+    """,
+    // Faith apps go in Reading, beside the Bible and the Quran.
+    AppCategory.Reading to """
+        org.hicham.salaat com.pakdata.QuranMajeed com.andi.alquran.id com.quran.labs.androidquran
+        com.sirma.mobile.bible.android com.azwstudios.theholybible.kjv com.bible.holy.bible.for.women
+        com.bestweatherfor.bibleoffline_pt_ra org.lds.ldssa bhagavan.id
+    """,
+    AppCategory.Travel to """
+        com.moh.nusukapp com.getyourguide.android com.viator.mobile.android
+    """,
+    AppCategory.Ai to """
+        com.facebook.stella
+    """,
+    AppCategory.Car to """
+        com.rapido.passenger com.qmobility.darbx
+    """,
+    AppCategory.Social to """
+        im.thebot.messenger com.metaztech.fawoo com.zhiliaoapp.musically.go com.instagram.moonshot
+        com.facebook.lite
+    """,
+    AppCategory.Design to """
+        com.camerasideas.instashot com.instagram.basel
+    """,
+    AppCategory.Phone to """
+        com.cbouvat.android.saracroche
+    """,
+    AppCategory.Health to """
+        com.aon.sante org.wakingup.android
     """,
     AppCategory.Office to """
         de.gmx.mobile.android.mail de.web.mobile.android.mail
