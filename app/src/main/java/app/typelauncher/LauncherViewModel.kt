@@ -5262,6 +5262,90 @@ internal class LauncherViewModel(
                 )
             }
             if (auto) startPlaySort(newApps, silent = true)
+            refreshGuessCheck(activeKeys, filings, aiFilings, known, candidates, pending)
+        }
+    }
+
+    /**
+     * "Check guessed folders" (maintainer, 2026-11-21): the apps placed only
+     * by a guess (a word in the name, the AI, or package words) that it
+     * hasn't offered yet. Offered once on-device sorting is done, after
+     * Google Play's offer.
+     */
+    private fun refreshGuessCheck(
+        activeKeys: Set<String>,
+        filings: Map<String, String?>,
+        aiFilings: Map<String, String>,
+        playCategories: Map<String, String>,
+        playCandidates: List<PlaySortCandidate>,
+        playPending: Set<String>,
+    ) {
+        val offered = appFolderStore.guessesOffered
+        // Google Play's offer covers the apps in Other it can look up.
+        val lookedUpLater = playCandidates.filter { it.fromPlay }.mapTo(HashSet()) { it.app.id }
+        val guesses = visibleInstalledApps()
+            .filter { app ->
+                if (app.id in offered || app.packageName == this@LauncherViewModel.app.packageName) return@filter false
+                val source = folderSource(app, activeKeys, filings, aiFilings, playCategories)
+                // Also what nothing could place and Google Play can't look up:
+                // pinned websites, WebAPKs, apps from elsewhere, and apps
+                // Google Play had no folder for (maintainer, 2026-11-21: "or
+                // just asking the user to file").
+                source.isGuess ||
+                    (source == FolderSource.None && app.id !in lookedUpLater && app.packageName !in playPending)
+            }
+            .distinctBy { app -> app.id }
+            .sortedBy { app -> app.displayName.lowercase() }
+        _uiState.update { now ->
+            val aiBusy = now.isAiSortEnabled && now.isAiSortSupported &&
+                now.aiSort.phase in setOf(AiSortPhase.Idle, AiSortPhase.Downloading, AiSortPhase.Sorting)
+            now.copy(guessCheck = if (now.isAppFoldersEnabled && !aiBusy) guesses else emptyList())
+        }
+    }
+
+    /** "Not now" on "Check guessed folders": it isn't offered again for these apps. */
+    fun dismissGuessCheck() {
+        val apps = _uiState.value.guessCheck
+        if (apps.isEmpty()) return
+        appFolderStore.guessesOffered = appFolderStore.guessesOffered + apps.map { it.id }
+        _uiState.update { state -> state.copy(guessCheck = emptyList()) }
+        logState("dismissGuessCheck")
+    }
+
+    /**
+     * "Check": opens the sheet for the offered apps, grouped by what guessed
+     * them, and retires the offer for them.
+     */
+    fun startGuessCheck() {
+        val apps = _uiState.value.guessCheck
+        if (apps.isEmpty()) return
+        val folders = appFolderStore.folders
+        val activeKeys = folders.mapTo(HashSet()) { it.key }
+        val filings = appFolderStore.assignments
+        val aiFilings = if (_uiState.value.isAiSortEnabled) appFolderStore.aiAssignments else emptyMap()
+        val categories = playCategories()
+        // Only those still placed by a guess: one filed since the offer
+        // appeared isn't (Codex on PR #890).
+        val sources = apps.associateWith { app -> folderSource(app, activeKeys, filings, aiFilings, categories) }
+        val (byAi, byName) = apps.filter { sources.getValue(it).isGuess }
+            .partition { app -> sources.getValue(app) == FolderSource.Ai }
+        val unsorted = apps.filter { sources.getValue(it) == FolderSource.None }
+        appFolderStore.guessesOffered = appFolderStore.guessesOffered + apps.map { it.id }
+        _uiState.update { state ->
+            state.copy(
+                guessCheck = emptyList(),
+                guessReviewByName = byName,
+                guessReviewByAi = byAi,
+                guessReviewUnsorted = unsorted,
+            )
+        }
+        logState("startGuessCheck")
+    }
+
+    /** Closing "Check guessed folders". */
+    fun endGuessCheck() {
+        _uiState.update { state ->
+            state.copy(guessReviewByName = emptyList(), guessReviewByAi = emptyList(), guessReviewUnsorted = emptyList())
         }
     }
 
@@ -5583,6 +5667,9 @@ internal class LauncherViewModel(
         appFolderStore.assign(app.id, key)
         _uiState.update { it.copy(appFolderAssignments = appFolderStore.assignments) }
         refreshFolderSearch()
+        // A filed app is no longer a guess, nor in Other for Google Play
+        // (Codex on PR #890).
+        refreshPlaySort()
         logState("moveAppToFolder")
     }
 

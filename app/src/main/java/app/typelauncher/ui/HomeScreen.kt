@@ -1382,6 +1382,22 @@ internal fun HomeScreen(
                     onDismiss = { reviewingPlaySort = false },
                 )
             }
+            // "Check guessed folders": the same sheet, for the apps placed
+            // only by a guess (maintainer, 2026-11-21).
+            val guessReview = state.guessReviewByName + state.guessReviewByAi + state.guessReviewUnsorted
+            if (playSortReview != null && guessReview.isNotEmpty()) {
+                PlaySortReviewSheet(
+                    apps = guessReview,
+                    review = playSortReview,
+                    onDismiss = playSortActions.onEndGuessCheck,
+                    title = R.string.guess_check_title,
+                    groups = listOf(
+                        R.string.guess_check_by_name to state.guessReviewByName,
+                        R.string.guess_check_by_ai to state.guessReviewByAi,
+                        R.string.play_sort_review_unsorted to state.guessReviewUnsorted,
+                    ),
+                )
+            }
             val appsCard: @Composable () -> Unit = {
                 AppsCard(
                     apps = openAppFolder?.apps ?: appListGrouping?.looseApps ?: state.filteredApps,
@@ -1480,6 +1496,19 @@ internal fun HomeScreen(
                         (state.playSort.showOffer || state.playSort.phase != PlaySortPhase.Idle)
                     ) {
                         { PlaySortNote(state.playSort, playSortActions, onReview = { reviewingPlaySort = true }) }
+                    } else if (
+                        openAppFolder == null &&
+                        state.query.isBlank() &&
+                        state.isAppFoldersEnabled &&
+                        state.guessCheck.isNotEmpty()
+                    ) {
+                        {
+                            GuessCheckNote(
+                                count = state.guessCheck.size,
+                                onCheck = playSortActions.onStartGuessCheck,
+                                onDismiss = playSortActions.onDismissGuessCheck,
+                            )
+                        }
                     } else {
                         null
                     },

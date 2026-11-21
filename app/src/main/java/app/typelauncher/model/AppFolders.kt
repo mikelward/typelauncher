@@ -261,6 +261,69 @@ internal fun effectiveFolderKey(
     return AppCategory.Other.storageKey
 }
 
+/** What put an app in its folder, in [effectiveFolderKey]'s order. */
+internal enum class FolderSource {
+    /** The user filed it, or chose "No folder". */
+    User,
+
+    /** A rule by package, publisher or brand, or a manifest saying it's a game. */
+    Rule,
+
+    /** A word in its name ("Greenfield Bank"), by the rules. */
+    NameWord,
+
+    /** Its Google Play category, looked up or from the shipped catalog. */
+    GooglePlay,
+
+    /** "Sort with on-device AI". */
+    Ai,
+
+    /** Its manifest's category. */
+    Manifest,
+
+    /** A guess from words in its package or name. */
+    Guess,
+
+    /** Nothing placed it: Other. */
+    None,
+    ;
+
+    /** True for the placements "Check guessed folders" asks about. */
+    val isGuess: Boolean get() = this == NameWord || this == Ai || this == Guess
+}
+
+/**
+ * What puts [app] where [effectiveFolderKey] does, given the same inputs.
+ * Mirrors it step for step; `FolderSourceTest` holds the two together.
+ */
+internal fun folderSource(
+    app: InstalledApp,
+    activeKeys: Set<String>,
+    assignments: Map<String, String?>,
+    aiAssignments: Map<String, String> = emptyMap(),
+    playCategories: Map<String, String> = emptyMap(),
+): FolderSource {
+    if (assignments.containsKey(app.id)) {
+        val chosen = assignments[app.id] ?: return FolderSource.User
+        if (chosen in activeKeys) return FolderSource.User
+    }
+    val aiChoice = aiAssignments[app.id]?.takeIf { it in activeKeys }
+    if (aiChoice != null && aiChoice.startsWith(USER_FOLDER_KEY_PREFIX)) return FolderSource.Ai
+    if (app.ruledCategory()?.storageKey?.takeIf { it in activeKeys } != null) {
+        // The table decides before a game manifest does (see ruledCategory).
+        val byNameWord = app.knownCategory() != null &&
+            isPlacedByNameWord(if (app.isShortcut) "" else app.packageName, app.name)
+        return if (byNameWord) FolderSource.NameWord else FolderSource.Rule
+    }
+    if (playCategories[app.packageName]?.let(::folderForPlayCategory)?.storageKey?.takeIf { it in activeKeys } != null) {
+        return FolderSource.GooglePlay
+    }
+    if (aiChoice != null) return FolderSource.Ai
+    if (app.declaredCategory?.storageKey?.takeIf { it in activeKeys } != null) return FolderSource.Manifest
+    if (app.guessedCategory()?.storageKey?.takeIf { it in activeKeys } != null) return FolderSource.Guess
+    return FolderSource.None
+}
+
 /**
  * Groups [apps] into [folders] (from [activeAppFolders]), each app where
  * [effectiveFolderKey] puts it. A folder shows as soon as it has an app,

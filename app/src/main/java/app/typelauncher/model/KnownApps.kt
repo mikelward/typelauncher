@@ -63,15 +63,33 @@ private fun stemMatches(word: String, stem: String): Boolean = when {
 // A word in the label that says plainly what the app is. One of five letters
 // or more may sit anywhere in a word ("MyFitnessPal"); a shorter one must be
 // a whole word or end one ("PureGym", "SkyNews"), so "Newsom" files nothing.
-private fun labelCategory(label: String): AppCategory? {
+private fun labelCategory(label: String): AppCategory? = labelBrandCategory(label) ?: labelWordCategory(label)
+
+// Brands first, as whole words or runs of them: "Fly Delta", "My Bupa",
+// "Priority Pass", and "Royal Mail" before "mail" makes it email.
+private fun labelBrandCategory(label: String): AppCategory? {
     if (label.isBlank()) return null
     val words = label.lowercase().split(LABEL_WORD_BREAK)
-    // Brands first, as whole words or runs of them: "Fly Delta", "My Bupa",
-    // "Priority Pass", and "Royal Mail" before "mail" makes it email.
     val padded = words.filter { it.isNotEmpty() }.joinToString(" ", prefix = " ", postfix = " ")
     // The phone app itself, whatever package it comes in.
     if (padded == " phone " || padded == " dialer ") return AppCategory.Phone
-    LABEL_BRANDS.firstOrNull { (brand, _) -> " $brand " in padded }?.let { return it.second }
+    return LABEL_BRANDS.firstOrNull { (brand, _) -> " $brand " in padded }?.second
+}
+
+/**
+ * True when [knownAppCategory] places the app only by a word in its name
+ * ("Greenfield Bank"), not by its package, its publisher or its brand: a
+ * guess, which "Check guessed folders" asks the user about.
+ */
+internal fun isPlacedByNameWord(packageName: String, label: String): Boolean =
+    KnownApps.byPackage[packageName] == null &&
+        KNOWN_PACKAGE_PREFIXES.none { (prefix, _) -> packageName.startsWith(prefix) } &&
+        labelBrandCategory(label) == null &&
+        labelWordCategory(label) != null
+
+private fun labelWordCategory(label: String): AppCategory? {
+    if (label.isBlank()) return null
+    val words = label.lowercase().split(LABEL_WORD_BREAK)
     return LABEL_WORDS.firstOrNull { (keyword, _) ->
         words.any { word ->
             when {

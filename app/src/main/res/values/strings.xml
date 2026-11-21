@@ -469,4 +469,14 @@
     <string name="play_sort_review_all_folders" tools:ignore="MissingTranslation">All folders…</string>
     <string name="settings_play_sort_auto_title" tools:ignore="MissingTranslation">Sort new apps using Google Play</string>
     <string name="settings_play_sort_resort" tools:ignore="MissingTranslation">Sort again using Google Play</string>
+    <!-- "Check guessed folders". TODO: translate once the English is approved. -->
+    <plurals name="guess_check_offer_title" tools:ignore="MissingTranslation">
+        <item quantity="one">Check the folder for %d app?</item>
+        <item quantity="other">Check the folders for %d apps?</item>
+    </plurals>
+    <string name="guess_check_offer_body" tools:ignore="MissingTranslation">Placed by a guess, or not sorted at all.</string>
+    <string name="guess_check_accept" tools:ignore="MissingTranslation">Check</string>
+    <string name="guess_check_title" tools:ignore="MissingTranslation">Check folders</string>
+    <string name="guess_check_by_name" tools:ignore="MissingTranslation">Guessed from the name</string>
+    <string name="guess_check_by_ai" tools:ignore="MissingTranslation">Sorted by AI</string>
 </resources>
