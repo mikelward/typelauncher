@@ -643,4 +643,12 @@ class KnownAppsTest {
         assertEquals(AppCategory.Weather, guessedAppCategory("com.example.weatherpro", "Sky"))
         assertNull(guessedAppCategory("com.example.app", "Acme"))
     }
+
+    @Test
+    fun appsThatCouldGoEitherWay_areFiledInTheirFirstFolder_untilTheUserDecides() {
+        for ((packageName, folders) in EITHER_WAY_PACKAGES) {
+            assertEquals(packageName, 2, folders.distinct().size)
+            assertEquals(packageName, folders.first(), knownAppCategory(packageName))
+        }
+    }
 }

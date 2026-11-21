@@ -29,6 +29,23 @@ internal fun knownAppCategory(packageName: String, label: String = ""): AppCateg
 internal fun InstalledApp.knownCategory(): AppCategory? =
     knownAppCategory(if (isShortcut) "" else packageName, name)
 
+/**
+ * Apps that fit two folders about equally, for the user to decide
+ * (maintainer, 2026-11-21: "always let the user decide for those ones").
+ * The rules file each in the first; "Check folders" asks about them, with
+ * both folders first in its dropdown.
+ */
+internal val EITHER_WAY_PACKAGES: Map<String, List<AppCategory>> = mapOf(
+    "com.kalshi.mobile" to listOf(AppCategory.Finance, AppCategory.Betting),
+    "com.morrisons.matchandmore.app" to listOf(AppCategory.Shopping, AppCategory.Rewards),
+    "com.cashless.cashlessapp" to listOf(AppCategory.Kids, AppCategory.Finance),
+    "com.groundspeak.geocaching.intro" to listOf(AppCategory.Health, AppCategory.Games),
+)
+
+/** The folders [this] app could go in about equally, or empty. Never for a pinned website. */
+internal fun InstalledApp.eitherWayFolders(): List<AppCategory> =
+    if (isShortcut) emptyList() else EITHER_WAY_PACKAGES[packageName].orEmpty()
+
 /** [guessedAppCategory] for [this] app; a pinned website by its name alone. */
 internal fun InstalledApp.guessedCategory(): AppCategory? =
     guessedAppCategory(if (isShortcut) "" else packageName, name)
@@ -90,6 +107,8 @@ internal fun isPlacedByNameWord(packageName: String, label: String): Boolean =
 private fun labelWordCategory(label: String): AppCategory? {
     if (label.isBlank()) return null
     val words = label.lowercase().split(LABEL_WORD_BREAK)
+    val padded = words.filter { it.isNotEmpty() }.joinToString(" ", prefix = " ", postfix = " ")
+    LABEL_PHRASES.firstOrNull { (phrase, _) -> " $phrase " in padded }?.let { return it.second }
     return LABEL_WORDS.firstOrNull { (keyword, _) ->
         words.any { word ->
             when {
@@ -101,6 +120,28 @@ private fun labelWordCategory(label: String): AppCategory? {
         }
     }?.second
 }
+
+// Words and phrases that say what an app is ("Period Tracker", "Home
+// Workout"), matched as whole words like brands but, unlike brands, a guess
+// that "Check guessed folders" asks about (Codex on PR #894).
+private val LABEL_PHRASES: List<Pair<String, AppCategory>> = listOf(
+    "pedometer" to AppCategory.Health,
+    "step counter" to AppCategory.Health,
+    "step tracker" to AppCategory.Health,
+    "period tracker" to AppCategory.Health,
+    "period calendar" to AppCategory.Health,
+    "ovulation" to AppCategory.Health,
+    "fertility" to AppCategory.Health,
+    "kegel" to AppCategory.Health,
+    "pelvic floor" to AppCategory.Health,
+    "weight loss" to AppCategory.Health,
+    "home workout" to AppCategory.Health,
+    "therapy" to AppCategory.Health,
+    "therapist" to AppCategory.Health,
+    "mental health" to AppCategory.Health,
+    "counseling" to AppCategory.Health,
+    "anxiety" to AppCategory.Health,
+)
 
 // Brands whose app names say nothing else about them (maintainer,
 // 2026-11-19): matched as whole words, so "unifi" isn't "Unified Remote".
@@ -277,9 +318,6 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "egovph" to AppCategory.Government,
     "digid" to AppCategory.Government,
     "mysugr" to AppCategory.Health,
-    "pedometer" to AppCategory.Health,
-    "step counter" to AppCategory.Health,
-    "step tracker" to AppCategory.Health,
     "betterhelp" to AppCategory.Health,
     "yazio" to AppCategory.Health,
     "oral b" to AppCategory.Health,
@@ -292,25 +330,12 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "weightwatchers" to AppCategory.Health,
     "slimming world" to AppCategory.Health,
     "fatsecret" to AppCategory.Health,
-    "period tracker" to AppCategory.Health,
-    "period calendar" to AppCategory.Health,
-    "ovulation" to AppCategory.Health,
-    "fertility" to AppCategory.Health,
-    "kegel" to AppCategory.Health,
-    "pelvic floor" to AppCategory.Health,
-    "weight loss" to AppCategory.Health,
-    "home workout" to AppCategory.Health,
     "blinkist" to AppCategory.Reading,
     "noom" to AppCategory.Health,
     "grok" to AppCategory.Ai,
     "webull" to AppCategory.Finance,
     "whatnot" to AppCategory.Shopping,
     "elevenreader" to AppCategory.Reading,
-    "therapy" to AppCategory.Health,
-    "therapist" to AppCategory.Health,
-    "mental health" to AppCategory.Health,
-    "counseling" to AppCategory.Health,
-    "anxiety" to AppCategory.Health,
     "dexcom" to AppCategory.Health,
     "kaiser permanente" to AppCategory.Health,
     "freestyle libre" to AppCategory.Health,

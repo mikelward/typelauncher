@@ -151,6 +151,35 @@ class LauncherViewModelPlaySortTest {
     }
 
     @Test
+    fun guessCheck_asksAboutAppsThatCouldGoEitherWay_untilFiled() {
+        // Maintainer, 2026-11-21: "always let the user decide for those ones".
+        seedApp("Kalshi", "com.kalshi.mobile", installedFromPlay = true)
+        seedApp("Netflix", "com.netflix.mediaclient", installedFromPlay = true)
+        val viewModel = startedViewModel()
+
+        assertEquals(listOf("com.kalshi.mobile"), viewModel.uiState.value.guessCheck.map { it.packageName })
+        viewModel.startGuessCheck()
+        idle()
+        val state = viewModel.uiState.value
+        assertEquals(listOf("com.kalshi.mobile"), state.guessReviewEitherWay.map { it.packageName })
+        assertTrue(state.guessReviewByName.isEmpty())
+        viewModel.endGuessCheck()
+        assertTrue(viewModel.uiState.value.guessReviewEitherWay.isEmpty())
+    }
+
+    @Test
+    fun guessCheck_leavesOutAnAppThatCouldGoEitherWay_onceFiled() {
+        seedApp("Kalshi", "com.kalshi.mobile", installedFromPlay = true)
+        val viewModel = startedViewModel()
+        val kalshi = viewModel.uiState.value.guessCheck.single()
+
+        viewModel.moveAppToFolder(kalshi, AppCategory.Betting.storageKey)
+        idle()
+
+        assertTrue(viewModel.uiState.value.guessCheck.isEmpty())
+    }
+
+    @Test
     fun guessCheck_dropsAnAppTheUserFilesMeanwhile() {
         seedApp("Greenfield Bank", "com.example.greenfield", installedFromPlay = true)
         val viewModel = startedViewModel()
