@@ -39,6 +39,9 @@ internal val EITHER_WAY_PACKAGES: Map<String, List<AppCategory>> = mapOf(
     "com.kalshi.mobile" to listOf(AppCategory.Finance, AppCategory.Betting),
     "com.morrisons.matchandmore.app" to listOf(AppCategory.Shopping, AppCategory.Rewards),
     "com.cashless.cashlessapp" to listOf(AppCategory.Kids, AppCategory.Finance),
+    // Bloomberg: markets, or business news (maintainer, 2026-11-21: Finance,
+    // but let the user choose).
+    "com.bloomberg.android.plus" to listOf(AppCategory.Finance, AppCategory.News),
     // 23andMe: DNA ancestry and health reports alike.
     "com.twentythreeandme.app" to listOf(AppCategory.FamilyHistory, AppCategory.Health),
     // A supermarket's loyalty card, like Morrisons More Card.
@@ -336,6 +339,12 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "practo" to AppCategory.Health,
     "netmeds" to AppCategory.Health,
     "vesync" to AppCategory.Home,
+    "swissquote" to AppCategory.Finance,
+    "kraken" to AppCategory.Finance,
+    "morgan stanley" to AppCategory.Finance,
+    "tradingview" to AppCategory.Finance,
+    "seeking alpha" to AppCategory.Finance,
+    "yahoo finance" to AppCategory.Finance,
     "ancestry" to AppCategory.FamilyHistory,
     "myheritage" to AppCategory.FamilyHistory,
     "familysearch" to AppCategory.FamilyHistory,
@@ -1200,6 +1209,10 @@ private val KNOWN_PACKAGES = listOf(
         com.luminorgroup.bbma lv.citadele.mobile se.seb.estonia com.grppl.android.shell.halifax
         lt.swedbank.mobile com.banknorwegian co.uk.Nationwide.Mobile se.nordea.mobilebank no.apps.dnbnor
         pl.pkobp.iko com.eastwest.mobile.dxp ru.otpbank.mobile com.scotiabank.banking com.mgi.moneygram com.pnc.ecommerce.mobile
+        com.gs.pwmdigital.external.android com.morganstanley.clientmobile.prod com.swissquote.android
+        com.goldavenue.goldavenue com.kraken.invest.app co.mona.android com.fusionmedia.investing
+        com.yahoo.mobile.client.android.finance com.tradingview.tradingviewapp com.seekingalpha.webwrapper
+        com.bloomberg.android.plus
         com.posteitaliane.spim com.starfinanz.mobile.android.pushtan de.deutschepost.postident
         com.bankinter.portugal.bmb com.BancoDePortugal.BPmobile com.abanca.bm.pt pt.santander.oneappparticulares
         ma.creditagricole.banke com.saphir.baridbankmobile com.egyptianbanks.instapay
