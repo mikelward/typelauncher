@@ -1139,7 +1139,8 @@ private val KNOWN_PACKAGES = listOf(
         au.com.stan.and
     """,
     AppCategory.Transit to """
-        uk.co.icectoc.customer uk.co.nationalrail.google
+        uk.co.icectoc.customer uk.co.nationalrail.google com.vaesttrafik.vaesttrafik nl.ns.android.activity
+        it.italotreno de.flixbus.app de.hafas.android.db
     """,
     AppCategory.Travel to """
         com.virginaustralia.vaapp
@@ -1180,6 +1181,9 @@ private val KNOWN_PACKAGES = listOf(
         hu.otpbank.mobile com.db.pwcc.dbmobile ro.raiffeisen.smartmobile at.erstebank.george
         hr.asseco.android.jimba.mUCI.bg bg.postbank.mobile.android.release com.danskebank.mobilebank3.uk
         pl.bzwbk.bzwbk24 rs.erstebank.george rs.Raiffeisen.mobile bg.dskbank.DSKmobile
+        com.luminorgroup.bbma lv.citadele.mobile se.seb.estonia com.grppl.android.shell.halifax
+        lt.swedbank.mobile com.banknorwegian co.uk.Nationwide.Mobile se.nordea.mobilebank no.apps.dnbnor
+        pl.pkobp.iko com.eastwest.mobile.dxp ru.otpbank.mobile com.scotiabank.banking com.mgi.moneygram com.pnc.ecommerce.mobile
         com.posteitaliane.spim com.starfinanz.mobile.android.pushtan de.deutschepost.postident
         com.bankinter.portugal.bmb com.BancoDePortugal.BPmobile com.abanca.bm.pt pt.santander.oneappparticulares
         ma.creditagricole.banke com.saphir.baridbankmobile com.egyptianbanks.instapay
@@ -1202,7 +1206,7 @@ private val KNOWN_PACKAGES = listOf(
     """,
     AppCategory.Government to """
         it.pagopa.io.app es.fnmtrcm.ceres.certificadoDigitalFNMT pt.segsocial.mobile.segurancasocial
-        ae.uaepass.mainapp com.uaemoi.smartservices egov.app com.evrotrust.app
+        ae.uaepass.mainapp com.uaemoi.smartservices egov.app com.evrotrust.app ee.ria.eesti.app
     """,
     AppCategory.Shopping to """
         fr.vinted de.idealo.android de.zalando.mobile com.primark.app.prod com.homestoreandmore.hsmapp uk.co.next.android
@@ -1272,7 +1276,12 @@ private val KNOWN_PACKAGES = listOf(
         com.hihonor.health com.gen.bettermeditation com.medm.app.health com.wam.android com.dailyyoga.inc
     """,
     AppCategory.Shopping to """ com.whatnot_mobile com.naturitas.android com.nbty.hollandbarret com.lasoo.android.target trendyol.com
-        com.fantastico.fclub """,
+        com.fantastico.fclub ee.coop.shopping.app lv.rimi.card """,
+    AppCategory.Food to """ jp.co.mcdonalds.android """,
+    AppCategory.Jobs to """ com.fiverr.fiverr """,
+    AppCategory.Car to """ com.shell.sitibv.retail com.bp.mobile.bpme.uk """,
+    // Smart-ID: signing in to Baltic banks and services, like an authenticator.
+    AppCategory.Security to """ com.smart_id com.symantec.lifelock.memberapp """,
     AppCategory.Phone to """ com.isoton.lebara """,
     AppCategory.Finance to """ com.raisin.app com.emmaprod org.dayup.stocks.uk com.pktmny.mobile """,
     AppCategory.Ai to """ ai.x.grok.bot com.larus.wolf """,
@@ -1337,7 +1346,8 @@ private val KNOWN_PACKAGES = listOf(
         de.gmx.mobile.android.mail de.web.mobile.android.mail
     """,
     AppCategory.Post to """
-        at.post.app nl.tpp.mobile.android com.sameday.client.mobile
+        at.post.app nl.tpp.mobile.android com.sameday.client.mobile com.omnivagroup.app no.posten.sporing.controller
+        nz.co.nzpost co.uk.postoffice.PostOfficeApp com.nth.swisspost
     """,
     AppCategory.Transit to """
         ch.sbb.mobile.android.b2c com.sl.SLBiljetter au.gov.vic.ptv au.com.opal.travel
