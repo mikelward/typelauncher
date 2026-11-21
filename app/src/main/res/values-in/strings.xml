@@ -290,6 +290,7 @@
     <string name="app_folder_tools">Alat</string>
     <string name="app_folder_transit">Transportasi umum &amp; kereta</string>
     <string name="app_folder_car">Mobil</string>
+    <string name="app_folder_charity">Amal &amp; donasi</string>
     <string name="app_folder_cycling">Sepeda &amp; sewa sepeda</string>
     <string name="app_folder_hotels">Hotel &amp; penginapan</string>
     <string name="app_folder_maps">Peta</string>
@@ -319,6 +320,7 @@
     <string name="folder_icon_pedal_bike">Sepeda</string>
     <string name="folder_icon_hotel">Tempat tidur</string>
     <string name="folder_icon_map">Peta</string>
+    <string name="folder_icon_volunteer_activism">Tangan dengan hati</string>
     <string name="folder_icon_eco">Alam</string>
     <string name="folder_icon_family_restroom">Keluarga</string>
     <string name="folder_icon_favorite">Hati</string>

@@ -291,6 +291,7 @@
     <string name="app_folder_tools">Инструменти</string>
     <string name="app_folder_transit">Градски транспорт и влакове</string>
     <string name="app_folder_car">Кола</string>
+    <string name="app_folder_charity">Благотворителност и дарения</string>
     <string name="app_folder_cycling">Колоездене и споделени велосипеди</string>
     <string name="app_folder_hotels">Хотели и настаняване</string>
     <string name="app_folder_maps">Карти</string>
@@ -320,6 +321,7 @@
     <string name="folder_icon_pedal_bike">Велосипед</string>
     <string name="folder_icon_hotel">Легло</string>
     <string name="folder_icon_map">Карта</string>
+    <string name="folder_icon_volunteer_activism">Ръка със сърце</string>
     <string name="folder_icon_eco">Природа</string>
     <string name="folder_icon_family_restroom">Семейство</string>
     <string name="folder_icon_favorite">Сърце</string>

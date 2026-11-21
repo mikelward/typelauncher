@@ -291,6 +291,7 @@
     <string name="app_folder_tools">මෙවලම්</string>
     <string name="app_folder_transit">පොදු ප්‍රවාහනය සහ දුම්රිය</string>
     <string name="app_folder_car">මෝටර් රථය</string>
+    <string name="app_folder_charity">පුණ්‍යාධාර සහ පරිත්‍යාග</string>
     <string name="app_folder_cycling">බයිසිකල් සහ බයිසිකල් කුලියට</string>
     <string name="app_folder_hotels">හෝටල් සහ නවාතැන්</string>
     <string name="app_folder_maps">සිතියම්</string>
@@ -320,6 +321,7 @@
     <string name="folder_icon_pedal_bike">බයිසිකලය</string>
     <string name="folder_icon_hotel">ඇඳ</string>
     <string name="folder_icon_map">සිතියම</string>
+    <string name="folder_icon_volunteer_activism">හදවතක් සහිත අත</string>
     <string name="folder_icon_eco">ස්වභාවධර්මය</string>
     <string name="folder_icon_family_restroom">පවුල</string>
     <string name="folder_icon_favorite">හදවත</string>

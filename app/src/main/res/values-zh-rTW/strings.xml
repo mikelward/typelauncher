@@ -290,6 +290,7 @@
     <string name="app_folder_tools">工具</string>
     <string name="app_folder_transit">大眾運輸與鐵路</string>
     <string name="app_folder_car">汽車</string>
+    <string name="app_folder_charity">慈善與捐贈</string>
     <string name="app_folder_cycling">單車與共享單車</string>
     <string name="app_folder_hotels">飯店與住宿</string>
     <string name="app_folder_maps">地圖</string>
@@ -319,6 +320,7 @@
     <string name="folder_icon_pedal_bike">腳踏車</string>
     <string name="folder_icon_hotel">床</string>
     <string name="folder_icon_map">地圖</string>
+    <string name="folder_icon_volunteer_activism">手捧愛心</string>
     <string name="folder_icon_eco">自然</string>
     <string name="folder_icon_family_restroom">家庭</string>
     <string name="folder_icon_favorite">愛心</string>

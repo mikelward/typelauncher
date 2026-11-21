@@ -246,7 +246,7 @@ class AppListFoldersUiTest {
 
         composeRule.onNodeWithTag("$APP_ROW_TAG:Mail").performTouchInput { longClick() }
         composeRule.onNodeWithTag("$MOVE_TO_FOLDER_ACTION_TAG:Mail").performClick()
-        composeRule.onNodeWithTag("$APP_FOLDER_PICKER_OPTION_TAG:office").performClick()
+        composeRule.onNodeWithTag("$APP_FOLDER_PICKER_OPTION_TAG:office").performScrollTo().performClick()
 
         assertEquals(mail to "office", moved)
     }

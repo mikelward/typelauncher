@@ -291,6 +291,7 @@
     <string name="app_folder_tools">उपकरणहरू</string>
     <string name="app_folder_transit">सार्वजनिक यातायात तथा रेल</string>
     <string name="app_folder_car">कार</string>
+    <string name="app_folder_charity">दान तथा परोपकार</string>
     <string name="app_folder_cycling">साइकल तथा साझा साइकल</string>
     <string name="app_folder_hotels">होटल तथा बसोबास</string>
     <string name="app_folder_maps">नक्साहरू</string>
@@ -320,6 +321,7 @@
     <string name="folder_icon_pedal_bike">साइकल</string>
     <string name="folder_icon_hotel">ओछ्यान</string>
     <string name="folder_icon_map">नक्सा</string>
+    <string name="folder_icon_volunteer_activism">हातमा मुटु</string>
     <string name="folder_icon_eco">प्रकृति</string>
     <string name="folder_icon_family_restroom">परिवार</string>
     <string name="folder_icon_favorite">मुटु</string>

@@ -291,6 +291,7 @@
     <string name="app_folder_tools">Araçlar</string>
     <string name="app_folder_transit">Toplu taşıma ve tren</string>
     <string name="app_folder_car">Araba</string>
+    <string name="app_folder_charity">Bağış ve yardım</string>
     <string name="app_folder_cycling">Bisiklet ve paylaşımlı bisiklet</string>
     <string name="app_folder_hotels">Oteller ve konaklama</string>
     <string name="app_folder_maps">Haritalar</string>
@@ -320,6 +321,7 @@
     <string name="folder_icon_pedal_bike">Bisiklet</string>
     <string name="folder_icon_hotel">Yatak</string>
     <string name="folder_icon_map">Harita</string>
+    <string name="folder_icon_volunteer_activism">Kalpli el</string>
     <string name="folder_icon_eco">Doğa</string>
     <string name="folder_icon_family_restroom">Aile</string>
     <string name="folder_icon_favorite">Kalp</string>

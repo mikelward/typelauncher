@@ -282,6 +282,24 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "freestyle libre" to AppCategory.Health,
     "omnipod" to AppCategory.Health,
     "accu chek" to AppCategory.Health,
+    // A rewards app, though its name says "donate".
+    "justplay" to AppCategory.Rewards,
+    // Charity & giving (maintainer, 2026-11-21).
+    "sharethemeal" to AppCategory.Charity,
+    "gofundme" to AppCategory.Charity,
+    "justgiving" to AppCategory.Charity,
+    "givebutter" to AppCategory.Charity,
+    "unicef" to AppCategory.Charity,
+    "red cross" to AppCategory.Charity,
+    "save the children" to AppCategory.Charity,
+    "oxfam" to AppCategory.Charity,
+    "wwf" to AppCategory.Charity,
+    "doctors without borders" to AppCategory.Charity,
+    "msf" to AppCategory.Charity,
+    "kiva" to AppCategory.Charity,
+    "every org" to AppCategory.Charity,
+    "givelify" to AppCategory.Charity,
+    "tithe ly" to AppCategory.Charity,
     "olio" to AppCategory.Food,
     "videoland" to AppCategory.Media,
     "momo" to AppCategory.Finance,
@@ -595,6 +613,11 @@ private val PACKAGE_WORD_BREAK = Regex("""[._\-]+""")
 
 // In order: the first word found decides ("Health News" is Health).
 private val LABEL_WORDS = listOf(
+    "charity" to AppCategory.Charity,
+    "donate" to AppCategory.Charity,
+    "donation" to AppCategory.Charity,
+    "fundraising" to AppCategory.Charity,
+    "crowdfunding" to AppCategory.Charity,
     // Scripture and faith apps, in Reading (maintainer, 2026-11-21: "any app with bible or
     // quran in the title"), inside a word too: "Alquran", "Bíblia Sagrada".
     "bible" to AppCategory.Reading,
@@ -1155,6 +1178,9 @@ private val KNOWN_PACKAGES = listOf(
     """,
     AppCategory.Health to """
         com.aon.sante org.wakingup.android com.mysugr.android.companion uk.co.virginactive.android
+    """,
+    AppCategory.Charity to """
+        org.sharethemeal.app
     """,
     AppCategory.Office to """
         de.gmx.mobile.android.mail de.web.mobile.android.mail

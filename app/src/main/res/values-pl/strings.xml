@@ -293,6 +293,7 @@
     <string name="app_folder_tools">Narzędzia</string>
     <string name="app_folder_transit">Komunikacja miejska i kolej</string>
     <string name="app_folder_car">Samochód</string>
+    <string name="app_folder_charity">Dobroczynność i darowizny</string>
     <string name="app_folder_cycling">Rowery i rowery miejskie</string>
     <string name="app_folder_hotels">Hotele i noclegi</string>
     <string name="app_folder_maps">Mapy</string>
@@ -322,6 +323,7 @@
     <string name="folder_icon_pedal_bike">Rower</string>
     <string name="folder_icon_hotel">Łóżko</string>
     <string name="folder_icon_map">Mapa</string>
+    <string name="folder_icon_volunteer_activism">Dłoń z sercem</string>
     <string name="folder_icon_eco">Natura</string>
     <string name="folder_icon_family_restroom">Rodzina</string>
     <string name="folder_icon_favorite">Serce</string>

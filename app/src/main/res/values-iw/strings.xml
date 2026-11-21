@@ -293,6 +293,7 @@
     <string name="app_folder_tools">כלים</string>
     <string name="app_folder_transit">תחבורה ציבורית ורכבות</string>
     <string name="app_folder_car">רכב</string>
+    <string name="app_folder_charity">צדקה ותרומות</string>
     <string name="app_folder_cycling">אופניים ושיתוף אופניים</string>
     <string name="app_folder_hotels">מלונות ולינה</string>
     <string name="app_folder_maps">מפות</string>
@@ -322,6 +323,7 @@
     <string name="folder_icon_pedal_bike">אופניים</string>
     <string name="folder_icon_hotel">מיטה</string>
     <string name="folder_icon_map">מפה</string>
+    <string name="folder_icon_volunteer_activism">יד עם לב</string>
     <string name="folder_icon_eco">טבע</string>
     <string name="folder_icon_family_restroom">משפחה</string>
     <string name="folder_icon_favorite">לב</string>
