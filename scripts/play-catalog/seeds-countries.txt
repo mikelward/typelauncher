@@ -2,7 +2,7 @@
 # the crawl keeps them, and their developers' other apps, from 10,000 downloads, and
 # follows their similar apps. Every country should have at least a bank. The US, UK,
 # Australia, Canada and New Zealand also come in through seeds-known.txt.
-# Still no confirmed bank: Ghana.
+# Every country listed has a confirmed bank or mobile money app.
 # Croatia
 com.hrvatskitelekom.m.mojT  # Moj Telekom HR
 hr.asseco.android.ae.otp  # OTPgo
@@ -298,3 +298,32 @@ com.camerasideas.instashot  # InShot
 com.instagram.basel  # Edits
 com.tideplatform.banking  # Tide
 com.xtb.xmobile2  # XTB
+# Ghana, Nigeria, South Africa (from the maintainer)
+mtnft.momo.consumer  # MoMo
+com.momosa  # MTN MoMo SA
+ng.mtn.nextgen  # myMTN NG
+com.mtngh.mymtn  # myMTN Ghana
+cn.xender  # Xender
+capitec.acuity.mobile.prod  # Capitec Bank
+za.co.gotyme  # GoTyme Bank ZA
+ph.com.gotyme  # GoTyme Bank Philippines
+com.remitly.androidapp  # Remitly
+com.revolut.junior  # Revolut Kids & Teens
+com.mtn1app  # MyMTN
+# The Philippines (from the maintainer)
+com.globe.gcash.android  # GCash
+egov.app  # eGov PH
+ph.seabank.seabank  # SeaBank
+com.paymaya  # Maya
+com.bpi.ng.app  # BPI
+# The Netherlands and the UK (from the maintainer)
+nl.rijksoverheid.digid.pub  # DigiD
+nl.rtl.videoland.v2  # Videoland
+nl.tpp.mobile.android  # PostNL
+com.olioex.android  # Olio
+# Health (from the maintainer)
+com.mysugr.android.companion  # mySugr
+digifit.android.virtuagym.pro.bravofitcentral  # Planet Fitness Australia
+uk.co.virginactive.android  # Virgin Active UK
+com.dexcom.g7  # Dexcom G7
+org.kp.m  # Kaiser Permanente
