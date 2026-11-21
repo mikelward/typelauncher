@@ -289,6 +289,9 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "hotdoc" to AppCategory.Health,
     "practo" to AppCategory.Health,
     "netmeds" to AppCategory.Health,
+    "weightwatchers" to AppCategory.Health,
+    "slimming world" to AppCategory.Health,
+    "fatsecret" to AppCategory.Health,
     "period tracker" to AppCategory.Health,
     "period calendar" to AppCategory.Health,
     "ovulation" to AppCategory.Health,
@@ -1231,12 +1234,20 @@ private val KNOWN_PACKAGES = listOf(
         au.com.hotdoc.android.hotdoc com.doctorcareanywhere com.groundspeak.geocaching.intro
         com.au.updoc com.doctorondemand.android.patient controllers.marham.marhammed com.mediconnect.oladoc
         com.practo.fabric com.teleClinic.teleClinic com.NetmedsMarketplace.Netmeds
+        com.heytap.health.international uk.co.hsbc.hsbclife org.stanfordhealthcare.myhealth com.guavahealth.app
+        nl.appyhapps.healthsync com.simplepractice.video com.nhg.mha au.com.hotdoc.android.primary
+        com.advancemedical.avivasmarthealth ca.alberta.myhealthrecords com.packapill.app com.aetna.aetnahealth
+        com.bupa.bupatouch com.healthengine.android com.slimmingworld.uk com.heidihealth.scribe au.co.myvirginactive
+        io.vera.app health.human.app com.weightwatchers.mobile pilatesworkout.yogaworkout.loseweight.workoutapps
+        steptracker.healthandfitness.walkingtracker.pedometer com.star.customer_app com.fatsecret.android
+        com.hihonor.health com.gen.bettermeditation com.medm.app.health com.wam.android com.dailyyoga.inc
     """,
-    AppCategory.Shopping to """ com.whatnot_mobile com.naturitas.android """,
+    AppCategory.Shopping to """ com.whatnot_mobile com.naturitas.android com.nbty.hollandbarret com.lasoo.android.target """,
+    AppCategory.Phone to """ com.isoton.lebara """,
     AppCategory.Finance to """ com.raisin.app com.emmaprod org.dayup.stocks.uk """,
     AppCategory.Ai to """ ai.x.grok.bot com.larus.wolf """,
     AppCategory.Travel to """ com.usebounce se.memfrag.app """,
-    AppCategory.Learning to """ com.mobisystems.msdict.embedded.wireless.oxford.dictionaryofenglish """,
+    AppCategory.Learning to """ com.mobisystems.msdict.embedded.wireless.oxford.dictionaryofenglish com.conceptivapps.blossom """,
     AppCategory.Kids to """ com.tribo.bubbleapp """,
     AppCategory.Reading to """ io.elevenlabs.readerapp """,
     AppCategory.Kids to """
