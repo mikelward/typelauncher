@@ -425,6 +425,12 @@ jobs:
         # than a copy that could drift.
         run: python3 scripts/release_notes_dedup_test.py
 
+      - name: Test the Google Play catalog crawler
+        # scripts/play-catalog/crawl.py runs by hand, never in CI; this pins
+        # that it keeps only popular apps, never searches (robots.txt
+        # disallows it) and resumes where it stopped. Stubbed pages, no network.
+        run: python3 scripts/play-catalog/crawl_test.py
+
       - name: Test the version selection
         # Which versionCode/versionName each build gets, with and without the fixed test
         # version, and that a release can't be packaged with it.
