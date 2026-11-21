@@ -2,6 +2,7 @@
 ae.gov.mol
 ae.uaepass.mainapp
 ai.perplexity.app.android
+ai.praktika.android
 ai.x.grok.bot
 air.ITVMobilePlayer
 air.com.myheritage.mobile
@@ -67,6 +68,7 @@ ch.salt.my
 ch.sbb.mobile.android.b2c
 cn.xender
 co.hinge.app
+co.lvlz.skiplino
 co.manual.voy
 co.mindpeers
 co.mona.android
@@ -123,6 +125,7 @@ com.android.chrome
 com.android.settings
 com.android.vending
 com.anthropic.claude
+com.antivirus
 com.anydo
 com.anz.lotus
 com.aofl.abcmouse
@@ -192,6 +195,7 @@ com.bumble.app
 com.bunnings.retail
 com.bupa.bupatouch
 com.busuu.android.enc
+com.callpod.android_apps.keeper
 com.calm.android
 com.camerasideas.instashot
 com.canadiantire.triangle
@@ -239,6 +243,7 @@ com.creditkarma.mobile.international
 com.crowncards.app
 com.crunchyroll.crunchyroid
 com.cvs.launchers.cvs
+com.cxloyalty.pgmobile
 com.cyrano.cyrano
 com.daikineurope.online.controller
 com.dailymotion.dailymotion
@@ -289,6 +294,7 @@ com.emmaprod
 com.emoji.cutekeyboard.themes.fontkeyboard
 com.endel.endel
 com.enflick.android.TextNow
+com.eset.ems2.gp
 com.espn.score_center
 com.etekcity.vesyncplatform
 com.etisalat
@@ -330,6 +336,7 @@ com.fusionmedia.investing
 com.ga.loyalty.android.nectar.activities
 com.gamma.scan
 com.garmin.android.apps.connectmobile
+com.gartner.mygartner
 com.gen.bettermeditation
 com.getmental.mental
 com.getsomeheadspace.android
@@ -404,6 +411,7 @@ com.guardian
 com.guavahealth.app
 com.habitrpg.android.habitica
 com.handmark.expressweather
+com.harteg.crookcatcher
 com.hastingsdirect.mobile
 com.hbo.hbonow
 com.hcom.android
@@ -445,6 +453,7 @@ com.instagram.basel
 com.instagram.edits
 com.instagram.moonshot
 com.instructure.candroid
+com.intuit.quickbooks
 com.irobot.home
 com.irobot.home.prime
 com.isoton.lebara
@@ -500,6 +509,7 @@ com.location.gps.tracker
 com.lowes.android
 com.lufthansa.android.lufthansa
 com.luminorgroup.bbma
+com.lumoslabs.lumosity
 com.macadamapp
 com.mara.modstune
 com.marksandspencer.app
@@ -554,6 +564,7 @@ com.moe.fahem
 com.moh.nusukapp
 com.mojang.minecraftpe
 com.momosa
+com.monday.monday
 com.moneyboxapp
 com.moniqtap.carplay.autocar.connect.android
 com.moonactive.coinmaster
@@ -794,6 +805,8 @@ com.transferwise.android
 com.transsion.notebook
 com.tranzmate
 com.trello
+com.trendmicro.fraudbuster
+com.trendmicro.mobilesoc
 com.tribo.bubbleapp
 com.tripadvisor.tripadvisor
 com.tripit
@@ -860,10 +873,13 @@ com.wishabi.flipp
 com.woolworths
 com.woolworths.bigw.shop.android
 com.woolworths.rewards
+com.workday.workdroidapp
 com.wsandroid.suite
 com.wsl.noom
 com.wunderground.android.weather
 com.x8bit.bitwarden
+com.xero.payday
+com.xero.touch
 com.xiaomi.smarthome
 com.xiaomi.wearable
 com.xingin.xhs
@@ -1021,6 +1037,7 @@ org.khankids.android
 org.lds.ldssa
 org.lichess.mobileapp
 org.malwarebytes.antimalware
+org.me.mobiexpensifyg
 org.mozilla.firefox
 org.pbskids.video
 org.readera
@@ -1040,6 +1057,7 @@ pedometer.stepcounter.calorieburner.pedometerforwalking
 pedometer.steptracker.calorieburner.stepcounter
 ph.com.gotyme
 ph.seabank.seabank
+photo.editor.photoeditor.photoeditorpro
 pilatesworkout.yogaworkout.loseweight.workoutapps
 pl.bzwbk.bzwbk24
 pl.pkobp.iko
