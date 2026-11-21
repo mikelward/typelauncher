@@ -213,8 +213,9 @@ internal fun parsePlayCatalog(text: String): Map<String, String> {
         val tab = line.indexOf('\t')
         if (tab <= 0) continue
         val category = line.substring(tab + 1).trim()
+        // About 40 codes across thousands of apps: share one string each.
         if (category.isNotEmpty() && category.all { it.isUpperCase() || it == '_' }) {
-            categories[line.substring(0, tab)] = category
+            categories[line.substring(0, tab)] = category.intern()
         }
     }
     return categories
@@ -225,12 +226,24 @@ internal fun parsePlayCatalog(text: String): Map<String, String> {
  * thread: it's tens of thousands of lines. Empty, and logged, when the asset
  * is missing or can't be read, so sorting carries on without it.
  */
-internal fun readPlayCatalog(context: android.content.Context): Map<String, String> = try {
-    context.assets.open(PLAY_CATALOG_ASSET).bufferedReader().use { parsePlayCatalog(it.readText()) }
-} catch (exception: IOException) {
-    LauncherDebugLog.event("playCatalog unreadable: %s", exception.javaClass.simpleName)
-    emptyMap()
+internal fun readPlayCatalog(context: android.content.Context): Map<String, String> {
+    // Read once per process: it never changes while the app runs, and each
+    // screen (or a recreated view model) would otherwise hold its own copy
+    // of thousands of entries.
+    readPlayCatalogCache?.let { return it }
+    val catalog = try {
+        context.assets.open(PLAY_CATALOG_ASSET).bufferedReader().use { parsePlayCatalog(it.readText()) }
+    } catch (exception: IOException) {
+        LauncherDebugLog.event("playCatalog unreadable: %s", exception.javaClass.simpleName)
+        // Not cached, so a later start can try again.
+        return emptyMap()
+    }
+    readPlayCatalogCache = catalog
+    return catalog
 }
+
+@Volatile
+private var readPlayCatalogCache: Map<String, String>? = null
 
 /**
  * The Play categories folders go by: the ones looked up for this phone, then
