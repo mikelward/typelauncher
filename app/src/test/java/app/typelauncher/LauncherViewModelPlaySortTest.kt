@@ -123,6 +123,8 @@ class LauncherViewModelPlaySortTest {
         assertEquals(1, state.playSort.sorted)
         assertEquals(1, state.playSort.unsorted)
         assertTrue(state.playSort.hasUsed)
+        // Both are there to review, placed or not.
+        assertEquals(setOf("com.example.thermo", "com.example.oddity"), state.playSort.reviewed.map { it.packageName }.toSet())
         val thermo = state.filteredApps.first { it.name == "Thermo" }
         assertEquals(
             AppCategory.Home.storageKey,
@@ -181,6 +183,7 @@ class LauncherViewModelPlaySortTest {
         assertFalse(viewModel.uiState.value.playSort.showOffer)
         assertEquals(PlaySortPhase.Idle, viewModel.uiState.value.playSort.phase)
         assertEquals("HOUSE_AND_HOME", viewModel.uiState.value.playCategories["com.example.thermo"])
+        assertTrue("a silent run has nothing to review", viewModel.uiState.value.playSort.reviewed.isEmpty())
     }
 
     @Test

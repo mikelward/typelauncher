@@ -165,6 +165,8 @@ internal data class PlaySortState(
     val unsorted: Int = 0,
     val isAutoEnabled: Boolean = false,
     val hasUsed: Boolean = false,
+    // The apps the last run the user started looked up, for Review.
+    val reviewed: List<InstalledApp> = emptyList(),
 ) {
     /** The apps the offer lists as tickable: those Google Play installed. */
     val offered: List<PlaySortCandidate> get() = candidates.filter { it.fromPlay }

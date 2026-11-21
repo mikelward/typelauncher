@@ -461,6 +461,12 @@
         <item quantity="other">%d had no folder on Google Play and stay here.</item>
     </plurals>
     <string name="play_sort_done_button" tools:ignore="MissingTranslation">Done</string>
+    <string name="play_sort_review" tools:ignore="MissingTranslation">Review</string>
+    <string name="play_sort_review_title" tools:ignore="MissingTranslation">Sorted using Google Play</string>
+    <string name="play_sort_review_body" tools:ignore="MissingTranslation">Tap a folder to change it.</string>
+    <string name="play_sort_review_sorted" tools:ignore="MissingTranslation">Sorted</string>
+    <string name="play_sort_review_unsorted" tools:ignore="MissingTranslation">Not sorted</string>
+    <string name="play_sort_review_all_folders" tools:ignore="MissingTranslation">All folders…</string>
     <string name="settings_play_sort_auto_title" tools:ignore="MissingTranslation">Sort new apps using Google Play</string>
     <string name="settings_play_sort_resort" tools:ignore="MissingTranslation">Sort again using Google Play</string>
 </resources>

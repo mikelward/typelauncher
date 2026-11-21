@@ -1352,6 +1352,31 @@ internal fun HomeScreen(
                     null
                 }
             }
+            // Review of a Google Play run: the same folders and moves the
+            // app menus use, plus the folder each app's Play category suggests.
+            // Hosted here, not in the note that opens it, so a move that
+            // empties Other (closing it and its note) leaves the review open.
+            var reviewingPlaySort by rememberSaveable { mutableStateOf(false) }
+            val playSortReview = remember(appFolderMenu, state.playCategories) {
+                appFolderMenu?.let { menu ->
+                    PlaySortReview(
+                        folders = menu.folders,
+                        folderOf = menu.folderOf,
+                        playFolderOf = { app ->
+                            state.playCategories[app.packageName]?.let(::folderForPlayCategory)?.storageKey
+                        },
+                        onMove = menu.onMove,
+                        onCreate = menu.onCreate,
+                    )
+                }
+            }
+            if (reviewingPlaySort && playSortReview != null && state.playSort.reviewed.isNotEmpty()) {
+                PlaySortReviewSheet(
+                    apps = state.playSort.reviewed,
+                    review = playSortReview,
+                    onDismiss = { reviewingPlaySort = false },
+                )
+            }
             val appsCard: @Composable () -> Unit = {
                 AppsCard(
                     apps = openAppFolder?.apps ?: appListGrouping?.looseApps ?: state.filteredApps,
@@ -1449,7 +1474,7 @@ internal fun HomeScreen(
                         state.isAppFoldersEnabled &&
                         (state.playSort.showOffer || state.playSort.phase != PlaySortPhase.Idle)
                     ) {
-                        { PlaySortNote(state.playSort, playSortActions) }
+                        { PlaySortNote(state.playSort, playSortActions, onReview = { reviewingPlaySort = true }) }
                     } else {
                         null
                     },
@@ -1458,7 +1483,9 @@ internal fun HomeScreen(
                     openFolderNote = if (openAppFolder != null) {
                         {
                             Column {
-                                if (openAppFolder.folder.isOther) PlaySortNote(state.playSort, playSortActions)
+                                if (openAppFolder.folder.isOther) {
+                                    PlaySortNote(state.playSort, playSortActions, onReview = { reviewingPlaySort = true })
+                                }
                                 if (state.isAiSortSupported) {
                                     OtherFolderAiNote(
                                         progress = if (state.isAiSortEnabled) state.aiSort else AiSortProgress(),
