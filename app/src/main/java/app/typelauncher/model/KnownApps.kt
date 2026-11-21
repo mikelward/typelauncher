@@ -39,6 +39,10 @@ internal val EITHER_WAY_PACKAGES: Map<String, List<AppCategory>> = mapOf(
     "com.kalshi.mobile" to listOf(AppCategory.Finance, AppCategory.Betting),
     "com.morrisons.matchandmore.app" to listOf(AppCategory.Shopping, AppCategory.Rewards),
     "com.cashless.cashlessapp" to listOf(AppCategory.Kids, AppCategory.Finance),
+    // A supermarket's loyalty card, like Morrisons More Card.
+    "com.fantastico.fclub" to listOf(AppCategory.Shopping, AppCategory.Rewards),
+    // GoHenry: a kids' debit card, filed where Google Play has it.
+    "com.pktmny.mobile" to listOf(AppCategory.Finance, AppCategory.Kids),
     "com.groundspeak.geocaching.intro" to listOf(AppCategory.Health, AppCategory.Games),
 )
 
@@ -1175,7 +1179,7 @@ private val KNOWN_PACKAGES = listOf(
         atws.app com.chase.intl net.intellectsoft.experian com.mse.mseapp
         hu.otpbank.mobile com.db.pwcc.dbmobile ro.raiffeisen.smartmobile at.erstebank.george
         hr.asseco.android.jimba.mUCI.bg bg.postbank.mobile.android.release com.danskebank.mobilebank3.uk
-        pl.bzwbk.bzwbk24 rs.erstebank.george rs.Raiffeisen.mobile
+        pl.bzwbk.bzwbk24 rs.erstebank.george rs.Raiffeisen.mobile bg.dskbank.DSKmobile
         com.posteitaliane.spim com.starfinanz.mobile.android.pushtan de.deutschepost.postident
         com.bankinter.portugal.bmb com.BancoDePortugal.BPmobile com.abanca.bm.pt pt.santander.oneappparticulares
         ma.creditagricole.banke com.saphir.baridbankmobile com.egyptianbanks.instapay
@@ -1198,7 +1202,7 @@ private val KNOWN_PACKAGES = listOf(
     """,
     AppCategory.Government to """
         it.pagopa.io.app es.fnmtrcm.ceres.certificadoDigitalFNMT pt.segsocial.mobile.segurancasocial
-        ae.uaepass.mainapp com.uaemoi.smartservices egov.app
+        ae.uaepass.mainapp com.uaemoi.smartservices egov.app com.evrotrust.app
     """,
     AppCategory.Shopping to """
         fr.vinted de.idealo.android de.zalando.mobile com.primark.app.prod com.homestoreandmore.hsmapp uk.co.next.android
@@ -1267,9 +1271,10 @@ private val KNOWN_PACKAGES = listOf(
         steptracker.healthandfitness.walkingtracker.pedometer com.star.customer_app com.fatsecret.android
         com.hihonor.health com.gen.bettermeditation com.medm.app.health com.wam.android com.dailyyoga.inc
     """,
-    AppCategory.Shopping to """ com.whatnot_mobile com.naturitas.android com.nbty.hollandbarret com.lasoo.android.target """,
+    AppCategory.Shopping to """ com.whatnot_mobile com.naturitas.android com.nbty.hollandbarret com.lasoo.android.target trendyol.com
+        com.fantastico.fclub """,
     AppCategory.Phone to """ com.isoton.lebara """,
-    AppCategory.Finance to """ com.raisin.app com.emmaprod org.dayup.stocks.uk """,
+    AppCategory.Finance to """ com.raisin.app com.emmaprod org.dayup.stocks.uk com.pktmny.mobile """,
     AppCategory.Ai to """ ai.x.grok.bot com.larus.wolf """,
     AppCategory.Travel to """ com.usebounce se.memfrag.app """,
     AppCategory.Learning to """ com.mobisystems.msdict.embedded.wireless.oxford.dictionaryofenglish com.conceptivapps.blossom """,
@@ -1332,7 +1337,7 @@ private val KNOWN_PACKAGES = listOf(
         de.gmx.mobile.android.mail de.web.mobile.android.mail
     """,
     AppCategory.Post to """
-        at.post.app nl.tpp.mobile.android
+        at.post.app nl.tpp.mobile.android com.sameday.client.mobile
     """,
     AppCategory.Transit to """
         ch.sbb.mobile.android.b2c com.sl.SLBiljetter au.gov.vic.ptv au.com.opal.travel
