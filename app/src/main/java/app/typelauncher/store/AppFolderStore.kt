@@ -142,6 +142,16 @@ internal class AppFolderStore(context: Context) {
             sharedPreferences.edit().putBoolean(KEY_AI_OFFER_ANSWERED, value).apply()
         }
 
+    /**
+     * Apps "Check guessed folders" has offered, by id: the offer returns only
+     * for others.
+     */
+    var guessesOffered: Set<String>
+        get() = sharedPreferences.getStringSet(KEY_GUESSES_OFFERED, emptySet()).orEmpty().toSet()
+        set(value) {
+            sharedPreferences.edit().putStringSet(KEY_GUESSES_OFFERED, value).apply()
+        }
+
     /** The folder the AI chose for each app it has sorted. */
     val aiAssignments: Map<String, String>
         get() = synchronized(lock) { LinkedHashMap(aiFilings) }
@@ -224,6 +234,7 @@ internal class AppFolderStore(context: Context) {
         private const val KEY_CUSTOM_FOLDERS = "custom_folders"
         private const val KEY_DELETED_FOLDERS = "deleted_folders"
         private const val KEY_NEXT_FOLDER_ID = "next_folder_id"
+        private const val KEY_GUESSES_OFFERED = "guesses_offered"
         private const val CUSTOM_KEY_PREFIX = USER_FOLDER_KEY_PREFIX
 
         // A name is one line, so it can't break the stored format, and short.

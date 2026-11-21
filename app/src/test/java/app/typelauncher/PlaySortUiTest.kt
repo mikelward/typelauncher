@@ -115,6 +115,49 @@ class PlaySortUiTest {
     }
 
     @Test
+    fun guessCheck_noteOpensTheSameSheet_withItsOwnTitleAndGroups() {
+        val home = AppFolderDef.builtIn(AppCategory.Home)
+        val otherFolder = AppFolderDef.builtIn(AppCategory.Other)
+        val review = PlaySortReview(
+            folders = listOf(home, otherFolder),
+            folderOf = { home.key },
+            playFolderOf = { null },
+            onMove = { _, _ -> },
+            onCreate = { _, _, _ -> },
+        )
+        var checking by mutableStateOf(false)
+        var dismissed = false
+        composeRule.setContent {
+            TypeLauncherTheme {
+                GuessCheckNote(count = 2, onCheck = { checking = true }, onDismiss = { dismissed = true })
+                if (checking) {
+                    PlaySortReviewSheet(
+                        apps = listOf(thermo, oddity),
+                        review = review,
+                        onDismiss = { checking = false },
+                        title = R.string.guess_check_title,
+                        groups = listOf(
+                            R.string.guess_check_by_name to listOf(thermo),
+                            R.string.guess_check_by_ai to listOf(oddity),
+                        ),
+                    )
+                }
+            }
+        }
+        composeRule.onNodeWithText("Check the folders for 2 apps?").assertExists()
+        composeRule.onNodeWithTag(GUESS_CHECK_DISMISS_TAG).performClick()
+        assertTrue(dismissed)
+
+        composeRule.onNodeWithTag(GUESS_CHECK_ACCEPT_TAG).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(PLAY_SORT_REVIEW_SHEET_TAG).assertExists()
+        composeRule.onNodeWithText("Check folders").assertExists()
+        composeRule.onNodeWithText("Guessed from the name").assertExists()
+        composeRule.onNodeWithText("Sorted by AI").assertExists()
+        composeRule.onNodeWithTag("$PLAY_SORT_REVIEW_ROW_TAG:${thermo.packageName}").assertExists()
+    }
+
+    @Test
     fun review_listsEachAppWithItsFolder_andAChangeMovesIt() {
         val home = AppFolderDef.builtIn(AppCategory.Home)
         val car = AppFolderDef.builtIn(AppCategory.Car)

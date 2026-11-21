@@ -128,6 +128,71 @@ class LauncherViewModelPlaySortTest {
     }
 
     @Test
+    fun guessCheck_offersAppsPlacedOnlyByANameWord_onceEach() {
+        seedApp("Greenfield Bank", "com.example.greenfield", installedFromPlay = true)
+        seedApp("Netflix", "com.netflix.mediaclient", installedFromPlay = true)
+        val viewModel = startedViewModel()
+
+        assertEquals(listOf("com.example.greenfield"), viewModel.uiState.value.guessCheck.map { it.packageName })
+
+        viewModel.startGuessCheck()
+        idle()
+        val state = viewModel.uiState.value
+        assertEquals(listOf("com.example.greenfield"), state.guessReviewByName.map { it.packageName })
+        assertTrue(state.guessReviewByAi.isEmpty())
+        assertTrue("offered once", state.guessCheck.isEmpty())
+
+        viewModel.endGuessCheck()
+        viewModel.setAppFoldersEnabled(false)
+        viewModel.setAppFoldersEnabled(true)
+        idle()
+        assertTrue(viewModel.uiState.value.guessReviewByName.isEmpty())
+        assertTrue("not offered again", viewModel.uiState.value.guessCheck.isEmpty())
+    }
+
+    @Test
+    fun guessCheck_dropsAnAppTheUserFilesMeanwhile() {
+        seedApp("Greenfield Bank", "com.example.greenfield", installedFromPlay = true)
+        val viewModel = startedViewModel()
+        val bank = viewModel.uiState.value.guessCheck.single()
+
+        viewModel.moveAppToFolder(bank, AppCategory.Tools.storageKey)
+        idle()
+
+        assertTrue("Codex on PR #890", viewModel.uiState.value.guessCheck.isEmpty())
+    }
+
+    @Test
+    fun guessCheck_alsoAsksAboutWhatGooglePlayCantSort() {
+        // Maintainer, 2026-11-21: WebAPKs and the like need "just asking the user to file".
+        seedApp("Sideload", "org.chromium.webapk.a1b2c3", installedFromPlay = false)
+        seedApp("Thermo", "com.example.thermo", installedFromPlay = true)
+        val viewModel = startedViewModel()
+
+        assertEquals(listOf("org.chromium.webapk.a1b2c3"), viewModel.uiState.value.guessCheck.map { it.packageName })
+
+        viewModel.startGuessCheck()
+        idle()
+        assertEquals(
+            listOf("org.chromium.webapk.a1b2c3"),
+            viewModel.uiState.value.guessReviewUnsorted.map { it.packageName },
+        )
+    }
+
+    @Test
+    fun guessCheck_notNow_retiresTheOfferForThoseApps() {
+        seedApp("Greenfield Bank", "com.example.greenfield", installedFromPlay = true)
+        val viewModel = startedViewModel()
+
+        viewModel.dismissGuessCheck()
+        viewModel.setAppFoldersEnabled(false)
+        viewModel.setAppFoldersEnabled(true)
+        idle()
+
+        assertTrue(viewModel.uiState.value.guessCheck.isEmpty())
+    }
+
+    @Test
     fun offersOnlyWhatOnDeviceSortingLeftInOther() {
         seedApp("Thermo", "com.example.thermo", installedFromPlay = true)
         // Its manifest says audio, so it's in Music already: not offered.

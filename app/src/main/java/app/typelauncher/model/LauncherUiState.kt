@@ -899,6 +899,14 @@ internal data class LauncherUiState(
     // (empty when it had none), and the offer, progress and result.
     val playCategories: Map<String, String> = emptyMap(),
     val playSort: PlaySortState = PlaySortState(),
+    // "Check guessed folders": apps placed only by a guess, not yet offered.
+    val guessCheck: List<InstalledApp> = emptyList(),
+    // The apps "Check guessed folders" is showing, by what guessed them:
+    // a word in the name or package, then the AI. Empty while it's closed.
+    val guessReviewByName: List<InstalledApp> = emptyList(),
+    val guessReviewByAi: List<InstalledApp> = emptyList(),
+    // And what nothing could place, for the user to file.
+    val guessReviewUnsorted: List<InstalledApp> = emptyList(),
     // When true (default), the search field auto-focuses on launch and
     // `SearchCard` calls `keyboard.show()` so the user can start typing
     // immediately. When false, the search field renders unfocused and

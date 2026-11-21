@@ -1,5 +1,6 @@
 package app.typelauncher
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -1093,7 +1094,46 @@ internal class PlaySortActions(
     val onAcknowledge: () -> Unit = {},
     val onAutoChanged: (Boolean) -> Unit = {},
     val onResort: () -> Unit = {},
+    // "Check guessed folders": Not now, Check, and closing its sheet.
+    val onDismissGuessCheck: () -> Unit = {},
+    val onStartGuessCheck: () -> Unit = {},
+    val onEndGuessCheck: () -> Unit = {},
 )
+
+/**
+ * Atop the list once on-device sorting is done (maintainer, 2026-11-21): the
+ * offer to check the folders of the apps placed only by a guess. **Check**
+ * opens [PlaySortReviewSheet] for them; either answer retires the offer for
+ * these apps.
+ */
+@Composable
+internal fun GuessCheckNote(count: Int, onCheck: () -> Unit, onDismiss: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 4.dp, top = 4.dp)
+            .testTag(GUESS_CHECK_OFFER_TAG),
+    ) {
+        Text(
+            pluralStringResource(R.plurals.guess_check_offer_title, count, count),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        Text(
+            stringResource(R.string.guess_check_offer_body),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(modifier = Modifier.align(Alignment.End)) {
+            TextButton(onClick = onDismiss, modifier = Modifier.testTag(GUESS_CHECK_DISMISS_TAG)) {
+                Text(stringResource(R.string.app_folders_offer_dismiss))
+            }
+            TextButton(onClick = onCheck, modifier = Modifier.testTag(GUESS_CHECK_ACCEPT_TAG)) {
+                Text(stringResource(R.string.guess_check_accept))
+            }
+        }
+    }
+}
 
 /**
  * At the top of Other: the offer to sort the apps our rules don't place using
@@ -1338,10 +1378,19 @@ internal class PlaySortReview(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun PlaySortReviewSheet(apps: List<InstalledApp>, review: PlaySortReview, onDismiss: () -> Unit) {
+internal fun PlaySortReviewSheet(
+    apps: List<InstalledApp>,
+    review: PlaySortReview,
+    onDismiss: () -> Unit,
+    @StringRes title: Int = R.string.play_sort_review_title,
+    // Headed groups, in order; by default those Google Play placed, then those still in Other.
+    groups: List<Pair<Int, List<InstalledApp>>>? = null,
+) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val other = AppCategory.Other.storageKey
-    val (unsorted, sorted) = apps.partition { review.folderOf(it) == other }
+    val headed = groups ?: apps.partition { review.folderOf(it) == other }.let { (unsorted, sorted) ->
+        listOf(R.string.play_sort_review_sorted to sorted, R.string.play_sort_review_unsorted to unsorted)
+    }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
             modifier = Modifier
@@ -1350,7 +1399,7 @@ internal fun PlaySortReviewSheet(apps: List<InstalledApp>, review: PlaySortRevie
                 .padding(bottom = 16.dp)
                 .testTag(PLAY_SORT_REVIEW_SHEET_TAG),
         ) {
-            Text(stringResource(R.string.play_sort_review_title), style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(title), style = MaterialTheme.typography.titleLarge)
             Text(
                 stringResource(R.string.play_sort_review_body),
                 modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
@@ -1358,7 +1407,7 @@ internal fun PlaySortReviewSheet(apps: List<InstalledApp>, review: PlaySortRevie
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
-                for ((heading, group) in listOf(R.string.play_sort_review_sorted to sorted, R.string.play_sort_review_unsorted to unsorted)) {
+                for ((heading, group) in headed) {
                     if (group.isEmpty()) continue
                     item(key = "heading:$heading") {
                         Text(

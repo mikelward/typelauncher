@@ -338,6 +338,9 @@ internal fun TypeLauncherApp(
                     onAcknowledge = viewModel::acknowledgePlaySortResult,
                     onAutoChanged = viewModel::setPlaySortAutoEnabled,
                     onResort = viewModel::resortWithPlay,
+                    onDismissGuessCheck = viewModel::dismissGuessCheck,
+                    onStartGuessCheck = viewModel::startGuessCheck,
+                    onEndGuessCheck = viewModel::endGuessCheck,
                 )
             },
             onKeyboardAutoShownChanged = viewModel::setKeyboardAutoShown,
