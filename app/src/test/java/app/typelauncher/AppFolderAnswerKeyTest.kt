@@ -41,7 +41,7 @@ class AppFolderAnswerKeyTest {
     }
 
     private companion object {
-        const val MIN_RIGHT = 274
-        const val MAX_WRONG = 23
+        const val MIN_RIGHT = 277
+        const val MAX_WRONG = 21
     }
 }
