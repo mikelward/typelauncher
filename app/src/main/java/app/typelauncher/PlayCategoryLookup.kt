@@ -197,3 +197,65 @@ internal fun installerPackage(context: android.content.Context, packageName: Str
     LauncherDebugLog.event("playSort installer unknown: %s", exception.javaClass.simpleName)
     null
 }
+
+/** The shipped catalog of Google Play categories: an asset built by `scripts/play-catalog/crawl.py`. */
+internal const val PLAY_CATALOG_ASSET = "play_catalog.tsv"
+
+/**
+ * Package → Play category from the catalog's lines, `package<TAB>CATEGORY`.
+ * Blank lines and `#` comments are skipped, as is any line that isn't a
+ * package and an upper-case category.
+ */
+internal fun parsePlayCatalog(text: String): Map<String, String> {
+    val categories = HashMap<String, String>()
+    for (line in text.lineSequence()) {
+        if (line.isEmpty() || line.startsWith("#")) continue
+        val tab = line.indexOf('\t')
+        if (tab <= 0) continue
+        val category = line.substring(tab + 1).trim()
+        if (category.isNotEmpty() && category.all { it.isUpperCase() || it == '_' }) {
+            categories[line.substring(0, tab)] = category
+        }
+    }
+    return categories
+}
+
+/**
+ * The shipped catalog, read from the app's assets. Call it off the main
+ * thread: it's tens of thousands of lines. Empty, and logged, when the asset
+ * is missing or can't be read, so sorting carries on without it.
+ */
+internal fun readPlayCatalog(context: android.content.Context): Map<String, String> = try {
+    context.assets.open(PLAY_CATALOG_ASSET).bufferedReader().use { parsePlayCatalog(it.readText()) }
+} catch (exception: IOException) {
+    LauncherDebugLog.event("playCatalog unreadable: %s", exception.javaClass.simpleName)
+    emptyMap()
+}
+
+/**
+ * The Play categories folders go by: the ones looked up for this phone, then
+ * the shipped catalog. A view over both rather than a copy, so a lookup's
+ * answer doesn't copy the catalog's tens of thousands of entries on the main
+ * thread.
+ */
+internal class LayeredPlayCategories(
+    private val lookedUp: Map<String, String>,
+    private val catalog: Map<String, String>,
+) : AbstractMap<String, String>() {
+    override fun get(key: String): String? = lookedUp[key] ?: catalog[key]
+
+    override fun containsKey(key: String): Boolean = lookedUp.containsKey(key) || catalog.containsKey(key)
+
+    override val entries: Set<Map.Entry<String, String>> by lazy { (catalog + lookedUp).entries }
+
+    // UI state is compared on every update, and remembered by key: comparing
+    // the layers, the catalog by identity, keeps that from walking the
+    // catalog's entries on the main thread.
+    override fun equals(other: Any?): Boolean = when {
+        other === this -> true
+        other is LayeredPlayCategories && other.catalog === catalog -> other.lookedUp == lookedUp
+        else -> super.equals(other)
+    }
+
+    override fun hashCode(): Int = 31 * lookedUp.hashCode() + System.identityHashCode(catalog)
+}

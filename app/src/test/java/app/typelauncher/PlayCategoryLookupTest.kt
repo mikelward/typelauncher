@@ -78,4 +78,26 @@ class PlayCategoryLookupTest {
         // Apps kept out stay out (Codex on PR #885).
         assertEquals(setOf("com.example.e"), PlaySortStore(context).dismissed)
     }
+
+    @Test
+    fun catalog_readsPackageAndCategoryLines_skippingCommentsAndJunk() {
+        val text = "# header\n\ncom.example.weather\tWEATHER\ncom.example.game\tGAME_PUZZLE\nno-tab-here\n" +
+            "com.example.lower\tweather\n\tFINANCE\n"
+        assertEquals(
+            mapOf("com.example.weather" to "WEATHER", "com.example.game" to "GAME_PUZZLE"),
+            parsePlayCatalog(text),
+        )
+    }
+
+    @Test
+    fun layered_looksUpFirst_thenTheCatalog() {
+        val catalog = mapOf("a" to "WEATHER", "b" to "FINANCE")
+        val layered = LayeredPlayCategories(mapOf("a" to "TOOLS", "c" to ""), catalog)
+        assertEquals("TOOLS", layered["a"])
+        assertEquals("FINANCE", layered["b"])
+        assertEquals("", layered["c"])
+        assertTrue("c" in layered)
+        assertEquals(mapOf("a" to "TOOLS", "b" to "FINANCE", "c" to ""), HashMap(layered))
+        assertEquals(LayeredPlayCategories(mapOf("a" to "TOOLS", "c" to ""), catalog), layered)
+    }
 }
