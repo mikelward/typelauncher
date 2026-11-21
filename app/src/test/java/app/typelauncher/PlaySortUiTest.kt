@@ -4,6 +4,9 @@ import android.content.ComponentName
 import android.content.Intent
 import android.os.Process
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -109,6 +112,53 @@ class PlaySortUiTest {
         composeRule.onNodeWithText("1 had no folder on Google Play and stays here.").assertExists()
         composeRule.onNodeWithTag(PLAY_SORT_DONE_TAG).performClick()
         assertTrue(acknowledged)
+    }
+
+    @Test
+    fun review_listsEachAppWithItsFolder_andAChangeMovesIt() {
+        val home = AppFolderDef.builtIn(AppCategory.Home)
+        val car = AppFolderDef.builtIn(AppCategory.Car)
+        val otherFolder = AppFolderDef.builtIn(AppCategory.Other)
+        val folders = listOf(car, home, otherFolder)
+        val placed = mutableMapOf(thermo.packageName to home.key, oddity.packageName to otherFolder.key)
+        val moves = mutableListOf<Pair<String, String?>>()
+        val review = PlaySortReview(
+            folders = folders,
+            folderOf = { app -> placed[app.packageName] },
+            playFolderOf = { app -> if (app == thermo) home.key else null },
+            onMove = { app, key -> moves += app.packageName to key },
+            onCreate = { _, _, _ -> },
+        )
+        // Hosted as HomeScreen does: the sheet above the note, which a move
+        // can take away (Codex on PR #888).
+        var noteShown by mutableStateOf(true)
+        var reviewing by mutableStateOf(false)
+        composeRule.setContent {
+            TypeLauncherTheme {
+                if (noteShown) {
+                    PlaySortNote(
+                        PlaySortState(phase = PlaySortPhase.Done, sorted = 1, unsorted = 1, reviewed = listOf(thermo, oddity)),
+                        PlaySortActions(),
+                        onReview = { reviewing = true },
+                    )
+                }
+                if (reviewing) PlaySortReviewSheet(listOf(thermo, oddity), review, onDismiss = { reviewing = false })
+            }
+        }
+        composeRule.onNodeWithTag(PLAY_SORT_REVIEW_TAG).performClick()
+        noteShown = false
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(PLAY_SORT_REVIEW_SHEET_TAG).assertExists()
+        composeRule.onNodeWithText("Sorted").assertExists()
+        composeRule.onNodeWithText("Not sorted").assertExists()
+
+        composeRule.onNodeWithTag("$PLAY_SORT_REVIEW_FOLDER_TAG:${oddity.packageName}").performClick()
+        composeRule.onNodeWithTag("$PLAY_SORT_REVIEW_OPTION_TAG:none").performClick()
+        composeRule.onNodeWithTag("$PLAY_SORT_REVIEW_FOLDER_TAG:${thermo.packageName}").performClick()
+        composeRule.onNodeWithTag("$PLAY_SORT_REVIEW_OPTION_TAG:all").performClick()
+        composeRule.onNodeWithTag("$APP_FOLDER_PICKER_OPTION_TAG:${car.key}").performClick()
+
+        assertEquals(listOf(oddity.packageName to null, thermo.packageName to car.key), moves)
     }
 
     private fun compose(state: PlaySortState, actions: PlaySortActions) {

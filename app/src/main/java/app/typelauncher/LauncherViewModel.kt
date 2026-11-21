@@ -5260,6 +5260,7 @@ internal class LauncherViewModel(
                     },
                     sorted = if (state.playSort.phase == PlaySortPhase.Sorting) state.playSort.sorted else 0,
                     unsorted = if (state.playSort.phase == PlaySortPhase.Sorting) state.playSort.unsorted else 0,
+                    reviewed = if (state.playSort.phase == PlaySortPhase.Sorting) state.playSort.reviewed else emptyList(),
                 ),
             )
         }
@@ -5297,6 +5298,14 @@ internal class LauncherViewModel(
                                 done = state.playSort.done + 1,
                                 sorted = state.playSort.sorted + if (placed) 1 else 0,
                                 unsorted = state.playSort.unsorted + if (placed) 0 else 1,
+                                // What a silent run finds isn't reported, so isn't reviewed.
+                                reviewed = if (playSortSilent) {
+                                    state.playSort.reviewed
+                                } else {
+                                    state.playSort.reviewed + visibleInstalledApps().filter { app ->
+                                        app.packageName == packageName && !app.isWorkApp
+                                    }.take(1)
+                                },
                             ),
                         )
                     }

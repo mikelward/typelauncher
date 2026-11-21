@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -36,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -1099,7 +1102,7 @@ internal class PlaySortActions(
  * [PlaySortSheet] to choose the apps; nothing is looked up before that.
  */
 @Composable
-internal fun PlaySortNote(state: PlaySortState, actions: PlaySortActions) {
+internal fun PlaySortNote(state: PlaySortState, actions: PlaySortActions, onReview: (() -> Unit)? = null) {
     var choosing by rememberSaveable { mutableStateOf(false) }
     when {
         state.phase == PlaySortPhase.Sorting || state.phase == PlaySortPhase.Paused -> Column(
@@ -1144,6 +1147,11 @@ internal fun PlaySortNote(state: PlaySortState, actions: PlaySortActions) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            }
+            if (state.reviewed.isNotEmpty() && onReview != null) {
+                TextButton(onClick = onReview, modifier = Modifier.testTag(PLAY_SORT_REVIEW_TAG)) {
+                    Text(stringResource(R.string.play_sort_review))
                 }
             }
             TextButton(onClick = actions.onAcknowledge, modifier = Modifier.testTag(PLAY_SORT_DONE_TAG)) {
@@ -1305,5 +1313,158 @@ internal fun PlaySortSettingsRows(state: PlaySortState, actions: PlaySortActions
     }
     TextButton(onClick = actions.onResort, modifier = Modifier.testTag(PLAY_SORT_RESORT_TAG)) {
         Text(stringResource(R.string.settings_play_sort_resort))
+    }
+}
+
+
+/**
+ * What Review needs from the app list: the folders, where each app is filed
+ * now, the folder its Google Play category suggests, and how to move it.
+ */
+@Immutable
+internal class PlaySortReview(
+    val folders: List<AppFolderDef>,
+    val folderOf: (InstalledApp) -> String?,
+    val playFolderOf: (InstalledApp) -> String?,
+    val onMove: (InstalledApp, String?) -> Unit,
+    val onCreate: (InstalledApp, String, FolderIcon) -> Unit,
+)
+
+/**
+ * The apps the last Google Play run looked up, each with its folder in a
+ * dropdown (maintainer, 2026-11-21): the ones it placed, then the ones it
+ * couldn't, in Other. Choosing a folder files the app there for good, as
+ * "Move to folder" does. The caller hosts it above the note that opens it:
+ * a move can empty Other, which closes along with its note (Codex on PR #888).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun PlaySortReviewSheet(apps: List<InstalledApp>, review: PlaySortReview, onDismiss: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val other = AppCategory.Other.storageKey
+    val (unsorted, sorted) = apps.partition { review.folderOf(it) == other }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 16.dp)
+                .testTag(PLAY_SORT_REVIEW_SHEET_TAG),
+        ) {
+            Text(stringResource(R.string.play_sort_review_title), style = MaterialTheme.typography.titleLarge)
+            Text(
+                stringResource(R.string.play_sort_review_body),
+                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
+                for ((heading, group) in listOf(R.string.play_sort_review_sorted to sorted, R.string.play_sort_review_unsorted to unsorted)) {
+                    if (group.isEmpty()) continue
+                    item(key = "heading:$heading") {
+                        Text(
+                            stringResource(heading),
+                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    items(group, key = { it.id }) { app -> PlaySortReviewRow(app, review) }
+                }
+            }
+            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End).padding(top = 8.dp)) {
+                Text(stringResource(R.string.play_sort_done_button))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlaySortReviewRow(app: InstalledApp, review: PlaySortReview) {
+    val current = review.folderOf(app)
+    val byKey = review.folders.associateBy { it.key }
+    var menuOpen by remember { mutableStateOf(false) }
+    var picking by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .testTag("$PLAY_SORT_REVIEW_ROW_TAG:${app.packageName}"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        AppIcon(app, size = 32.dp)
+        Text(
+            app.displayName,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Box {
+            OutlinedButton(
+                onClick = { menuOpen = true },
+                contentPadding = PaddingValues(start = 12.dp, end = 4.dp),
+                modifier = Modifier.testTag("$PLAY_SORT_REVIEW_FOLDER_TAG:${app.packageName}"),
+            ) {
+                val folder = current?.let(byKey::get)
+                if (folder != null) {
+                    Icon(folder.icon.vector(), contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                Text(
+                    folder?.let { folderLabel(it) } ?: stringResource(R.string.app_folder_picker_none),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Icon(LauncherIcons.ArrowDropDown, contentDescription = null)
+            }
+            LauncherDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                // Likely folders first: Google Play's, then where it is now.
+                val likely = listOfNotNull(review.playFolderOf(app), current).distinct().mapNotNull(byKey::get)
+                for (folder in likely) {
+                    DropdownMenuItem(
+                        text = { LauncherMenuItemText(folderLabel(folder)) },
+                        leadingIcon = { Icon(folder.icon.vector(), contentDescription = null) },
+                        modifier = Modifier.testTag("$PLAY_SORT_REVIEW_OPTION_TAG:${folder.key}"),
+                        onClick = {
+                            menuOpen = false
+                            review.onMove(app, folder.key)
+                        },
+                    )
+                }
+                DropdownMenuItem(
+                    text = { LauncherMenuItemText(stringResource(R.string.play_sort_review_all_folders)) },
+                    modifier = Modifier.testTag("$PLAY_SORT_REVIEW_OPTION_TAG:all"),
+                    onClick = {
+                        menuOpen = false
+                        picking = true
+                    },
+                )
+                DropdownMenuItem(
+                    text = { LauncherMenuItemText(stringResource(R.string.app_folder_picker_none)) },
+                    modifier = Modifier.testTag("$PLAY_SORT_REVIEW_OPTION_TAG:none"),
+                    onClick = {
+                        menuOpen = false
+                        review.onMove(app, null)
+                    },
+                )
+            }
+        }
+    }
+    if (picking) {
+        AppFolderPickerDialog(
+            folders = review.folders,
+            current = current,
+            onPick = { key ->
+                picking = false
+                review.onMove(app, key)
+            },
+            onCreate = { name, icon ->
+                picking = false
+                review.onCreate(app, name, icon)
+            },
+            onDismiss = { picking = false },
+        )
     }
 }
