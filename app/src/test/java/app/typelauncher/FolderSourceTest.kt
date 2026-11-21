@@ -54,6 +54,16 @@ class FolderSourceTest {
     }
 
     @Test
+    fun aGenericPhrase_isAGuess_butABrandIsnt() {
+        // Codex on PR #894.
+        val workout = app("Home Workout", "com.example.homeworkout")
+        assertEquals(AppCategory.Health.storageKey, effectiveFolderKey(workout, activeKeys, emptyMap()))
+        assertEquals(FolderSource.NameWord, folderSource(workout, activeKeys, emptyMap()))
+        val noom = app("Noom", "com.example.noomlike")
+        assertEquals(FolderSource.Rule, folderSource(noom, activeKeys, emptyMap()))
+    }
+
+    @Test
     fun aGameManifest_beatsANameWord_andIsNoGuess() {
         val game = app("Train Sim World", "com.example.trainsim", AppCategory.Games)
         assertEquals(FolderSource.Rule, folderSource(game, activeKeys, emptyMap()))

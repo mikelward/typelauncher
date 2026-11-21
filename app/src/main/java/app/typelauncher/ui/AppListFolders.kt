@@ -1471,8 +1471,11 @@ private fun PlaySortReviewRow(app: InstalledApp, review: PlaySortReview) {
                 Icon(LauncherIcons.ArrowDropDown, contentDescription = null)
             }
             LauncherDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                // Likely folders first: Google Play's, then where it is now.
-                val likely = listOfNotNull(review.playFolderOf(app), current).distinct().mapNotNull(byKey::get)
+                // Likely folders first: where it is now and the other folder
+                // it fits equally, else Google Play's and where it is now.
+                val eitherWay = app.eitherWayFolders().map { it.storageKey }
+                val likely = (eitherWay.ifEmpty { listOfNotNull(review.playFolderOf(app), current) })
+                    .distinct().mapNotNull(byKey::get)
                 for (folder in likely) {
                     DropdownMenuItem(
                         text = { LauncherMenuItemText(folderLabel(folder)) },

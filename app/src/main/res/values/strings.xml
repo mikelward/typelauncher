@@ -476,9 +476,10 @@
         <item quantity="one">Check the folder for %d app?</item>
         <item quantity="other">Check the folders for %d apps?</item>
     </plurals>
-    <string name="guess_check_offer_body" tools:ignore="MissingTranslation">Placed by a guess, or not sorted at all.</string>
+    <string name="guess_check_offer_body" tools:ignore="MissingTranslation">Guessed, could go either way, or not sorted.</string>
     <string name="guess_check_accept" tools:ignore="MissingTranslation">Check</string>
     <string name="guess_check_title" tools:ignore="MissingTranslation">Check folders</string>
     <string name="guess_check_by_name" tools:ignore="MissingTranslation">Guessed from the name</string>
     <string name="guess_check_by_ai" tools:ignore="MissingTranslation">Sorted by AI</string>
+    <string name="guess_check_either_way" tools:ignore="MissingTranslation">Could go either way</string>
 </resources>

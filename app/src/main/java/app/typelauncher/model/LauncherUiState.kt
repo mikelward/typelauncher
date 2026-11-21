@@ -902,7 +902,9 @@ internal data class LauncherUiState(
     // "Check guessed folders": apps placed only by a guess, not yet offered.
     val guessCheck: List<InstalledApp> = emptyList(),
     // The apps "Check guessed folders" is showing, by what guessed them:
-    // a word in the name or package, then the AI. Empty while it's closed.
+    // apps that could go either way, a word in the name or package, then
+    // the AI. Empty while it's closed.
+    val guessReviewEitherWay: List<InstalledApp> = emptyList(),
     val guessReviewByName: List<InstalledApp> = emptyList(),
     val guessReviewByAi: List<InstalledApp> = emptyList(),
     // And what nothing could place, for the user to file.

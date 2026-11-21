@@ -204,6 +204,40 @@ class PlaySortUiTest {
         assertEquals(listOf(oddity.packageName to null, thermo.packageName to car.key), moves)
     }
 
+    @Test
+    fun anAppThatCouldGoEitherWay_offersBothFoldersFirst() {
+        val finance = AppFolderDef.builtIn(AppCategory.Finance)
+        val betting = AppFolderDef.builtIn(AppCategory.Betting)
+        val home = AppFolderDef.builtIn(AppCategory.Home)
+        val kalshi = app("Kalshi").copy(packageName = "com.kalshi.mobile")
+        val moves = mutableListOf<Pair<String, String?>>()
+        val review = PlaySortReview(
+            folders = listOf(betting, finance, home),
+            folderOf = { finance.key },
+            playFolderOf = { home.key },
+            onMove = { app, key -> moves += app.packageName to key },
+            onCreate = { _, _, _ -> },
+        )
+        composeRule.setContent {
+            TypeLauncherTheme {
+                PlaySortReviewSheet(
+                    apps = listOf(kalshi),
+                    review = review,
+                    onDismiss = {},
+                    title = R.string.guess_check_title,
+                    groups = listOf(R.string.guess_check_either_way to listOf(kalshi)),
+                )
+            }
+        }
+        composeRule.onNodeWithText("Could go either way").assertExists()
+        composeRule.onNodeWithTag("$PLAY_SORT_REVIEW_FOLDER_TAG:${kalshi.packageName}").performClick()
+        composeRule.onNodeWithTag("$PLAY_SORT_REVIEW_OPTION_TAG:${finance.key}").assertExists()
+        composeRule.onNodeWithTag("$PLAY_SORT_REVIEW_OPTION_TAG:${home.key}").assertDoesNotExist()
+        composeRule.onNodeWithTag("$PLAY_SORT_REVIEW_OPTION_TAG:${betting.key}").performClick()
+
+        assertEquals(listOf(kalshi.packageName to betting.key), moves)
+    }
+
     private fun compose(state: PlaySortState, actions: PlaySortActions) {
         composeRule.setContent { TypeLauncherTheme { PlaySortNote(state, actions) } }
         composeRule.waitForIdle()

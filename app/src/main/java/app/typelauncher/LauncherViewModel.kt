@@ -5294,7 +5294,10 @@ internal class LauncherViewModel(
                 // pinned websites, WebAPKs, apps from elsewhere, and apps
                 // Google Play had no folder for (maintainer, 2026-11-21: "or
                 // just asking the user to file").
+                // And apps that fit two folders about equally, unless the
+                // user filed them (maintainer, 2026-11-21).
                 source.isGuess ||
+                    (source == FolderSource.Rule && app.eitherWayFolders().isNotEmpty()) ||
                     (source == FolderSource.None && app.id !in lookedUpLater && app.packageName !in playPending)
             }
             .distinctBy { app -> app.id }
@@ -5330,6 +5333,9 @@ internal class LauncherViewModel(
         // Only those still placed by a guess: one filed since the offer
         // appeared isn't (Codex on PR #890).
         val sources = apps.associateWith { app -> folderSource(app, activeKeys, filings, aiFilings, categories) }
+        val eitherWay = apps.filter { app ->
+            sources.getValue(app) == FolderSource.Rule && app.eitherWayFolders().isNotEmpty()
+        }
         val (byAi, byName) = apps.filter { sources.getValue(it).isGuess }
             .partition { app -> sources.getValue(app) == FolderSource.Ai }
         val unsorted = apps.filter { sources.getValue(it) == FolderSource.None }
@@ -5337,6 +5343,7 @@ internal class LauncherViewModel(
         _uiState.update { state ->
             state.copy(
                 guessCheck = emptyList(),
+                guessReviewEitherWay = eitherWay,
                 guessReviewByName = byName,
                 guessReviewByAi = byAi,
                 guessReviewUnsorted = unsorted,
@@ -5348,7 +5355,12 @@ internal class LauncherViewModel(
     /** Closing "Check guessed folders". */
     fun endGuessCheck() {
         _uiState.update { state ->
-            state.copy(guessReviewByName = emptyList(), guessReviewByAi = emptyList(), guessReviewUnsorted = emptyList())
+            state.copy(
+                guessReviewEitherWay = emptyList(),
+                guessReviewByName = emptyList(),
+                guessReviewByAi = emptyList(),
+                guessReviewUnsorted = emptyList(),
+            )
         }
     }
 
