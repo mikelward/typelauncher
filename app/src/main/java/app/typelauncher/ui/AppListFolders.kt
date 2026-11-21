@@ -254,10 +254,9 @@ internal fun CategoryIconTile(icon: FolderIcon, sizeDp: Int) {
 private const val CATEGORY_GLYPH_FRACTION = 0.95f
 
 /**
- * Lets the app list's long-press menus offer "Move to folder", and its
- * folders offer to be edited or deleted. Provided only around the app list
- * while folders are on, so the dock's and recents' menus, which sit outside
- * it, don't offer it.
+ * Lets the app list's and dock's long-press menus offer "Move to folder", and
+ * the list's folders offer to be edited or deleted. Provided only around the
+ * app list and the dock while folders are on, so recents' menus don't offer it.
  */
 @Stable
 internal class AppFolderMenu(
