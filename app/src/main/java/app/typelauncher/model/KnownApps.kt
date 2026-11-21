@@ -39,6 +39,10 @@ internal val EITHER_WAY_PACKAGES: Map<String, List<AppCategory>> = mapOf(
     "com.kalshi.mobile" to listOf(AppCategory.Finance, AppCategory.Betting),
     "com.morrisons.matchandmore.app" to listOf(AppCategory.Shopping, AppCategory.Rewards),
     "com.cashless.cashlessapp" to listOf(AppCategory.Kids, AppCategory.Finance),
+    // Substack: newsletters (maintainer, 2026-11-21: "I guess Substack is Reading?").
+    "com.substack.app" to listOf(AppCategory.Reading, AppCategory.News),
+    // Twitch: live streams, mostly of games.
+    "tv.twitch.android.app" to listOf(AppCategory.Media, AppCategory.Games),
     // Bloomberg: markets, or business news (maintainer, 2026-11-21: Finance,
     // but let the user choose).
     "com.bloomberg.android.plus" to listOf(AppCategory.Finance, AppCategory.News),
@@ -339,6 +343,7 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "practo" to AppCategory.Health,
     "netmeds" to AppCategory.Health,
     "vesync" to AppCategory.Home,
+    "substack" to AppCategory.Reading,
     "swissquote" to AppCategory.Finance,
     "kraken" to AppCategory.Finance,
     "morgan stanley" to AppCategory.Finance,
@@ -853,6 +858,10 @@ private val KNOWN_PACKAGE_PREFIXES = listOf(
     // (maintainer, 2026-11-21).
     "com.dexcom." to AppCategory.Health,
     "org.dayup.stocks" to AppCategory.Finance,
+    // Citi's and HSBC's apps for each country.
+    "com.citi.mobile." to AppCategory.Finance,
+    "sg.com.hsbc." to AppCategory.Finance,
+    "hk.com.hsbc." to AppCategory.Finance,
     "org.kp." to AppCategory.Health,
     "digifit." to AppCategory.Health,
     // Austria's social insurance apps (Meine ÖGK, Meine BVAEB), and Niantic's games.
@@ -1212,7 +1221,9 @@ private val KNOWN_PACKAGES = listOf(
         com.gs.pwmdigital.external.android com.morganstanley.clientmobile.prod com.swissquote.android
         com.goldavenue.goldavenue com.kraken.invest.app co.mona.android com.fusionmedia.investing
         com.yahoo.mobile.client.android.finance com.tradingview.tradingviewapp com.seekingalpha.webwrapper
-        com.bloomberg.android.plus
+        com.bloomberg.android.plus com.mobilebrokerage.CIBC com.microsoft.amp.apps.bingfinance com.moneyboxapp
+        com.bochk.app.aos nz.co.bnz.droidbanking com.creditkarma.mobile.international
+        com.fullsix.android.labanquepostale.accountaccess
         com.posteitaliane.spim com.starfinanz.mobile.android.pushtan de.deutschepost.postident
         com.bankinter.portugal.bmb com.BancoDePortugal.BPmobile com.abanca.bm.pt pt.santander.oneappparticulares
         ma.creditagricole.banke com.saphir.baridbankmobile com.egyptianbanks.instapay
@@ -1307,6 +1318,10 @@ private val KNOWN_PACKAGES = listOf(
     AppCategory.Shopping to """ com.whatnot_mobile com.naturitas.android com.nbty.hollandbarret com.lasoo.android.target trendyol.com
         com.fantastico.fclub ee.coop.shopping.app lv.rimi.card """,
     AppCategory.Food to """ jp.co.mcdonalds.android """,
+    AppCategory.News to """ ch.nzz.mobile com.ft.news nz.co.radionz.android com.tailoredapps de.zeit.online
+        com.lemonde.androidapp com.economist.lamarr com.idmedia.android.newsportal """,
+    AppCategory.Reading to """ com.substack.app """,
+    AppCategory.Media to """ uk.co.uktv.dave """,
     AppCategory.FamilyHistory to """
         com.ancestry.android.apps.ancestry com.twentythreeandme.app air.com.myheritage.mobile org.familysearch.mobile
     """,
