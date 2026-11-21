@@ -306,6 +306,9 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "lycamobile", "2degrees", "spark nz", "skinny mobile", "rogers", "telus", "koodo",
     "freedom mobile", "boost mobile", "cricket wireless", "mint mobile", "tesco mobile", "sky mobile",
     "voxi", "smarty mobile", "amaysim", "aldi mobile", "id mobile", "airalo", "truecaller",
+    // Cricket Wireless's app, Tello and Talk Mobile (maintainer, 2026-11-21). Not bare
+    // "cricket" (the sport) or "tello" (DJI's drone).
+    "mycricket", "my cricket", "tello mobile", "my tello", "talk mobile",
 ).map { it to AppCategory.Phone } + listOf(
     "thefork" to AppCategory.Food,
     "the fork" to AppCategory.Food,
@@ -367,7 +370,8 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
 ).map { it to AppCategory.Food } + listOf(
     // Rideshare and taxis, in Car (maintainer, 2026-11-21). Not "grab",
     // "bolt" or "ola", which are ordinary words; those are matched by package.
-    "uber", "lyft", "didi", "freenow", "free now", "indrive", "cabify", "addison lee", "13cabs",
+    "uber", "lyft", "didi", "freenow", "free now", "indrive", "cabify", "addison lee", "addisonlee", "13cabs",
+    "arro", "abetta", "gocatch", "ingogo", "veezu", "taxi butler",
     "careem", "gett", "blablacar", "waze",
 ).map { it to AppCategory.Car } + listOf(
     // Maps and route planners.
@@ -462,7 +466,7 @@ private val WORD_START_ONLY = setOf("ebook", "parent", "sport")
 
 // Keywords that must be a whole word: "git" ends "legit", and "code" a
 // "barcode" scanner.
-private val WHOLE_WORD_ONLY = setOf("code", "git", "ssh", "qr", "ai", "fc", "afc")
+private val WHOLE_WORD_ONLY = setOf("code", "git", "ssh", "qr", "ai", "fc", "afc", "sim")
 
 private val LABEL_WORD_BREAK = Regex("""[^\p{L}\p{N}]+""")
 private val PACKAGE_WORD_BREAK = Regex("""[._\-]+""")
@@ -506,6 +510,9 @@ private val LABEL_WORDS = listOf(
     "messenger" to AppCategory.Social,
     "messaging" to AppCategory.Social,
     "weather" to AppCategory.Weather,
+    // SIM cards and plans: "Lebara SIM", "SIM Manager" (maintainer, 2026-11-21).
+    // Only as a word of its own, and a game manifest still wins ("Train Sim World").
+    "sim" to AppCategory.Phone,
     "maps" to AppCategory.Maps,
     "parking" to AppCategory.Car,
     "transit" to AppCategory.Transit,
@@ -589,6 +596,8 @@ private val KNOWN_PACKAGE_PREFIXES = listOf(
     "com.HoYoverse." to AppCategory.Games,
     "com.miHoYo." to AppCategory.Games,
     "com.tocaboca." to AppCategory.Kids,
+    // Tello's apps, "My Tello" among them (maintainer, 2026-11-21); DJI's Tello drone is another package.
+    "com.tello." to AppCategory.Phone,
     // Dinosaur Polo Club: Mini Metro, Mini Motorways.
     "nz.co.codepoint." to AppCategory.Games,
 )
@@ -895,7 +904,7 @@ private val KNOWN_PACKAGES = listOf(
         io.raindrop.raindropio
     """,
     AppCategory.Phone to """
-        app.simmo com.melita.mobile.selfcare
+        app.simmo com.melita.mobile.selfcare com.mizmowireless.acctmgt
     """,
     AppCategory.Weather to """
         app.clothescast bbc.mobile.weather au.gov.bom.metview

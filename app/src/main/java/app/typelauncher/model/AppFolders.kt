@@ -189,8 +189,13 @@ internal fun declaredAppCategory(category: Int, flags: Int): AppCategory? = when
  * the AI filed Mini Metro under Transport and The Darkside Detective under
  * Other (maintainer, 2026-11-19).
  */
-internal fun InstalledApp.ruledCategory(): AppCategory? =
-    knownCategory() ?: declaredCategory?.takeIf { it == AppCategory.Games }
+internal fun InstalledApp.ruledCategory(): AppCategory? {
+    val game = declaredCategory?.takeIf { it == AppCategory.Games }
+    // A game manifest beats a mere word in the name: "Train Sim World" is a
+    // game, not a SIM card app (maintainer, 2026-11-21).
+    if (game != null && isPlacedByNameWord(if (isShortcut) "" else packageName, name)) return game
+    return knownCategory() ?: game
+}
 
 /**
  * The folder the rules would pick for [this] app, for AI sorting to weigh
@@ -310,8 +315,8 @@ internal fun folderSource(
     val aiChoice = aiAssignments[app.id]?.takeIf { it in activeKeys }
     if (aiChoice != null && aiChoice.startsWith(USER_FOLDER_KEY_PREFIX)) return FolderSource.Ai
     if (app.ruledCategory()?.storageKey?.takeIf { it in activeKeys } != null) {
-        // The table decides before a game manifest does (see ruledCategory).
-        val byNameWord = app.knownCategory() != null &&
+        // A game manifest beats a name word (see ruledCategory).
+        val byNameWord = app.declaredCategory != AppCategory.Games &&
             isPlacedByNameWord(if (app.isShortcut) "" else app.packageName, app.name)
         return if (byNameWord) FolderSource.NameWord else FolderSource.Rule
     }

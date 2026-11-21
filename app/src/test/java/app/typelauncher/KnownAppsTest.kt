@@ -304,6 +304,15 @@ class KnownAppsTest {
             "LNER | Train Tickets & Times" to AppCategory.Transit,
             "Merlin Bird ID by Cornell Lab" to AppCategory.Pets,
             "MyMelita" to AppCategory.Phone,
+            "myCricket" to AppCategory.Phone,
+            "Arro - Taxi App" to AppCategory.Car,
+            "Abetta" to AppCategory.Car,
+            "AddisonLee" to AppCategory.Car,
+            "Tello Mobile" to AppCategory.Phone,
+            "Talk Mobile" to AppCategory.Phone,
+            "amaysim" to AppCategory.Phone,
+            "Lebara SIM" to AppCategory.Phone,
+            "SIM Manager" to AppCategory.Phone,
             "Raindrop.io" to AppCategory.Reading,
             "Virgin Australia" to AppCategory.Travel,
         )) {
@@ -326,7 +335,12 @@ class KnownAppsTest {
         // Names the batch leaves to their packages.
         assertNull(knownAppCategory("com.example.stan", "Stan"))
         assertNull(knownAppCategory("com.example.paseo", "Paseo"))
-        // "fc" only as a word of its own.
+        // "sim" and "fc" only as words of their own; bare "cricket" and "tello" aren't phone plans.
+        assertNull(knownAppCategory("com.example.sims", "Simsy"))
+        assertEquals(AppCategory.Sports, knownAppCategory("com.example.cricket", "Cricket Live Scores"))
+        assertNull(knownAppCategory("com.example.drone", "Tello"))
+        assertEquals(AppCategory.Phone, knownAppCategory("com.tello.ui", "My Tello"))
+        assertEquals(AppCategory.Phone, knownAppCategory("com.tello.other", "Anything"))
         assertNull(knownAppCategory("com.example.fcm", "FCM Tester"))
     }
 
