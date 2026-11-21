@@ -260,6 +260,36 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "tide business" to AppCategory.Finance,
     "xtb" to AppCategory.Finance,
     "inshot" to AppCategory.Design,
+    // MTN (maintainer, 2026-11-21): mobile money is Finance, the account app Phone.
+    "mtn momo" to AppCategory.Finance,
+    "capitec" to AppCategory.Finance,
+    "gotyme" to AppCategory.Finance,
+    "tymebank" to AppCategory.Finance,
+    "remitly" to AppCategory.Finance,
+    "western union" to AppCategory.Finance,
+    "worldremit" to AppCategory.Finance,
+    "revolut" to AppCategory.Finance,
+    // The Philippines (maintainer, 2026-11-21). Maya by package: it's also a name.
+    "gcash" to AppCategory.Finance,
+    "seabank" to AppCategory.Finance,
+    "bpi" to AppCategory.Finance,
+    "bdo" to AppCategory.Finance,
+    "egovph" to AppCategory.Government,
+    "digid" to AppCategory.Government,
+    "mysugr" to AppCategory.Health,
+    "dexcom" to AppCategory.Health,
+    "kaiser permanente" to AppCategory.Health,
+    "freestyle libre" to AppCategory.Health,
+    "omnipod" to AppCategory.Health,
+    "accu chek" to AppCategory.Health,
+    "olio" to AppCategory.Food,
+    "videoland" to AppCategory.Media,
+    "momo" to AppCategory.Finance,
+    "mymtn" to AppCategory.Phone,
+    "my mtn" to AppCategory.Phone,
+    "airtel thanks" to AppCategory.Phone,
+    "xender" to AppCategory.Tools,
+    "shareit" to AppCategory.Tools,
     "uae pass" to AppCategory.Government,
     "botim" to AppCategory.Social,
     "rakbank" to AppCategory.Finance,
@@ -709,6 +739,12 @@ private val KNOWN_PACKAGE_PREFIXES = listOf(
     "ae.gov." to AppCategory.Government,
     "sa.gov." to AppCategory.Government,
     "in.gov." to AppCategory.Government,
+    "nl.rijksoverheid." to AppCategory.Government,
+    // Diabetes devices, Kaiser Permanente, and Digifit, which builds many gyms' apps
+    // (maintainer, 2026-11-21).
+    "com.dexcom." to AppCategory.Health,
+    "org.kp." to AppCategory.Health,
+    "digifit." to AppCategory.Health,
     "gov." to AppCategory.Government,
     // Tello's apps, "My Tello" among them (maintainer, 2026-11-21); DJI's Tello drone is another package.
     "com.tello." to AppCategory.Phone,
@@ -1055,13 +1091,16 @@ private val KNOWN_PACKAGES = listOf(
         ma.creditagricole.banke com.saphir.baridbankmobile com.egyptianbanks.instapay
         com.phonepe.app net.one97.paytm com.boi.ua.android com.naviapp
         com.fab.personalbanking com.rak com.etisalat.ewallet
-        com.tideplatform.banking com.xtb.xmobile2
+        com.tideplatform.banking com.xtb.xmobile2 mtnft.momo.consumer com.momosa
+        capitec.acuity.mobile.prod za.co.gotyme ph.com.gotyme com.remitly.androidapp com.revolut.junior
+        com.globe.gcash.android ph.seabank.seabank com.paymaya com.bpi.ng.app
     """,
     AppCategory.Phone to """
         com.swisscom.myswisscom ch.salt.my com.orange.orangeetmoi com.orange.mobinilandme com.etisalat com.truecaller com.Etisalat.ETIDA
+        ng.mtn.nextgen com.mtngh.mymtn com.mtn1app
     """,
     AppCategory.Media to """
-        au.net.abc.iview com.newleaf.app.android.victor
+        au.net.abc.iview com.newleaf.app.android.victor nl.rtl.videoland.v2
     """,
     // Egypt's Faheem AI tutor: Learning, though "AI" in its name says AI.
     AppCategory.Learning to """
@@ -1069,7 +1108,7 @@ private val KNOWN_PACKAGES = listOf(
     """,
     AppCategory.Government to """
         it.pagopa.io.app es.fnmtrcm.ceres.certificadoDigitalFNMT pt.segsocial.mobile.segurancasocial
-        ae.uaepass.mainapp com.uaemoi.smartservices
+        ae.uaepass.mainapp com.uaemoi.smartservices egov.app
     """,
     AppCategory.Shopping to """
         fr.vinted de.idealo.android de.zalando.mobile com.primark.app.prod com.homestoreandmore.hsmapp uk.co.next.android
@@ -1081,7 +1120,7 @@ private val KNOWN_PACKAGES = listOf(
     """,
     // Portugal's Continente and Ireland's Centra: grocers, so Food, beside Lidl and Tesco.
     AppCategory.Food to """
-        pt.continente.LojaContinente ie.centra.loyalty com.lidl.eci.lidlplus com.yopeso.lieferando com.grofers.customerapp
+        pt.continente.LojaContinente ie.centra.loyalty com.lidl.eci.lidlplus com.yopeso.lieferando com.grofers.customerapp com.olioex.android
     """,
     AppCategory.Rewards to """
         com.aimia.android.musgrave io.playout
@@ -1108,17 +1147,20 @@ private val KNOWN_PACKAGES = listOf(
     AppCategory.Design to """
         com.camerasideas.instashot com.instagram.basel
     """,
+    AppCategory.Tools to """
+        cn.xender
+    """,
     AppCategory.Phone to """
         com.cbouvat.android.saracroche
     """,
     AppCategory.Health to """
-        com.aon.sante org.wakingup.android
+        com.aon.sante org.wakingup.android com.mysugr.android.companion uk.co.virginactive.android
     """,
     AppCategory.Office to """
         de.gmx.mobile.android.mail de.web.mobile.android.mail
     """,
     AppCategory.Post to """
-        at.post.app
+        at.post.app nl.tpp.mobile.android
     """,
     AppCategory.Transit to """
         ch.sbb.mobile.android.b2c com.sl.SLBiljetter au.gov.vic.ptv au.com.opal.travel
