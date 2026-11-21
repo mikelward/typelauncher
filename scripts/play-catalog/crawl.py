@@ -5,7 +5,8 @@ Reads only public Google Play pages that play.google.com/robots.txt allows
 (category, app and developer pages; never search), one at a time with a gap
 between them, and backs off when asked to slow down. Starts from the category
 pages and the seed packages given, follows each app page's "similar apps" and
-developer links, and keeps apps with at least --min-installs downloads.
+developer links, and keeps apps with at least --min-installs downloads, or
+--local-min-installs for the seeds and their developers' other apps.
 
 State is saved as it goes, so a stopped run resumes where it left off:
 
@@ -70,9 +71,16 @@ def fetch(path):
 
 
 class Crawl:
-    def __init__(self, state_dir, min_installs):
+    def __init__(self, state_dir, min_installs, local_min_installs=None):
         self.state_dir = state_dir
         self.min_installs = min_installs
+        # Seeds and their developers' other apps: a country's own apps, kept
+        # from a lower bar, since its downloads are one country's (maintainer,
+        # 2026-11-21: a Croatian bank has far fewer than a global app).
+        self.local_min_installs = min_installs if local_min_installs is None else local_min_installs
+        self.local = set()
+        # Developer pages fetched for a seed's sake, whose apps are local too.
+        self.devs_done_local = set()
         self.apps = {}  # package -> [category, installs]
         self.seen = set()  # packages queued or fetched
         self.queue = []  # (-priority, package)
@@ -112,6 +120,8 @@ class Crawl:
         self.devs_done = set(state["devs_done"])
         self.pages_done = set(state["pages_done"])
         self.failures = state.get("failures", {})
+        self.local = set(state.get("local", []))
+        self.devs_done_local = set(state.get("devs_done_local", []))
         logging.info("resumed: %d apps, %d queued", len(self.apps), len(self.queue))
 
     def save(self):
@@ -122,6 +132,8 @@ class Crawl:
             "devs_done": sorted(self.devs_done),
             "pages_done": sorted(self.pages_done),
             "failures": self.failures,
+            "local": sorted(self.local),
+            "devs_done_local": sorted(self.devs_done_local),
         }
         temp = self.path("state.json.tmp")
         with open(temp, "w") as f:
@@ -133,9 +145,24 @@ class Crawl:
             self.seen.add(package)
             heapq.heappush(self.queue, (-priority, package))
 
-    def links(self, page, priority):
+    def links(self, page, priority, local=False):
         for package in APP_LINK.findall(page):
+            if local:
+                self.make_local(package, priority)
+            else:
+                self.enqueue(package, priority)
+
+    def make_local(self, package, priority):
+        """Marks [package] a country's own app, to be kept from the lower bar.
+        One already fetched, in an earlier run say, is queued once more:
+        turned down under the higher bar it may now be kept, and kept it may
+        still have smaller siblings on its developer's page (Codex on PR #892)."""
+        newly = package not in self.local
+        self.local.add(package)
+        if package not in self.seen:
             self.enqueue(package, priority)
+        elif newly:
+            heapq.heappush(self.queue, (-priority, package))
 
     def crawl_page(self, key, path, priority):
         if key in self.pages_done:
@@ -152,28 +179,35 @@ class Crawl:
         category = CATEGORY.search(page)
         installs = INSTALLS.search(page)
         count = int(installs.group(1)) if installs else 0
-        if category and count >= self.min_installs:
+        local = package in self.local
+        bar = self.local_min_installs if local else self.min_installs
+        if category and count >= bar:
             self.apps[package] = [category.group(1), count]
         # Popular apps' neighbors are worth more; never follow from obscure ones.
-        if count >= self.min_installs:
+        if count >= bar:
             self.links(page, count)
             for endpoint, dev_id in set(DEV_LINK.findall(page)):
                 # Requested as linked, encoding and all (Codex on PR #889).
                 dev = "/store/apps/" + endpoint + "?id=" + dev_id
-                if dev not in self.devs_done:
+                # A page fetched for a popular app is fetched again for a seed,
+                # so its apps can be kept from the lower bar.
+                done = self.devs_done_local if local else self.devs_done
+                if dev not in done:
                     dev_page = self.fetch(dev + "&hl=en")
                     # Done only once fetched: a slow-down retries the app, and
                     # with it this page (Codex on PR #889).
                     self.devs_done.add(dev)
+                    if local:
+                        self.devs_done_local.add(dev)
                     if dev_page:
-                        self.links(dev_page, count // 2)
+                        self.links(dev_page, count // 2, local=local)
 
     def run(self, seeds, target, spacing, deadline=None):
         """Crawls until [target] apps are kept, the queue empties, or the
         monotonic clock passes [deadline]."""
         self.spacing = spacing
         for package in seeds:
-            self.enqueue(package, 10**12)
+            self.make_local(package, 10**12)
         for category in CATEGORIES:
             try:
                 self.crawl_page("category:" + category,
@@ -236,6 +270,8 @@ def main():
     parser.add_argument("--seeds", action="append", default=[], help="file of seed packages, one a line")
     parser.add_argument("--target", type=int, default=50000, help="stop once this many apps are kept")
     parser.add_argument("--min-installs", type=int, default=100000)
+    parser.add_argument("--local-min-installs", type=int, default=10000,
+                        help="the bar for seeds and their developers' other apps")
     parser.add_argument("--spacing", type=float, default=2.0, help="seconds between pages")
     parser.add_argument("--hours", type=float, help="stop after this long, state saved, to resume later")
     parser.add_argument("--write", help="write the catalog here instead of crawling")
@@ -249,7 +285,7 @@ def main():
         handlers=[logging.StreamHandler(), logging.FileHandler(os.path.join(log_dir, "play-catalog.log"))],
     )
     logging.info("started: %s", " ".join(sys.argv[1:]))
-    crawl = Crawl(args.state, args.min_installs)
+    crawl = Crawl(args.state, args.min_installs, args.local_min_installs)
     try:
         if args.write:
             crawl.write(args.write)

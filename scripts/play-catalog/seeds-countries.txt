@@ -1,183 +1,300 @@
-# Widely used apps by country, as seeds: the crawl follows their similar
-# apps and developers to the rest of each country's popular apps. A wrong or
-# retired package is simply not found.
-# Croatia (from the maintainer, 2026-11-21: confirmed on Google Play)
-com.hrvatskitelekom.m.mojT
-hr.asseco.android.ae.otp
-hr.mgradani
-hr.asseco.android.zaba.new
-hr.sedamit.hpmbox
-hr.erstebank.george
-com.glovo
-com.hzppispromobile
-# Croatia (guessed; any that are wrong are simply not found)
-hr.hrt.hrti
-hr.index.android
-com.njuskalo.android
-# Bulgaria
-bg.dsk.dskdirect
-bg.unicredit.bulbank
-bg.fibank.mobile
-com.olx.bg
-bg.a1.mya1
-bg.vivacom.myvivacom
-bg.yettel.myyettel
-bg.dir.news
+# Widely used apps by country, each confirmed on Google Play (2026-11-21), as seeds:
+# the crawl keeps them, and their developers' other apps, from 10,000 downloads, and
+# follows their similar apps. Every country should have at least a bank. The US, UK,
+# Australia, Canada and New Zealand also come in through seeds-known.txt.
+# Still no confirmed bank: Ghana.
+# Croatia
+com.hrvatskitelekom.m.mojT  # Moj Telekom HR
+hr.asseco.android.ae.otp  # OTPgo
+hr.mgradani  # mGrađani
+hr.asseco.android.zaba.new  # m-zaba
+hr.sedamit.hpmbox  # ePošta - Hrvatska pošta
+hr.erstebank.george  # George Croatia
+com.glovo  # Glovo: Food & Grocery Delivery
+com.hzppispromobile  # HŽPP
+hr.hrt.hrti  # HRTi OTT
 # India
-com.phonepe.app
-net.one97.paytm
-com.google.android.apps.nbu.paisa.user
-in.amazon.mShop.android.shopping
-com.flipkart.android
-com.application.zomato
-in.swiggy.android
-com.jio.myjio
-com.myairtelapp
-com.csam.icici.bank.imobile
-com.sbi.lotusintouch
-com.snapwork.hdfc
-com.hotstar.android
-in.startv.hotstar
-com.graymatrix.did
-com.olacabs.customer
-in.redbus.android
-com.makemytrip
-com.irctc.rail.connect
-in.org.npci.upiapp
-com.dreamplug.androidapp
-com.zeptoconsumerapp
-com.meesho.supply
-com.myntra.android
-com.sharechat.app
-com.eterno
-com.dunzo.user
-com.digilocker.android
-in.gov.umang.negd.g2c
-com.whizdm.moneyview.loans
-com.pratilipi.mobile.android
-com.kukufm.android
+com.phonepe.app  # PhonePe UPI Payments, Loan App
+net.one97.paytm  # Paytm: Secure UPI Payments
+com.google.android.apps.nbu.paisa.user  # Google Pay (India)
+in.amazon.mShop.android.shopping  # Amazon India Shop, Pay, miniTV
+com.flipkart.android  # Flipkart Online Shopping App
+com.application.zomato  # Zomato: Food Delivery & Dining
+in.swiggy.android  # Swiggy: Food Instamart Dineout
+com.jio.myjio  # MyJio: For Everything Jio
+com.myairtelapp  # Airtel: Recharge, Bank & Loans
+com.csam.icici.bank.imobile  # iMobile: Loan, Cards & Banking
+com.sbi.lotusintouch  # YONO SBI: Banking, UPI & Pay
+in.startv.hotstar  # JioHotstar
+com.graymatrix.did  # Zee 5
+com.olacabs.customer  # Ola: Book Cab, Auto, Bike Taxi
+in.redbus.android  # redBus Book Bus, Train Tickets
+com.makemytrip  # MakeMyTrip: Hotel, Flight, Bus
+in.org.npci.upiapp  # BHIM Bharat's Own Payments App
+com.dreamplug.androidapp  # CRED: Credit Cards, Bills, UPI
+com.zeptoconsumerapp  # Zepto: Groceries in minutes
+com.meesho.supply  # Meesho: Online Shopping App
+com.myntra.android  # Myntra - Fashion Shopping App
+com.eterno  # Dailyhunt - News & Magazines
+com.digilocker.android  # DigiLocker
+in.gov.umang.negd.g2c  # UMANG
+com.whizdm.moneyview.loans  # Moneyview: UPI, Personal Loans
+com.pratilipi.mobile.android  # Pratilipi - Read Stories
 # Pakistan
-com.techlogix.mobilinkcustomer
-pk.com.telenor.phoenix
-com.easypaisa.consumer
-com.jazz.jazzworld
-com.daraz.android
-com.foodpanda.android
-com.hbl.android.hblmobilebanking
-com.meezanbank.android.mobileapp
-pk.gov.nadra.pakid
-com.zong.customercare
-com.ufone.myufone
-com.bykea.pk
-pk.com.olx.android
+com.techlogix.mobilinkcustomer  # JazzCash - Your Mobile Account
+pk.com.telenor.phoenix  # easypaisa – a digital bank
+com.jazz.jazzworld  # SIMOSA - Jazz World
+com.daraz.android  # Daraz Online Shopping App
+com.hbl.android.hblmobilebanking  # HBL Mobile
+pk.gov.nadra.pakid  # Pak Identity
+com.zong.customercare  # My Zong
+com.bykea.pk  # Bykea: Rides & Delivery App
 # Nigeria
-com.opay.business
-team.opay.pay
-com.palmpay.app
-com.kudabank.app
-com.gtbank.gtworldv1
-com.firstbanknigeria.firstmobile
-com.accessbank.accessmobile
-com.zenithBank.eazymoney
-com.moniepoint.personal
-com.jumia.android
-ng.mtn.mymtnng
-com.glo.mobile
-com.bolt.taxi.client
+team.opay.pay  # OPay
+com.kudabank.app  # Kuda - Transfers and payments
+com.gtbank.gtworldv1  # GTWorld
+com.zenithBank.eazymoney  # Zenith Bank Mobile App
+com.moniepoint.personal  # Moniepoint Personal Banking
+com.jumia.android  # JUMIA Online Shopping
+com.glo.mobile  # Glo
 # Kenya, Tanzania, Uganda
-com.safaricom.mpesa.lifestyle
-com.safaricom.mysafaricom
-com.kcb.mobilebanking.android.mbp
-com.equitybank.equitel
-com.airtel.africa.selfcare
-com.mtn.mymtn.ug
-com.tigo.tz.mytigo
-com.vodacom.tz.mpesa
+com.safaricom.mpesa.lifestyle  # My OneApp
+com.kcb.mobilebanking.android.mbp  # KCB Mobile
+com.airtel.africa.selfcare  # My Airtel
 # Ghana, Senegal, Côte d'Ivoire, Cameroon
-com.mtn.momo.ghana
-com.wave.personal
-com.orange.maxit
-com.orange.orangeetmoi
-com.mtn.mtncameroon
+com.wave.personal  # Wave - Mobile Money
+com.orange.orangeetmoi  # Orange France
 # South Africa
-za.co.fnb.connect.itt
-za.co.capitecbank.app
-za.co.absa.banking
-za.co.standardbank.mobile
-za.co.nedbank.mobile
-za.co.takealot.android
-za.co.vodacom.android.app
-za.co.mtn.mymtn
-za.co.checkers.sixty60
-za.co.discovery.mobile
-com.picknpay.app
-za.co.woolworths.android
+za.co.fnb.connect.itt  # FNB Banking App
+com.sbg.mobile.phone  # Standard Bank / Stanbic Bank
+za.co.nedbank  # Nedbank Money
 # Egypt, Morocco, Ethiopia
-com.etisalat.eg
-com.vodafone.eg
-com.orange.eg.myorange
-com.talabat
-com.fawry.myfawry
-ma.iam.monespace
-et.ethiotelecom.telebirr
-com.cbe.mobile
+com.talabat  # talabat: Food, grocery & more
+com.fawry.myfawry  # myfawry
 # Europe beyond the UK
-de.dkb.portalapp
-de.comdirect.android
-de.sparkasse.app
-com.db.pbc.mibanco
-it.poste.bancoposta
-it.bancaintesa.mobile
-fr.creditagricole.androidapp
-fr.leboncoin
-pl.mbank
-pl.pkobp.iko
-pl.allegro
-cz.csob.smartbanking
-ro.bcr.george
-ro.emag.android
-gr.nbg.mobile
-pt.cgd.caixadirecta
-nl.ing.mobile
-nl.marktplaats.android
-se.bankid
-no.bankid.app
-com.swish.consumer
-dk.mitid.app.android
-fi.op.android.opmobiili
+com.db.pbc.mibanco  # Deutsche Bank España
+fr.creditagricole.androidapp  # Ma Banque
+fr.leboncoin  # leboncoin, petites annonces
+pl.mbank  # mBank PL - Twój bank i finanse
+pl.pkobp.iko  # PKO Bank Polski
+pl.allegro  # Allegro: shopping online
+ro.emag.android  # eMAG: Cumpărături online
+nl.marktplaats.android  # Marktplaats
+dk.mitid.app.android  # MitID
+fi.op.android.opmobiili  # OP-mobile
 # Latin America
-com.mercadolibre
-com.mercadopago.wallet
-com.nu.production
-br.com.intermedium
-com.picpay
-br.com.bb.android
-com.itau
-mx.com.bancomer.mbanking
-com.rappi.consumer
-com.didiglobal.passenger
+com.mercadolibre  # Mercado Libre: Compras Online
+com.mercadopago.wallet  # Mercado Pago: cuenta digital
+com.nu.production  # Nu: Everyday mobile banking
+br.com.intermedium  # Inter: Conta, Cartão e Pix
+com.picpay  # Banco PicPay: Cartão, Pix e +
+br.com.bb.android  # BB: Banco, Conta, Pix, Cartão
+com.itau  # Banco Itaú: Conta, Cartão e +
+com.didiglobal.passenger  # DiDi Rider: Affordable rides
 # South-east and East Asia
-com.gojek.app
-com.grabtaxi.passenger
-com.shopee.id
-com.tokopedia.tkpd
-com.lazada.android
-com.mservice.momotransfer
-vn.com.vng.zalopay
-com.gcash.app
-com.linecorp.linelite
-jp.co.yahoo.android.yjtop
-jp.naver.line.android
-jp.co.rakuten.android
-com.kakao.talk
-com.nhn.android.search
-com.coupang.mobile
-com.tencent.mm
-com.eg.android.AlipayGphone
+com.gojek.app  # Gojek - Food & Transportation
+com.grabtaxi.passenger  # Grab - Taxi & Food Delivery
+com.shopee.id  # Shopee Indonesia
+com.tokopedia.tkpd  # Tokopedia
+com.lazada.android  # Lazada 11.11 Greatest Sale
+com.mservice.momotransfer  # MoMo-Trợ Thủ Tài Chính với AI
+vn.com.vng.zalopay  # Zalopay-Thanh toán & Tài chính
+com.gcash.app  # GCASH Portfolio
+jp.co.yahoo.android.yjtop  # Yahoo! JAPAN
+jp.naver.line.android  # LINE: Calls & Messages
+jp.co.rakuten.android  # 楽天市場 - 楽天ポイントが貯まる日本最大級の通販アプリ
+com.kakao.talk  # KakaoTalk : Messenger
+com.nhn.android.search  # 네이버 - NAVER
+com.coupang.mobile  # Coupang - Mobile Shopping
+com.tencent.mm  # WeChat
+com.eg.android.AlipayGphone  # Alipay
 # Middle East and Turkey
-com.careem.acma
-com.noon.buyerapp
-com.trendyol.android
-com.getir
-com.hepsiburada.android
-sa.gov.nic.myid
+com.careem.acma  # Careem: Taxi, Food & Delivery
+com.noon.buyerapp  # noon Online Shopping & Grocery
+com.getir  # getir: groceries, food&beyond
+sa.gov.nic.myid  # نفاذ
+# Netherlands
+com.ing.mobile  # ING Netherlands
+nl.rabomobiel  # Rabobank
+com.abnamro.nl.mobile.payments  # ABN AMRO
+com.bunq.android  # bunq
+# Germany
+com.starfinanz.smob.android.sfinanzstatus  # Sparkasse Ihre mobile Filiale
+de.comdirect.app  # comdirect
+com.db.pwcc.dbmobile  # Deutsche Bank
+de.commerzbanking.mobil  # Commerzbank Banking
+# Italy
+com.latuabancaperandroid  # Intesa Sanpaolo Mobile
+it.bnl.apps.banking  # BNL
+com.unicredit  # Mobile Banking UniCredit
+# Sweden
+com.bankid.bus  # BankID security app
+se.bankgirot.swish  # Swish payments
+se.swedbank.mobil  # Swedbank private
+se.seb.privatkund  # SEB
+# Norway
+no.dnb.vipps  # Vipps
+# Czechia
+cz.csas.georgego  # George Česko
+cz.csob.smart  # ČSOB Smart
+# Romania
+ro.raiffeisen.smartmobile  # Raiffeisen Smart Mobile
+ro.bcr.georgego  # George Romania
+# Greece
+mbanking.NBG  # NBG Mobile Banking
+gr.winbank.mobile  # Piraeus Business app
+# Austria
+at.erstebank.george  # George Österreich
+# Hungary
+hu.otpbank.mobile  # OTP Bank HU
+# Switzerland
+ch.postfinance.android  # PostFinance App
+com.swisscom.myswisscom  # My Swisscom
+ch.salt.my  # MySalt.
+# Mexico
+mx.bancosantander.supermovil  # Santander México
+# Turkey
+com.garanti.cepsubesi  # Garanti BBVA Mobile
+com.ykb.android  # Yapı Kredi Mobile
+com.akbank.android.apps.akbank_direkt  # Akbank Mobile
+com.pozitron.iscep  # İşCep: Banking & Finance
+# Japan
+jp.co.smbc.direct  # 三井住友銀行アプリ
+jp.co.rakuten_bank.rakutenbank  # 楽天銀行 -個人のお客様向けアプリ
+jp.ne.paypay.android.app  # PayPay
+# Korea
+viva.republica.toss  # Toss
+com.kakaobank.channel  # 카카오뱅크
+# Indonesia
+com.bca  # BCA mobile
+id.dana  # DANA Indonesia Digital Wallet
+# Thailand
+com.kasikorn.retail.mbanking.wap  # K PLUS
+com.scb.phone  # SCB EASY
+# Malaysia
+com.maybank2u.life  # MAE by Maybank2u
+com.cimb.cimbocto  # CIMB OCTO MY
+# Kenya
+ke.co.equitygroup.equitymobile  # Equity Mobile
+com.safaricom.mpesa.lifestyle  # My OneApp
+# Ethiopia
+com.combanketh.mobilebanking  # Commercial Bank of Ethiopia
+# Senegal
+com.orange.orangemoneyafrique  # Orange Money Africa
+# Saudi Arabia
+com.alrajhiretailapp  # alrajhi bank
+# Canada
+com.rbc.mobile.android  # RBC Mobile
+com.td  # TD Canada
+com.bmo.mobile  # BMO Mobile Banking
+com.scotiabank.banking  # Scotiabank Mobile Banking
+# Australia
+com.commbank.netbank  # CommBank
+org.westpac.bank  # Westpac
+com.anz.android.gomoney  # ANZ Australia
+au.com.nab.mobile  # NAB Mobile Banking
+au.net.abc.iview  # ABC iview
+# New Zealand
+nz.co.anz.android.mobilebanking  # ANZ goMoney New Zealand
+nz.co.asb.asbmobile  # ASB Mobile Banking
+nz.co.westpac  # Westpac One NZ Mobile Banking
+# UK
+co.uk.getmondo  # Monzo Bank - Mobile Banking
+com.starlingbank.android  # Starling - Mobile Banking
+uk.co.hsbc.hsbcukmobilebanking  # HSBC UK Mobile Banking
+bbc.iplayer.android  # BBC iPlayer
+# US
+com.chase.sig.android  # Chase Mobile
+com.wf.wellsfargomobile  # Wells Fargo Mobile®
+com.infonow.bofa  # Bank of America Mobile Banking
+# Bulgaria (from the maintainer)
+hr.asseco.android.jimba.mUCI.bg  # UniCredit Bulbank
+bg.postbank.mobile.android.release  # Postbank
+# UK (from the maintainer)
+com.danskebank.mobilebank3.uk  # Danske Bank UK
+# Poland and Serbia (from the maintainer)
+pl.bzwbk.bzwbk24  # Santander Poland
+rs.erstebank.george  # George Serbia
+rs.Raiffeisen.mobile  # Raiffeisen Serbia
+# Italy and France (from the maintainer)
+com.posteitaliane.spim  # PosteID / Poste Italiane
+it.pagopa.io.app  # IO, Italy's public services app
+fr.vinted  # Vinted
+# France, Germany and Spain (from the maintainer)
+com.france24.androidapp  # FRANCE 24
+com.cbouvat.android.saracroche  # Saracroche
+com.aon.sante  # MySanté by Aon
+com.starfinanz.mobile.android.pushtan  # S-pushTAN
+de.deutschepost.postident  # POSTIDENT
+de.idealo.android  # idealo
+es.fnmtrcm.ceres.certificadoDigitalFNMT  # Certificado digital FNMT
+# Portugal and others (from the maintainer)
+pt.continente.LojaContinente  # Continente
+de.zalando.mobile  # Zalando
+com.primark.app.prod  # Primark
+pt.segsocial.mobile.segurancasocial  # Segurança Social
+com.bankinter.portugal.bmb  # Bankinter Portugal
+com.BancoDePortugal.BPmobile  # Banco de Portugal
+com.abanca.bm.pt  # ABANCA Portugal
+pt.santander.oneappparticulares  # Santander Portugal
+# Ireland and the UK (from the maintainer)
+ie.centra.loyalty  # My Centra
+com.homestoreandmore.hsmapp  # Home Store + More
+uk.co.next.android  # Next
+com.aimia.android.musgrave  # Real Rewards
+com.marksandspencer.app  # M&S
+com.lidl.eci.lidlplus  # Lidl Plus
+com.hm.goe  # H&M
+com.boots.flagship.android  # Boots
+com.yopeso.lieferando  # Lieferando
+# Morocco and Saudi Arabia (from the maintainer)
+ma.creditagricole.banke  # Bank-e, Crédit Agricole du Maroc
+com.saphir.baridbankmobile  # Barid Bank
+ma.marjanemall.marjanemall  # marjanemall
+com.moh.nusukapp  # Nusuk
+org.hicham.salaat  # Salaat First
+com.pakdata.QuranMajeed  # Quran Majeed
+# Faith and wellbeing (from the maintainer)
+com.andi.alquran.id  # Al Quran Indonesia
+com.quran.labs.androidquran  # Quran for Android
+com.sirma.mobile.bible.android  # Bible
+org.lds.ldssa  # Gospel Library
+bhagavan.id  # Bhagavan
+org.wakingup.android  # Waking Up
+# Egypt (from the maintainer)
+com.egyptianbanks.instapay  # InstaPay Egypt
+com.orange.mobinilandme  # Orange Max it Egypt
+com.etisalat  # My etisalat
+com.moe.fahem  # Faheem AI
+com.newleaf.app.android.victor  # ReelShort
+# India (from the maintainer)
+com.meesho.supply  # Meesho
+com.flipkart.android  # Flipkart
+com.rapido.passenger  # Rapido
+com.grofers.customerapp  # Blinkit
+com.boi.ua.android  # Bank of India
+com.naviapp  # Navi
+# UAE (from the maintainer)
+ae.uaepass.mainapp  # UAE PASS
+im.thebot.messenger  # botim
+com.Etisalat.ETIDA  # etisalat UAE
+com.fab.personalbanking  # FAB Mobile
+com.rak  # Rakbank
+com.uaemoi.smartservices  # MOI UAE
+ae.gov.mol  # MOHRE
+com.qmobility.darbx  # Darb
+com.etisalat.ewallet  # etisalat money UAE
+# Global (from the maintainer)
+com.facebook.stella  # Meta AI
+io.playout  # Playout
+com.dealseekorg.dealseek  # DealSeek
+com.getyourguide.android  # GetYourGuide
+com.viator.mobile.android  # Viator
+com.soarinfotech.coupert  # Coupert
+com.adidas.app  # adidas
+com.fsn.nds  # Nykaa Fashion
+com.zhiliaoapp.musically.go  # TikTok Lite
+com.camerasideas.instashot  # InShot
+com.instagram.basel  # Edits
+com.tideplatform.banking  # Tide
+com.xtb.xmobile2  # XTB
