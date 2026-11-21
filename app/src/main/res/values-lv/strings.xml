@@ -119,9 +119,6 @@
     <string name="settings_app_list_layout_option_name_below">Nosaukums zem</string>
     <string name="settings_app_list_layout_option_icon_only">Tikai ikona</string>
     <string name="settings_dock_layout_title">Doka stils</string>
-    <string name="settings_folder_open_style_title">Mapju atvēršana</string>
-    <string name="settings_folder_open_style_option_around_tap">Ap pieskārienu</string>
-    <string name="settings_folder_open_style_option_in_order">No sākuma</string>
     <string name="settings_app_list_sort_title">Kārtot lietotnes pēc</string>
     <string name="settings_app_list_sort_option_usage">Lietojuma ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Lietojuma ↑</string>

@@ -84,13 +84,4 @@ class DockSettingsStoreLayoutTest {
         prefs().edit().putString("dock_layout", "SomeFutureLayout").commit()
         assertEquals(DockLayout.IconOnly, DockSettingsStore(context).dockLayout)
     }
-
-    @Test
-    fun folderOpenStyleDefaultsToAroundTap_andRoundTrips() {
-        assertEquals(FolderOpenStyle.AroundTap, DockSettingsStore(context).folderOpenStyle)
-        for (style in FolderOpenStyle.entries) {
-            DockSettingsStore(context).folderOpenStyle = style
-            assertEquals(style, DockSettingsStore(context).folderOpenStyle)
-        }
-    }
 }

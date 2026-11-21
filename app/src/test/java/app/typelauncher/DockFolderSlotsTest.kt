@@ -72,4 +72,52 @@ class DockFolderSlotsTest {
             assertTrue("row-major width @$columns", slots.size % columns == 0)
         }
     }
+
+    @Test
+    fun reversedSort_fillsFromTheBottomLikeTheAppList() {
+        // Close bottom-left, rank 1 beside it, rows growing up, with an empty
+        // row above so a 2-row dock holds a 1-row folder at the bottom.
+        assertEquals(
+            listOf(
+                E, E, E, E,
+                C, M(0), M(1), E,
+            ),
+            dockFolderSlots(memberCount = 2, columns = 4, visibleRows = 2, reversed = true),
+        )
+        assertEquals(
+            listOf(
+                M(3), M(4), M(5), E,
+                C, M(0), M(1), M(2),
+            ),
+            dockFolderSlots(memberCount = 6, columns = 4, visibleRows = 2, reversed = true),
+        )
+    }
+
+    @Test
+    fun reversedSort_tallerThanTheDock_addsRowsAbove() {
+        // 7 apps + close in 3 columns need 3 rows; the dock shows 1, and the
+        // extra rows go above (the folder opens scrolled to the bottom).
+        assertEquals(
+            listOf(
+                M(5), M(6), E,
+                M(2), M(3), M(4),
+                C, M(0), M(1),
+            ),
+            dockFolderSlots(memberCount = 7, columns = 3, visibleRows = 1, reversed = true),
+        )
+    }
+
+    @Test
+    fun scrollingDock_padsOnlyToTheRowsOnScreen() {
+        // A 4-row dock capped to a 2-row window: a reversed 1-row folder gets
+        // one empty row above, not three (Codex on PR #884).
+        val visible = dockVisibleRowCount(rowCount = 4, maxScrollPx = 200, viewportPx = 200, pitchPx = 100f)
+        assertEquals(2, visible)
+        assertEquals(
+            listOf(E, E, E, C, M(0), E),
+            dockFolderSlots(memberCount = 1, columns = 3, visibleRows = visible, reversed = true),
+        )
+        // A dock that doesn't scroll shows every row.
+        assertEquals(3, dockVisibleRowCount(rowCount = 3, maxScrollPx = 0, viewportPx = 300, pitchPx = 100f))
+    }
 }

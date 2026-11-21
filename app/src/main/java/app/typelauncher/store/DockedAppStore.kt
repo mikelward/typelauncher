@@ -530,19 +530,6 @@ internal class DockSettingsStore(context: Context) {
         }
 
     /**
-     * How an opened folder lays out its apps (see [FolderOpenStyle]), in the
-     * dock and the app list. Stored by name; defaults to
-     * [FolderOpenStyle.AroundTap].
-     */
-    var folderOpenStyle: FolderOpenStyle
-        get() = sharedPreferences.enumOrDefault(KEY_FOLDER_OPEN_STYLE, FolderOpenStyle.AroundTap)
-        set(value) {
-            sharedPreferences.edit()
-                .putString(KEY_FOLDER_OPEN_STYLE, value.name)
-                .apply()
-        }
-
-    /**
      * Where the dock sits in landscape (see [LandscapeDockPosition]). Stored by
      * name so an unknown value falls back to [LandscapeDockPosition.Bottom],
      * the pre-setting behavior.
@@ -1051,7 +1038,6 @@ internal class DockSettingsStore(context: Context) {
         const val KEY_APP_LIST_ICON_ONLY = "app_list_icon_only"
         const val KEY_APP_LIST_LAYOUT = "app_list_layout"
         const val KEY_DOCK_LAYOUT = "dock_layout"
-        const val KEY_FOLDER_OPEN_STYLE = "folder_open_style"
         const val KEY_LANDSCAPE_DOCK_POSITION = "landscape_dock_position"
         const val KEY_ICON_THEME = "icon_theme"
         const val KEY_APP_LIST_SORT_ORDER = "app_list_sort_order"

@@ -120,9 +120,6 @@
     <string name="settings_app_list_layout_option_name_below">Назва знизу</string>
     <string name="settings_app_list_layout_option_icon_only">Лише значок</string>
     <string name="settings_dock_layout_title">Стиль доку</string>
-    <string name="settings_folder_open_style_title">Відкриття папок</string>
-    <string name="settings_folder_open_style_option_around_tap">Навколо дотику</string>
-    <string name="settings_folder_open_style_option_in_order">З початку</string>
     <string name="settings_app_list_sort_title">Сортувати застосунки за</string>
     <string name="settings_app_list_sort_option_usage">Використанням ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Використанням ↑</string>

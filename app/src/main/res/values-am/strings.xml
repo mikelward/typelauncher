@@ -118,9 +118,6 @@
     <string name="settings_app_list_layout_option_name_below">ስም ከታች</string>
     <string name="settings_app_list_layout_option_icon_only">አዶ ብቻ</string>
     <string name="settings_dock_layout_title">የዶክ ቅጥ</string>
-    <string name="settings_folder_open_style_title">አቃፊዎችን መክፈት</string>
-    <string name="settings_folder_open_style_option_around_tap">በነኩበት ዙሪያ</string>
-    <string name="settings_folder_open_style_option_in_order">ከመጀመሪያው</string>
     <string name="settings_app_list_sort_title">መተግበሪያዎችን በ ደርድር</string>
     <string name="settings_app_list_sort_option_usage">አጠቃቀም ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">አጠቃቀም ↑</string>

@@ -118,9 +118,6 @@
     <string name="settings_app_list_layout_option_name_below">Név alatta</string>
     <string name="settings_app_list_layout_option_icon_only">Csak ikon</string>
     <string name="settings_dock_layout_title">Dokk stílusa</string>
-    <string name="settings_folder_open_style_title">Mappák megnyitása</string>
-    <string name="settings_folder_open_style_option_around_tap">A koppintás körül</string>
-    <string name="settings_folder_open_style_option_in_order">Az elejétől</string>
     <string name="settings_app_list_sort_title">Alkalmazások rendezése</string>
     <string name="settings_app_list_sort_option_usage">Használat ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Használat ↑</string>

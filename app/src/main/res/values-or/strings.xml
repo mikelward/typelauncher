@@ -118,9 +118,6 @@
     <string name="settings_app_list_layout_option_name_below">ତଳେ ନାମ</string>
     <string name="settings_app_list_layout_option_icon_only">କେବଳ ଆଇକନ୍</string>
     <string name="settings_dock_layout_title">ଡକ୍ ଶୈଳୀ</string>
-    <string name="settings_folder_open_style_title">ଫୋଲ୍ଡର୍ ଖୋଲିବା</string>
-    <string name="settings_folder_open_style_option_around_tap">ଆପଣ ଟ୍ୟାପ୍ କରିଥିବା ସ୍ଥାନ ଚାରିପାଖରେ</string>
-    <string name="settings_folder_open_style_option_in_order">ଆରମ୍ଭରୁ</string>
     <string name="settings_app_list_sort_title">ଆପ୍‌ଗୁଡ଼ିକୁ ସଜାନ୍ତୁ</string>
     <string name="settings_app_list_sort_option_usage">ବ୍ୟବହାର ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">ବ୍ୟବହାର ↑</string>

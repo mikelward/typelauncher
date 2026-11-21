@@ -118,9 +118,6 @@
     <string name="settings_app_list_layout_option_name_below">نام نیچے</string>
     <string name="settings_app_list_layout_option_icon_only">صرف آئیکن</string>
     <string name="settings_dock_layout_title">ڈاک کا انداز</string>
-    <string name="settings_folder_open_style_title">فولڈرز کھولنا</string>
-    <string name="settings_folder_open_style_option_around_tap">تھپتھپانے کی جگہ کے اردگرد</string>
-    <string name="settings_folder_open_style_option_in_order">شروع سے</string>
     <string name="settings_app_list_sort_title">ایپس کی ترتیب بمطابق</string>
     <string name="settings_app_list_sort_option_usage">استعمال ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">استعمال ↑</string>

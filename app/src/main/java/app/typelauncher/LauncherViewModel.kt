@@ -461,7 +461,6 @@ internal class LauncherViewModel(
             isDockEnabled = dockSettingsStore.isDockEnabled,
             appListLayout = dockSettingsStore.appListLayout,
             dockLayout = dockSettingsStore.dockLayout,
-            folderOpenStyle = dockSettingsStore.folderOpenStyle,
             landscapeDockPosition = dockSettingsStore.landscapeDockPosition,
             dockIconSizeDp = dockSettingsStore.dockIconSizeDp,
             isWorkDockEnabled = dockSettingsStore.isWorkDockEnabled,
@@ -5026,12 +5025,6 @@ internal class LauncherViewModel(
         dockSettingsStore.isGridOfferAnswered = true
         _uiState.update { it.copy(isGridOfferPending = false) }
         logState("dismissGridOffer")
-    }
-
-    fun setFolderOpenStyle(style: FolderOpenStyle) {
-        dockSettingsStore.folderOpenStyle = style
-        _uiState.update { it.copy(folderOpenStyle = style) }
-        logState("setFolderOpenStyle")
     }
 
     fun setDockLayout(layout: DockLayout) {

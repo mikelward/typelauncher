@@ -118,9 +118,6 @@
     <string name="settings_app_list_layout_option_name_below">പേര് താഴെ</string>
     <string name="settings_app_list_layout_option_icon_only">ഐക്കൺ മാത്രം</string>
     <string name="settings_dock_layout_title">ഡോക്ക് ശൈലി</string>
-    <string name="settings_folder_open_style_title">ഫോൾഡറുകൾ തുറക്കൽ</string>
-    <string name="settings_folder_open_style_option_around_tap">ടാപ്പ് ചെയ്ത ഇടത്തിന് ചുറ്റും</string>
-    <string name="settings_folder_open_style_option_in_order">തുടക്കം മുതൽ</string>
     <string name="settings_app_list_sort_title">ആപ്പുകൾ ഇത് അനുസരിച്ച് അടുക്കുക</string>
     <string name="settings_app_list_sort_option_usage">ഉപയോഗം ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">ഉപയോഗം ↑</string>

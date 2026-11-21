@@ -132,7 +132,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -1023,7 +1022,6 @@ internal fun HomeScreen(
                         dockIconCount = cardColumns,
                         minHeight = cardMinHeight,
                         dockLayout = state.dockLayout,
-                        folderOpenStyle = state.folderOpenStyle,
                         isSortReversed = state.appListSortOrder.isReversed,
                         modifier = Modifier.weight(1f, fill = false),
                         reorderEnabled = !isWiderThanPortrait,
@@ -1124,7 +1122,6 @@ internal fun HomeScreen(
                         dockIconCount = cardColumns,
                         minHeight = cardMinHeight,
                         dockLayout = state.dockLayout,
-                        folderOpenStyle = state.folderOpenStyle,
                         isSortReversed = state.appListSortOrder.isReversed,
                         // A side column has the window's height to share, so
                         // the work card splits it with the personal card (each
@@ -1438,7 +1435,6 @@ internal fun HomeScreen(
                     // AI sorting offers itself at the top of every open folder
                     // until answered (maintainer, 2026-11-19), and shows its
                     // progress there while it sorts.
-                    folderOpenStyle = state.folderOpenStyle,
                     openFolderNote = if (openAppFolder != null && state.isAiSortSupported) {
                         {
                             OtherFolderAiNote(
@@ -2122,9 +2118,8 @@ private fun DockCard(
     dockLayout: DockLayout,
     modifier: Modifier = Modifier,
     dockFolders: List<ResolvedDockFolder> = emptyList(),
-    // How an opened folder lays out its apps, and whether rank 1 goes nearest
-    // the keyboard (a reversed sort); see [dockFolderOpenSlots].
-    folderOpenStyle: FolderOpenStyle = FolderOpenStyle.InOrder,
+    // A reversed sort puts rank 1 nearest the keyboard, so open folders fill
+    // from the bottom (see [dockFolderSlots]).
     isSortReversed: Boolean = false,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
@@ -2556,43 +2551,18 @@ private fun DockCard(
             // when a folder opens; the folder scrolls internally if it has more
             // apps than the dock had slots.
             if (inPlaceFolder != null) {
-                // Anchor on the tapped row as it sits on screen: a height-capped
-                // dock may be scrolled, and the folder opens unscrolled in the
-                // rows that were showing.
+                // The rows on screen: a height-capped dock may scroll past some.
                 val pitchPx = with(LocalDensity.current) {
                     (dockSlotHeightDp(dockIconSizeDp, dockLayout, fontScale) + DOCK_ITEM_SPACING_DP).dp.toPx()
                 }
-                val (firstVisibleRow, visibleRows) = dockVisibleRows(
-                    rowCount = rowCount,
-                    scrollPx = scrollState.value,
-                    maxScrollPx = scrollState.maxValue,
-                    viewportPx = scrollState.viewportSize,
-                    pitchPx = pitchPx,
-                )
-                val tapped = resolvedPositions[inPlaceFolder.id]?.let { position ->
-                    DockPosition(position.row - firstVisibleRow, position.column)
-                }
+                val visibleRows = dockVisibleRowCount(rowCount, scrollState.maxValue, scrollState.viewportSize, pitchPx)
                 DockFolderInPlace(
                     folder = inPlaceFolder,
                     dockIconSizeDp = dockIconSizeDp,
                     dockIconCount = dockIconCount,
                     dockLayout = dockLayout,
-                    slots = dockFolderOpenSlots(
-                        memberCount = inPlaceFolder.members.size,
-                        columns = dockIconCount,
-                        style = folderOpenStyle,
-                        tapped = tapped,
-                        visibleRows = visibleRows,
-                        isSortReversed = isSortReversed,
-                    ),
-                    startsScrolledToBottom = dockFolderOpensScrolledToBottom(
-                        memberCount = inPlaceFolder.members.size,
-                        columns = dockIconCount,
-                        style = folderOpenStyle,
-                        tapped = tapped,
-                        visibleRows = visibleRows,
-                        isSortReversed = isSortReversed,
-                    ),
+                    visibleRows = visibleRows,
+                    isSortReversed = isSortReversed,
                     appIconTag = tags.appIconTag,
                     // Hidden (but kept composed, so the dragged tile's gesture
                     // survives) once a member is dragged out: the dock shows
@@ -3002,10 +2972,10 @@ internal fun DockFolderInPlace(
     dockLayout: DockLayout,
     appIconTag: String,
     onClose: () -> Unit,
-    // Cells for the members and close tile (see [dockFolderOpenSlots]), and
-    // whether it opens at its bottom (see [dockFolderOpensScrolledToBottom]).
-    slots: List<FolderSlot> = dockFolderSlots(folder.members.size, dockIconCount),
-    startsScrolledToBottom: Boolean = false,
+    // The dock's rows, which a reversed folder fills from the bottom, and the
+    // sort direction (see [dockFolderSlots]).
+    visibleRows: Int = 1,
+    isSortReversed: Boolean = false,
     onLaunchApp: (InstalledApp) -> Unit,
     onOpenAppInfo: (InstalledApp) -> Unit,
     onRemoveFromFolder: (String) -> Unit,
@@ -3037,9 +3007,10 @@ internal fun DockFolderInPlace(
     modifier: Modifier = Modifier,
 ) {
     BackHandler(enabled = true, onBack = onClose)
-    // A reversed folder taller than the dock opens at its bottom, where the
-    // tapped row and rank 1 are; the scroll clamps the start to the real end.
-    val scrollState = rememberScrollState(if (startsScrolledToBottom) Int.MAX_VALUE else 0)
+    val slots = dockFolderSlots(folder.members.size, dockIconCount, visibleRows, isSortReversed)
+    // A reversed folder opens at its bottom, where rank 1 is; the scroll clamps
+    // the start to the real end.
+    val scrollState = rememberScrollState(if (isSortReversed) Int.MAX_VALUE else 0)
     val scope = rememberCoroutineScope()
     // Same top/bottom scroll chevrons the apps list uses: shown only while there
     // is more folder to scroll to, and a tap pages by one viewport.
@@ -3116,11 +3087,12 @@ internal fun DockFolderInPlace(
 /**
  * The open folder's body: the member apps laid out in the *same* grid the dock
  * uses — [dockIconCount] columns of equal-width tiles at [dockIconSizeDp] — so an
- * open folder reads as if its apps were the docked apps. [slots] places the
- * members and a close tile (an X), the explicit dismiss affordance: around the
- * tapped folder or packed from the top-left (see [dockFolderOpenSlots]). Rows are
- * padded with empty cells so every tile keeps its `1 / columns` width instead of
- * a lone trailing tile stretching across the row.
+ * open folder reads as if its apps were the docked apps. [slots] orders the
+ * members and a close tile (an X), the explicit dismiss affordance, as the app
+ * list would with folders off: from the top-left, or from the bottom-left under a
+ * reversed sort (see [dockFolderSlots]). Rows are padded with empty cells so
+ * every tile keeps its `1 / columns` width instead of a lone trailing tile
+ * stretching across the row.
  *
  * The caller ([DockFolderInPlace]) wraps this in a fixed-height, scrollable box
  * sized to the dock's footprint, so the grid itself just lays the tiles out at
@@ -3139,7 +3111,7 @@ internal fun DockFolderGrid(
     dockIconCount: Int,
     dockLayout: DockLayout,
     modifier: Modifier = Modifier,
-    // Row-major cells for the members and close tile; see [dockFolderOpenSlots].
+    // Row-major cells for the members and close tile; see [dockFolderSlots].
     slots: List<FolderSlot> = dockFolderSlots(folder.members.size, dockIconCount),
     appIconTag: String = DOCK_APP_ICON_TAG,
     onClose: () -> Unit = {},
@@ -3370,8 +3342,8 @@ internal fun DockFolderGrid(
                             modifier = Modifier.weight(1f),
                             onClose = onClose,
                         )
-                        // A dock slot's height, so a whole empty row above the
-                        // apps keeps the close tile on the tapped row.
+                        // A dock slot's height, so the empty rows above a
+                        // reversed folder hold it at the bottom.
                         FolderSlot.Empty -> Spacer(
                             modifier = Modifier
                                 .weight(1f)
@@ -4799,8 +4771,6 @@ internal fun AppsCard(
     onDismissFoldersOffer: () -> Unit = {},
     // Shown under the open folder's header, when set.
     openFolderNote: (@Composable () -> Unit)? = null,
-    // How [openFolder] lays out its apps; see [FolderOpenStyle].
-    folderOpenStyle: FolderOpenStyle = FolderOpenStyle.InOrder,
     // The one-time offer to show apps as a grid, above the list. Never with
     // the folders offer, which goes first.
     showGridOffer: Boolean = false,
@@ -4874,19 +4844,7 @@ internal fun AppsCard(
             emptyList()
         }
     }
-    // Where the last folder was tapped, and the list it was in, both in root
-    // coordinates: a plain holder rather than state, since opening the folder
-    // recomposes anyway.
-    val folderTap = remember { FolderTapAnchor() }
-    val reportFolderTap: (Rect) -> Unit = remember(folderTap) { { bounds -> folderTap.tap = bounds } }
-    val reportAppListBounds: (Rect?) -> Unit = { bounds ->
-        if (openFolder == null && bounds != null) folderTap.list = bounds
-        onAppListBoundsChanged(bounds)
-    }
-    CompositionLocalProvider(
-        LocalAppFolderMenu provides folderMenu,
-        LocalFolderTapReporter provides reportFolderTap,
-    ) {
+    CompositionLocalProvider(LocalAppFolderMenu provides folderMenu) {
         SectionCard(
             modifier
                 .testTag(APPS_CARD_TAG)
@@ -4944,40 +4902,7 @@ internal fun AppsCard(
                 }
             } else {
                 val chevronDescription = stringResource(R.string.apps_list_scroll_more_hint)
-                val tapBounds = folderTap.tap
-                val tapList = folderTap.list
-                if (openFolder != null && folderOpenStyle == FolderOpenStyle.AroundTap &&
-                    tapBounds != null && tapList != null
-                ) {
-                    AroundTapAppListFolder(
-                        folder = openFolder,
-                        apps = apps,
-                        tapBounds = tapBounds,
-                        listBounds = tapList,
-                        isGrid = isGrid,
-                        iconSizeDp = iconSizeDp,
-                        showLabel = showLabels,
-                        isSortReversed = reverseLayout,
-                        dockLimit = dockLimit,
-                        chevronDescription = chevronDescription,
-                        note = openFolderNote,
-                        onCloseFolder = onCloseFolder,
-                        onBoundsChanged = onAppListBoundsChanged,
-                        onLaunchApp = onLaunchApp,
-                        onOpenAppInfo = onOpenAppInfo,
-                        onToggleDock = onToggleDock,
-                        onResetRank = onResetRank,
-                        onRenameApp = onRenameApp,
-                        onSetAppIconOverride = onSetAppIconOverride,
-                        onClearAppIconOverride = onClearAppIconOverride,
-                        onSetAppBadge = onSetAppBadge,
-                        onHideApp = onHideApp,
-                        onUninstallApp = onUninstallApp,
-                        appDrag = appDrag,
-                        draggedAppId = draggedAppId,
-                        modifier = Modifier.weight(1f),
-                    )
-                } else if (isGrid) {
+                if (isGrid) {
                     val gridState = rememberLazyGridState()
                     LaunchedEffect(scrollResetKey) { gridState.scrollToItem(0) }
                     // In reverseLayout, the visual top is at the END of the data,
@@ -5038,7 +4963,7 @@ internal fun AppsCard(
                                 onOpenEvent = onOpenEvent,
                                 state = gridState,
                                 onBoundsChanged = { bounds ->
-                                    reportAppListBounds(bounds)
+                                    onAppListBoundsChanged(bounds)
                                     measuredChevronLayoutKey = chevronLayoutKey
                                 },
                                 onLaunchApp = onLaunchApp,
@@ -5114,7 +5039,7 @@ internal fun AppsCard(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .onGloballyPositioned { coords ->
-                                        reportAppListBounds(
+                                        onAppListBoundsChanged(
                                             Rect(coords.positionInRoot(), coords.size.toSize()),
                                         )
                                         measuredChevronLayoutKey = chevronLayoutKey
@@ -5444,210 +5369,6 @@ internal fun IconOnlyAppGrid(
             onContactLongPress = onContactLongPress,
             onOpenEvent = onOpenEvent,
         )
-    }
-}
-
-/** Where a folder was tapped and the list it was in; see [AroundTapAppListFolder]. */
-private class FolderTapAnchor {
-    var tap: Rect? = null
-    var list: Rect? = null
-}
-
-/**
- * An app-list folder opened with [FolderOpenStyle.AroundTap]: the header and
- * note, then the folder's apps in a block of rows around where the folder was
- * tapped, the close item in the folder's place (see [aroundTapFolderSlots]).
- * Rows are the tapped item's height, and as many as fit under the header; the
- * tapped row is placed by its height in the list, so it may land a row off
- * when the header is taller than the folders above it were.
- */
-@Composable
-private fun AroundTapAppListFolder(
-    folder: AppListFolder,
-    apps: List<InstalledApp>,
-    tapBounds: Rect,
-    listBounds: Rect,
-    isGrid: Boolean,
-    iconSizeDp: Int,
-    showLabel: Boolean,
-    isSortReversed: Boolean,
-    dockLimit: Int,
-    chevronDescription: String,
-    note: (@Composable () -> Unit)?,
-    onCloseFolder: () -> Unit,
-    onBoundsChanged: (Rect?) -> Unit,
-    onLaunchApp: (InstalledApp) -> Unit,
-    onOpenAppInfo: (InstalledApp) -> Unit,
-    onToggleDock: (InstalledApp, Int) -> Unit,
-    onResetRank: (InstalledApp) -> Unit,
-    onRenameApp: (InstalledApp, String) -> Unit,
-    onSetAppIconOverride: (InstalledApp) -> Unit,
-    onClearAppIconOverride: (InstalledApp) -> Unit,
-    onSetAppBadge: (InstalledApp, String?) -> Unit,
-    onHideApp: (InstalledApp) -> Unit,
-    onUninstallApp: (InstalledApp) -> Unit,
-    appDrag: AppDragHandlers?,
-    draggedAppId: String?,
-    modifier: Modifier = Modifier,
-) {
-    val density = LocalDensity.current
-    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val spacingPx = with(density) { (if (isGrid) APP_GRID_SPACING_DP else 0).dp.toPx() }
-    val rowHeightPx = tapBounds.height.coerceAtLeast(1f)
-    val pitchPx = rowHeightPx + spacingPx
-    val header: @Composable () -> Unit = {
-        Column {
-            AppListFolderHeader(folder)
-            note?.invoke()
-        }
-    }
-    // The apps, given the width they span, the height their rows get under the
-    // header, and the header when it must scroll with them.
-    val folderGrid: @Composable (Int, Int, (@Composable () -> Unit)?) -> Unit = { widthPxInt, rowsAreaPxInt, scrollingHeader ->
-        val widthPx = widthPxInt.toFloat()
-        val heightPx = rowsAreaPxInt.toFloat()
-        // The same column count GridCells.Adaptive gives the app grid.
-        val columns = if (isGrid) {
-            val minCellPx = with(density) { (iconSizeDp + APP_GRID_SPACING_DP).dp.toPx() }
-            ((widthPx + spacingPx) / (minCellPx + spacingPx)).toInt().coerceAtLeast(1)
-        } else {
-            1
-        }
-        val visibleRows = ((heightPx + spacingPx) / pitchPx).toInt().coerceAtLeast(1)
-        // The rows end where the list did; the header takes the top.
-        val gridTop = listBounds.bottom - heightPx
-        val anchorRow = ((tapBounds.center.y - gridTop) / pitchPx).toInt()
-        // The closed list may have been narrower, between the letter
-        // strips, and centered in this width; measure from this edge.
-        val inset = ((widthPx - listBounds.width) / 2f).coerceAtLeast(0f)
-        val columnFromLeft = ((tapBounds.center.x - listBounds.left + inset) / (widthPx / columns)).toInt()
-            .coerceIn(0, columns - 1)
-        // The grid counts columns from the start edge, the right in RTL.
-        val anchorColumn = if (isRtl) columns - 1 - columnFromLeft else columnFromLeft
-        val slots = remember(apps.size, columns, visibleRows, anchorRow, anchorColumn, isSortReversed) {
-            aroundTapFolderSlots(apps.size, columns, visibleRows, anchorRow, anchorColumn, isSortReversed)
-        }
-        // A header scrolling with the apps is item 0; open past it, so the
-        // apps show and the header is a scroll away.
-        val firstSlotIndex = if (scrollingHeader != null) 1 else 0
-        val gridState = rememberLazyGridState(
-            initialFirstVisibleItemIndex = firstSlotIndex + if (
-                folderOpensScrolledToBottom(slots.size, columns, visibleRows, isSortReversed)
-            ) {
-                slots.lastIndex
-            } else {
-                0
-            },
-        )
-        val scope = rememberCoroutineScope()
-        val rowHeight = with(density) { rowHeightPx.toDp() }
-        AppListOverflowChevronBox(
-            canScrollUp = { gridState.canScrollBackward },
-            canScrollDown = { gridState.canScrollForward },
-            chevronsReady = true,
-            topChevronContentDescription = chevronDescription,
-            bottomChevronContentDescription = chevronDescription,
-            onScrollPageUp = { scope.launch { gridState.scrollOneVisualPage(up = true, reverseLayout = false) } },
-            onScrollPageDown = { scope.launch { gridState.scrollOneVisualPage(up = false, reverseLayout = false) } },
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(columns),
-                state = gridState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .onGloballyPositioned { coords ->
-                        onBoundsChanged(Rect(coords.positionInRoot(), coords.size.toSize()))
-                    }
-                    .testTag(APPS_LIST_TAG),
-                horizontalArrangement = Arrangement.spacedBy(with(density) { spacingPx.toDp() }),
-                verticalArrangement = Arrangement.spacedBy(with(density) { spacingPx.toDp() }),
-            ) {
-                if (scrollingHeader != null) {
-                    item(key = APP_LIST_FOLDER_HEADER_KEY, span = { GridItemSpan(maxLineSpan) }) { scrollingHeader() }
-                }
-                items(
-                    count = slots.size,
-                    key = { index ->
-                        when (val slot = slots[index]) {
-                            is FolderSlot.Member -> apps[slot.index].id
-                            FolderSlot.Close -> APP_LIST_FOLDER_CLOSE_KEY
-                            FolderSlot.Empty -> "app_list_folder_empty_$index"
-                        }
-                    },
-                ) { index ->
-                    when (val slot = slots[index]) {
-                        is FolderSlot.Member -> {
-                            val app = apps[slot.index]
-                            if (isGrid) {
-                                IconOnlyAppButton(
-                                    app = app,
-                                    isActive = false,
-                                    dockLimit = dockLimit,
-                                    iconSizeDp = iconSizeDp,
-                                    showLabel = showLabel,
-                                    onLaunchApp = onLaunchApp,
-                                    onOpenAppInfo = onOpenAppInfo,
-                                    onToggleDock = onToggleDock,
-                                    onResetRank = onResetRank,
-                                    onRenameApp = onRenameApp,
-                                    onSetAppIconOverride = onSetAppIconOverride,
-                                    onClearAppIconOverride = onClearAppIconOverride,
-                                    onSetAppBadge = onSetAppBadge,
-                                    onHideApp = onHideApp,
-                                    onUninstallApp = onUninstallApp,
-                                    appDrag = appDrag,
-                                    isDragged = appDrag != null && app.id == draggedAppId,
-                                )
-                            } else {
-                                AppRow(
-                                    app = app,
-                                    isActive = false,
-                                    dockLimit = dockLimit,
-                                    onLaunchApp = onLaunchApp,
-                                    onOpenAppInfo = onOpenAppInfo,
-                                    onToggleDock = onToggleDock,
-                                    onResetRank = onResetRank,
-                                    onRenameApp = onRenameApp,
-                                    onSetAppIconOverride = onSetAppIconOverride,
-                                    onClearAppIconOverride = onClearAppIconOverride,
-                                    onSetAppBadge = onSetAppBadge,
-                                    onHideApp = onHideApp,
-                                    onUninstallApp = onUninstallApp,
-                                    appDrag = appDrag,
-                                    isDragged = appDrag != null && app.id == draggedAppId,
-                                )
-                            }
-                        }
-                        FolderSlot.Close -> if (isGrid) {
-                            AppListFolderCloseTile(iconSizeDp = iconSizeDp, showLabel = showLabel, onClose = onCloseFolder)
-                        } else {
-                            AppListFolderCloseRow(onClose = onCloseFolder)
-                        }
-                        // Holds a whole empty row at the tapped item's height.
-                        FolderSlot.Empty -> Spacer(modifier = Modifier.height(rowHeight))
-                    }
-                }
-            }
-        }
-    }
-    SubcomposeLayout(modifier = modifier.fillMaxWidth()) { constraints ->
-        val headerPlaceables = subcompose("header", header).map { it.measure(constraints.copy(minHeight = 0)) }
-        val headerHeight = headerPlaceables.maxOfOrNull { it.height } ?: 0
-        val total = if (constraints.hasBoundedHeight) constraints.maxHeight else headerHeight + pitchPx.toInt()
-        val rowsArea = (total - headerHeight).coerceAtLeast(0)
-        // A card too short for the header and a row of apps scrolls the
-        // header with them, as an in-order folder's does, so the apps and
-        // close stay reachable. (The measuring copy above is then unplaced.)
-        val headerScrolls = rowsArea < pitchPx
-        val gridHeight = if (headerScrolls) total else rowsArea
-        val gridPlaceables = subcompose("grid") {
-            folderGrid(constraints.maxWidth, rowsArea, if (headerScrolls) header else null)
-        }.map { it.measure(Constraints.fixed(constraints.maxWidth, gridHeight)) }
-        layout(constraints.maxWidth, total) {
-            if (!headerScrolls) headerPlaceables.forEach { it.place(0, 0) }
-            gridPlaceables.forEach { it.place(0, if (headerScrolls) 0 else headerHeight) }
-        }
     }
 }
 
@@ -7951,7 +7672,6 @@ internal fun SettingsScreen(
     onDockEnabledChanged: (Boolean) -> Unit,
     onAppListLayoutChanged: (AppListLayout) -> Unit,
     onDockLayoutChanged: (DockLayout) -> Unit = {},
-    onFolderOpenStyleChanged: (FolderOpenStyle) -> Unit = {},
     onLandscapeDockPositionChanged: (LandscapeDockPosition) -> Unit = {},
     onDockVisibleIconCountChanged: (Int) -> Unit,
     onWorkDockEnabledChanged: (Boolean) -> Unit = {},
@@ -8381,23 +8101,6 @@ internal fun SettingsScreen(
                     DockLayoutDropdown(
                         selected = state.dockLayout,
                         onLayoutChanged = onDockLayoutChanged,
-                    )
-                }
-                // Dock folders open in the dock and app-list folders in the
-                // list; both follow this.
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Text(
-                        stringResource(R.string.settings_folder_open_style_title),
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    FolderOpenStyleDropdown(
-                        selected = state.folderOpenStyle,
-                        onStyleChanged = onFolderOpenStyleChanged,
                     )
                 }
                 Row(
@@ -8851,45 +8554,6 @@ private fun AppListLayoutDropdown(
                     onLayoutChanged(AppListLayout.IconOnly)
                 },
             )
-        }
-    }
-}
-
-@Composable
-private fun FolderOpenStyleDropdown(
-    selected: FolderOpenStyle,
-    onStyleChanged: (FolderOpenStyle) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    fun labelRes(style: FolderOpenStyle) = when (style) {
-        FolderOpenStyle.AroundTap -> R.string.settings_folder_open_style_option_around_tap
-        FolderOpenStyle.InOrder -> R.string.settings_folder_open_style_option_in_order
-    }
-    Box {
-        TextButton(
-            onClick = { expanded = true },
-            modifier = Modifier.testTag(FOLDER_OPEN_STYLE_DROPDOWN_TAG),
-        ) {
-            Text(stringResource(labelRes(selected)))
-            Icon(
-                LauncherIcons.ArrowDropDown,
-                contentDescription = null,
-            )
-        }
-        LauncherDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            FolderOpenStyle.entries.forEach { style ->
-                DropdownMenuItem(
-                    text = { LauncherMenuItemText(stringResource(labelRes(style))) },
-                    modifier = Modifier.testTag(folderOpenStyleOptionTag(style)),
-                    onClick = {
-                        expanded = false
-                        onStyleChanged(style)
-                    },
-                )
-            }
         }
     }
 }
@@ -9735,7 +9399,6 @@ private fun SettingsPreview(
                     dockIconSizeDp = dockIconSizeDp,
                     dockIconCount = dockIconCount,
                     dockLayout = state.dockLayout,
-                    folderOpenStyle = state.folderOpenStyle,
                     isSortReversed = state.appListSortOrder.isReversed,
                     modifier = Modifier.height(dockPreviewHeight),
                     onLaunchApp = {},
