@@ -28,6 +28,8 @@ class LauncherViewModelPlaySortTest {
     private val asked = mutableListOf<String>()
     private val waits = mutableListOf<Long>()
     private val fromPlay = HashSet<String>()
+    private var catalog: Map<String, String> = emptyMap()
+    private var catalogRead: kotlinx.coroutines.CompletableDeferred<Unit>? = null
 
     @After
     fun clearPrefs() {
@@ -63,6 +65,66 @@ class LauncherViewModelPlaySortTest {
             playSort.candidates.map { it.app.packageName }.toSet(),
         )
         assertTrue("nothing is looked up before the user agrees", asked.isEmpty())
+    }
+
+    @Test
+    fun theShippedCatalog_filesTheAppsItKnows_andGooglePlayIsOfferedOnlyTheRest() {
+        seedApp("Thermo", "com.example.thermo", installedFromPlay = true)
+        seedApp("Obscure", "com.example.obscure", installedFromPlay = true)
+        catalog = mapOf("com.example.thermo" to "WEATHER")
+        val viewModel = startedViewModel()
+
+        val state = viewModel.uiState.value
+        assertEquals("WEATHER", state.playCategories["com.example.thermo"])
+        assertEquals(listOf("com.example.obscure"), state.playSort.offered.map { it.app.packageName })
+        assertTrue("nothing is looked up for the catalog", asked.isEmpty())
+    }
+
+    @Test
+    fun sortNewApps_waitsForTheCatalog_andNeverSendsAnAppItKnows() {
+        PlaySortStore(context).isAutoEnabled = true
+        seedApp("Thermo", "com.example.thermo", installedFromPlay = true)
+        catalog = mapOf("com.example.thermo" to "WEATHER")
+        val read = kotlinx.coroutines.CompletableDeferred<Unit>()
+        catalogRead = read
+        val viewModel = startedViewModel()
+        assertTrue("nothing is sent before the catalog is read", asked.isEmpty())
+
+        read.complete(Unit)
+        idle()
+
+        assertTrue("an app the catalog knows is never sent (Codex on PR #890)", asked.isEmpty())
+        assertEquals("WEATHER", viewModel.uiState.value.playCategories["com.example.thermo"])
+    }
+
+    @Test
+    fun aFolderSearch_showsWhatTheCatalogFiled_onceItsRead() {
+        seedApp("Thermo", "com.example.thermo", installedFromPlay = true)
+        catalog = mapOf("com.example.thermo" to "WEATHER")
+        val read = kotlinx.coroutines.CompletableDeferred<Unit>()
+        catalogRead = read
+        val viewModel = startedViewModel()
+        viewModel.setQuery("weather")
+        idle()
+
+        read.complete(Unit)
+        idle()
+
+        // Codex on PR #890: the search's members are refreshed.
+        val folder = viewModel.uiState.value.searchFolders.single()
+        assertEquals(AppCategory.Weather.storageKey, folder.folder.key)
+        assertEquals(listOf("com.example.thermo"), folder.apps.map { it.packageName })
+    }
+
+    @Test
+    fun aLookedUpAnswer_beatsTheCatalog() {
+        PlaySortStore(context).record("com.example.thermo", "TOOLS")
+        catalog = mapOf("com.example.thermo" to "WEATHER", "com.example.other" to "FINANCE")
+        val viewModel = startedViewModel()
+
+        val categories = viewModel.uiState.value.playCategories
+        assertEquals("TOOLS", categories["com.example.thermo"])
+        assertEquals("FINANCE", categories["com.example.other"])
     }
 
     @Test
@@ -274,6 +336,10 @@ class LauncherViewModelPlaySortTest {
             },
             installerOf = { packageName -> if (packageName in fromPlay) GOOGLE_PLAY_INSTALLER else null },
             playSortDelay = { millis -> waits += millis },
+            playCatalog = {
+                catalogRead?.await()
+                catalog
+            },
         )
         idle()
         viewModel.setAppFoldersEnabled(true)

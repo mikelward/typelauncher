@@ -112,6 +112,9 @@ internal class LauncherViewModel(
     ),
     private val installerOf: (String) -> String? = { packageName -> installerPackage(app, packageName) },
     private val playSortDelay: suspend (Long) -> Unit = { millis -> delay(millis) },
+    // The shipped catalog of Play categories. Injectable so tests supply their
+    // own; read on the IO dispatcher once, at start.
+    private val playCatalog: suspend () -> Map<String, String> = { readPlayCatalog(app) },
 ) : ViewModel() {
     private val dockedAppStore = DockedAppStore(app)
     private val workDockedAppStore = DockedAppStore(app, DockedAppStore.WORK_PREFERENCES_NAME)
@@ -124,6 +127,12 @@ internal class LauncherViewModel(
     // blocks, because the first app-list refresh during init already uses it.
     private var playSortJob: Job? = null
     private var playCandidatesJob: Job? = null
+
+    // The shipped catalog, once read; empty until then. Nothing is offered or
+    // looked up on Google Play until it has been read (or failed to be), so an
+    // app it knows is never sent (Codex on PR #890).
+    private var playCatalogCategories: Map<String, String> = emptyMap()
+    private var isPlayCatalogRead = false
 
     // The installer Android records for each package, looked up once per
     // session: a binder call per app, made on the IO dispatcher. Concurrent:
@@ -501,7 +510,7 @@ internal class LauncherViewModel(
             isGridOfferPending = !dockSettingsStore.isGridOfferAnswered &&
                 dockSettingsStore.appListLayout == AppListLayout.NameBeside,
             appFolderAiAssignments = appFolderStore.aiAssignments,
-            playCategories = playSortStore.categories,
+            playCategories = playCategories(),
             playSort = PlaySortState(isAutoEnabled = playSortStore.isAutoEnabled, hasUsed = playSortStore.hasUsed),
             isAiSortEnabled = appFolderStore.isAiSortEnabled,
             isAiSortOfferPending = !appFolderStore.isAiOfferAnswered && !appFolderStore.isAiSortEnabled,
@@ -659,6 +668,7 @@ internal class LauncherViewModel(
             _uiState.update { it.copy(isAiSortSupported = supported) }
             maybeStartAiSort()
         }
+        loadPlayCatalog()
         // Finish any Google Play lookups the user agreed to before a restart.
         if (playSortStore.pending.isNotEmpty()) {
             _uiState.update { state ->
@@ -5172,13 +5182,36 @@ internal class LauncherViewModel(
      * on-device sorting, for the apps it couldn't place), or, with "Sort new
      * apps using Google Play" on, looks them up straight away.
      */
+    /** The categories looked up for this phone, over the shipped catalog. */
+    private fun playCategories(): Map<String, String> =
+        LayeredPlayCategories(playSortStore.categories, playCatalogCategories)
+
+    /**
+     * Reads the shipped catalog off the main thread, then files the apps it
+     * knows and offers Google Play only for the rest.
+     */
+    private fun loadPlayCatalog() {
+        viewModelScope.launch {
+            val catalog = withContext(ioDispatcher) { playCatalog() }
+            playCatalogCategories = catalog
+            isPlayCatalogRead = true
+            if (catalog.isNotEmpty()) {
+                _uiState.update { state -> state.copy(playCategories = playCategories()) }
+                // Folder search lists members it worked out from the old categories.
+                refreshFolderSearch()
+            }
+            refreshPlaySort()
+        }
+    }
+
     private fun refreshPlaySort() {
+        if (!isPlayCatalogRead) return
         playCandidatesJob?.cancel()
         playCandidatesJob = viewModelScope.launch {
             val folders = appFolderStore.folders
             val activeKeys = folders.mapTo(HashSet()) { it.key }
             val filings = appFolderStore.assignments
-            val known = playSortStore.categories
+            val known = playCategories()
             val pending = playSortStore.pending.toSet()
             val state = _uiState.value
             val aiFilings = if (state.isAiSortEnabled) appFolderStore.aiAssignments else emptyMap()
@@ -5292,7 +5325,7 @@ internal class LauncherViewModel(
                         appFolderStore.folders.mapTo(HashSet()) { it.key }
                     _uiState.update { state ->
                         state.copy(
-                            playCategories = playSortStore.categories,
+                            playCategories = playCategories(),
                             playSort = state.playSort.copy(
                                 phase = PlaySortPhase.Sorting,
                                 done = state.playSort.done + 1,
@@ -5364,7 +5397,7 @@ internal class LauncherViewModel(
         playSortStore.clearCategories()
         _uiState.update { state ->
             state.copy(
-                playCategories = emptyMap(),
+                playCategories = playCategories(),
                 playSort = state.playSort.copy(phase = PlaySortPhase.Idle, done = 0, total = 0, sorted = 0, unsorted = 0),
             )
         }
