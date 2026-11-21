@@ -213,6 +213,42 @@ class KnownAppsTest {
     }
 
     @Test
+    fun categoryBatches_placeWholeCategories() {
+        // Each batch covers its category, not one person's apps (maintainer, 2026-11-21).
+        for ((label, category) in listOf(
+            "TP-Link Tapo" to AppCategory.Home,
+            "Kasa Smart" to AppCategory.Home,
+            "Wyze - Make Your Home Smarter" to AppCategory.Home,
+            "Philips Hue" to AppCategory.Home,
+            "Smart Life - Smart Living" to AppCategory.Home,
+            "BlackCloak" to AppCategory.Security,
+            "ESET Mobile Security" to AppCategory.Security,
+            "Lookout Life - Mobile Security" to AppCategory.Security,
+            "Surfshark VPN" to AppCategory.Internet,
+            "Mullvad VPN" to AppCategory.Internet,
+            "Firefox Focus: No Fuss Browser" to AppCategory.Internet,
+            "Ecosia" to AppCategory.Internet,
+            "RingGo: Mobile Car Parking App" to AppCategory.Transport,
+            "JustPark" to AppCategory.Transport,
+            "ParkMobile" to AppCategory.Transport,
+            "LEGOLAND Windsor Resort" to AppCategory.Events,
+            "Disneyland" to AppCategory.Events,
+            "Universal Orlando Resort" to AppCategory.Events,
+            "Six Flags" to AppCategory.Events,
+            "Knott's Berry Farm" to AppCategory.Events,
+            "SIXT rent. share. ride." to AppCategory.Travel,
+            "Enterprise Rent-A-Car" to AppCategory.Travel,
+            "Hertz Car Rental" to AppCategory.Travel,
+            "Turo - Car Rental Marketplace" to AppCategory.Travel,
+        )) {
+            assertEquals(label, category, knownAppCategory("com.example.batch", label))
+        }
+        // Ordinary words stay out.
+        assertNull(knownAppCategory("com.example.ring", "Ring Fit Tracker"))
+        assertNull(knownAppCategory("com.example.brave", "Brave Frontier"))
+    }
+
+    @Test
     fun aGuess_comesFromPackageAndNameWords() {
         assertEquals(AppCategory.Finance, guessedAppCategory("com.example.mobilebanking", "Acme"))
         assertEquals(AppCategory.Finance, guessedAppCategory("uk.co.acme.banking", "Acme"))
