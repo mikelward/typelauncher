@@ -457,7 +457,33 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "clothescast", "bbc weather", "met office", "weatherzone", "accuweather",
 ).map { it to AppCategory.Weather } + listOf(
     "lightwave",
-).map { it to AppCategory.Home }
+).map { it to AppCategory.Home } + listOf(
+    // Croatia (maintainer, 2026-11-21), each with its neighbors. Google Play files
+    // Moj Telekom under Productivity, mGrađani under Business and Glovo under
+    // Lifestyle, so these rules matter more than its categories.
+    "m zaba", "zaba", "otpgo", "otp banka", "george croatia", "pbz", "mpbz", "addiko", "raiffeisen",
+    "hpb", "keks pay", "aircash",
+    // Brokers (maintainer, 2026-11-21). Not "stake", which is also a betting site.
+    "ibkr", "interactive brokers", "degiro", "saxo", "freetrade", "hargreaves lansdown", "aj bell",
+    "webull", "moomoo", "tastytrade", "trading 212", "etoro", "robinhood", "vanguard investor",
+).map { it to AppCategory.Finance } + listOf(
+    "moj telekom", "hrvatski telekom", "a1 hrvatska", "moj a1", "telemach",
+).map { it to AppCategory.Phone } + listOf(
+    "mgrađani", "e građani", "egrađani", "hzzo", "e porezna",
+).map { it to AppCategory.Government } + listOf(
+    "epošta", "hrvatska pošta", "box now", "boxnow", "overseas express",
+).map { it to AppCategory.Post } + listOf(
+    "glovo", "wolt", "bolt food", "konzum", "kaufland", "plodine",
+    // ALDI, beside Lidl; "ALDI Mobile" is matched as Phone first (maintainer, 2026-11-21).
+    "aldi", "aldi süd", "aldi nord",
+).map { it to AppCategory.Food } + listOf(
+    // Health and beauty chains (maintainer, 2026-11-21).
+    "superdrug", "boots", "the perfume shop", "space nk", "lookfantastic", "dm drogerie", "rossmann", "müller",
+).map { it to AppCategory.Shopping } + listOf(
+    "njuškalo",
+).map { it to AppCategory.Shopping } + listOf(
+    "hžpp",
+).map { it to AppCategory.Transit }
 
 // Keywords that must start a word: "ebook" sits inside "Facebook" and
 // "Notebook" (Codex on PR #866), "sport" inside "Transport" and "Passport"
@@ -911,5 +937,36 @@ private val KNOWN_PACKAGES = listOf(
     """,
     AppCategory.Home to """
         com.lightwaverf.linkplus
+    """,
+    // Croatia (maintainer, 2026-11-21).
+    AppCategory.Finance to """
+        hr.asseco.android.zaba.new hr.asseco.android.ae.otp hr.erstebank.george
+    """,
+    AppCategory.Phone to """
+        com.hrvatskitelekom.m.mojT
+    """,
+    AppCategory.Government to """
+        hr.mgradani
+    """,
+    AppCategory.Post to """
+        hr.sedamit.hpmbox
+    """,
+    AppCategory.Food to """
+        com.glovo
+    """,
+    AppCategory.Transit to """
+        com.hzppispromobile
+    """,
+    AppCategory.Finance to """
+        atws.app
+    """,
+    AppCategory.Food to """
+        de.apptiv.business.android.aldi_uk
+    """,
+    AppCategory.Shopping to """
+        superdrug.com.beautycard
+    """,
+    AppCategory.Travel to """
+        com.thomson.mythomson
     """,
 )

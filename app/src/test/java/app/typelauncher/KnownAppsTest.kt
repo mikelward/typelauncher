@@ -345,6 +345,47 @@ class KnownAppsTest {
     }
 
     @Test
+    fun croatianAndOtherNamedApps_arePlaced_byPackageAndByName() {
+        // The maintainer, 2026-11-21. Google Play's own categories would put
+        // Moj Telekom and mGrađani in Office, and Glovo nowhere.
+        for ((packageName, category) in listOf(
+            "hr.asseco.android.zaba.new" to AppCategory.Finance,
+            "hr.asseco.android.ae.otp" to AppCategory.Finance,
+            "hr.erstebank.george" to AppCategory.Finance,
+            "com.hrvatskitelekom.m.mojT" to AppCategory.Phone,
+            "hr.mgradani" to AppCategory.Government,
+            "hr.sedamit.hpmbox" to AppCategory.Post,
+            "com.glovo" to AppCategory.Food,
+            "com.hzppispromobile" to AppCategory.Transit,
+            "de.apptiv.business.android.aldi_uk" to AppCategory.Food,
+            "superdrug.com.beautycard" to AppCategory.Shopping,
+            "com.thomson.mythomson" to AppCategory.Travel,
+            "atws.app" to AppCategory.Finance,
+            "com.discord" to AppCategory.Social,
+        )) {
+            assertEquals(packageName, category, knownAppCategory(packageName, "Acme"))
+        }
+        for ((label, category) in listOf(
+            "m-zaba" to AppCategory.Finance,
+            "OTPgo" to AppCategory.Finance,
+            "George Croatia" to AppCategory.Finance,
+            "Moj Telekom HR" to AppCategory.Phone,
+            "mGrađani" to AppCategory.Government,
+            "ePošta - Hrvatska pošta" to AppCategory.Post,
+            "Glovo: Food & Grocery Delivery" to AppCategory.Food,
+            "Njuškalo" to AppCategory.Shopping,
+            "ALDI UK" to AppCategory.Food,
+            "ALDI Mobile" to AppCategory.Phone,
+            "Superdrug - Beauty and Health" to AppCategory.Shopping,
+            "TUI: Holidays, Travel, Flights" to AppCategory.Travel,
+            "IBKR Mobile" to AppCategory.Finance,
+            "DEGIRO" to AppCategory.Finance,
+        )) {
+            assertEquals(label, category, knownAppCategory("com.example.hr", label))
+        }
+    }
+
+    @Test
     fun aGuess_comesFromPackageAndNameWords() {
         assertEquals(AppCategory.Finance, guessedAppCategory("com.example.mobilebanking", "Acme"))
         assertEquals(AppCategory.Finance, guessedAppCategory("uk.co.acme.banking", "Acme"))
