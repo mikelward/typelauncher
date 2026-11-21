@@ -118,9 +118,6 @@
     <string name="settings_app_list_layout_option_name_below">नाम नीचे</string>
     <string name="settings_app_list_layout_option_icon_only">सिर्फ़ आइकॉन</string>
     <string name="settings_dock_layout_title">डॉक शैली</string>
-    <string name="settings_folder_open_style_title">फ़ोल्डर खोलना</string>
-    <string name="settings_folder_open_style_option_around_tap">आपके टैप के आसपास</string>
-    <string name="settings_folder_open_style_option_in_order">शुरुआत से</string>
     <string name="settings_app_list_sort_title">ऐप्स को इस आधार पर क्रमित करें</string>
     <string name="settings_app_list_sort_option_usage">उपयोग ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">उपयोग ↑</string>

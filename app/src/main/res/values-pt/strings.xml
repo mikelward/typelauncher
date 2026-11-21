@@ -119,9 +119,6 @@
     <string name="settings_app_list_layout_option_name_below">Nome abaixo</string>
     <string name="settings_app_list_layout_option_icon_only">Apenas ícone</string>
     <string name="settings_dock_layout_title">Estilo do dock</string>
-    <string name="settings_folder_open_style_title">Abrir pastas</string>
-    <string name="settings_folder_open_style_option_around_tap">Em volta do toque</string>
-    <string name="settings_folder_open_style_option_in_order">Desde o início</string>
     <string name="settings_app_list_sort_title">Ordenar apps por</string>
     <string name="settings_app_list_sort_option_usage">Uso ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Uso ↑</string>

@@ -471,150 +471,40 @@ internal sealed interface FolderSlot {
 
 /**
  * Row-major cell assignment for an opened folder of [memberCount] members plus a
- * close tile, packed from the top-left in rank order across [columns] columns
- * (the dock's own row-major fill — highest-ranked app top-left) with the close
- * tile last. The returned list is padded with [FolderSlot.Empty] to a whole last
- * row so every tile keeps its `1 / columns` width; the caller's scroll absorbs
- * any overflow past the dock footprint.
+ * close tile across [columns] columns, in the order the app list uses with
+ * folders off. Normally the members pack from the top-left in rank order (the
+ * dock's own row-major fill, highest-ranked app top-left) with the close tile
+ * last. Under a [reversed] sort, which puts rank 1 nearest the keyboard, it is
+ * the app list's reversed layout: the close tile bottom-left, rank 1 beside it,
+ * rows growing up, with empty rows above to fill the dock's [visibleRows] so the
+ * folder sits at the bottom (the caller then starts scrolled to the bottom).
+ * Every row is padded with [FolderSlot.Empty] so each tile keeps its
+ * `1 / columns` width; the caller's scroll absorbs any overflow past the dock.
  */
 internal fun dockFolderSlots(
     memberCount: Int,
     columns: Int,
+    visibleRows: Int = 1,
+    reversed: Boolean = false,
 ): List<FolderSlot> {
     val cols = columns.coerceAtLeast(1)
     val members: List<FolderSlot> =
         (0 until memberCount.coerceAtLeast(0)).map { index -> FolderSlot.Member(index) }
-    return packedFolderSlots(members + FolderSlot.Close, cols)
-}
-
-/** How an opened folder lays out its apps; the "Open folders" setting. */
-internal enum class FolderOpenStyle {
-    /** Apps in rank order from the start, close last (the original layout). */
-    InOrder,
-
-    /** A block of rows around the tapped folder, close where the folder was. */
-    AroundTap,
+    if (!reversed) return packedFolderSlots(members + FolderSlot.Close, cols)
+    val rows = packedFolderSlots(listOf(FolderSlot.Close) + members, cols).chunked(cols).reversed()
+    val emptyRows = (visibleRows - rows.size).coerceAtLeast(0)
+    return List(emptyRows * cols) { FolderSlot.Empty } + rows.flatten()
 }
 
 /**
- * Row-major cells for a folder opened with [FolderOpenStyle.AroundTap]: the close
- * tile takes the tapped cell ([anchorRow], [anchorColumn]) and the [memberCount]
- * members fill a block of whole rows around it, in rank order left to right,
- * rows top to bottom, or bottom to top when [reversed] (a reversed sort puts
- * rank 1 nearest the keyboard). The block is as few rows as the tiles need,
- * centered on the tapped row and slid to stay inside the [visibleRows] the
- * folder opens into; cells outside it are [FolderSlot.Empty].
- *
- * When the block needs more rows than are visible, the tapped row keeps its
- * place on screen and the extra rows go past the visible ones: below it, or
- * above it when [reversed], for a caller that then starts scrolled to the
- * bottom (see [folderOpensScrolledToBottom]).
+ * How many of a dock's [rowCount] rows show, [pitchPx] apart: all of them unless
+ * the dock is height-capped and scrolls ([maxScrollPx] > 0), when it is the rows
+ * its [viewportPx] window holds.
  */
-internal fun aroundTapFolderSlots(
-    memberCount: Int,
-    columns: Int,
-    visibleRows: Int,
-    anchorRow: Int,
-    anchorColumn: Int,
-    reversed: Boolean,
-): List<FolderSlot> {
-    val cols = columns.coerceAtLeast(1)
-    val visible = visibleRows.coerceAtLeast(1)
-    val members = memberCount.coerceAtLeast(0)
-    val blockRows = (members + 1 + cols - 1) / cols
-    val totalRows = maxOf(visible, blockRows)
-    val tappedRow = anchorRow.coerceIn(0, visible - 1)
-    val tappedColumn = anchorColumn.coerceIn(0, cols - 1)
-    // The tapped row's index in the full grid, and the block's first row.
-    val (closeRow, top) = if (blockRows <= visible) {
-        tappedRow to (tappedRow - blockRows / 2).coerceIn(0, visible - blockRows)
-    } else if (reversed) {
-        (totalRows - visible + tappedRow) to 0
-    } else {
-        tappedRow to 0
-    }
-    val cells = MutableList<FolderSlot>(totalRows * cols) { FolderSlot.Empty }
-    cells[closeRow * cols + tappedColumn] = FolderSlot.Close
-    val rowOrder = (top until top + blockRows).let { rows -> if (reversed) rows.reversed() else rows.toList() }
-    var next = 0
-    for (row in rowOrder) {
-        for (column in 0 until cols) {
-            if (next >= members) break
-            val cell = row * cols + column
-            if (cells[cell] == FolderSlot.Close) continue
-            cells[cell] = FolderSlot.Member(next++)
-        }
-    }
-    return cells
-}
-
-/**
- * Whether a folder laid out by [aroundTapFolderSlots] should open scrolled to its
- * bottom: only when reversed and taller than the [visibleRows], so the tapped
- * row, and rank 1 below it, start on screen.
- */
-internal fun folderOpensScrolledToBottom(slotCount: Int, columns: Int, visibleRows: Int, reversed: Boolean): Boolean =
-    reversed && slotCount / columns.coerceAtLeast(1) > visibleRows.coerceAtLeast(1)
-
-/**
- * The cells for a dock folder opened under [style]: around the [tapped] dock cell
- * within the dock's [visibleRows], or packed from the top-left (also the fallback
- * when the folder's cell is unknown).
- */
-internal fun dockFolderOpenSlots(
-    memberCount: Int,
-    columns: Int,
-    style: FolderOpenStyle,
-    tapped: DockPosition?,
-    visibleRows: Int,
-    isSortReversed: Boolean,
-): List<FolderSlot> =
-    if (style == FolderOpenStyle.AroundTap && tapped != null) {
-        aroundTapFolderSlots(memberCount, columns, visibleRows, tapped.row, tapped.column, isSortReversed)
-    } else {
-        dockFolderSlots(memberCount, columns)
-    }
-
-/**
- * Whether a dock folder opened under [style] starts scrolled to its bottom:
- * only when [dockFolderOpenSlots] lays it out around the [tapped] cell and
- * [folderOpensScrolledToBottom] says so. Packed folders always start at the top,
- * where their first-ranked apps are.
- */
-internal fun dockFolderOpensScrolledToBottom(
-    memberCount: Int,
-    columns: Int,
-    style: FolderOpenStyle,
-    tapped: DockPosition?,
-    visibleRows: Int,
-    isSortReversed: Boolean,
-): Boolean =
-    style == FolderOpenStyle.AroundTap && tapped != null &&
-        folderOpensScrolledToBottom(
-            dockFolderOpenSlots(memberCount, columns, style, tapped, visibleRows, isSortReversed).size,
-            columns,
-            visibleRows,
-            isSortReversed,
-        )
-
-/**
- * The dock rows on screen, as (first row, row count), for anchoring an opened
- * folder: a height-capped dock may be scrolled [scrollPx] of [maxScrollPx]
- * through its [rowCount] rows, [pitchPx] apart, in a [viewportPx] window. An
- * unscrollable dock shows every row.
- */
-internal fun dockVisibleRows(
-    rowCount: Int,
-    scrollPx: Int,
-    maxScrollPx: Int,
-    viewportPx: Int,
-    pitchPx: Float,
-): Pair<Int, Int> {
+internal fun dockVisibleRowCount(rowCount: Int, maxScrollPx: Int, viewportPx: Int, pitchPx: Float): Int {
     val rows = rowCount.coerceAtLeast(1)
-    if (maxScrollPx <= 0 || pitchPx <= 0f) return 0 to rows
-    val first = (scrollPx / pitchPx).roundToInt().coerceIn(0, rows - 1)
-    val visible = (viewportPx / pitchPx).roundToInt().coerceIn(1, rows - first)
-    return first to visible
+    if (maxScrollPx <= 0 || pitchPx <= 0f) return rows
+    return (viewportPx / pitchPx).roundToInt().coerceIn(1, rows)
 }
 
 /** Top-left packing: tiles in order, then [FolderSlot.Empty] to a whole last row. */
@@ -934,8 +824,6 @@ internal data class LauncherUiState(
     // How each dock slot renders. `IconOnly` (default) preserves the previous
     // launcher behavior; `TitleBelow` adds an `labelSmall` line below each icon.
     val dockLayout: DockLayout = DockLayout.IconOnly,
-    // How dock and app-list folders lay out their apps when opened.
-    val folderOpenStyle: FolderOpenStyle = FolderOpenStyle.AroundTap,
     val landscapeDockPosition: LandscapeDockPosition = LandscapeDockPosition.Bottom,
     // See `IconTheme`: `Monochrome` renders icons from their app's monochrome
     // themed-icon glyph in theme colors (API 33+); apps without a monochrome

@@ -118,9 +118,6 @@
     <string name="settings_app_list_layout_option_name_below">ಹೆಸರು ಕೆಳಗೆ</string>
     <string name="settings_app_list_layout_option_icon_only">ಐಕಾನ್ ಮಾತ್ರ</string>
     <string name="settings_dock_layout_title">ಡಾಕ್ ಶೈಲಿ</string>
-    <string name="settings_folder_open_style_title">ಫೋಲ್ಡರ್‌ಗಳನ್ನು ತೆರೆಯುವುದು</string>
-    <string name="settings_folder_open_style_option_around_tap">ನೀವು ಟ್ಯಾಪ್ ಮಾಡಿದ ಸುತ್ತ</string>
-    <string name="settings_folder_open_style_option_in_order">ಆರಂಭದಿಂದ</string>
     <string name="settings_app_list_sort_title">ಆ್ಯಪ್‌ಗಳನ್ನು ಇದರ ಆಧಾರದಲ್ಲಿ ವಿಂಗಡಿಸಿ</string>
     <string name="settings_app_list_sort_option_usage">ಬಳಕೆ ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">ಬಳಕೆ ↑</string>

@@ -118,9 +118,6 @@
     <string name="settings_app_list_layout_option_name_below">Igama ngezansi</string>
     <string name="settings_app_list_layout_option_icon_only">Isithonjana kuphela</string>
     <string name="settings_dock_layout_title">Isitayela se-dock</string>
-    <string name="settings_folder_open_style_title">Ukuvula amafolda</string>
-    <string name="settings_folder_open_style_option_around_tap">Eduze kwalapho uthephe khona</string>
-    <string name="settings_folder_open_style_option_in_order">Kusukela ekuqaleni</string>
     <string name="settings_app_list_sort_title">Hlunga izinhlelo zokusebenza nge</string>
     <string name="settings_app_list_sort_option_usage">Ukusebenzisa ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Ukusebenzisa ↑</string>

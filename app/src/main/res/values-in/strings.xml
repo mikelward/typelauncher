@@ -117,9 +117,6 @@
     <string name="settings_app_list_layout_option_name_below">Nama di bawah</string>
     <string name="settings_app_list_layout_option_icon_only">Hanya ikon</string>
     <string name="settings_dock_layout_title">Gaya dock</string>
-    <string name="settings_folder_open_style_title">Membuka folder</string>
-    <string name="settings_folder_open_style_option_around_tap">Di sekitar ketukan</string>
-    <string name="settings_folder_open_style_option_in_order">Dari awal</string>
     <string name="settings_app_list_sort_title">Urutkan aplikasi berdasarkan</string>
     <string name="settings_app_list_sort_option_usage">Penggunaan ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">Penggunaan ↑</string>

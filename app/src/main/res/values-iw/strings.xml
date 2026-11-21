@@ -120,9 +120,6 @@
     <string name="settings_app_list_layout_option_name_below">שם מתחת</string>
     <string name="settings_app_list_layout_option_icon_only">סמל בלבד</string>
     <string name="settings_dock_layout_title">סגנון הדוק</string>
-    <string name="settings_folder_open_style_title">פתיחת תיקיות</string>
-    <string name="settings_folder_open_style_option_around_tap">סביב מקום ההקשה</string>
-    <string name="settings_folder_open_style_option_in_order">מההתחלה</string>
     <string name="settings_app_list_sort_title">מיון אפליקציות לפי</string>
     <string name="settings_app_list_sort_option_usage">שימוש ↓</string>
     <string name="settings_app_list_sort_option_usage_reversed">שימוש ↑</string>
