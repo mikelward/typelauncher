@@ -331,6 +331,12 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "hotdoc" to AppCategory.Health,
     "practo" to AppCategory.Health,
     "netmeds" to AppCategory.Health,
+    "vesync" to AppCategory.Home,
+    "roborock" to AppCategory.Home,
+    "reolink" to AppCategory.Home,
+    "thinq" to AppCategory.Home,
+    "mi home" to AppCategory.Home,
+    "xiaomi home" to AppCategory.Home,
     "weightwatchers" to AppCategory.Health,
     "slimming world" to AppCategory.Health,
     "fatsecret" to AppCategory.Health,
@@ -1073,6 +1079,8 @@ private val KNOWN_PACKAGES = listOf(
         com.google.android.apps.chromecast.app com.nest.android com.amazon.dee.app com.ringapp
         com.philips.lighting.hue2 com.samsung.android.oneconnect com.ecobee.athenamobile
         com.arlo.app com.hualai com.tplink.kasa_android com.rightmove.android
+        com.etekcity.vesyncplatform com.tplink.iot com.tuya.smartlife com.philips.ph.homecare com.kakao.i.home
+        com.roborock.smart com.tuya.smart com.mcu.reolink com.irobot.home.prime com.xiaomi.smarthome com.lgeha.nuts
         com.zillow.android.zillowmap com.trulia.android com.redfin.android
         io.homeassistant.companion.android com.irobot.home com.tado
     """,

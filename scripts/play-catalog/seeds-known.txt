@@ -277,6 +277,7 @@ com.emoji.cutekeyboard.themes.fontkeyboard
 com.endel.endel
 com.enflick.android.TextNow
 com.espn.score_center
+com.etekcity.vesyncplatform
 com.etisalat
 com.etisalat.ewallet
 com.etoro.openbook
@@ -424,6 +425,7 @@ com.instagram.edits
 com.instagram.moonshot
 com.instructure.candroid
 com.irobot.home
+com.irobot.home.prime
 com.isoton.lebara
 com.itv.imaceleb
 com.jbassett297.NeoApp
@@ -436,6 +438,7 @@ com.jsdev.pfei
 com.junochat.app
 com.justeat.app.uk
 com.justplay.app
+com.kakao.i.home
 com.kakao.talk
 com.kalshi.mobile
 com.kayak.android
@@ -462,6 +465,7 @@ com.lbrc.PeriodCalendar
 com.lemon.lvoverseas
 com.lescadeaux.kegel
 com.levelcard
+com.lgeha.nuts
 com.lidl.eci.lidlplus
 com.life360.android.safetymapd
 com.lightwaverf.linkplus
@@ -482,6 +486,7 @@ com.mcdonalds.app
 com.mcdonalds.app.uk
 com.mcdonalds.au.gma
 com.mcdonalds.mobileapp
+com.mcu.reolink
 com.meddbase.roodlane
 com.mediconnect.oladoc
 com.medisafe.android.client
@@ -599,6 +604,7 @@ com.peacocktv.peacockandroid
 com.pg.oralb.oralbapp
 com.phe.daysoff
 com.philips.lighting.hue2
+com.philips.ph.homecare
 com.phonecleaner.junk.storage.cleaner
 com.phonepe.app
 com.photo.restore.scan
@@ -640,6 +646,7 @@ com.rightmove.android
 com.ringapp
 com.robinhood.android
 com.roblox.client
+com.roborock.smart
 com.rover.android
 com.royalmail.app.droid
 com.ryanair.cheapflights
@@ -761,6 +768,8 @@ com.trulia.android
 com.trusted.pdfeditor.pdfreader
 com.tubitv
 com.tumblr
+com.tuya.smart
+com.tuya.smartlife
 com.twitter.android
 com.uaemoi.smartservices
 com.ubercab
@@ -819,6 +828,7 @@ com.wsandroid.suite
 com.wsl.noom
 com.wunderground.android.weather
 com.x8bit.bitwarden
+com.xiaomi.smarthome
 com.xiaomi.wearable
 com.xingin.xhs
 com.xphotokit.picfusionlab
