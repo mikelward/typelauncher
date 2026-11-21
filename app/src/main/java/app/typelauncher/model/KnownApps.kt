@@ -284,7 +284,11 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "yazio" to AppCategory.Health,
     "oral b" to AppCategory.Health,
     "mi fitness" to AppCategory.Health,
-    "geocaching" to AppCategory.Games,
+    "geocaching" to AppCategory.Health,
+    "doctolib" to AppCategory.Health,
+    "hotdoc" to AppCategory.Health,
+    "practo" to AppCategory.Health,
+    "netmeds" to AppCategory.Health,
     "period tracker" to AppCategory.Health,
     "period calendar" to AppCategory.Health,
     "ovulation" to AppCategory.Health,
@@ -798,6 +802,10 @@ private val KNOWN_PACKAGE_PREFIXES = listOf(
     "digifit." to AppCategory.Health,
     // Austria's social insurance apps (Meine ÖGK, Meine BVAEB), and Niantic's games.
     "at.itsv." to AppCategory.Health,
+    // Germany's health insurers: TK, AOK.
+    "de.tk." to AppCategory.Health,
+    "de.aok." to AppCategory.Health,
+    "de.aoksystems." to AppCategory.Health,
     "com.nianticlabs." to AppCategory.Games,
     "gov." to AppCategory.Government,
     // Tello's apps, "My Tello" among them (maintainer, 2026-11-21); DJI's Tello drone is another package.
@@ -1218,8 +1226,13 @@ private val KNOWN_PACKAGES = listOf(
         com.theinnerhour.b2b com.talkspace.talkspaceapp com.cyrano.cyrano co.mindpeers de.moodpath.android
         bot.touchkin us.regain com.mypossibleself.app com.helpy.cbt com.ifeel.ifeeluserchat com.bstro.MindShift
         com.lasting.lasting com.mentallabs.mentalhealth in.evolve.android com.technogym.tgapp
+        de.barmergek.serviceapp com.macadamapp de.telearzt.tkchat fr.doctolib.www com.doctoranywhere
+        net.iplato.mygp com.axa.doctorathand co.uk.aviva.digitalgp com.meddbase.roodlane
+        au.com.hotdoc.android.hotdoc com.doctorcareanywhere com.groundspeak.geocaching.intro
+        com.au.updoc com.doctorondemand.android.patient controllers.marham.marhammed com.mediconnect.oladoc
+        com.practo.fabric com.teleClinic.teleClinic com.NetmedsMarketplace.Netmeds
     """,
-    AppCategory.Shopping to """ com.whatnot_mobile """,
+    AppCategory.Shopping to """ com.whatnot_mobile com.naturitas.android """,
     AppCategory.Finance to """ com.raisin.app com.emmaprod org.dayup.stocks.uk """,
     AppCategory.Ai to """ ai.x.grok.bot com.larus.wolf """,
     AppCategory.Travel to """ com.usebounce se.memfrag.app """,
@@ -1234,10 +1247,6 @@ private val KNOWN_PACKAGES = listOf(
     """,
     AppCategory.Cycling to """
         de.komoot.android
-    """,
-    // Geocaching: an outdoor game, beside Niantic's.
-    AppCategory.Games to """
-        com.groundspeak.geocaching.intro
     """,
     AppCategory.Charity to """
         org.sharethemeal.app
