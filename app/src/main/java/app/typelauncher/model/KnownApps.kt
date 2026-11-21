@@ -43,6 +43,7 @@ internal val EITHER_WAY_PACKAGES: Map<String, List<AppCategory>> = mapOf(
     "com.trello" to listOf(AppCategory.Notes, AppCategory.Office),
     "com.asana.app" to listOf(AppCategory.Notes, AppCategory.Office),
     "com.basecamp.bc3" to listOf(AppCategory.Notes, AppCategory.Office),
+    "com.monday.monday" to listOf(AppCategory.Notes, AppCategory.Office),
     // Substack: newsletters (maintainer, 2026-11-21: "I guess Substack is Reading?").
     "com.substack.app" to listOf(AppCategory.Reading, AppCategory.News),
     // Twitch: live streams, mostly of games.
@@ -348,6 +349,10 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "netmeds" to AppCategory.Health,
     "vesync" to AppCategory.Home,
     "substack" to AppCategory.Reading,
+    "quickbooks" to AppCategory.Finance,
+    "xero" to AppCategory.Finance,
+    "expensify" to AppCategory.Finance,
+    "lumosity" to AppCategory.Learning,
     "swissquote" to AppCategory.Finance,
     "kraken" to AppCategory.Finance,
     "morgan stanley" to AppCategory.Finance,
@@ -867,6 +872,7 @@ private val KNOWN_PACKAGE_PREFIXES = listOf(
     // (maintainer, 2026-11-21).
     "com.dexcom." to AppCategory.Health,
     "org.dayup.stocks" to AppCategory.Finance,
+    "com.trendmicro." to AppCategory.Security,
     // Citi's and HSBC's apps for each country.
     "com.citi.mobile." to AppCategory.Finance,
     "sg.com.hsbc." to AppCategory.Finance,
@@ -992,7 +998,7 @@ private val KNOWN_PACKAGES = listOf(
         com.google.android.apps.tasks com.samsung.android.app.notes md.obsidian com.microsoft.office.onenote
         com.google.android.apps.pixel.aurelius com.transsion.notebook com.anydo com.ticktick.task
         com.splendapps.splendo io.unorderly.structured com.habitrpg.android.habitica
-        com.trello com.asana.app com.basecamp.bc3
+        com.trello com.asana.app com.basecamp.bc3 com.monday.monday
     """,
     AppCategory.Finance to """
         com.paypal.android.p2pmobile com.venmo com.squareup.cash com.robinhood.android
@@ -1240,7 +1246,7 @@ private val KNOWN_PACKAGES = listOf(
         com.yahoo.mobile.client.android.finance com.tradingview.tradingviewapp com.seekingalpha.webwrapper
         com.bloomberg.android.plus com.mobilebrokerage.CIBC com.microsoft.amp.apps.bingfinance com.moneyboxapp
         com.bochk.app.aos nz.co.bnz.droidbanking com.creditkarma.mobile.international
-        com.fullsix.android.labanquepostale.accountaccess
+        com.fullsix.android.labanquepostale.accountaccess com.intuit.quickbooks com.xero.touch org.me.mobiexpensifyg
         com.posteitaliane.spim com.starfinanz.mobile.android.pushtan de.deutschepost.postident
         com.bankinter.portugal.bmb com.BancoDePortugal.BPmobile com.abanca.bm.pt pt.santander.oneappparticulares
         ma.creditagricole.banke com.saphir.baridbankmobile com.egyptianbanks.instapay
@@ -1342,15 +1348,24 @@ private val KNOWN_PACKAGES = listOf(
     AppCategory.FamilyHistory to """
         com.ancestry.android.apps.ancestry com.twentythreeandme.app air.com.myheritage.mobile org.familysearch.mobile
     """,
-    AppCategory.Jobs to """ com.fiverr.fiverr """,
+    AppCategory.Jobs to """ com.fiverr.fiverr com.workday.workdroidapp com.xero.payday """,
     AppCategory.Car to """ com.shell.sitibv.retail com.bp.mobile.bpme.uk """,
     // Smart-ID: signing in to Baltic banks and services, like an authenticator.
-    AppCategory.Security to """ com.smart_id com.symantec.lifelock.memberapp """,
+    AppCategory.Security to """
+        com.smart_id com.symantec.lifelock.memberapp com.cxloyalty.pgmobile com.harteg.crookcatcher
+        com.callpod.android_apps.keeper com.antivirus com.eset.ems2.gp
+    """,
+    AppCategory.Design to """ photo.editor.photoeditor.photoeditorpro """,
+    AppCategory.Tools to """ co.lvlz.skiplino """,
+    AppCategory.Office to """ com.gartner.mygartner """,
     AppCategory.Phone to """ com.isoton.lebara """,
     AppCategory.Finance to """ com.raisin.app com.emmaprod org.dayup.stocks.uk com.pktmny.mobile """,
     AppCategory.Ai to """ ai.x.grok.bot com.larus.wolf """,
     AppCategory.Travel to """ com.usebounce se.memfrag.app """,
-    AppCategory.Learning to """ com.mobisystems.msdict.embedded.wireless.oxford.dictionaryofenglish com.conceptivapps.blossom """,
+    AppCategory.Learning to """
+        com.mobisystems.msdict.embedded.wireless.oxford.dictionaryofenglish com.conceptivapps.blossom
+        ai.praktika.android com.lumoslabs.lumosity
+    """,
     AppCategory.Kids to """ com.tribo.bubbleapp """,
     AppCategory.Reading to """ io.elevenlabs.readerapp """,
     AppCategory.Kids to """
