@@ -1368,7 +1368,7 @@ internal fun HomeScreen(
                         folders = menu.folders,
                         folderOf = menu.folderOf,
                         playFolderOf = { app ->
-                            state.playCategories[app.packageName]?.let(::folderForPlayCategory)?.storageKey
+                            app.playCategoryIn(state.playCategories)?.let(::folderForPlayCategory)?.storageKey
                         },
                         onMove = menu.onMove,
                         onCreate = menu.onCreate,

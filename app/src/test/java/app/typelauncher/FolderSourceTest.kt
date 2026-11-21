@@ -78,6 +78,15 @@ class FolderSourceTest {
         }
     }
 
+    @Test
+    fun aPinnedWebsite_isNeverSortedByItsBrowsersPlayCategory() {
+        // It carries its browser's package (Codex on PR #890).
+        val site = app("Acme Portal", "com.android.chrome").copy(shortcutId = "acme")
+        val play = mapOf("com.android.chrome" to "COMMUNICATION")
+        assertEquals(AppCategory.Other.storageKey, effectiveFolderKey(site, activeKeys, emptyMap(), emptyMap(), play))
+        assertEquals(FolderSource.None, folderSource(site, activeKeys, emptyMap(), emptyMap(), play))
+    }
+
     private fun app(name: String, packageName: String, category: AppCategory? = null): InstalledApp = InstalledApp(
         name = name,
         packageName = packageName,
