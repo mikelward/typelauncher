@@ -17,6 +17,7 @@ Logs go to stderr and ~/.local/state/typelauncher/play-catalog.log.
 """
 
 import argparse
+import http.client
 import heapq
 import json
 import logging
@@ -41,7 +42,9 @@ CATEGORIES = [
 APP_LINK = re.compile(r"details\?id=([A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)+)")
 # A developer page link, endpoint and id as the page has them (still
 # URL-encoded): "/store/apps/dev?id=123" or "/store/apps/developer?id=Example+Studio".
-DEV_LINK = re.compile(r"/store/apps/(dev|developer)\?id(?:=|\\u003d)([^\"&\\]+)")
+# The id ends at whitespace too: a link quoted in an app's description runs
+# into the sentence after it ("dev?id=123 . We are glad...").
+DEV_LINK = re.compile(r"/store/apps/(dev|developer)\?id(?:=|\\u003d)([^\"&\\\s<>]+)")
 CATEGORY = re.compile(r'"applicationCategory"\s*:\s*"([A-Z_]+)"')
 # The app's own download count, as the page's data has it: "10,000,000+",10000000,
 INSTALLS = re.compile(r'"[0-9,]+\+",([0-9]+),[0-9]+')
@@ -248,6 +251,10 @@ class Crawl:
                 self.save()
                 time.sleep(600)
                 continue
+            except (http.client.InvalidURL, ValueError) as error:
+                # A link we can't request: retrying won't help, and one bad
+                # link shouldn't end a run of hours (run 2 of 2026-11-21).
+                logging.warning("bad link from %s, skipped: %s", package, error)
             except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
                 # One failed page shouldn't end a run of hours: queue it again,
                 # behind what's waiting, up to MAX_ATTEMPTS (Codex on PR #889).

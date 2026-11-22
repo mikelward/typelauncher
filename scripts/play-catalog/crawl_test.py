@@ -270,6 +270,25 @@ class CrawlTest(unittest.TestCase):
         c.write(out)
         self.assertEqual({p: v[0] for p, v in c.apps.items()}, crawl.read_catalog(out))
 
+    def test_aDeveloperLinkInADescription_endsAtTheSpace(self):
+        # Run 2 of 2026-11-21 crashed requesting "dev?id=857... . We are glad...".
+        page = 'Contact us: https://play.google.com/store/apps/dev?id=8571614593816921411 . We are glad'
+        self.assertEqual([("dev", "8571614593816921411")], crawl.DEV_LINK.findall(page))
+
+    def test_aLinkThatCantBeRequested_doesntEndTheRun(self):
+        import http.client
+        stub = crawl.fetch
+
+        def invalid(path):
+            if "com.other.radar" in path:
+                raise http.client.InvalidURL("URL can't contain control characters")
+            return stub(path)
+
+        crawl.fetch = invalid
+        c = self.run_crawl()
+        self.assertIn("com.popular.sibling", c.apps)
+        self.assertNotIn("com.other.radar", c.apps)
+
     def test_writesPackageAndCategory(self):
         c = self.run_crawl()
         out = os.path.join(self.state, "catalog.tsv")
