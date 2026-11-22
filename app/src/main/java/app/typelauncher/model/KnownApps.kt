@@ -866,7 +866,8 @@ private val KNOWN_PACKAGE_PREFIXES = listOf(
     "com.lilithgame." to AppCategory.Games,
     "com.HoYoverse." to AppCategory.Games,
     "com.miHoYo." to AppCategory.Games,
-    "com.tocaboca." to AppCategory.Kids,
+    // Toca Boca's apps are games, as Google Play has them (maintainer, 2026-11-22).
+    "com.tocaboca." to AppCategory.Games,
     // Government domains as package names (maintainer, 2026-11-21): GOV.UK, myID,
     // Service NSW. A government app that's something else, such as PTV or the
     // Met Office, is listed by package, which comes first.

@@ -580,6 +580,7 @@ class KnownAppsTest {
             "com.anydo" to AppCategory.Notes,
             "com.ticktick.task" to AppCategory.Notes,
             "com.trello" to AppCategory.Notes,
+            "com.tocaboca.tocalifeworld" to AppCategory.Games,
             "com.callpod.android_apps.keeper" to AppCategory.Security,
             "com.antivirus" to AppCategory.Security,
             "com.trendmicro.fraudbuster" to AppCategory.Security,
