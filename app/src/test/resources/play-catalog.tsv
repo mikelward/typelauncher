@@ -1,4 +1,6 @@
-# Google Play category by package, from scripts/play-catalog/crawl.py.
+# Google Play category by package, from scripts/play-catalog/crawl.py: every app
+# the crawl kept. Test data: CatalogRulesTest checks the rules against it, and
+# the app ships only the part the rules leave out (assets/play_catalog.tsv).
 SSGlobal.pack	GAME_ARCADE
 absworkout.bellyfatworkout.waistworkout.abdominalworkout	HEALTH_AND_FITNESS
 abudhabi.tamm.live	BUSINESS
