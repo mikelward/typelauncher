@@ -1006,7 +1006,10 @@ private val KNOWN_PACKAGES = listOf(
         com.yahoo.mobile.client.android.mail ch.protonmail.android
         com.atlassian.android.jira.core
     """,
-    AppCategory.Internet to """ com.tplink.tpm5 """,
+    AppCategory.Internet to """
+        com.tplink.tpm5 com.asus.aihome com.xiaomi.router com.xfinity.digitalhome com.verizon.homeapp
+        com.cricketwireless.homeinternet
+    """,
     AppCategory.Print to """
         com.hp.printercontrol epson.print com.epson.epsonsmart jp.co.canon.bsd.ad.pixmaprint
         com.brother.mfc.brprint com.brother.mfc.mobileconnect com.j2.efax org.mopria.printplugin
@@ -1152,6 +1155,9 @@ private val KNOWN_PACKAGES = listOf(
         com.etekcity.vesyncplatform com.tplink.iot com.tuya.smartlife com.philips.ph.homecare com.kakao.i.home
         com.roborock.smart com.tuya.smart com.mcu.reolink com.irobot.home.prime com.xiaomi.smarthome com.lgeha.nuts
         com.daikineurope.online.controller mitsubishi.wifi.android.mitsubishiwifiapp com.midea.aircondition.obm
+        com.ikea.inter.homesmart.system2 de.miele.infocontrol com.dyson.mobile.android com.legrand.homecontrol
+        com.philips.dynalite.envisiontouch com.sds.hms.iotdoorlock com.cloudedge.smarteye
+        com.immediasemi.android.blink com.deyesolar
         com.zillow.android.zillowmap com.trulia.android com.redfin.android
         io.homeassistant.companion.android com.irobot.home com.tado
     """,
