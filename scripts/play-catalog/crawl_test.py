@@ -289,6 +289,29 @@ class CrawlTest(unittest.TestCase):
         self.assertIn("com.popular.sibling", c.apps)
         self.assertNotIn("com.other.radar", c.apps)
 
+    def test_gamesAreNeitherKeptNorFollowed(self):
+        PAGES["/store/apps/details?id=com.big.game&hl=en"] = app_page(
+            "GAME_PUZZLE", 50_000_000, similar=["com.other.game"], dev="gamedev")
+        try:
+            c = crawl.Crawl(self.state, min_installs=100_000)
+            c.run(["com.big.game"], 100, spacing=0)
+        finally:
+            del PAGES["/store/apps/details?id=com.big.game&hl=en"]
+        self.assertNotIn("com.big.game", c.apps)
+        self.assertNotIn("/store/apps/details?id=com.other.game&hl=en", self.fetched)
+        self.assertNotIn("/store/apps/dev?id=gamedev&hl=en", self.fetched)
+
+    def test_knownAndSavedGames_dontCountTowardsTheTarget(self):
+        # Codex on PR #908: the test catalog and old state hold games.
+        old = crawl.Crawl(self.state, min_installs=100_000)
+        old.apps["com.saved.game"] = ["GAME_PUZZLE", 9_000_000]
+        old.save()
+        c = crawl.Crawl(self.state, min_installs=100_000)
+        c.run([], 100, spacing=0, known={"com.known.game": "GAME_CASUAL", "com.known.app": "TOOLS"})
+        self.assertNotIn("com.saved.game", c.apps)
+        self.assertNotIn("com.known.game", c.apps)
+        self.assertIn("com.known.app", c.apps)
+
     def test_writesPackageAndCategory(self):
         c = self.run_crawl()
         out = os.path.join(self.state, "catalog.tsv")

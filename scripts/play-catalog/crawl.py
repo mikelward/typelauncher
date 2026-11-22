@@ -116,7 +116,9 @@ class Crawl:
                 state = json.load(f)
         except FileNotFoundError:
             return
-        self.apps = state["apps"]
+        # Games kept before the crawl skipped them don't count towards the
+        # target (Codex on PR #908).
+        self.apps = {p: v for p, v in state["apps"].items() if not v[0].startswith("GAME")}
         self.seen = set(state["seen"])
         self.queue = [tuple(item) for item in state["queue"]]
         heapq.heapify(self.queue)
@@ -180,6 +182,11 @@ class Crawl:
         if page is None:
             return
         category = CATEGORY.search(page)
+        # Games say so in their manifests, so the app needs no catalog for
+        # them, and their pages mostly link to more games (maintainer,
+        # 2026-11-22): neither kept nor followed.
+        if category and category.group(1).startswith("GAME"):
+            return
         installs = INSTALLS.search(page)
         count = int(installs.group(1)) if installs else 0
         local = package in self.local
@@ -214,7 +221,8 @@ class Crawl:
         self.spacing = spacing
         known = known or {}
         for package, category in known.items():
-            self.apps.setdefault(package, [category, 0])
+            if not category.startswith("GAME"):
+                self.apps.setdefault(package, [category, 0])
         for package in seeds:
             self.make_local(package, 10**12)
         for category in CATEGORIES:
