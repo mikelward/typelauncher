@@ -546,6 +546,10 @@ tasks.withType<Test>().configureEach {
     // jdk.internal.access.SharedSecrets, which java.base doesn't export; without this
     // every Robolectric test fails in setup with IllegalAccessException.
     jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
+    // Robolectric keeps a sandbox per SDK and config, each with its own copy of
+    // the app's statics, among them the shipped Google Play catalog (tens of
+    // thousands of entries): Gradle's default 512 MB ran out at 12,000 apps.
+    maxHeapSize = "2g"
     // ManifestUnitTest reads this build script and source files under src/main straight from
     // the working directory: track them as task inputs so the build cache reruns the tests
     // on any edit to them. A file tree over every non-test source set, so a src/debug or
