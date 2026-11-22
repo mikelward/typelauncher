@@ -1,0 +1,49 @@
+# Where the rules deliberately disagree with Google Play's category
+# (maintainer, 2026-11-22: "rules and exceptions"). CatalogRulesTest fails on
+# any other disagreement, and on an exception nothing needs any more.
+# A line is either a Play category and the folder our rules prefer for it, or
+# one package and its folder. Folders Google Play has no category for (AI,
+# Government, Internet, Notes & tasks, Phone, Post and so on) never count as
+# disagreements: they refine Play's coarser categories.
+#
+# Play category or package	folder	why
+PHOTOGRAPHY	Design	photo editors go with design tools; Photos is cameras and galleries
+VIDEO_PLAYERS	Design	video editors go with design tools
+MAPS_AND_NAVIGATION	Car	rideshare, taxis, fuel and charging apps
+TRAVEL_AND_LOCAL	Car	rideshare, taxis and car rental
+TRAVEL_AND_LOCAL	Maps	map apps Google Play files under travel
+COMMUNICATION	Office	email
+SHOPPING	Food	supermarkets
+SHOPPING	Finance	buy now, pay later
+ENTERTAINMENT	Games	game stores and companion apps
+SOCIAL	Games	game companion apps
+COMMUNICATION	Games	game companion apps
+EDUCATION	Games	games for kids that Play files under education
+EDUCATION	Kids	children's learning apps
+ENTERTAINMENT	Kids	children's video apps
+TOOLS	Kids	parental controls
+BOOKS_AND_REFERENCE	Learning	dictionaries and encyclopedias
+TOOLS	Learning	translation
+BUSINESS	Finance	accounting and expenses
+BUSINESS	Social	work social networks and chat
+BUSINESS	Health	workplace health plans
+BUSINESS	Car	parking and tolls
+BUSINESS	Tools	queue tickets
+TOOLS	Home	smart home device apps
+PRODUCTIVITY	Home	smart home device apps
+COMMUNICATION	Home	smart home cameras
+HEALTH_AND_FITNESS	Music	focus and sleep sound apps
+HEALTH_AND_FITNESS	Maps	hiking maps
+HEALTH_AND_FITNESS	Shopping	health shops
+TOOLS	Music	headphone apps
+NEWS_AND_MAGAZINES	Music	podcasts
+NEWS_AND_MAGAZINES	Social	X
+NEWS_AND_MAGAZINES	Finance	Bloomberg, which Check folders lets the user move
+NEWS_AND_MAGAZINES	Reading	newsletters
+EDUCATION	Reading	book summaries
+MUSIC_AND_AUDIO	Reading	audio stories
+PRODUCTIVITY	Reading	read-it-later
+PRODUCTIVITY	Tools	assistants and subscriptions
+ENTERTAINMENT	Shopping	gift cards
+TRAVEL_AND_LOCAL	Reading	prayer times, with faith apps
+TOOLS	Design	photo restoring

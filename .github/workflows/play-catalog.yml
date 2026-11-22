@@ -58,7 +58,7 @@ jobs:
           --target "$TARGET" --hours "$HOURS"
           --seeds scripts/play-catalog/seeds-known.txt
           --seeds scripts/play-catalog/seeds-countries.txt
-          --known app/src/main/assets/play_catalog.tsv
+          --known app/src/test/resources/play-catalog.tsv
 
       - name: Save the crawl state
         if: always()
