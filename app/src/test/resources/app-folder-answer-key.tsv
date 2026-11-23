@@ -52,6 +52,7 @@ air.ITVMobilePlayer	ITVX	media
 nz.co.aa.mobile.android	The AA (NZ)	car
 com.netshort.abroad	NetShort - Popular Dramas & TV	media
 com.google.android.apps.bard	Google Gemini	ai
+com.google.android.apps.agentspace	Google Gemini Enterprise	ai
 com.squareup.cash	Cash App	finance
 ca.walmart.ecommerceapp	Walmart: Grocery & Shopping	food
 com.snapchat.android	Snapchat	social
@@ -339,3 +340,5 @@ net.frameo.app	Frameo: Share to photo frames	photos
 com.sportsbet.sportsbetweb	Sportsbet - Sports Betting App	betting
 au.com.kayosports	Kayo Sports	sports
 app.mygameday.results	GameDay App	sports
+com.lego.common.legoplay	LEGO® Play	games
+com.google.android.apps.youtube.kids	YouTube Kids	media
