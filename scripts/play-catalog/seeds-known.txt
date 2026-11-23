@@ -356,6 +356,7 @@ com.gombosdev.ampere
 com.goodreads
 com.google.android.GoogleCamera
 com.google.android.apps.adm
+com.google.android.apps.agentspace
 com.google.android.apps.authenticator2
 com.google.android.apps.bard
 com.google.android.apps.books
@@ -500,6 +501,7 @@ com.lasoo.android.target
 com.lasting.lasting
 com.lastpass.lpandroid
 com.lbrc.PeriodCalendar
+com.lego.common.legoplay
 com.lemon.lvoverseas
 com.lemonde.androidapp
 com.lescadeaux.kegel

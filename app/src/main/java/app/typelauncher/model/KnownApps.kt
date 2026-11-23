@@ -1106,7 +1106,7 @@ private val KNOWN_PACKAGES = listOf(
         com.dts.freefireth com.tencent.ig com.activision.callofduty.shooter com.chess
         org.lichess.mobileapp com.nytimes.crossword com.kiloo.subwaysurf com.imangi.templerun2
         com.moonactive.coinmaster com.valvesoftware.android.steam.community com.scee.psxandroid
-        com.microsoft.xboxone.smartglass com.mobile.legends
+        com.microsoft.xboxone.smartglass com.mobile.legends com.lego.common.legoplay
     """,
     AppCategory.Learning to """
         com.duolingo com.babbel.mobile.android.en org.coursera.android org.khanacademy.android
@@ -1125,7 +1125,7 @@ private val KNOWN_PACKAGES = listOf(
     """,
     AppCategory.Ai to """
         com.openai.chatgpt com.google.android.apps.bard com.anthropic.claude
-        com.microsoft.copilot ai.perplexity.app.android
+        com.microsoft.copilot ai.perplexity.app.android com.google.android.apps.agentspace
     """,
     AppCategory.Code to """
         com.github.android com.termux com.replit.app com.foxdebug.acode ru.iiec.pydroid3
@@ -1139,7 +1139,7 @@ private val KNOWN_PACKAGES = listOf(
         com.three.myaccount com.giffgaff.mobile
     """,
     AppCategory.Kids to """
-        com.google.android.apps.youtube.kids com.google.android.apps.kids.familylink
+        com.google.android.apps.kids.familylink
         org.pbskids.video org.khankids.android com.microsoft.familysafety
     """,
     AppCategory.Internet to """
@@ -1374,7 +1374,7 @@ private val KNOWN_PACKAGES = listOf(
     AppCategory.News to """ ch.nzz.mobile com.ft.news nz.co.radionz.android com.tailoredapps de.zeit.online
         com.lemonde.androidapp com.economist.lamarr com.idmedia.android.newsportal """,
     AppCategory.Reading to """ com.substack.app """,
-    AppCategory.Media to """ uk.co.uktv.dave """,
+    AppCategory.Media to """ uk.co.uktv.dave com.google.android.apps.youtube.kids """,
     AppCategory.FamilyHistory to """
         com.ancestry.android.apps.ancestry com.twentythreeandme.app air.com.myheritage.mobile org.familysearch.mobile
     """,
