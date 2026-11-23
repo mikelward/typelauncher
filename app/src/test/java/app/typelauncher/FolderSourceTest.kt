@@ -89,6 +89,50 @@ class FolderSourceTest {
     }
 
     @Test
+    fun aBroadPlayCategory_isALastResort() {
+        // Maintainer, 2026-11-22: "Tools and Productivity are meaningless
+        // categories that i want to be a last resort if at all"; 2026-11-23:
+        // Business and Personalization too.
+        val byManifest = app("Tunes", "com.example.tunes", AppCategory.Music)
+        val byAi = app("Lumen", "com.example.lumen")
+        val byGuess = app("Sky", "com.example.weatherpro")
+        val byPlay = app("Acme", "com.example.acme")
+        val byWork = app("Zorp", "com.example.zorp")
+        val ai = mapOf(byAi.id to AppCategory.Photos.storageKey)
+        val play = mapOf(
+            "com.example.tunes" to "TOOLS",
+            "com.example.lumen" to "PRODUCTIVITY",
+            "com.example.weatherpro" to "PERSONALIZATION",
+            "com.example.acme" to "TOOLS",
+            "com.example.zorp" to "BUSINESS",
+        )
+        val expected = mapOf(
+            byManifest to (AppCategory.Music to FolderSource.Manifest),
+            byAi to (AppCategory.Photos to FolderSource.Ai),
+            byGuess to (AppCategory.Weather to FolderSource.Guess),
+            byPlay to (AppCategory.Tools to FolderSource.GooglePlayLastResort),
+            byWork to (AppCategory.Office to FolderSource.GooglePlayLastResort),
+        )
+        for ((app, folderAndSource) in expected) {
+            val (folder, source) = folderAndSource
+            assertEquals(app.name, folder.storageKey, effectiveFolderKey(app, activeKeys, emptyMap(), ai, play))
+            assertEquals(app.name, source, folderSource(app, activeKeys, emptyMap(), ai, play))
+        }
+        // The AI's Other, which is also what it files after two misses, places
+        // nothing, so a broad category still does (Codex on PR #911).
+        val aiOther = mapOf(byPlay.id to AppCategory.Other.storageKey)
+        assertEquals(AppCategory.Tools.storageKey, effectiveFolderKey(byPlay, activeKeys, emptyMap(), aiOther, play))
+        assertEquals(FolderSource.GooglePlayLastResort, folderSource(byPlay, activeKeys, emptyMap(), aiOther, play))
+        // Without one, the AI's Other stands.
+        val noPlay = mapOf<String, String>()
+        assertEquals(AppCategory.Other.storageKey, effectiveFolderKey(byPlay, activeKeys, emptyMap(), aiOther, noPlay))
+        assertEquals(FolderSource.Ai, folderSource(byPlay, activeKeys, emptyMap(), aiOther, noPlay))
+        // A specific Play category still beats the AI and the manifest.
+        val weather = mapOf("com.example.tunes" to "WEATHER")
+        assertEquals(AppCategory.Weather.storageKey, effectiveFolderKey(byManifest, activeKeys, emptyMap(), emptyMap(), weather))
+    }
+
+    @Test
     fun aPinnedWebsite_isNeverSortedByItsBrowsersPlayCategory() {
         // It carries its browser's package (Codex on PR #890).
         val site = app("Acme Portal", "com.android.chrome").copy(shortcutId = "acme")

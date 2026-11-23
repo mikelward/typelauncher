@@ -28,6 +28,8 @@ class CatalogRulesTest {
         val used = HashSet<Triple<String, String, String>>()
         val wrong = mutableListOf<String>()
         for ((packageName, playCategory) in catalog.toSortedMap()) {
+            // Broad categories are a last resort, so a rule can't contradict them.
+            if (isLastResortPlayCategory(playCategory)) continue
             val rule = knownAppCategory(packageName) ?: continue
             val play = folderForPlayCategory(playCategory) ?: continue
             if (rule == play || rule !in playFolders) continue

@@ -127,6 +127,17 @@ internal fun folderForPlayCategory(category: String): AppCategory? {
     }
 }
 
+/**
+ * Google Play categories too broad to say much (maintainer, 2026-11-22:
+ * "Tools and Productivity are meaningless categories that i want to be a last
+ * resort if at all"; 2026-11-23: Business and Personalization too). An app
+ * Play files under one goes where they map only when the AI, the manifest
+ * and the guesses all have nothing.
+ */
+internal fun isLastResortPlayCategory(category: String): Boolean = category in LAST_RESORT_PLAY_CATEGORIES
+
+private val LAST_RESORT_PLAY_CATEGORIES = setOf("BUSINESS", "PERSONALIZATION", "PRODUCTIVITY", "TOOLS")
+
 /** The installer Android records for Google Play. */
 internal const val GOOGLE_PLAY_INSTALLER = "com.android.vending"
 
