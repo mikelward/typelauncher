@@ -254,7 +254,8 @@ internal data class AppListGrouping(
  * otherwise where "Sort with on-device AI" put it ([aiAssignments]), which the caller passes only while
  * that's on; otherwise where its manifest says
  * ([InstalledApp.declaredCategory]); otherwise where words in its package or
- * name suggest ([guessedAppCategory]); otherwise Other. A choice naming a folder
+ * name suggest ([guessedAppCategory]); otherwise where a broad Play category
+ * says ([isLastResortPlayCategory]: Tools, say); otherwise Other. A choice naming a folder
  * that's since been deleted is passed over. The AI comes before the manifest
  * because manifests are often wrong: a broker or bank declaring
  * "productivity", say.
@@ -275,12 +276,22 @@ internal fun effectiveFolderKey(
     // asked for that folder, and the table can't know about it.
     if (aiChoice != null && aiChoice.startsWith(USER_FOLDER_KEY_PREFIX)) return aiChoice
     app.ruledCategory()?.storageKey?.takeIf { it in activeKeys }?.let { return it }
-    app.playCategoryIn(playCategories)?.let(::folderForPlayCategory)?.storageKey?.takeIf { it in activeKeys }
-        ?.let { return it }
-    aiChoice?.let { return it }
+    val play = app.playFolderKeyIn(playCategories, activeKeys)
+    if (play != null && !play.isLastResort) return play.key
+    aiChoice?.takeUnless { play != null && it == AppCategory.Other.storageKey }?.let { return it }
     app.declaredCategory?.storageKey?.takeIf { it in activeKeys }?.let { return it }
     app.guessedCategory()?.storageKey?.takeIf { it in activeKeys }?.let { return it }
-    return AppCategory.Other.storageKey
+    return play?.key ?: AppCategory.Other.storageKey
+}
+
+/** The folder [InstalledApp.playFolderKeyIn] finds, and whether its Play category is a last resort. */
+private data class PlayFolderKey(val key: String, val isLastResort: Boolean)
+
+/** The active folder [this] app's Play category maps to, if any. */
+private fun InstalledApp.playFolderKeyIn(playCategories: Map<String, String>, activeKeys: Set<String>): PlayFolderKey? {
+    val category = playCategoryIn(playCategories) ?: return null
+    val key = folderForPlayCategory(category)?.storageKey?.takeIf { it in activeKeys } ?: return null
+    return PlayFolderKey(key, isLastResortPlayCategory(category))
 }
 
 /**
@@ -314,6 +325,9 @@ internal enum class FolderSource {
     /** A guess from words in its package or name. */
     Guess,
 
+    /** A Google Play category too broad to sort by sooner ([isLastResortPlayCategory]). */
+    GooglePlayLastResort,
+
     /** Nothing placed it: Other. */
     None,
     ;
@@ -345,12 +359,14 @@ internal fun folderSource(
             isPlacedByNameWord(if (app.isShortcut) "" else app.packageName, app.name)
         return if (byNameWord) FolderSource.NameWord else FolderSource.Rule
     }
-    if (app.playCategoryIn(playCategories)?.let(::folderForPlayCategory)?.storageKey?.takeIf { it in activeKeys } != null) {
-        return FolderSource.GooglePlay
-    }
-    if (aiChoice != null) return FolderSource.Ai
+    val play = app.playFolderKeyIn(playCategories, activeKeys)
+    if (play != null && !play.isLastResort) return FolderSource.GooglePlay
+    // The AI's Other, also what it files after two misses, places nothing
+    // when a broad Play category can (Codex on PR #911).
+    if (aiChoice != null && !(play != null && aiChoice == AppCategory.Other.storageKey)) return FolderSource.Ai
     if (app.declaredCategory?.storageKey?.takeIf { it in activeKeys } != null) return FolderSource.Manifest
     if (app.guessedCategory()?.storageKey?.takeIf { it in activeKeys } != null) return FolderSource.Guess
+    if (play != null) return FolderSource.GooglePlayLastResort
     return FolderSource.None
 }
 

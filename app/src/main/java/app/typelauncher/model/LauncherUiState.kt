@@ -907,6 +907,8 @@ internal data class LauncherUiState(
     val guessReviewEitherWay: List<InstalledApp> = emptyList(),
     val guessReviewByName: List<InstalledApp> = emptyList(),
     val guessReviewByAi: List<InstalledApp> = emptyList(),
+    // Apps only a broad Google Play category placed (Tools, say).
+    val guessReviewByPlay: List<InstalledApp> = emptyList(),
     // And what nothing could place, for the user to file.
     val guessReviewUnsorted: List<InstalledApp> = emptyList(),
     // When true (default), the search field auto-focuses on launch and

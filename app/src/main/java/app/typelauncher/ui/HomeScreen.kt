@@ -1385,7 +1385,7 @@ internal fun HomeScreen(
             // "Check guessed folders": the same sheet, for the apps placed
             // only by a guess (maintainer, 2026-11-21).
             val guessReview = state.guessReviewEitherWay + state.guessReviewByName + state.guessReviewByAi +
-                state.guessReviewUnsorted
+                state.guessReviewByPlay + state.guessReviewUnsorted
             if (playSortReview != null && guessReview.isNotEmpty()) {
                 PlaySortReviewSheet(
                     apps = guessReview,
@@ -1396,6 +1396,7 @@ internal fun HomeScreen(
                         R.string.guess_check_either_way to state.guessReviewEitherWay,
                         R.string.guess_check_by_name to state.guessReviewByName,
                         R.string.guess_check_by_ai to state.guessReviewByAi,
+                        R.string.play_sort_review_title to state.guessReviewByPlay,
                         R.string.play_sort_review_unsorted to state.guessReviewUnsorted,
                     ),
                 )

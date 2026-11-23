@@ -5296,7 +5296,9 @@ internal class LauncherViewModel(
                 // just asking the user to file").
                 // And apps that fit two folders about equally, unless the
                 // user filed them (maintainer, 2026-11-21).
-                source.isGuess ||
+                // And apps only a broad Play category placed (maintainer,
+                // 2026-11-22: Tools and Productivity are a last resort).
+                source.isGuess || source == FolderSource.GooglePlayLastResort ||
                     (source == FolderSource.Rule && app.eitherWayFolders().isNotEmpty()) ||
                     (source == FolderSource.None && app.id !in lookedUpLater && app.packageName !in playPending)
             }
@@ -5338,6 +5340,7 @@ internal class LauncherViewModel(
         }
         val (byAi, byName) = apps.filter { sources.getValue(it).isGuess }
             .partition { app -> sources.getValue(app) == FolderSource.Ai }
+        val byPlay = apps.filter { sources.getValue(it) == FolderSource.GooglePlayLastResort }
         val unsorted = apps.filter { sources.getValue(it) == FolderSource.None }
         appFolderStore.guessesOffered = appFolderStore.guessesOffered + apps.map { it.id }
         _uiState.update { state ->
@@ -5346,6 +5349,7 @@ internal class LauncherViewModel(
                 guessReviewEitherWay = eitherWay,
                 guessReviewByName = byName,
                 guessReviewByAi = byAi,
+                guessReviewByPlay = byPlay,
                 guessReviewUnsorted = unsorted,
             )
         }
@@ -5359,6 +5363,7 @@ internal class LauncherViewModel(
                 guessReviewEitherWay = emptyList(),
                 guessReviewByName = emptyList(),
                 guessReviewByAi = emptyList(),
+                guessReviewByPlay = emptyList(),
                 guessReviewUnsorted = emptyList(),
             )
         }
