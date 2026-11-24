@@ -320,6 +320,7 @@ class KnownAppsTest {
             "My Pixel" to AppCategory.Phone,
             "PingTools" to AppCategory.Internet,
             "PingTools Pro" to AppCategory.Internet,
+            "EVENTIM UK" to AppCategory.Events,
         )) {
             assertEquals(label, category, knownAppCategory("com.example.mine", label))
         }
@@ -346,6 +347,9 @@ class KnownAppsTest {
             "com.ouraring.oura" to AppCategory.Health,
             "com.ultrahuman.android" to AppCategory.Health,
             "com.myvue.app" to AppCategory.Events,
+            "uk.eventim.mobile.app.Android" to AppCategory.Events,
+            "de.eventim.mobile.app.Android" to AppCategory.Events,
+            "at.eventim.mobile.app.Android" to AppCategory.Events,
             "com.zoopla.activity" to AppCategory.Home,
             "com.rightmove.android" to AppCategory.Home,
         )) {
