@@ -789,4 +789,16 @@ class KnownAppsTest {
             assertEquals(packageName, folders.first(), knownAppCategory(packageName))
         }
     }
+
+    @Test
+    fun namesSayWhatAnAppIs() {
+        // Maintainer, 2026-11-24: "These should have been obvious as a name rule".
+        assertEquals(AppCategory.Home, knownAppCategory("com.bosch.sh.ui.android", "Bosch Smart Home"))
+        assertEquals(AppCategory.Home, knownAppCategory("com.example.hub", "Smart Home Hub"))
+        assertEquals(AppCategory.Finance, knownAppCategory("com.momentum.moneyhub.app", "Moneyhub"))
+        assertEquals(AppCategory.Finance, knownAppCategory("com.example.app", "Money Manager"))
+        assertEquals(AppCategory.Finance, guessedAppCategory("com.example.moneytracker", "Acme"))
+        // Square: point of sale, payments and invoices (maintainer, 2026-11-24).
+        assertEquals(AppCategory.Finance, knownAppCategory("com.squareup", "Square Point of Sale: Payment"))
+    }
 }
