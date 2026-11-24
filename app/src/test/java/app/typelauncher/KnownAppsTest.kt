@@ -316,6 +316,10 @@ class KnownAppsTest {
             "SIM Manager" to AppCategory.Phone,
             "Raindrop.io" to AppCategory.Reading,
             "Virgin Australia" to AppCategory.Travel,
+            "US Mobile" to AppCategory.Phone,
+            "My Pixel" to AppCategory.Phone,
+            "PingTools" to AppCategory.Internet,
+            "PingTools Pro" to AppCategory.Internet,
         )) {
             assertEquals(label, category, knownAppCategory("com.example.mine", label))
         }
@@ -330,6 +334,20 @@ class KnownAppsTest {
             "com.cloudflare.cloudflareoneagent" to AppCategory.Internet,
             "com.sony.songpal.mdr" to AppCategory.Music,
             "au.com.stan.and" to AppCategory.Media,
+            "com.americanexpress.android.acctsvcs.us" to AppCategory.Finance,
+            "com.americanexpress.android.acctsvcs.uk" to AppCategory.Finance,
+            "com.americanexpress.android.acctsvcs.au" to AppCategory.Finance,
+            "com.starbucks.uk" to AppCategory.Food,
+            "com.starbucks.hk" to AppCategory.Food,
+            "uk.co.club.costa.costa" to AppCategory.Food,
+            "com.pret.android" to AppCategory.Food,
+            "com.gumtree.android" to AppCategory.Shopping,
+            "com.thetileapp.tile" to AppCategory.Tools,
+            "com.ouraring.oura" to AppCategory.Health,
+            "com.ultrahuman.android" to AppCategory.Health,
+            "com.myvue.app" to AppCategory.Events,
+            "com.zoopla.activity" to AppCategory.Home,
+            "com.rightmove.android" to AppCategory.Home,
         )) {
             assertEquals(packageName, category, knownAppCategory(packageName, "Happy"))
         }

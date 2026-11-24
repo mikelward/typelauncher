@@ -508,7 +508,12 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     // Cricket Wireless's app, Tello and Talk Mobile (maintainer, 2026-11-21). Not bare
     // "cricket" (the sport) or "tello" (DJI's drone).
     "mycricket", "my cricket", "tello mobile", "my tello", "talk mobile",
+    // US Mobile, and My Pixel, Google's help app for the phone (maintainer, 2026-11-24).
+    "us mobile", "my pixel",
 ).map { it to AppCategory.Phone } + listOf(
+    // Network ping and diagnostics (maintainer, 2026-11-24).
+    "pingtools", "ping tools",
+).map { it to AppCategory.Internet } + listOf(
     "thefork" to AppCategory.Food,
     "the fork" to AppCategory.Food,
     "opentable" to AppCategory.Food,
@@ -888,7 +893,11 @@ private val KNOWN_PACKAGE_PREFIXES = listOf(
     "com.chrome." to AppCategory.Internet,
     // Citi's and HSBC's apps for each country.
     "com.citi.mobile." to AppCategory.Finance,
+    // Starbucks's apps for each country.
+    "com.starbucks." to AppCategory.Food,
     "sg.com.hsbc." to AppCategory.Finance,
+    // American Express's card apps for each country (UK, US, Australia and more).
+    "com.americanexpress.android.acctsvcs." to AppCategory.Finance,
     "hk.com.hsbc." to AppCategory.Finance,
     "org.kp." to AppCategory.Health,
     "digifit." to AppCategory.Health,
@@ -1031,7 +1040,7 @@ private val KNOWN_PACKAGES = listOf(
         com.coinbase.android com.binance.dev co.uk.getmondo com.revolut.revolut
         com.transferwise.android com.starlingbank.android com.google.android.apps.walletnfcrel
         com.google.android.apps.nbu.paisa.user com.chase.sig.android com.wf.wellsfargomobile
-        com.infonow.bofa com.konylabs.capitalone com.americanexpress.android.acctsvcs.us
+        com.infonow.bofa com.konylabs.capitalone
         com.citi.citimobile com.usaa.mobile.android.usaa com.discoverfinancial.mobile
         com.sofi.mobile com.creditkarma.mobile com.youneedabudget.evergreen.app
         com.fidelity.android com.etrade.mobilepro.activity com.schwab.mobile com.klarna.android
@@ -1042,7 +1051,7 @@ private val KNOWN_PACKAGES = listOf(
         com.etoro.openbook com.avuscapital.trading212
     """,
     AppCategory.Shopping to """
-        com.amazon.mShop.android.shopping com.ebay.mobile com.etsy.android
+        com.amazon.mShop.android.shopping com.ebay.mobile com.etsy.android com.gumtree.android
         com.alibaba.aliexpresshd com.einnovation.temu com.zzkko com.walmart.android
         com.target.ui com.bestbuy.android com.contextlogic.wish com.vinted com.depop
         com.poshmark.app com.shopify.arrive com.homeretailgroup.argos.android com.asos.app
@@ -1051,7 +1060,7 @@ private val KNOWN_PACKAGES = listOf(
     """,
     AppCategory.Food to """
         com.ubercab.eats com.dd.doordash com.grubhub.android com.deliveroo.orderapp
-        com.justeat.app.uk com.instacart.client com.starbucks.mobilecard com.mcdonalds.app
+        com.justeat.app.uk com.instacart.client com.starbucks.mobilecard com.starbucks.uk uk.co.club.costa.costa com.pret.android com.mcdonalds.app
         uk.co.dominos.android com.dominospizza com.yelp.android com.opentable
         com.tesco.grocery.view com.app.tgtg com.chickfila.cfaflagship com.chipotle.ordering
     """,
@@ -1389,6 +1398,12 @@ private val KNOWN_PACKAGES = listOf(
     AppCategory.Tools to """ co.lvlz.skiplino """,
     AppCategory.Office to """ com.gartner.mygartner """,
     AppCategory.Phone to """ com.isoton.lebara """,
+    // Cinemas (maintainer, 2026-11-24): tickets, as Events.
+    AppCategory.Events to """ com.myvue.app """,
+    AppCategory.Health to """ com.ultrahuman.android """,
+    AppCategory.Home to """ com.zoopla.activity """,
+    // Tile trackers, beside Find My Device.
+    AppCategory.Tools to """ com.thetileapp.tile """,
     AppCategory.Finance to """ com.raisin.app com.emmaprod org.dayup.stocks.uk com.pktmny.mobile """,
     AppCategory.Ai to """ ai.x.grok.bot com.larus.wolf """,
     AppCategory.Travel to """ com.usebounce se.memfrag.app """,
