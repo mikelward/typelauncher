@@ -53,12 +53,18 @@ jobs:
           # A scheduled run has no inputs: the dispatch defaults.
           TARGET: ${{ inputs.target || '60000' }}
           HOURS: ${{ inputs.hours || '5' }}
+          # Each country's Google Play, so apps sold in only one are found:
+          # the English-speaking markets first, then the seeds' countries.
+          COUNTRIES: >-
+            US,GB,AU,CA,NZ,IE,IN,PK,NG,KE,GH,ZA,EG,MA,SA,AE,TR,HR,NL,DE,FR,ES,PT,IT,AT,CH,
+            SE,NO,CZ,PL,RO,HU,GR,BG,RS,MX,BR,JP,KR,ID,TH,MY,PH
         run: >-
           python3 scripts/play-catalog/crawl.py --state play-catalog-state
           --target "$TARGET" --hours "$HOURS"
           --seeds scripts/play-catalog/seeds-known.txt
           --seeds scripts/play-catalog/seeds-countries.txt
           --known app/src/test/resources/play-catalog.tsv
+          --countries "$COUNTRIES"
 
       - name: Save the crawl state
         if: always()

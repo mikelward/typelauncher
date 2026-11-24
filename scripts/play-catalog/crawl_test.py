@@ -192,7 +192,7 @@ class CrawlTest(unittest.TestCase):
             c.run(["com.popular.weather"], 100, spacing=0)
         c.save()
         resumed = crawl.Crawl(self.state, min_installs=100_000)
-        self.assertEqual(["com.popular.weather"], [package for _, package in resumed.queue])
+        self.assertEqual(["com.popular.weather"], [package for _, package, _ in resumed.queue])
 
     def test_seedsAndTheirDevelopersOtherApps_meetALowerBar(self):
         PAGES["/store/apps/details?id=hr.small.bank&hl=en"] = app_page("FINANCE", 50_000, dev="hrdev")
@@ -254,15 +254,179 @@ class CrawlTest(unittest.TestCase):
 
     def test_appsAlreadyShipped_areKeptWithoutFetchingThemAgain(self):
         # A crawl whose saved state was lost shouldn't fetch the shipped
-        # catalog all over again (maintainer, 2026-11-21).
+        # catalog all over again (maintainer, 2026-11-21) while there's new
+        # ground left: here the target is met first.
         c = crawl.Crawl(self.state, min_installs=100_000)
-        c.run(["com.popular.weather"], 100, spacing=0,
+        c.run(["com.popular.weather"], 3, spacing=0,
               known={"com.other.radar": "WEATHER", "com.popular.weather": "WEATHER"})
         self.assertNotIn("/store/apps/details?id=com.other.radar&hl=en", self.fetched)
         self.assertEqual(["WEATHER", 0], c.apps["com.other.radar"])
         # A seed is still fetched, for its neighbors and developer.
         self.assertIn("/store/apps/details?id=com.popular.weather&hl=en", self.fetched)
         self.assertIn("com.popular.sibling", c.apps)
+
+    def test_appsAlreadyShipped_areReadOnceNothingElseIsLeft_forTheirNeighbors(self):
+        # The crawl ran dry at 12,700 apps with the shipped apps' neighbors
+        # never visited (maintainer, 2026-11-24).
+        PAGES["/store/apps/details?id=com.shipped.app&hl=en"] = app_page(
+            "WEATHER", 5_000_000, similar=["com.behind.shipped"])
+        PAGES["/store/apps/details?id=com.behind.shipped&hl=en"] = app_page("WEATHER", 300_000)
+        PAGES["/store/apps/category/WEATHER?hl=en"] = '<a href="/store/apps/details?id=com.shipped.app">s</a>'
+        try:
+            c = crawl.Crawl(self.state, min_installs=100_000)
+            ran_dry = c.run([], 100, spacing=0, known={"com.shipped.app": "WEATHER"})
+        finally:
+            for key in [k for k in PAGES if "shipped" in k or "category/WEATHER" in k]:
+                del PAGES[key]
+        self.assertIn("com.behind.shipped", c.apps)
+        self.assertTrue(ran_dry)
+
+    def test_aDryStateFromBeforeThisChange_readsItsUnreadShippedApps(self):
+        # The saved state of 2026-11-24: queue empty, shipped apps kept unread.
+        old = crawl.Crawl(self.state, min_installs=100_000)
+        old.apps["com.popular.weather"] = ["WEATHER", 0]
+        old.seen = {"com.popular.weather"}
+        old.save()
+        c = crawl.Crawl(self.state, min_installs=100_000)
+        c.run([], 100, spacing=0)
+        self.assertIn("com.popular.sibling", c.apps)
+        self.assertEqual(1, self.fetched.count("/store/apps/details?id=com.popular.weather&hl=en"))
+
+    def test_shippedAppsQueuedWhenARunEnded_areReadByTheNextRun(self):
+        # Codex on PR #916: the next run passes --known again.
+        PAGES["/store/apps/details?id=com.shipped.app&hl=en"] = app_page(
+            "WEATHER", 5_000_000, similar=["com.behind.shipped"])
+        PAGES["/store/apps/details?id=com.behind.shipped&hl=en"] = app_page("WEATHER", 300_000)
+        try:
+            old = crawl.Crawl(self.state, min_installs=100_000)
+            old.apps["com.shipped.app"] = ["WEATHER", 0]
+            old.shipped_read.add("com.shipped.app")
+            old.queue = [(-1, "com.shipped.app", "")]
+            old.seen = {"com.shipped.app"}
+            old.pages_done = {"category:" + c for c in crawl.CATEGORIES}
+            old.save()
+            c = crawl.Crawl(self.state, min_installs=100_000)
+            c.run([], 100, spacing=0, known={"com.shipped.app": "WEATHER"})
+        finally:
+            for key in [k for k in PAGES if "shipped" in k]:
+                del PAGES[key]
+        self.assertIn("com.behind.shipped", c.apps)
+
+    def test_aSeedMissingFromTheOldView_isTriedInEachCountryOnce(self):
+        # Codex on PR #916: a seed the US view didn't have, saved as seen.
+        PAGES["/store/apps/details?id=uk.coffee.club&hl=en&gl=GB"] = app_page("FOOD_AND_DRINK", 50_000)
+        try:
+            old = crawl.Crawl(self.state, min_installs=100_000, local_min_installs=10_000)
+            old.run(["uk.coffee.club"], 100, spacing=0)
+            self.assertNotIn("uk.coffee.club", old.apps)
+            c = crawl.Crawl(self.state, min_installs=100_000, local_min_installs=10_000, countries=["US", "GB"])
+            c.run(["uk.coffee.club"], 100, spacing=0)
+            self.assertIn("uk.coffee.club", c.apps)
+            self.fetched.clear()
+            again = crawl.Crawl(self.state, min_installs=100_000, local_min_installs=10_000, countries=["US", "GB"])
+            again.run(["uk.coffee.club"], 100, spacing=0)
+        finally:
+            del PAGES["/store/apps/details?id=uk.coffee.club&hl=en&gl=GB"]
+        self.assertFalse([p for p in self.fetched if "uk.coffee.club" in p])
+
+    def test_anAppNotKeptFromTheOldView_isTriedInANewCountryItTurnsUpIn(self):
+        # Codex on PR #916: seen from the US view, unavailable there.
+        PAGES["/store/apps/category/SHOPPING?hl=en&gl=GB"] = '<a href="/store/apps/details?id=uk.classifieds">c</a>'
+        PAGES["/store/apps/details?id=uk.classifieds&hl=en&gl=GB"] = app_page("SHOPPING", 5_000_000)
+        try:
+            old = crawl.Crawl(self.state, min_installs=100_000)
+            old.seen.add("uk.classifieds")
+            old.save()
+            c = crawl.Crawl(self.state, min_installs=100_000, countries=["US", "GB"])
+            c.run([], 100, spacing=0)
+        finally:
+            for key in [k for k in PAGES if "classifieds" in k or "SHOPPING" in k]:
+                del PAGES[key]
+        self.assertIn("uk.classifieds", c.apps)
+
+    def test_categoryPages_stopAtTheDeadline_withTheirProgressSaved(self):
+        # Codex on PR #916: 43 countries of category pages, and slow-downs.
+        clock = [0.0]
+        real_monotonic = crawl.time.monotonic
+        stub = crawl.fetch
+
+        def ticking(path):
+            clock[0] += 1
+            return stub(path)
+
+        crawl.fetch = ticking
+        crawl.time.monotonic = lambda: clock[0]
+        try:
+            c = crawl.Crawl(self.state, min_installs=100_000, countries=["US", "GB", "AU"])
+            c.run([], 100, spacing=0, deadline=40)
+        finally:
+            crawl.time.monotonic = real_monotonic
+        resumed = crawl.Crawl(self.state, min_installs=100_000)
+        self.assertIn("category:WEATHER:US", resumed.pages_done)
+        self.assertNotIn("category:WEATHER:AU", resumed.pages_done)
+        self.assertFalse([p for p in self.fetched if "gl=AU" in p])
+
+    def test_aDevelopersPageIsReadInEachCountry(self):
+        # Codex on PR #916: a developer lists different apps in each country.
+        PAGES["/store/apps/category/FINANCE?hl=en&gl=US"] = '<a href="/store/apps/details?id=com.card.us">u</a>'
+        PAGES["/store/apps/category/FINANCE?hl=en&gl=GB"] = '<a href="/store/apps/details?id=com.card.zgb">k</a>'
+        PAGES["/store/apps/details?id=com.card.us&hl=en&gl=US"] = app_page("FINANCE", 1_000_000, dev="card")
+        PAGES["/store/apps/details?id=com.card.zgb&hl=en&gl=GB"] = app_page("FINANCE", 1_000_000, dev="card")
+        PAGES["/store/apps/dev?id=card&hl=en&gl=GB"] = '<a href="/store/apps/details?id=com.card.ukonly">o</a>'
+        PAGES["/store/apps/details?id=com.card.ukonly&hl=en&gl=GB"] = app_page("FINANCE", 200_000)
+        try:
+            c = crawl.Crawl(self.state, min_installs=100_000, countries=["US", "GB"])
+            c.run([], 100, spacing=0)
+        finally:
+            for key in [k for k in PAGES if "card" in k or "FINANCE" in k]:
+                del PAGES[key]
+        self.assertIn("com.card.ukonly", c.apps)
+
+    def test_readsEachCountrysGooglePlay_andFollowsAnAppInTheCountryItWasFoundIn(self):
+        # Apps sold only in the UK were never found from a US view
+        # (maintainer, 2026-11-24).
+        PAGES["/store/apps/category/FOOD_AND_DRINK?hl=en&gl=GB"] = (
+            '<a href="/store/apps/details?id=uk.coffee.club">c</a>')
+        PAGES["/store/apps/details?id=uk.coffee.club&hl=en&gl=GB"] = app_page(
+            "FOOD_AND_DRINK", 1_000_000, similar=["uk.sandwich.shop"], dev="ukdev")
+        PAGES["/store/apps/dev?id=ukdev&hl=en&gl=GB"] = '<a href="/store/apps/details?id=uk.coffee.rewards">r</a>'
+        PAGES["/store/apps/details?id=uk.coffee.rewards&hl=en&gl=GB"] = app_page("FOOD_AND_DRINK", 200_000)
+        PAGES["/store/apps/details?id=uk.sandwich.shop&hl=en&gl=GB"] = app_page("FOOD_AND_DRINK", 500_000)
+        try:
+            c = crawl.Crawl(self.state, min_installs=100_000, countries=["US", "GB"])
+            c.run([], 100, spacing=0)
+        finally:
+            for key in [k for k in PAGES if "gl=GB" in k]:
+                del PAGES[key]
+        self.assertIn("/store/apps/category/FOOD_AND_DRINK?hl=en&gl=US", self.fetched)
+        self.assertEqual({"uk.coffee.club", "uk.sandwich.shop", "uk.coffee.rewards"}, set(c.apps))
+        self.assertNotIn("/store/apps/details?id=uk.sandwich.shop&hl=en&gl=US", self.fetched)
+
+    def test_aSeedIsReadInTheFirstCountryThatHasIt(self):
+        PAGES["/store/apps/details?id=uk.only.bank&hl=en&gl=GB"] = app_page("FINANCE", 50_000)
+        try:
+            c = crawl.Crawl(self.state, min_installs=100_000, local_min_installs=10_000,
+                            countries=["US", "GB", "AU"])
+            c.run(["uk.only.bank"], 100, spacing=0)
+        finally:
+            del PAGES["/store/apps/details?id=uk.only.bank&hl=en&gl=GB"]
+        self.assertIn("uk.only.bank", c.apps)
+        self.assertIn("/store/apps/details?id=uk.only.bank&hl=en&gl=US", self.fetched)
+        self.assertNotIn("/store/apps/details?id=uk.only.bank&hl=en&gl=AU", self.fetched)
+
+    def test_aQueueSavedBeforeCountries_resumes(self):
+        old = crawl.Crawl(self.state, min_installs=100_000)
+        old.queue = [(-5_000_000, "com.popular.weather")]
+        old.seen = {"com.popular.weather"}
+        old.save()
+        c = crawl.Crawl(self.state, min_installs=100_000)
+        c.run([], 100, spacing=0)
+        self.assertIn("com.popular.sibling", c.apps)
+
+    def test_reportsWhenItRanDry_shortOfTheTarget(self):
+        self.assertTrue(crawl.Crawl(self.state, min_installs=100_000).run(["com.popular.weather"], 100, spacing=0))
+        other = tempfile.mkdtemp()
+        self.assertFalse(crawl.Crawl(other, min_installs=100_000).run(["com.popular.weather"], 2, spacing=0))
 
     def test_readsTheCatalogItWrites(self):
         c = self.run_crawl()
