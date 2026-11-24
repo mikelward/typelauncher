@@ -929,6 +929,7 @@ de.aoksystems.amg
 de.apptiv.business.android.aldi_uk
 de.barmergek.serviceapp
 de.deutschepost.postident
+de.eventim.mobile.app.Android
 de.flixbus.app
 de.gmx.mobile.android.mail
 de.hafas.android.db
@@ -1123,6 +1124,7 @@ uk.co.patient.patientaccess
 uk.co.santander.santanderUK
 uk.co.uktv.dave
 uk.co.virginactive.android
+uk.eventim.mobile.app.Android
 uk.gov.govuk
 uk.gov.hmrc.ptcalc
 uk.gov.metoffice.weather.android

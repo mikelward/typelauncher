@@ -19,6 +19,7 @@ package app.typelauncher
 internal fun knownAppCategory(packageName: String, label: String = ""): AppCategory? =
     KnownApps.byPackage[packageName]
         ?: KNOWN_PACKAGE_PREFIXES.firstOrNull { (prefix, _) -> packageName.startsWith(prefix) }?.second
+        ?: KNOWN_PACKAGE_PATTERNS.firstOrNull { (pattern, _) -> pattern.containsMatchIn(packageName) }?.second
         ?: labelCategory(label)
 
 /**
@@ -127,6 +128,7 @@ private fun labelBrandCategory(label: String): AppCategory? {
 internal fun isPlacedByNameWord(packageName: String, label: String): Boolean =
     KnownApps.byPackage[packageName] == null &&
         KNOWN_PACKAGE_PREFIXES.none { (prefix, _) -> packageName.startsWith(prefix) } &&
+        KNOWN_PACKAGE_PATTERNS.none { (pattern, _) -> pattern.containsMatchIn(packageName) } &&
         labelBrandCategory(label) == null &&
         labelWordCategory(label) != null
 
@@ -475,6 +477,7 @@ private val LABEL_BRANDS: List<Pair<String, AppCategory>> = listOf(
     "tickpick" to AppCategory.Events,
     "viagogo" to AppCategory.Events,
     "eventbrite" to AppCategory.Events,
+    "eventim" to AppCategory.Events,
     "indeed" to AppCategory.Jobs,
     "seek" to AppCategory.Jobs,
     "glassdoor" to AppCategory.Jobs,
@@ -847,6 +850,13 @@ private val LABEL_WORDS = listOf(
 )
 
 // Publishers whose apps are games, by package prefix.
+// Publishers whose packages start with a country code, one app per country.
+private val KNOWN_PACKAGE_PATTERNS = listOf(
+    // Eventim: de.eventim.mobile.app.Android, uk.eventim.mobile.app.Android and the rest
+    // (maintainer, 2026-11-24).
+    Regex("""^[a-z]{2}\.eventim\.""") to AppCategory.Events,
+)
+
 private val KNOWN_PACKAGE_PREFIXES = listOf(
     "com.netflix.NGP." to AppCategory.Games,
     "com.supercell." to AppCategory.Games,
