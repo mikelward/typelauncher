@@ -117,6 +117,8 @@ com.amazon.kindle
 com.amazon.mShop.android.shopping
 com.amazon.mp
 com.amazon.mp3
+com.americanexpress.android.acctsvcs.au
+com.americanexpress.android.acctsvcs.uk
 com.americanexpress.android.acctsvcs.us
 com.amtrak.rider
 com.ancestry.android.apps.ancestry
@@ -414,6 +416,7 @@ com.grubhub.android
 com.gs.pwmdigital.external.android
 com.guardian
 com.guavahealth.app
+com.gumtree.android
 com.habitrpg.android.habitica
 com.handmark.expressweather
 com.harteg.crookcatcher
@@ -594,6 +597,7 @@ com.mypossibleself.app
 com.myprizepicks.myprizepicks
 com.mysports.branded.pfaustralia
 com.mysugr.android.companion
+com.myvue.app
 com.namecheap.android
 com.nationwide.mobile.android.nationwide
 com.naturitas.android
@@ -669,6 +673,7 @@ com.popularapp.periodcalendar
 com.poshmark.app
 com.posteitaliane.spim
 com.practo.fabric
+com.pret.android
 com.primark.app.prod
 com.qantas.qantasapp
 com.qmobility.darbx
@@ -756,6 +761,7 @@ com.ss.android.ugc.trill
 com.stackexchange.marvin
 com.star.customer_app
 com.starbucks.mobilecard
+com.starbucks.uk
 com.starfinanz.mobile.android.pushtan
 com.starlingbank.android
 com.starlink.mobile
@@ -790,6 +796,7 @@ com.teslamotors.tesla
 com.theathletic
 com.thefa.fanapp
 com.theinnerhour.b2b
+com.thetileapp.tile
 com.thetrainline
 com.thetransitapp.droid
 com.thomson.mythomson
@@ -835,6 +842,7 @@ com.ubercab
 com.ubercab.eats
 com.udemy.android
 com.ulta
+com.ultrahuman.android
 com.united.mobile.android
 com.usaa.mobile.android.usaa
 com.usebounce
@@ -911,6 +919,7 @@ com.zhiliaoapp.musically
 com.zhiliaoapp.musically.go
 com.zillow.android.zillowmap
 com.zocdoc.android
+com.zoopla.activity
 com.zyhwplatform.shortplay
 com.zzkko
 controllers.marham.marhammed
@@ -1100,6 +1109,7 @@ tunein.player
 tv.pluto.android
 tv.twitch.android.app
 uk.co.bbc.goodfood2
+uk.co.club.costa.costa
 uk.co.dominos.android
 uk.co.ee.myee
 uk.co.hsbc.hsbclife
