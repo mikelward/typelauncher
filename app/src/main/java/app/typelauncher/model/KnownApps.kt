@@ -171,6 +171,8 @@ private val LABEL_PHRASES: List<Pair<String, AppCategory>> = listOf(
     "mental health" to AppCategory.Health,
     "counseling" to AppCategory.Health,
     "anxiety" to AppCategory.Health,
+    // "Bosch Smart Home" (maintainer, 2026-11-24); "smarthome" as one word is a guess stem.
+    "smart home" to AppCategory.Home,
 )
 
 // Brands whose app names say nothing else about them (maintainer,
@@ -746,6 +748,8 @@ private val LABEL_WORDS = listOf(
     "hadith" to AppCategory.Reading,
     "torah" to AppCategory.Reading,
     "bhagavad" to AppCategory.Reading,
+    // "Moneyhub", "Money Manager" (maintainer, 2026-11-24).
+    "money" to AppCategory.Finance,
     "health" to AppCategory.Health,
     "fitness" to AppCategory.Health,
     "gym" to AppCategory.Health,
@@ -933,7 +937,7 @@ private val GUESS_RULES = listOf(
     AppCategory.Games to listOf("game", "games", "solitaire", "sudoku", "mahjong", "chess", "puzzle", "casino", "slots", "poker", "crossword"),
     AppCategory.Weather to listOf("weather", "forecast", "radar"),
     AppCategory.Government to listOf("gov", "government", "council"),
-    AppCategory.Finance to listOf("bank", "banking", "finance", "invest", "trading", "crypto", "wallet", "insurance", "mortgage", "budget"),
+    AppCategory.Finance to listOf("bank", "banking", "money", "finance", "invest", "trading", "crypto", "wallet", "insurance", "mortgage", "budget"),
     AppCategory.Food to listOf("food", "recipe", "pizza", "eats", "takeaway", "grocery", "groceries", "restaurant", "burger", "coffee"),
     AppCategory.Music to listOf("music", "radio", "podcast", "karaoke"),
     AppCategory.Media to listOf("movie", "movies", "stream", "drama", "dramas", "series"),
@@ -1046,7 +1050,8 @@ private val KNOWN_PACKAGES = listOf(
         com.trello com.asana.app com.basecamp.bc3 com.monday.monday
     """,
     AppCategory.Finance to """
-        com.paypal.android.p2pmobile com.venmo com.squareup.cash com.robinhood.android
+        com.paypal.android.p2pmobile com.venmo com.squareup.cash
+        com.squareup com.squareup.apos com.squareup.dashboard com.squareup.invoicesapp com.robinhood.android
         com.coinbase.android com.binance.dev co.uk.getmondo com.revolut.revolut
         com.transferwise.android com.starlingbank.android com.google.android.apps.walletnfcrel
         com.google.android.apps.nbu.paisa.user com.chase.sig.android com.wf.wellsfargomobile
